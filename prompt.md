@@ -1,10 +1,13 @@
+## Phase 1 — dirfm fundamentals (complete)
+
 Build an incremental, heavily-commented Jupyter notebook that tutorials the DIRFM library (a Python wrapper that generates DIRSIG input files and drives DIRSIG runs). Target audience: an engineer who knows Python but has never touched DIRSIG or DIRFM.
 
 ENVIRONMENT
-- DIRFM source/repo: /home/kevin-kearney/dev/dirsig-file-maker (package importable as `dirfm`; core objects re-exported from dirfm/__init__.py: JSIM, DIRSIG, TASKS, SCENE, plus submodules dirfm.atmosphere, dirfm.materials, dirfm.platform_sensor, dirfm.platform_motion, dirfm.object_database, dirfm.glist, dirfm.frames).
-- DIRSIG binaries: /home/kevin-kearney/DIRSIG/dirsig-2026.38.0.a020954-Linux-x86_64/bin (must contain scene2hdf and dirsig5 on PATH for DIRSIG.run() to work — set this via os.environ["PATH"] in the first notebook cell, don't assume the kernel's shell already has it).
-- Write the notebook to demos/tutorial_dirfm_basics.ipynb inside the dirfm repo. Use demos/tutorial_<n>_output and demos/tutorial_<n>_input as the in_root/out_root DIRSIG(...) directories for each stage, mirroring the convention in demos/test_PrimitiveObjects1.py.
-- Reference demos/test_PrimitiveObjects1.py as the canonical minimal working example — read it before writing anything, and don't invent API surface not present in the dirfm source. If a needed class/method isn't obvious from the demos, grep the dirfm package (materials.py, object_database.py, platform_sensor.py, atmosphere.py, platform_motion.py, scene.py, dirsig.py) rather than guessing.
+- Working directory / project root: /home/kevin-kearney/dev/protoDIRSIG. This is the project — all notebooks, outputs, and any supplementary code go here.
+- DIRFM is a read-only library dependency, checked out at /home/kevin-kearney/dev/dirsig-file-maker and installed editable into the protodirsig conda environment (see environment.yml). Never write into this checkout — no notebooks, no output directories, nothing. Only read from it: its source (dirfm/*.py) for API reference, and demos/test_PrimitiveObjects1.py and demos/geometry/*.obj etc. as reference material/assets to read, not to modify.
+- DIRSIG binaries: /home/kevin-kearney/DIRSIG/dirsig-2026.38.0.a020954-Linux-x86_64/bin (must contain scene2hdf and dirsig5 on PATH for DIRSIG.run() to work — set this via os.environ["PATH"] in the first notebook cell, don't assume the kernel's shell already has it; don't hardcode this path if it can instead be read from a DIRSIG_HOME environment variable with a documented fallback).
+- Write the notebook to notebooks/tutorial_dirfm_basics.ipynb inside protoDIRSIG. Use outputs/tutorial_<n>_input and outputs/tutorial_<n>_output (relative to the protoDIRSIG project root) as the in_root/out_root DIRSIG(...) directories for each stage. These are already gitignored.
+- Reference /home/kevin-kearney/dev/dirsig-file-maker/demos/test_PrimitiveObjects1.py as the canonical minimal working example — read it before writing anything, and don't invent API surface not present in the dirfm source. If a needed class/method isn't obvious from the demos, grep the dirfm package (materials.py, object_database.py, platform_sensor.py, atmosphere.py, platform_motion.py, scene.py, dirsig.py) rather than guessing.
 
 STRUCTURE — one stage per section, each section = markdown cell(s) explaining the concept and why it's needed, then a code cell that runs and renders/inspects output before moving to the next stage. Do not front-load explanation of features not yet used. Each stage's code cell should execute successfully (run scene2hdf + dirsig5) before the next stage is written — verify by actually executing the notebook top to bottom, not by inspection alone.
 
@@ -20,12 +23,64 @@ Stage 4 — Platform motion and timing: switch from a single fixed PlatformPosit
 
 Stage 5 — Atmosphere fidelity: swap SimpleRadiativeTransfer for UniformRadiativeTransfer or ClassicRadiativeTransfer, or introduce a weather file path, explaining what changes physically in the render.
 
-Stage 6 — Mesh-based geometry via GLIST: replace or augment the primitives with a Wavefront (.obj) instance from demos/geometry, explaining GLIST vs ObjectDatabase (instancing vs. procedural primitives) and StaticInstance placement/orientation.
+Stage 6 — Mesh-based geometry via GLIST: replace or augment the primitives with a Wavefront (.obj) instance read from the dirfm checkout's demos/geometry (read-only reference asset), explaining GLIST vs ObjectDatabase (instancing vs. procedural primitives) and StaticInstance placement/orientation.
 
-Stage 7 — Wrap-up: multi-scene composition with add_scene offsets, or Bundle usage for reusable assets — pick whichever is more illustrative given what demos/bundles/* already contains — and a closing markdown cell summarizing the full object graph built across the notebook (a short ASCII or prose diagram of DIRSIG → scenes/plugins/mediums → their sub-objects).
+Stage 7 — Wrap-up: multi-scene composition with add_scene offsets, or Bundle usage for reusable assets — pick whichever is more illustrative — and a closing markdown cell summarizing the full object graph built across the notebook (a short ASCII or prose diagram of DIRSIG → scenes/plugins/mediums → their sub-objects).
+
+Stage 8 — Determinism and render-quality knobs (Phase 1 completion): DIRSIG.run() forwards arbitrary keyword arguments as `--key=value` flags to `dirsig5` (see `run()` in `dirsig.py`), and `DIRSIG.set_seed(seed)` adds `--random_seed` to both the `scene2hdf` and `dirsig5` invocations. Demonstrate both, reusing Stage 1's scene/sensor/atmosphere rather than building new ones.
+
+First, determinism: call `set_seed()` with a fixed integer, run the identical configuration twice into two separate output directories, and compare the two resulting radiance images programmatically (e.g. `numpy.allclose` on the ENVI arrays, or a difference image). State plainly, in a markdown cell, whether the comparison shows bitwise-identical or only statistically-similar output — don't assert reproducibility beyond what the comparison actually shows. This is the reproducibility gap named in the MANIFOLD DIRSIG-automation charter (seed capture alone doesn't establish which reproducibility standard is met); this stage is where that gets checked empirically instead of assumed.
+
+Second, render-quality knobs: run the same configuration at two quality settings via `run(convergence=..., max_nodes=...)` — a fast/noisy "preview" setting (e.g. `convergence="3,3,0", max_nodes="1"`) and a slower/cleaner "production" setting (e.g. `convergence="20,100,1e-6", max_nodes="4"`) — display both images side by side and report wall-clock time for each. Explain what convergence's three numbers control; consult the DIRSIG5 reference documentation at https://dirsig.cis.rit.edu/docs/new/ (the Feature Manuals / Usage Guides sections cover the `dirsig5` CLI and its convergence controls) for the authoritative meaning rather than guessing from `dirsig5 --help` alone if that's ambiguous.
+
+Close Stage 8 with a markdown cell stating, in one paragraph, what this establishes for provenance going forward: that a recorded seed plus convergence/max_nodes settings are the minimum fields needed to reproduce a run, and — based on what was actually observed in the determinism comparison above, not asserted in advance — whether that reproduction is bitwise or statistical.
 
 CONSTRAINTS
+- Never write, modify, or delete anything under /home/kevin-kearney/dev/dirsig-file-maker. It is read-only reference material and an editable-installed dependency, not part of this project.
 - Markdown cells should be dense with the "why," not just restate the code — explain what each DIRFM class corresponds to in DIRSIG's file format (e.g., "this becomes the <matfilename> element in the .scene XML") where it clarifies the mapping.
 - Every code cell must actually run in this environment before you move to the next stage — don't write stages 2–7 speculatively without executing stage 1's output first.
-- Keep each stage additive: reuse/extend the previous stage's objects rather than rewriting from scratch, so the diff between stages is visible.
-- After the notebook runs end to end, tell me the git status of the dirfm repo and give me the actual `git add`/`git commit` commands to save it — don't just describe the action, and don't ask me to run intermediate commits per stage since this is prototype/tutorial work.
+- Keep each stage additive: reuse/extend the previous stage's objects rather than rewriting from scratch, so the diff between stages is visible. Stage 8 reuses Stage 1's objects specifically (not Stage 7's composite), since it's isolating seed/convergence behavior, not building on the geometry progression.
+- After the notebook runs end to end, tell me the git status of the protoDIRSIG repo and give me the actual `git add`/`git commit` commands to save it — don't just describe the action, and don't ask me to run intermediate commits per stage since this is prototype/tutorial work.
+
+
+---
+
+## Phase 2 — orbit-to-ground reference demo (StkImport1)
+
+Build a notebook, run via dirfm, that reconstructs the orbit-to-ground portion of DIRSIG's bundled StkImport1 demo: a real LEO satellite (WorldView-2) trajectory, sourced from STK-exported ephemeris/attitude, driving a sensor that images toward Earth.
+
+CONTEXT
+StkImport1 is DIRSIG's only bundled demo of this shape (satellite-to-ground; Ssa1/Ssa2/Ssa3 are satellite-to-satellite, GeoLocation1 isn't orbital). It ships at
+/home/kevin-kearney/DIRSIG/dirsig-2026.38.0.a020954-Linux-x86_64/demos/zips/StkImport1.zip
+— unzip it into a scratch location to read (never write into the DIRSIG install directory itself). Read StkImport1/README.txt in full before writing anything; it documents the STK import mechanism and the scene-less EarthGrid setup this demo actually uses.
+
+CAPABILITY CHECK — DO THIS FIRST, DON'T ASSUME EITHER ANSWER
+1. Does dirfm expose DIRSIG's EarthGrid plugin? Grep the dirfm package (atmosphere.py, object_database.py, glist.py, scene.py, and anywhere else plausible) for "EarthGrid" or "grid". Report what you find before proceeding.
+2. Does dirfm's FlexMotion wrap STK .e/.a ingestion directly, or only generic waypoint/quaternion entries? Check flexible_motion.py's WaypointsLocationEngine and the orientation engines for anything STK-specific (an import path, a file-format argument) versus plain numeric (time, position) / (time, quaternion) tuples.
+
+Do not guess at either answer or invent API surface to paper over a gap. If dirfm doesn't wrap STK import, write a small, explicit ephemeris parser (a `.e` file is STK's plain-text ephemeris report format — read a few lines to confirm the structure, don't assume a schema) that extracts (time, ECEF or ECI position) samples from StkImport1/WORLDVIEW-2_35946.e and (time, quaternion or Euler) from StkImport1/WORLDVIEW-2_35946.a, then feeds those samples into dirfm's WaypointsLocationEngine / the matching orientation engine as plain numeric entries. Note explicitly in a markdown cell whether the source ephemeris is ECI or ECEF and, if ECI, that Earth rotation must be accounted for before feeding positions into an ECEF-based engine (DIRSIG's own motion model is ECEF-referenced per the DIRS motion/temporal documentation) — get this wrong and the trajectory will be silently incorrect, not just imprecise.
+
+If dirfm has no EarthGrid wrapper (the likely outcome), don't attempt to reproduce the scene-less setup. Substitute a conventional SCENE with an ObjectDatabase GroundPlane (or a real-ish ground material, following the Stage 1/2 pattern from tutorial_dirfm_basics.ipynb) as the imaging target, and say explicitly in a markdown cell that this is a deliberate substitution for a plugin dirfm doesn't expose — not a faithful reproduction of DIRSIG's own EarthGrid-based Earth backdrop. The educational content preserved is the real orbital motion driving a ground-imaging pass; the literal Earth-globe rendering is not in scope for this stage.
+
+ENVIRONMENT
+- Working directory / project root: /home/kevin-kearney/dev/protoDIRSIG.
+- dirfm is read-only, checked out at /home/kevin-kearney/dev/dirsig-file-maker, installed editable. Never write into it.
+- DIRSIG binaries: /home/kevin-kearney/DIRSIG/dirsig-2026.38.0.a020954-Linux-x86_64/bin, PATH set explicitly in the notebook per the existing tutorial_dirfm_basics.ipynb convention (DIRSIG_HOME env var with a documented fallback).
+- Write the notebook to notebooks/tutorial_orbit_to_ground.ipynb. Use outputs/orbit_to_ground_input and outputs/orbit_to_ground_output (already covered by the outputs/ gitignore pattern).
+- Extract StkImport1.zip to a scratch subdirectory under outputs/ (e.g. outputs/_stkimport1_reference/) for reading its README/.e/.a files — this is reference material read once at the top of the notebook, not a build target; treat it the same as the dirfm demos/ directory (read-only reference, never a place other stages write to).
+
+STRUCTURE
+Follow the same convention as tutorial_dirfm_basics.ipynb: markdown cell explaining the concept and why it's needed, then a code cell, each stage additive and actually executed before the next is written.
+
+Stage 0 — Orientation and capability check: the two questions above, answered from the source, before any dirfm objects are built.
+
+Stage 1 — Trajectory reconstruction: parse (or import, if dirfm supports it) the WorldView-2 ephemeris/attitude into a FlexMotion location + orientation engine pair. Plot the parsed trajectory (position vs. time, or ground track if you have lat/lon) before wiring it into a scene, as a sanity check independent of DIRSIG — catching a parsing error here is cheaper than debugging it through a failed render.
+
+Stage 2 — Minimal ground scene and sensor: build the substitute SCENE (or the real EarthGrid setup, if Stage 0 found it's supported) plus a sensor sized for a recognizable single-frame image, reusing the Stage-1-style sensor tree from tutorial_dirfm_basics.ipynb rather than reinventing it. Set TASKS to a window matching the real 2-minute WorldView-2 pass window from the STK data (21 May 2012 16:36 UTC per StkImport1's README), or a stated subset of it.
+
+Stage 3 — Render and compare: run it, display the output, and write a closing markdown cell comparing what was actually reconstructed against the original StkImport1 demo — what's faithful (real orbital dynamics, real pass timing), what's substituted (ground representation), and what that implies for using dirfm on genuinely orbital MANIFOLD scenarios versus the airborne/terrestrial scenarios tutorial_dirfm_basics.ipynb already covers.
+
+CONSTRAINTS
+- Never write, modify, or delete anything under /home/kevin-kearney/dev/dirsig-file-maker or the DIRSIG install directory.
+- Don't invent dirfm API surface — if something needed isn't in the source, that's a finding to report (per Stage 0), not a gap to silently code around with a guess.
+- After the notebook runs end to end, report protoDIRSIG's git status and give the actual git add/git commit commands — don't just describe the action.
