@@ -1,0 +1,24 @@
+# Conda environment for protoDIRSIG.
+# dirfm is not on PyPI/conda-forge; install it editable from the sibling
+# checkout after creating this environment:
+#   conda env create -f environment.yml
+#   conda activate protodirsig
+#   pip install -e /home/kevin-kearney/dev/dirsig-file-maker
+#   pip install -e .
+name: protodirsig
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - numpy
+  - scipy
+  - lxml
+  - h5py
+  - matplotlib
+  - jupyter
+  - pip
+  - pip:
+      - spectral
+      - imageio
+      - pygltflib
+      - ruff
