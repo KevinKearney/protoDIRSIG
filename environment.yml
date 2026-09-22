@@ -15,6 +15,7 @@ dependencies:
   - lxml
   - h5py
   - matplotlib
+  - skyfield      # SGP4 (via sgp4) + TEME->ITRS frame chain for TLE propagation
   - jupyter
   - pip
   - pip:
