@@ -84,3 +84,96 @@ CONSTRAINTS
 - Never write, modify, or delete anything under /home/kevin-kearney/dev/dirsig-file-maker or the DIRSIG install directory.
 - Don't invent dirfm API surface — if something needed isn't in the source, that's a finding to report (per Stage 0), not a gap to silently code around with a guess.
 - After the notebook runs end to end, report protoDIRSIG's git status and give the actual git add/git commit commands — don't just describe the action.
+
+
+---
+
+## Phase 3 — Tacoma scene render from a LEO detector (minimum viable)
+
+Build the simplest notebook that renders the bundled Tacoma demo scene as seen by a sensor
+on a real LEO trajectory. This is a minimum-approach notebook, not a progressive tutorial:
+fewer stages than Phase 1/2, heavy on markdown explaining *why* each piece is there, thin on
+new mechanism — everything needed here was already built and verified in Phase 1 (sensor
+tree) and Phase 2 (TLE/SGP4 trajectory, up-vector verification), and should be reused, not
+re-derived. The one genuinely new piece is referencing an existing scene instead of building
+one from dirfm's geometry classes; that mechanism is already found and written up in
+FINDINGS.md ("Referencing a pre-existing scene") — read that section before writing any code.
+
+CONTEXT
+The Tacoma demo scene ships with this DIRSIG install at
+/home/kevin-kearney/DIRSIG/dirsig-2026.38.0.a020954-Linux-x86_64/Tacoma-08-Apr-2022/Tacoma/
+(`tacoma.scene`, `terrain.odb`, `tacoma.odb`, `materials/tacoma.mat`, plus `state1.scene`/
+`state2.scene` variants — use the base `tacoma.scene`, not the state variants, unless there's
+a reason to prefer one). It declares its own geodetic origin internally (47.27°N, 122.41°W,
+0 m altitude — Port of Tacoma, WA) and its own material database; nothing about it needs to
+be reconstructed. Treat it exactly like the DIRSIG install and the dirfm checkout: read-only
+reference material, never written to or copied into protoDIRSIG.
+
+MECHANISM — the scene reference
+dirfm's `SCENE.write()` short-circuits and returns `self._fname` immediately if it's already
+set, bypassing all of `SCENE`'s own geometry/material serialization. Use this directly:
+
+```python
+tacoma_scene = SCENE("tacoma")
+tacoma_scene._fname = Path("/home/kevin-kearney/DIRSIG/dirsig-2026.38.0.a020954-Linux-x86_64/"
+                            "Tacoma-08-Apr-2022/Tacoma/tacoma.scene")
+dirsig.add_scene(tacoma_scene, offset=[0, 0, 0])
+```
+
+State this plainly in a markdown cell as what it is: a private attribute assignment against
+an escape hatch dirfm's own `write()` method provides, not a documented public API. Note the
+one known side effect: `DIRSIG.write_files()` will also call `_check_coverage()` on this bare
+`SCENE`, which only knows about its default dummy material, not Tacoma's real
+`materials/tacoma.mat`. That call is non-fatal (wrapped in try/except upstream) but tells you
+nothing about whether Tacoma's real materials cover the sensor's requested band — check
+`tacoma.mat` by hand (or just proceed with a "vis" band, which Tacoma's own
+`<properties features="vis,nir" .../>` declares support for) rather than trust dirfm's check
+here.
+
+STRUCTURE — three stages, each additive, each actually executed before the next is written
+
+Stage 0 — Orientation: what's new here (referencing an existing scene) versus what's reused
+(sensor tree from Phase 1, TLE/SGP4/up-vector methodology from Phase 2) — a short markdown
+cell, not a restatement of either prior notebook. Load the Tacoma scene reference per the
+mechanism above and confirm the referenced path exists before proceeding.
+
+Stage 1 — Trajectory over Tacoma: reuse Phase 2's TLE-fetch-and-propagate approach (skyfield,
+TEME→ITRS, the same correctness checks already validated there — don't re-derive or
+re-justify them, cite FINDINGS.md and move on) but select a pass over Tacoma's coordinates
+(47.27°N, 122.41°W) instead of Rochester. Any currently-active LEO imaging-class satellite's
+TLE is fine — reuse WorldView-2 for continuity with Phase 2 unless a cleaner pass geometry is
+easy to find with another satellite. Compute the up-vector the same verified way (per-pass
+angle-to-boresight and roll-vs-velocity-up checks, not copied from Phase 2's numeric result,
+which was specific to a different ground track and target). Plot the ground track and confirm
+the selected pass actually brings the satellite over Tacoma before wiring anything into
+dirfm.
+
+Stage 2 — Assemble, run, render: `add_scene()` the Tacoma reference from Stage 0, reuse the
+Phase 1 sensor tree pattern sized for a single recognizable frame, drive it with Stage 1's
+motion, set a minimal `BasicAtmospherePlugin`/`SimpleRadiativeTransfer` (per Phase 1's Stage
+1 pattern — this notebook isn't the place to explore atmosphere fidelity), and a `TASKS`
+window matching the pass. Run it, display the resulting image, and close with a short
+markdown cell stating what the image actually shows (does the Tacoma geometry appear where
+the boresight-intercept calculation predicts it should — a truth-image center check, the same
+kind used to characterize the `GROUND_PLANE` finding in FINDINGS.md) rather than asserting
+success without checking.
+
+CONSTRAINTS
+- Never write, modify, or delete anything under the DIRSIG install directory, the Tacoma
+  scene directory specifically, or the dirfm checkout.
+- Don't re-implement or re-verify what Phase 1/2 already built and checked — import or copy
+  the relevant helper code (TLE fetch/propagation, up-vector check, sensor tree construction)
+  rather than writing parallel versions in this notebook. If the existing code isn't factored
+  for reuse, factor out the minimum needed (e.g. a small shared module under a sensible
+  location in protoDIRSIG) rather than duplicating it inline — use judgment on how much
+  refactor is worth it against how minimal this notebook is supposed to be.
+- Write the notebook to notebooks/tutorial_tacoma_scene.ipynb. Use
+  outputs/tacoma_scene_input and outputs/tacoma_scene_output as the in_root/out_root.
+- If Tacoma's real material coverage turns out not to support the band actually requested,
+  that's a finding to report, not something to silently narrow the sensor around without
+  saying so.
+- After the notebook runs end to end, append a new dated entry to FINDINGS.md if anything
+  unexpected turns up (e.g., the coverage check's actual behavior against a real material
+  database, or anything about the `_fname` mechanism not already captured there) — don't let
+  it live only in this conversation. Report protoDIRSIG's git status and give the actual
+  `git add`/`git commit` commands; don't just describe the action.
