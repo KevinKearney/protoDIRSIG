@@ -177,3 +177,100 @@ CONSTRAINTS
   database, or anything about the `_fname` mechanism not already captured there) — don't let
   it live only in this conversation. Report protoDIRSIG's git status and give the actual
   `git add`/`git commit` commands; don't just describe the action.
+
+
+---
+
+## Phase 4 — close out the three items flagged from Phase 3's findings
+
+Three follow-ups from the Phase 3 review, in priority order. Do them in order; each is
+independent of the others and should be its own commit. Read FINDINGS.md's Phase 3 section
+in full before starting — don't re-derive context already written there.
+
+### 4a — Cross-check the skyfield trajectory against DIRSIG's own SGP4 engine
+
+Every correctness claim about the TLE/SGP4/frame-conversion pipeline in `orbit.py` so far
+rests on checks internal to that pipeline (GMST comparison, Z-invariance, sidereal rate) —
+never against an independent propagation of the same TLE. DIRSIG has its own SGP4 location
+engine (found in Tacoma's `shots/oct17/skysat1-oct17.motion`:
+`<locationengine type="sgp4"><data source="internal"><tle1>…</tle1><tle2>…</tle2>`), which
+dirfm does not wrap but which can be driven directly by hand-writing that one `<motion>`
+block (or by using dirfm's `JSIM`/raw XML writing where it's more direct than fighting
+`FlexMotion`'s Python wrapper to emit XML it wasn't designed to emit — use judgment on
+whichever is less code for a single-purpose comparison).
+
+Render the same WorldView-2-over-Tacoma pass from `tutorial_tacoma_scene.ipynb` twice:
+once exactly as that notebook already does (skyfield TEME→ITRS waypoints), once driving the
+identical geometry (same TLE, same epoch, same pass window) through DIRSIG's native
+`sgp4` location engine instead. Keep everything else — scene reference, sensor, atmosphere,
+task window — identical between the two runs, so any difference in the resulting images is
+attributable to the trajectory source, not to some other varying input.
+
+Compare the two truth images quantitatively (pixel-wise boresight-intercept position, not
+just a visual diff) and state the result plainly: either this confirms the skyfield pipeline
+independently, in which case say so and cite the specific numbers, or it reveals a
+discrepancy, in which case that's the more important finding, and the two candidate causes
+to check first are DIRSIG's SGP4 implementation details (which TLE epoch convention, which
+gravity model — check `docs/new/` for whatever DIRSIG's SGP4 documentation says) and any
+frame-convention mismatch between the two paths' motion inputs (ECEF vs. whatever DIRSIG's
+native engine expects internally — don't assume it's ECEF just because ours is). Add this
+result as a new dated FINDINGS.md entry; don't leave it as chat output only. A new notebook
+isn't required for this — a short script or a scratch cell block is fine, since this is a
+one-off verification, not a tutorial artifact — but the comparison method and result belong
+in FINDINGS.md regardless of where the code lives.
+
+### 4b — Make the vacuous-coverage-check finding load-bearing, not just documented
+
+FINDINGS.md's Phase 3 section already establishes that `SCENE._check_coverage()` on a
+`_fname`-referenced scene passes silently regardless of actual material coverage, because the
+bare `SCENE`'s only material is dirfm's placeholder `Dummy`. Tacoma's own coverage happened to
+be fine because it was checked by hand against `tacoma.mat`. That manual check needs to
+become a repeatable, checked step, not a one-time exercise repeated from memory each time this
+mechanism is used.
+
+Write a small helper in `src/protodirsig/` (co-locate with `orbit.py`/`sensors.py`, name it
+for what it does — e.g. a `scene_coverage` module or function) that parses a scene's real
+material database (`.mat` file referenced by the `.scene` XML's `<matfilename>`) and reports
+the wavelength range each material actually covers, so a `_fname`-referenced scene's coverage
+can be checked programmatically against a requested band rather than by hand-reading the
+`.mat` file's XML. It doesn't need to be a general DIRSIG material parser — just enough to
+answer "does this scene's real materials cover band [a, b]" for the cases this project
+actually uses. Add a short test (following `tests/test_orbit.py`'s pattern) that runs it
+against Tacoma's real `materials/tacoma.mat` and asserts the known-good result (covers
+0.40–0.78 µm per the existing finding) so a future scene reference has something to compare
+against besides re-reading XML by hand. Wire `tutorial_tacoma_scene.ipynb`'s existing
+band-coverage markdown/code cell to call this helper instead of (or in addition to,
+your judgment) the manual narrative that's there now.
+
+### 4c — Investigate the z ≈ −0.1 m off-mesh surface
+
+FINDINGS.md flags this as "not investigated further," but it's a bigger risk than it might
+look: an untraced backdrop with no documented source can produce a plausible-looking image
+with wrong radiometry, silently, which is a worse failure mode than an obvious rendering
+error. Before the Tacoma scene is used for anything beyond a boresight-geometry demo, narrow
+down what that surface actually is.
+
+Starting points: check whether `scene2hdf`'s verbose/debug output (or `asset_report.txt`,
+already produced by every render) names an implicit ground or bounding geometry; check
+DIRSIG's `docs/new/` for any documented default/fallback surface behavior when a ray misses
+all declared geometry (search terms: "miss", "background", "default surface", "bounding");
+check whether the z-value is exactly one of Tacoma's declared origin/anchor altitudes
+(coincidence would suggest it's related to scene-level georeferencing, not a stray object);
+and check the two other Tacoma scene variants (`state1.scene`, `state2.scene`) for whether
+the same surface appears there too (if it's scene-file-independent, that points toward a
+`scene2hdf`/`dirsig5` binary default rather than something in `tacoma.scene` itself).
+
+Report findings even if inconclusive — if the cause can't be pinned down with reasonable
+effort, say so explicitly in FINDINGS.md along with what was ruled out, rather than leaving
+the entry exactly as it stands now. Don't spend disproportionate time here relative to 4a/4b;
+this is a "narrow it down," not "solve it definitively," task.
+
+CONSTRAINTS
+- Same as Phase 3: never write, modify, or delete anything under the DIRSIG install
+  directory or the dirfm checkout. If 4a's DIRSIG-native-SGP4 render needs its own scene
+  reference, reuse the same copy-XML-plus-symlink-assets pattern already built for Tacoma in
+  Phase 3, and reuse the fingerprint guard already written for
+  `tutorial_tacoma_scene.ipynb` rather than writing a parallel one.
+- Report git status and give the actual `git add`/`git commit` commands after each of 4a,
+  4b, 4c — three separate commits, not one, since they're independent pieces of work and
+  Kevin may want to review them separately.
