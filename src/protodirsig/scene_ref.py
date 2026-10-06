@@ -34,6 +34,17 @@ def reference_scene(scene_file, ref_dir, asset_dirs=ASSET_DIRS):
     return copy
 
 
+def copy_input(src, dst):
+    """Copy one received input file (platform, motion, tasks, weather, atmosphere database) to
+    `dst`, asserted byte-identical. Returns `dst`. Used so a job references its own copy, never
+    the read-only original."""
+    src, dst = Path(src), Path(dst)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(src, dst)
+    assert filecmp.cmp(src, dst, shallow=False)
+    return dst
+
+
 def fingerprint(root):
     """(relative path, size, mtime_ns, mode) for `root` and everything under it, sorted.
 

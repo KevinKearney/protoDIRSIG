@@ -359,12 +359,14 @@ first.
 
 ## 2026-10-06 — Phase 5: the received AUROR_ref run tree, re-run from a static pose
 
-`notebooks/tutorial_auror_scene.ipynb` re-runs `AUROR_ref/` (received, gitignored; built on
+`notebooks/dev/auror_scene_buildup.ipynb` (the discovery log; the tutorial is
+`notebooks/tutorial_auror_scene.ipynb`) re-runs `AUROR_ref/` (received, gitignored; built on
 Windows with DIRSIG/scene2hdf `2025.51 (822ab24)`) on this install (`2026.38 (a020954)`) and
 compares it with the shipped `jsims/AurorNIROutput.img` + `truth1.img`. `AUROR_ref/` is
 fingerprinted (68 paths) around every render and is unchanged. **Note:** the phase prompt said
 this file already assessed AUROR_ref's contents. It did not (no prior mention of AUROR or
-Tahoe), so the assessment below is new, read from the tree's files in the notebook's Stage 0.
+Tahoe), so the assessment below is new, read from the tree's files in the discovery log's
+Stage 0.
 
 **`NewAtmospherePlugin` is not usable as dirfm ships it: a gap, not "fully wrapped".**
 The interface is as expected (`NewAtmospherePlugin(fname)` takes an existing database path;
@@ -376,7 +378,8 @@ creates `_info` or `_backend`. So `set_profile`, `set_atmospheric_model`,
 `set_boundary_aerosol_model`, `set_multiple_scattering`, `set_info`, `set_backend` and
 `get_plugin_inputs()` all fail. Separately, `set_multiple_scattering` asserts the model is in
 `["None", "Isacc", "Distort"]`. `"Isacc"` is a typo: DIRSIG's `docs/atm_backends.html` and the
-AUROR jsim both spell it `"Isaac"`, which is rejected. The notebook's workaround lives in
+AUROR jsim both spell it `"Isaac"`, which is rejected (and `"Distort"` is likewise a typo for
+DIRSIG's `"Disort"`). The workaround lives in
 protoDIRSIG, with dirfm untouched. Two subclasses pre-declare those attributes in `__init__`,
 before the freeze, after which dirfm's own setters work; `"Isaac"` is assigned to
 `_multiple_scattering` in exactly the shape the setter would store. `ModtranTapeBackend` also
@@ -384,7 +387,11 @@ has no way to emit `extract_profile` (DIRSIG default false, so omitting it is eq
 `docs/newatm_plugin.html`, the backend block is `atm_builder`'s recipe for *building* the
 database; with an existing HDF it is not what the render uses. Upstream fix (for whoever
 maintains dirfm): initialise those six attributes to `None` in the two `__init__`s, and correct
-`"Isacc"`.
+`"Isacc"`/`"Distort"`. *Factored out (later the same day):* `src/protodirsig/atmosphere_patches.py`
+(`PatchedModtranTapeBackend`, whose `set_multiple_scattering` validates against DIRSIG's
+`None`/`Isaac`/`Disort`, and `PatchedNewAtmospherePlugin`), pinned by
+`tests/test_atmosphere_patches.py`, which also asserts the unpatched setter still fails, so it
+flags an upstream fix.
 
 **Other dirfm gaps met here.** `SPICEPlugin` requires three kernel paths, so the jsim's
 `SpiceEphemeris` with `inputs: {}` needs a two-line `EphemerisPlugin` subclass.
@@ -394,7 +401,8 @@ way to reference existing files. A bare `Plugin` subclass for `BasicPlatform` (t
 `write_files()` locates the platform by `isinstance(p, PlatformSensorPlugin)` and assumes one
 exists. The working shape is a `PlatformSensorPlugin` subclass with no attachments, a no-op
 `prepare()`, and its own `get_plugin_inputs()`. With no attachments, dirfm's coverage loop does
-not run.
+not run. *Factored out:* `src/protodirsig/platform_ref.py` (`PlatformFilesPlugin`,
+`SpiceEphemerisPlugin`), plus `scene_ref.copy_input` for byte-identical input copies.
 
 **`scene_coverage.py` did not see `geometrylistinclude`-contributed materials: extended.**
 It read only `<matfilename>`, so on `tahoe.scene` it returned `covers(0.41, 2.0) == True` for
@@ -477,10 +485,13 @@ AUROR_ref as a detection reference.
   executed, and committed (TLE/SGP4 trajectory, dropped the original STK-import approach —
   see `prompt.md` for the full rationale; Stage 2 works around the `GROUND_PLANE` extent with
   a tiled ground). Stage 3 (final render + comparison) not yet written.
-- `notebooks/tutorial_auror_scene.ipynb` — Phase 5, complete. 3 stages, executed end to end:
-  the received AUROR_ref tree re-run from its single static pose, with dirfm gaps bridged by
-  subclasses, a fresh 2026.38 compile, and a comparison against the shipped 2025.51 render with
-  a same-version repeat as the baseline.
+- `notebooks/tutorial_auror_scene.ipynb` — Phase 5, complete. Tutorial, 3 stages, executed end
+  to end: AUROR_ref's configuration driven through dirfm via `scene_ref`, `scene_coverage`,
+  `platform_ref` and `atmosphere_patches`, rendered on this install, image and geolocation
+  truth displayed.
+- `notebooks/dev/auror_scene_buildup.ipynb` — Phase 5 discovery log (not a tutorial): how the
+  dirfm gaps were found and bridged, and the comparison against the shipped 2025.51 render with
+  a same-version repeat as the baseline. Kept as executed; it predates the `src/` helpers.
 - `notebooks/tutorial_tacoma_scene.ipynb` — Phase 3, complete. 3 stages, executed end to end:
   Tacoma referenced via `_fname`, WorldView-2 pass over Tacoma, render + truth-centre check.
   Reuses `src/protodirsig/` (`orbit.py` from Phase 2, `sensors.py` from Phase 1, and since
