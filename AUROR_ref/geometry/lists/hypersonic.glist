@@ -1,0 +1,23 @@
+<geometrylist>
+  <object enabled="true">
+    <basegeometry>
+      <glist>
+        <filename>bundles/hypersonic/hypersonic.glist</filename>
+      </glist>
+    </basegeometry>
+    <dynamicinstance name="::IMPORTANT::">
+        <motion type="flexible">
+        <locationengine type="straight">
+            <heading>90</heading>
+            <velocity>100</velocity>
+            <start frame="scene">
+            <x>-400.0</x><y>400.0</y><z>50000.0</z>
+            </start>
+        </locationengine>
+        <orientationengine type="velocity">
+            <constraint type="constant" frame="scene" vector="0,0,1"/>
+        </orientationengine>
+        </motion>
+    </dynamicinstance>
+  </object>
+</geometrylist>
