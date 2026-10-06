@@ -357,6 +357,119 @@ mesh edge** remains. Anything radiometric across that edge (water statistics, co
 against the port) should use only in-mesh pixels, or the discrepancy should be characterised
 first.
 
+## 2026-10-06 — Phase 5: the received AUROR_ref run tree, re-run from a static pose
+
+`notebooks/tutorial_auror_scene.ipynb` re-runs `AUROR_ref/` (received, gitignored; built on
+Windows with DIRSIG/scene2hdf `2025.51 (822ab24)`) on this install (`2026.38 (a020954)`) and
+compares it with the shipped `jsims/AurorNIROutput.img` + `truth1.img`. `AUROR_ref/` is
+fingerprinted (68 paths) around every render and is unchanged. **Note:** the phase prompt said
+this file already assessed AUROR_ref's contents. It did not (no prior mention of AUROR or
+Tahoe), so the assessment below is new, read from the tree's files in the notebook's Stage 0.
+
+**`NewAtmospherePlugin` is not usable as dirfm ships it: a gap, not "fully wrapped".**
+The interface is as expected (`NewAtmospherePlugin(fname)` takes an existing database path;
+`get_plugin_inputs()` → `info`/`backend`/`hdf_filename`). But every setter on it and on
+`ModtranTapeBackend` raises `AttributeError`, because `_FrozenAttrs` forbids new attributes
+after `__init__`. `ModtranTapeBackend.__init__` never creates `_profile`, `_atmo_model`,
+`_multiple_scattering` or `_boudary_aerosol_model`, and `NewAtmospherePlugin.__init__` never
+creates `_info` or `_backend`. So `set_profile`, `set_atmospheric_model`,
+`set_boundary_aerosol_model`, `set_multiple_scattering`, `set_info`, `set_backend` and
+`get_plugin_inputs()` all fail. Separately, `set_multiple_scattering` asserts the model is in
+`["None", "Isacc", "Distort"]`. `"Isacc"` is a typo: DIRSIG's `docs/atm_backends.html` and the
+AUROR jsim both spell it `"Isaac"`, which is rejected. The notebook's workaround lives in
+protoDIRSIG, with dirfm untouched. Two subclasses pre-declare those attributes in `__init__`,
+before the freeze, after which dirfm's own setters work; `"Isaac"` is assigned to
+`_multiple_scattering` in exactly the shape the setter would store. `ModtranTapeBackend` also
+has no way to emit `extract_profile` (DIRSIG default false, so omitting it is equivalent). Per
+`docs/newatm_plugin.html`, the backend block is `atm_builder`'s recipe for *building* the
+database; with an existing HDF it is not what the render uses. Upstream fix (for whoever
+maintains dirfm): initialise those six attributes to `None` in the two `__init__`s, and correct
+`"Isacc"`.
+
+**Other dirfm gaps met here.** `SPICEPlugin` requires three kernel paths, so the jsim's
+`SpiceEphemeris` with `inputs: {}` needs a two-line `EphemerisPlugin` subclass.
+`PlatformSensorPlugin.prepare()` always regenerates platform/motion/tasks XML, so there is no
+way to reference existing files. A bare `Plugin` subclass for `BasicPlatform` (the plan's fix)
+**fails** in `DIRSIG.write_files()` with `UnboundLocalError: platform_plugin_idx`:
+`write_files()` locates the platform by `isinstance(p, PlatformSensorPlugin)` and assumes one
+exists. The working shape is a `PlatformSensorPlugin` subclass with no attachments, a no-op
+`prepare()`, and its own `get_plugin_inputs()`. With no attachments, dirfm's coverage loop does
+not run.
+
+**`scene_coverage.py` did not see `geometrylistinclude`-contributed materials: extended.**
+It read only `<matfilename>`, so on `tahoe.scene` it returned `covers(0.41, 2.0) == True` for
+10 materials without ever seeing `Gidder_mat`, the vehicle's material, which lives in the
+bundle `geometry/bundles/hypersonic/hypersonic.mat` and is reached via `lists/hypersonic.glist`.
+That is a fail-open result from a helper built to fail closed. **Tacoma had the same blind
+spot.** `targets.glist` brings in `tribar` and `helicopter` bundles (6 local materials). They
+are all inline Ward (wavelength-independent), so Phase 4b's Tacoma verdicts stand, but by luck.
+The helper now follows enabled `.glist` includes recursively through `<basegeometry><glist>`
+to every `<localmaterials>`, honouring `search_paths="local"`. It also understands
+`SimpleReflectance`/`TXT_FILENAME` and resolves `MATERIAL_MAP` LUT proxies (Tacoma's
+`TriBarTarget`) to their targets, and it skips disabled texture maps. Missing includes, bundle
+glists or `.mat` files become unknown materials, so the helper stays fail-closed.
+`tests/test_scene_coverage.py` pins Tacoma (42 scene + 6 bundle materials, same spans and
+verdicts), AUROR (`Gidder_mat` from `hypersonic.mat`, 0.40–3.0 µm, covers 0.41–2.0) and three
+synthetic fail-closed cases. `pytest` is not installed in the `protodirsig` env (it is a `dev`
+extra), so the tests were run by calling the test functions directly; all 7 pass.
+
+**What the tree is (read from its files).** One surviving jsim, wiring
+`AurorNIRDetector.platform` (500 × 500, 10 µm pitch, f = 306 mm, one Gaussian channel at
+0.85 µm, σ 0.0637 µm, in a 0.41–2.0 µm bandpass; output `AurorNIROutput`; truth `Collection 1`
+→ `truth1` with `GeoLocation`; the other 10 truth collections are empty). Five of its six paths
+are absolute Windows paths; `hdf_filename` is relative (`"AurorNewAtmosphere"`, beside the
+jsim), not a Windows path as the plan said. `tahoe.scene` has
+`features="vis,nir,swir,sources,exoatm"`, both maps disabled, terrain all material 1 (`gray.ems`),
+plus a ~2 m bundle vehicle (`Gidder_mat`: reflectance 0, `DataDriven` 1500 K) on a `straight`
+dynamic instance starting at scene (−400, 400, 50 000). Motion is **one static pose**: (−400,
+400, 550 000) in `sceneenu`, Euler (0, 0, π), i.e. 500 km directly above the vehicle. The tasks
+reference `2009-07-27T11:29:32-08:00` is 17 years stale and uses PST for a July date.
+**The atmosphere database was built for a different site**: its HDF origin is 43.12° N,
+−78.45° E, 250 m (western NY), and its stored sun (zenith 36.24°, azimuth 238.56°) matches that
+site at the task time (skyfield: 36.27°/238.63°), not Tahoe (21.50°/155.52°). The original run
+used the same file, so the comparison is like for like, but the absolute radiometry is not Tahoe's.
+
+**Version-compile outcome.** The scene was recompiled fresh by `scene2hdf 2026.38 (a020954)`
+into `outputs/auror_scene_input/auror_ref/`. The shipped `tahoe.scene.hdf` was not used. Both
+are 25.67 MB. Byte comparison is meaningless: two compiles by *this* install already hash
+differently. The generated jsim matches the original except for the six path rewrites (each to
+a byte-identical copy), `extract_profile` (omitted; default false), `multiple_scattering.parameters:
+{}` (added; DIRSIG's own example has it) and `offset: "0,0,0"` (dirfm always writes one).
+`dirsig5` warns that materials 11–19 are unused (consistent with the disabled map), that the
+scene is >10 km across, and that every curve starting at 0.40 µm is "insufficient" for its
+internal 0.35–2.55 µm grid (outside the channel's response).
+
+**Comparison result: 2026.38 vs 2025.51.**
+Headers identical except the generator string; corner geo-points within 2.2 m.
+Geometry: both frame centres hit within 0.5 m of scene (−400, 400), directly under the sensor.
+Per-pixel ECEF hits differ from the reference by 1.3 m median (p99 3.4 m, ≈ 0.07 px), with an
+ENU mean of ~1 mm, so this is scatter, not a shift. An unseeded **same-version repeat** render
+(`outputs/auror_scene_repeat_output/`) is the baseline: 91 % of truth pixels are bit-identical to
+ours, against 1 % for the reference. So the version change altered where in each pixel the
+recorded ray lands; within a version that is reproducible. Radiometry: image means agree to
+<0.01 %, median per-pixel ratio 1.0001. Per pixel, ours vs the reference differ by 2.9 % median
+(r = 0.86), while the same-version repeat differs by 0.001 % median (p99 0.04 %, r = 0.9999). So
+the cross-version scatter is a different Monte Carlo realisation, not run-to-run variation. It
+behaves like one: its spread (0.045) is no more than two independent ~4 % noise fields give, its
+8-px-smoothed std (0.0016) equals the white-noise expectation, and the smoothed images correlate
+at r = 0.9997. **No systematic radiometric or geometric change between 2025.51 and 2026.38 is
+detectable.** Side result: two unseeded runs on one install agree to ~4 × 10⁻⁴, the same order
+as Phase 4a's 3.6 × 10⁻⁴.
+
+**Unexplained, and identical in both versions: the vehicle is not in the image.**
+A 1500 K blackbody (`Gidder_mat`, emissivity 1) is ~207× the
+direct-sun ground radiance in the 0.85 µm channel (computed from the atmosphere database's own
+irradiance and transmission). With a 0.63 m² top-down silhouette (0.24 % of a 16.3 m pixel), it
+should add about +49 % to the 2×2 block at the boresight (which passes through that block's
+shared corner). Both renders show a *negative* summed excess there (−3 % ours, −7 % reference),
+about 6σ below expectation, and the brightest pixel in either frame is noise at an unrelated
+location. Not investigated, because that means altering the received scene. Candidates: the
+`straight` dynamic instance's time base placing the vehicle elsewhere at task time 0 (100 m/s
+clears the ~8 km field in ~40 s); emission not evaluated for this material in these bands
+(`DataDriven` temperature, or `features` listing no thermal band); bundle placement. Since both
+versions agree, it is a property of the received configuration. Resolve it before using
+AUROR_ref as a detection reference.
+
 ## Notebooks (status)
 
 - `notebooks/tutorial_dirfm_basics.ipynb` — Phase 1, complete. 8 stages, executed end to end.
@@ -364,6 +477,10 @@ first.
   executed, and committed (TLE/SGP4 trajectory, dropped the original STK-import approach —
   see `prompt.md` for the full rationale; Stage 2 works around the `GROUND_PLANE` extent with
   a tiled ground). Stage 3 (final render + comparison) not yet written.
+- `notebooks/tutorial_auror_scene.ipynb` — Phase 5, complete. 3 stages, executed end to end:
+  the received AUROR_ref tree re-run from its single static pose, with dirfm gaps bridged by
+  subclasses, a fresh 2026.38 compile, and a comparison against the shipped 2025.51 render with
+  a same-version repeat as the baseline.
 - `notebooks/tutorial_tacoma_scene.ipynb` — Phase 3, complete. 3 stages, executed end to end:
   Tacoma referenced via `_fname`, WorldView-2 pass over Tacoma, render + truth-centre check.
   Reuses `src/protodirsig/` (`orbit.py` from Phase 2, `sensors.py` from Phase 1, and since
