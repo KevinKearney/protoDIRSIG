@@ -274,3 +274,225 @@ CONSTRAINTS
 - Report git status and give the actual `git add`/`git commit` commands after each of 4a,
   4b, 4c — three separate commits, not one, since they're independent pieces of work and
   Kevin may want to review them separately.
+
+
+---
+
+## Phase 5 — AUROR_kevin SWIR demo (Notebook 4)
+
+Build a notebook that runs the SWIR demo run tree handed over at
+`AUROR_kevin/_20260720_KevinSWIRDemo/` (inside protoDIRSIG, not the DIRSIG install or the
+dirfm checkout). This tree was built by someone else on a different machine with a different
+DIRSIG version — read it as received, don't guess at what it means.
+
+CONTEXT
+The tree has `jsims/`, `motion/`, `output/`, `platforms/`, `scenes/tahoe/`, `tasks/`,
+`weather/`. Every file each component references exists and is self-contained ($SCENE_DIR-
+relative in the scene, no external references elsewhere) — the content is complete. The one
+file that is not portable is `jsims/KevinSWIRDemo.jsim` itself: its `motion_filename`,
+`platform_filename`, `tasks_filename`, the weather plugin's `filename`, and the scene's
+`inputs` are absolute paths under `/Users/rj.pearsall/Documents/DIRSIG/...` — a different
+person's machine. Rewrite these to point at the local files; don't try to run the jsim as-is.
+
+Two things to resolve, not assume:
+
+1. `scenes/tahoe/tahoe.scene.hdf` (already compiled, 1.06 GB) and `output/swir.img` /
+   `swir.img.hdr` were both produced by DIRSIG `2025.09 (8cfb36b)` (per
+   `jsims/material_report.json` and the image header's description field). This install is
+   `2026.38 (a020954)`. Don't reuse the existing `.hdf` — recompile the scene fresh against
+   this install's `scene2hdf`, the same way `scene_ref.py` already does for Tacoma. Treat
+   `output/swir.img` as a reference artifact from a different version to compare against,
+   not a target to reproduce bit-for-bit.
+2. The jsim's `FourCurveAtmosphere` plugin stanza is `{"conditions": "mls_rural_50km"}` with
+   no database path — DIRSIG apparently resolves this against some built-in default.
+   `dirfm.atmosphere.FourCurveAtmospherePlugin` has no such default: it requires an explicit
+   HDF path (`modtran_output`) and validates the named condition exists inside it. This
+   install ships four-curve databases under `lib/data/atm/` and the
+   `FourCurveAtm_Databases-*/` directories (10/20/100 km variants) — check each one's
+   `Conditions` group (via `h5py`, same approach `FourCurveAtmospherePlugin` itself uses) for
+   `mls_rural_50km`. If none contains it, pick the closest available condition and state
+   explicitly, in a markdown cell, which one was substituted and why — this is a deviation
+   from the original run, the same way Phase 3 flagged its stare-vs-nadir pointing deviation,
+   not something to pick silently.
+
+Smaller thing to flag, not fix: `tasks/PacificTime_11.30AM.tasks`'s reference datetime is
+`2026-07-16T11:30:00.0000-08:00`. Pacific time in July is daylight time (UTC−7), not standard
+time (UTC−8) as the file has it. State this discrepancy in a markdown cell and use the file's
+stated offset as given unless there's a clear reason to correct it — don't silently change
+someone else's input file's meaning.
+
+CAPABILITY CHECK — confirm before building, don't assume either answer
+dirfm already wraps every plugin this jsim uses — confirm each, don't take this list on
+faith:
+- `BasicPlatform` — `dirfm.platform_sensor.PlatformSensorPlugin`. Its `prepare()` always
+  rebuilds `platform`/`motion`/`tasks` XML from Python objects; there is no `SCENE`-style
+  `_fname` short-circuit for wrapping the existing `.platform`/`.ppd`/`.tasks` files
+  directly. Resolve this the same way `scripts/crosscheck_sgp4.py` already resolved an
+  equivalent gap in Phase 4a (a minimal custom `Plugin` subclass implementing only
+  `get_plugin_name`/`get_plugin_inputs`, pointed at copies of the existing files) rather than
+  fighting `PlatformSensorPlugin`'s object model to reproduce files that already exist.
+- `SpiceEphemeris` — `dirfm.ephemeris`, no inputs needed, matches the original jsim's empty
+  `inputs: {}`.
+- `ThermWeather` — `dirfm.weather.ThermWeatherFilePlugin(fname)` already takes an existing
+  `.wth` path directly; point it at a copy of `weather/saw.wth`.
+- `FourCurveAtmosphere` — `dirfm.atmosphere.FourCurveAtmospherePlugin`, per the database
+  question above.
+
+CONSTRAINTS
+- Never write into the DIRSIG install directory or the dirfm checkout (standing rule,
+  unchanged).
+- Don't modify or overwrite anything under `AUROR_kevin/_20260720_KevinSWIRDemo/` — it's
+  received reference material (scene assets, the original platform/motion/tasks/weather
+  files, and the original rendered output), not a working directory. Copy what needs copying
+  into protoDIRSIG's own `outputs/` tree, following the copy-XML-plus-symlink-assets pattern
+  `scene_ref.py` already implements for Tacoma, rather than compiling in place. The same
+  scene2hdf-writes-beside-the-scene risk documented for Tacoma applies here; reuse the
+  existing fingerprint guard around this tree too, not a new one.
+- Write the notebook to `notebooks/tutorial_swir_demo.ipynb`.
+- Reuse `src/protodirsig/scene_ref.py` and `scene_coverage.py` where they fit; extend them if
+  this scene's layout needs something they don't already handle, rather than writing a
+  parallel one-off.
+
+STRUCTURE — minimum viable, same convention as Phase 3: markdown explaining what's new versus
+reused, each stage additive and actually executed before the next is written.
+
+Stage 0 — Orientation and capability check: the questions above, answered from the source
+(grep dirfm, inspect the bundled HDF databases with h5py), before any dirfm objects are
+built. State plainly that the `_fname`/custom-Plugin-subclass mechanism here is the same
+reference-an-existing-file pattern established for Tacoma's scene and Phase 4a's SGP4 engine,
+not new mechanism.
+
+Stage 1 — Reference and assemble: build the scene reference, the platform/motion/tasks
+reference (via the capability check's resolution), the weather reference, and the atmosphere
+plugin (with its resolved or substituted condition). Assemble on a `DIRSIG` object but don't
+run yet — inspect the resulting jsim's plugin/scene list and confirm it matches the original
+`KevinSWIRDemo.jsim` apart from the path rewrite and the atmosphere database necessity.
+
+Stage 2 — Run and compare: run it (fresh `scene2hdf` compile, fingerprint-guarded), load the
+resulting `swir.img` and the original reference `output/swir.img` as ENVI arrays, and compare
+them quantitatively, not just visually. State which differences are expected (DIRSIG version,
+any atmosphere condition substitution) versus anything unexplained — don't assert a match
+without checking, following the same truth-check discipline as Phase 3.
+
+Append any new findings (the atmosphere database resolution, the version-compile outcome, the
+timezone discrepancy's actual effect if checked) to FINDINGS.md. Report git status and the
+actual `git add`/`git commit` commands when done.
+
+
+---
+
+## Phase 6 — AUROR_ref hypersonic-target run (Notebook 5)
+
+Build a notebook that runs the run tree at `AUROR_ref/` (inside
+protoDIRSIG, not the DIRSIG install or the dirfm checkout). Read it as received, the same way
+Phase 5 treated the SWIR demo tree — this is a different person's run, on a different DIRSIG
+version, and it is not a duplicate of the SWIR demo's Tahoe configuration. Don't conflate the
+two: this scene variant omits `mwir`, adds a `hypersonic.glist` geometry inclusion (material
+`Gidder_mat`) on top of the Tahoe background, and has both the material map and texture map
+disabled. Treat it as its own scene, not an alternate rendering of the one Phase 5 used.
+
+CONTEXT
+The tree has `jsims/AurorSimulation.jsim` (+ `material_report.json`, plus a bare-filename HDF5
+file `jsims/AurorNewAtmosphere`), `motion/AurorMotion.ppd`, `platforms/` (three `.platform`
+files), `tasks/AurorTask.tasks`, `weather/saw.wth`, and `tahoe.scene` (+ compiled
+`tahoe.scene.hdf`) at the tree root. The one jsim present references only one of the three
+platform files (`AurorNIRDetector.platform`) — the other two (`AurorHSICamera.platform`,
+`AurorPlatform.platform`) have matching pre-rendered outputs elsewhere in the tree
+(`result.img`, `auror.img`) but no jsim of their own survives to explain them. Use only
+`AurorNIRDetector.platform`, matching the one jsim that exists; don't try to reconstruct the
+other two's jsims from the platform files alone.
+
+`jsims/AurorSimulation.jsim` itself is not portable: `platform_filename`, `motion_filename`,
+`tasks_filename`, the weather plugin's `filename`, the atmosphere plugin's `hdf_filename`, and
+the scene's `inputs` are Windows-style absolute paths under `C:/DIRSIG/AUROR/Kevin_DIRSIG/...`
+(inconsistently slashed — forward and back slashes both appear). Rewrite these to point at the
+local files; don't try to run the jsim as-is.
+
+Two things to resolve, not assume:
+
+1. `tahoe.scene.hdf` (already compiled, 25.7 MB — far smaller than the SWIR demo tree's 1.06
+   GB compile of what is nominally "the same" base scene) and every pre-rendered `.img` in
+   `jsims/` (`auror.img`, `AurorNIROutput.img`, `MultiBandCamera_rgb.img`,
+   `MultiBandCamera_rgb_truth.img`, `result.img`, `truth1.img`) were produced by scene2hdf
+   `2025.51 (822ab24)` per `jsims/material_report.json` — a third distinct version from both
+   this install (`2026.38 (a020954)`) and the SWIR demo tree's (`2025.09 (8cfb36b)`). Don't
+   reuse the existing `.hdf`; recompile fresh against this install, same as Phase 5 did.
+   Treat every existing `.img` as a reference artifact to compare against, not a target to
+   reproduce bit-for-bit — and note that only `AurorNIROutput.img`/`truth1.img` correspond to
+   the platform this notebook actually uses, so that's the only pair worth a quantitative
+   comparison; the other outputs have no surviving jsim/platform pairing to validate against.
+2. The jsim's atmosphere plugin is `NewAtmosphere`, not `FourCurveAtmosphere`. This is already
+   fully wrapped by `dirfm.atmosphere.NewAtmospherePlugin` (confirmed by reading
+   `dirfm/atmosphere.py`) — not a gap. `NewAtmospherePlugin(fname)` takes an existing HDF path
+   directly (same reference-an-existing-file pattern as `ThermWeatherFilePlugin` and `SCENE`'s
+   `_fname`), so point it at a copy of `jsims/AurorNewAtmosphere`. The inline MODTRAN tape5
+   config in the jsim (`modtran_profile`, `atmospheric_model = "MidLatitudeSummer"`,
+   `boundary_aerosol_model.type = "RuralVis23Km"`, `multiple_scattering.type = "Isaac"`) must
+   still be reconstructed via `dirfm.atmosphere.ModtranTapeBackend`'s setters
+   (`set_atmospheric_model`, `set_boundary_aerosol_model`, `set_multiple_scattering`,
+   `set_profile`, etc.) and attached with `set_backend()`/`set_info()` before
+   `get_plugin_inputs()` is called — the plugin needs both the existing HDF reference and the
+   backend description reconstructed in Python; it doesn't infer one from the other.
+
+Smaller things to flag, not fix:
+- `tasks/AurorTask.tasks`'s reference datetime is `2009-07-27T11:29:32.0000-08:00` — stale
+  relative to every other file in the tree (2026). Use it as given; state the discrepancy in a
+  markdown cell.
+- The scene's disabled material/texture maps and missing `mwir` feature are internally
+  consistent with a single-target detection/geolocation run (the platform's truth collectors
+  are `Collection 1`→`truth1`, `GeoLocation`→`NewCollection`; nothing in the platform's
+  bandpass needs `mwir`) rather than a land-classification demo like Phase 5's. Say this
+  plainly in a markdown cell rather than treating the disabled maps as something to "fix" or
+  re-enable.
+
+CAPABILITY CHECK — confirm before building, don't assume either answer
+- `BasicPlatform` — `dirfm.platform_sensor.PlatformSensorPlugin`. Same gap as Phase 5: its
+  `prepare()` always rebuilds `platform`/`motion`/`tasks` XML from Python objects, no
+  `_fname`-style short-circuit. Resolve it the same way — a minimal custom `Plugin` subclass
+  (`get_plugin_name`/`get_plugin_inputs` only) pointed at copies of
+  `AurorNIRDetector.platform`, `AurorMotion.ppd`, `AurorTask.tasks` — reusing the pattern
+  already established in `scripts/crosscheck_sgp4.py` and Phase 5, not re-deriving it.
+- `SpiceEphemeris` — `dirfm.ephemeris`, no inputs, matches the jsim's empty `inputs: {}`.
+- `ThermWeather` — `dirfm.weather.ThermWeatherFilePlugin(fname)`, point at a copy of
+  `weather/saw.wth`.
+- `NewAtmosphere` — `dirfm.atmosphere.NewAtmospherePlugin`, per the resolution above. Confirm
+  by reading `dirfm/atmosphere.py` directly in the notebook's orientation stage (don't take
+  this spec's description on faith) before building the plugin.
+
+CONSTRAINTS
+- Never write into the DIRSIG install directory or the dirfm checkout.
+- Don't modify or overwrite anything under `AUROR_ref/` — received
+  reference material, not a working directory. Copy what needs copying into protoDIRSIG's own
+  `outputs/` tree via `scene_ref.py`'s existing copy-XML-plus-symlink-assets pattern and
+  fingerprint guard, the same as Phase 3 and Phase 5.
+- Write the notebook to `notebooks/tutorial_auror_hypersonic.ipynb`.
+- Reuse `src/protodirsig/scene_ref.py` and `scene_coverage.py` where they fit; extend rather
+  than duplicate if this scene's `hypersonic.glist` inclusion needs something they don't
+  already handle (check whether `scene_coverage.py`'s material-DB parsing handles a
+  `geometrylistinclude`-contributed material like `Gidder_mat`, which isn't in the base
+  scene's own `.mat` file the same way Tacoma's materials are — confirm, don't assume either
+  way).
+
+STRUCTURE — minimum viable, same convention as Phase 3/5: markdown explaining what's new
+versus reused, each stage additive and actually executed before the next is written.
+
+Stage 0 — Orientation and capability check: confirm `NewAtmospherePlugin`'s interface and
+`ModtranTapeBackend`'s setters by reading `dirfm/atmosphere.py` directly; confirm the
+`BasicPlatform` gap and its resolution exactly mirror Phase 5's precedent. State plainly which
+mechanisms are new to this notebook (`NewAtmospherePlugin`, the `hypersonic.glist` inclusion)
+versus reused unchanged from Phase 3/5.
+
+Stage 1 — Reference and assemble: build the scene reference (including the `hypersonic.glist`
+inclusion), the platform/motion/tasks reference via the capability check's resolution, the
+weather reference, and the `NewAtmosphere` plugin (existing HDF + reconstructed backend).
+Assemble on a `DIRSIG` object but don't run yet — inspect the resulting jsim's plugin/scene
+list and confirm it matches the original `AurorSimulation.jsim` apart from the path rewrite.
+
+Stage 2 — Run and compare: run it (fresh `scene2hdf` compile, fingerprint-guarded), load the
+resulting render and the original reference `AurorNIROutput.img`/`truth1.img` as ENVI arrays,
+and compare quantitatively. State which differences are expected (DIRSIG version) versus
+anything unexplained.
+
+Append any new findings (the `NewAtmosphere` resolution, the version-compile outcome, whether
+`scene_coverage.py` needed extending for the `hypersonic.glist` material) to FINDINGS.md.
+Report git status and the actual `git add`/`git commit` commands when done.
