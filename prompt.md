@@ -1,88 +1,109 @@
-# Split the AUROR_ref work: keep the discovery log, write an actual tutorial notebook
+# Stage 1: drive the Auror job from a MANIFOLD run-spec YAML
 
-`notebooks/tutorial_auror_scene.ipynb` (uncommitted) is a discovery log — it documents finding
-and fixing the dirfm gaps (`NewAtmospherePlugin`, `BasicPlatform`, `SpiceEphemeris`), the
-`scene_coverage.py` blind spot, and the version-comparison investigation, as that work
-happened. That's valuable and should be kept, but it isn't what the other three notebooks are:
-a tutorial someone reads to learn dirfm usage. Split it into two artifacts.
+A MANIFOLD run-spec YAML for this tree now exists: `eopticDocs/projects/MANIFOLD/04-guides/
+auror_ref_run_spec.yaml`, documented by the guide at `04-guides/GD_DIRSIG_RunSpec_YAML_v01.md`
+in the same repo. It centralizes, in one versioned file, exactly the values
+`notebooks/tutorial_auror_scene.ipynb` currently hardcodes across several cells: the scene,
+platform, atmosphere, weather and ephemeris references, and the run seed. This stage makes the
+notebook read those values from the YAML instead of from literals written into it.
 
-STEP 1 — Preserve the discovery log
-`git mv notebooks/tutorial_auror_scene.ipynb notebooks/dev/auror_scene_buildup.ipynb` (create
-`notebooks/dev/`). Don't edit its content — it's a record of what was actually found and
-fixed, not something to retroactively clean up. Add a one-line note at the top of its first
-markdown cell: this is a development/discovery log, not a tutorial; see
-`notebooks/tutorial_auror_scene.ipynb` for the tutorial version and `FINDINGS.md` for the
-dated entry.
+**New naming convention.** `tutorial_*.ipynb` stays reserved for the three existing
+notebooks that teach dirfm usage itself (`tutorial_dirfm_basics`, `tutorial_orbit_to_ground`,
+`tutorial_tacoma_scene`) — don't touch them. This work, and whatever follows it toward a
+MANIFOLD-aligned generator, is staged implementation, not a tutorial someone reads to learn
+dirfm. It gets its own sequence: `notebooks/stage_NN_<slug>.ipynb`, numbered independently of
+the tutorial track, starting at `stage_01_auror_from_runspec.ipynb` for this step.
 
-STEP 2 — Factor the now-working mechanisms into reusable helpers, not inline notebook code
-Three things were built ad hoc in the discovery notebook to work around real dirfm gaps. They
-should become proper, importable pieces of `src/protodirsig/`, the same way the Tacoma
-notebook's `_fname` pattern became `scene_ref.py` and the coverage check became
-`scene_coverage.py` — not re-pasted into the new notebook as inline subclass definitions.
+## What the YAML does and does not describe for this tree
 
-- The `NewAtmospherePlugin`/`ModtranTapeBackend` fix (pre-declaring the frozen attributes
-  `__init__` never creates, correcting the `"Isacc"`/`"Isaac"` typo) — this is a real dirfm bug
-  with nothing AUROR-specific about it. Put the corrected subclasses somewhere reusable (e.g.
-  `src/protodirsig/atmosphere_patches.py`), with a one-line comment pointing at the FINDINGS.md
-  entry and the fix dirfm itself should eventually apply upstream.
-- The file-referencing `PlatformSensorPlugin` subclass (no attachments, no-op `prepare()`, its
-  own `get_plugin_inputs()` pointing at existing platform/motion/tasks files) is the same
-  reference-an-existing-file need that `scene_ref.py` already solves for scenes. Generalize it
-  there or alongside it (your judgment on the cleanest shape) rather than keeping it
-  AUROR-specific, since any future received run tree will hit the same `PlatformSensorPlugin`
-  gap.
-- The bare `SpiceEphemeris` subclass (empty inputs) is small enough it may not need its own
-  module — use judgment; if it's one two-line class, a shared `src/protodirsig/ephemeris.py`
-  is fine too.
+`AUROR_ref` is a **received** run tree: `motion/AurorMotion.ppd` and `tasks/AurorTask.tasks`
+already exist as files and are referenced, not generated. The run spec's `engine.motion` and
+`engine.tasks` blocks describe what those files already encode (position, orientation, task
+window) — they are not an instruction to regenerate the files from those parameters. Building
+dirfm-native motion/tasks generation from a run spec is a later stage; this one does not attempt
+it. Everything else in `engine` — `scenes`, `platform`, `atmosphere`, `weather`, `ephemeris`,
+`run.seed` — does drive this stage, because the existing `src/protodirsig/` modules already
+reference those as existing files or library entries rather than generating them, which is
+exactly what the run spec's values are for here.
 
-Write a short test for the atmosphere patch (construct it, call the setters, confirm
-`get_plugin_inputs()` emits the expected stanza) following the existing test conventions. The
-platform/ephemeris pieces don't need new tests beyond what the tutorial notebook itself
-exercises by using them.
+`engine.atmosphere.plugin: new_atmosphere` is a documented non-adopted schema extension (see the
+guide, §6) — `dirsig-engine/1` currently defines only `four_curve` and `basic`. Treat it as a
+fixed special case for this one tree's loader, not something to generalize.
 
-STEP 3 — Write the actual tutorial: `notebooks/tutorial_auror_scene.ipynb` (new file, same
-path the discovery log used to occupy)
+## CAPABILITY CHECK
 
-This notebook's job is for someone to read it and understand how to drive AUROR_ref's
-configuration through dirfm — not to document the debugging process that got here. Match the
-other three tutorials' structure (title, short per-stage markdown, code, output) but keep the
-markdown transactional: state what each cell does and why it's the right call for this scene,
-not how it was discovered or what else was tried. No "this didn't work, so" narrative, no
-investigation log, no quantitative version-comparison section — that's the discovery
-notebook's job now.
+Before writing code:
+- Confirm PyYAML is importable in the protodirsig environment; add it to the project's
+  dependency file if it is not already declared.
+- Re-read `src/protodirsig/atmosphere_patches.py`, `platform_ref.py` and `scene_ref.py` to
+  confirm their current signatures — this stage wires existing functions together, it does not
+  change them.
+- `grep -rn "yaml" src/ notebooks/` to confirm there is no existing YAML-loading code this would
+  duplicate.
 
-Minimum content:
-- One-paragraph intro: what AUROR_ref is (a received static-pose detection scene with an
-  embedded vehicle target), what this notebook builds (the dirfm job that reproduces it) and
-  runs on this install.
-- Reference the scene via `_fname` (reuse `scene_ref.py` directly, as Tacoma's notebook does).
-- Reference the platform/motion/tasks files via the new reusable helper from Step 2 — one or
-  two lines, not a rederivation of why `PlatformSensorPlugin` doesn't fit.
-- Build the `NewAtmosphere` plugin via the Step 2 helper, with the one-line comment that the
-  atmosphere database's site doesn't match Tahoe's (this is a received-input fact worth a
-  reader knowing, not a discovery to narrate).
-- Reference the weather file via `ThermWeatherFilePlugin`.
-- Assemble, run (fresh `scene2hdf` compile against this install, fingerprint-guarded the same
-  way as the Tacoma notebook), and display the result: load `AurorNIROutput.img`/`truth1.img`
-  as ENVI arrays and show the rendered image and the truth/geolocation output, the way a reader
-  would actually look at what the sensor produced.
-- One short markdown note, near the display: the embedded vehicle target does not appear in
-  this render (see `FINDINGS.md`'s dated entry for the investigation) — state the fact plainly
-  for a reader who will otherwise wonder why the image looks like bare terrain, without
-  re-running the investigation here.
+## STEP 1 — Vendor the run spec
 
-Do not reproduce in this notebook: the dirfm-gap debugging narrative, the AttributeError/typo
-diagnosis, the coverage-helper investigation, or the cross-version quantitative comparison —
-all of that stays in `notebooks/dev/auror_scene_buildup.ipynb` and `FINDINGS.md`.
+`eopticDocs` and `protoDIRSIG` are separate checkouts; don't have notebooks reach across
+repositories. Create `run_specs/` at the protoDIRSIG root and copy the YAML in as
+`run_specs/auror_ref.yaml`, with a one-line header comment recording that it is authored at
+`eopticDocs/projects/MANIFOLD/04-guides/auror_ref_run_spec.yaml` and should be edited there, not
+here, if its content needs to change. This is a small text file and is tracked normally — it is
+not covered by the `AUROR_ref/` `.gitignore` entry and should not be added to it.
 
-CONSTRAINTS
-- Never write into the DIRSIG install directory or the dirfm checkout.
-- Don't modify or overwrite anything under `AUROR_ref/`.
-- Reuse `src/protodirsig/scene_ref.py` and `scene_coverage.py` as they stand; extend them only
-  per Step 2.
-- `scene_coverage.py`'s existing bundle-material fix and its tests are correct as committed in
-  the discovery work — no changes needed there beyond what Step 2 asks.
+## STEP 2 — The run-spec loader: `src/protodirsig/run_spec.py`
 
-Report git status and the actual `git add`/`git commit`/`git mv` commands when done — note the
-rename needs `git add` on both the old and new paths (or let `git add -A` pick it up) for git
-to record it as a rename rather than a delete+add.
+- `load_run_spec(path)` — loads the YAML (a plain `yaml.safe_load` is adequate for this
+  prototype; the strict loader, canonical-JSON hashing and duplicate-key rejection
+  `AV_MANIFOLD_Metadata_v02.md` §6.15 specifies belong to the registry side MANIFOLD hasn't
+  built, not to protoDIRSIG — note this gap in a comment rather than building it here).
+- A function that takes the parsed run spec and the tree root (`AUROR_ref`'s path) and returns
+  what Step 3 needs to assemble the job: the scene file path, the platform/motion/tasks file
+  paths plus `output_prefix`, `split_channels` and `integration_samples` for
+  `PlatformFilesPlugin`, a `PatchedNewAtmospherePlugin` built from
+  `engine.atmosphere.database.ref.name`, the weather file path, the ephemeris plugin choice, and
+  `engine.run.seed`. Use your judgment on the exact shape (a dataclass, a dict, several small
+  functions) — the requirement is that the notebook stops hardcoding these values, not a
+  particular interface.
+- Raise a clear, specific error if `engine.atmosphere.plugin` is anything other than
+  `new_atmosphere` — this loader is built for this one tree's schema extension, not as a general
+  `dirsig-engine/1` interpreter. Resolve `engine.scenes[0].ref.name` and
+  `engine.platform.ref.name` against the tree root; `scenes/tahoe` in the YAML names the
+  config-repo's intended nested layout, which the received tree does not have (`tahoe.scene` is
+  at tree root) — resolve this by tree-root-relative lookup of the actual file, not by taking the
+  YAML path literally. Say in a comment that this is the same open config-repo-layout question
+  the guide flags, worked around locally rather than resolved.
+- Write `tests/test_run_spec.py`: load `run_specs/auror_ref.yaml` and assert the returned values
+  are correct — scene path resolves under the tree root, platform ref name, `seed == 42`,
+  atmosphere database ref name — following the existing test conventions.
+
+## STEP 3 — `notebooks/stage_01_auror_from_runspec.ipynb`
+
+`git mv notebooks/tutorial_auror_scene.ipynb notebooks/stage_01_auror_from_runspec.ipynb` as the
+starting point. Replace the cells that currently hardcode the scene/platform/atmosphere/weather/
+ephemeris/seed parameters with: load the run spec via `run_spec.py`, print a short summary of
+what was loaded (`meta.name`, `origin`, one line noting the atmosphere plugin is the
+`new_atmosphere` extension), then assemble and run the job exactly as before, driven by the
+loaded values rather than literals. Leave the display cells (rendered image, truth/geolocation
+output, the vehicle-not-appearing note) unchanged — this stage is about the input side, not the
+output side.
+
+Rewrite the top markdown cell: state that this notebook drives its run from a versioned run-spec
+YAML (`run_specs/auror_ref.yaml`, authored in `eopticDocs/04-guides/`) rather than from values
+written into the notebook, and that it is staged implementation toward a MANIFOLD-aligned
+generator, not a tutorial — point to the three `tutorial_*.ipynb` notebooks for dirfm usage
+itself.
+
+## CONSTRAINTS
+
+- Never write into the DIRSIG install directory, the dirfm checkout, or `AUROR_ref/`.
+- Do not touch `tutorial_dirfm_basics.ipynb`, `tutorial_orbit_to_ground.ipynb`,
+  `tutorial_tacoma_scene.ipynb`, or `notebooks/dev/auror_scene_buildup.ipynb`.
+- Do not attempt to regenerate `motion`/`tasks` files from `engine.motion`/`engine.tasks` — see
+  above. Record this as a stated scope boundary in `FINDINGS.md`, not as a silent omission.
+- `run_spec.py` is narrow and tree-specific by design (including its `new_atmosphere` special
+  case) — do not generalize it into a `dirsig-engine/1` interpreter in this stage.
+- Reuse `scene_ref.py`, `platform_ref.py` and `atmosphere_patches.py` exactly as they stand.
+
+Report git status and the actual `git add`/`git mv`/`git commit` commands when done. The rename
+needs `git add` on both the old and new notebook paths (or `git add -A`) to record as a rename;
+`run_specs/auror_ref.yaml` and `src/protodirsig/run_spec.py` are new tracked files.
