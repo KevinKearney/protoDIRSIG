@@ -360,7 +360,7 @@ first.
 ## 2026-10-06 — Phase 5: the received AUROR_ref run tree, re-run from a static pose
 
 `notebooks/dev/auror_scene_buildup.ipynb` (the discovery log; the tutorial is
-`notebooks/tutorial_auror_scene.ipynb`) re-runs `AUROR_ref/` (received, gitignored; built on
+`notebooks/tutorial_auror_scene.ipynb`, renamed `stage_01_auror_from_runspec.ipynb` on 2026-10-07) re-runs `AUROR_ref/` (received, gitignored; built on
 Windows with DIRSIG/scene2hdf `2025.51 (822ab24)`) on this install (`2026.38 (a020954)`) and
 compares it with the shipped `jsims/AurorNIROutput.img` + `truth1.img`. `AUROR_ref/` is
 fingerprinted (68 paths) around every render and is unchanged. **Note:** the phase prompt said
@@ -478,6 +478,55 @@ clears the ~8 km field in ~40 s); emission not evaluated for this material in th
 versions agree, it is a property of the received configuration. Resolve it before using
 AUROR_ref as a detection reference.
 
+## 2026-10-07 — Stage 01: the AUROR_ref job driven from a MANIFOLD run spec
+
+`notebooks/tutorial_auror_scene.ipynb` is renamed `notebooks/stage_01_auror_from_runspec.ipynb`.
+It now takes its scene, platform, atmosphere, weather and ephemeris references, and its seed,
+from `run_specs/auror_ref.yaml`, a vendored copy of eopticDocs
+`projects/MANIFOLD/04-guides/auror_ref_run_spec.yaml`, which is edited there. The values are no
+longer written into its cells. `src/protodirsig/run_spec.py` loads and resolves it, and
+`tests/test_run_spec.py` pins it. `scene_ref`, `platform_ref` and `atmosphere_patches` are
+reused unchanged. Stage notebooks (`stage_NN_<slug>`) are staged implementation toward a
+MANIFOLD-aligned generator, numbered separately from the `tutorial_*` dirfm notebooks.
+
+**Scope boundary: `engine.motion` and `engine.tasks` are not used to regenerate anything.**
+`AUROR_ref` is a received tree, and its `motion/AurorMotion.ppd` and `tasks/AurorTask.tasks`
+are referenced as files. The run spec's `motion`/`tasks` blocks describe what those files
+already encode, and they name no file, so the loader finds the tree's single `.ppd` and
+`.tasks`. `run_spec.check_received_files` compares the spec against the files instead: static
+pose (−400, 400, 550 000), Euler (0, 0, π) xyz radians `sceneenu`; window [0, 0];
+`descriptor.collection.epoch` `2009-07-27T19:29:32Z` against the tasks reference
+`11:29:32-08:00`; `integration_samples` 10 against the platform's `<samples>`. All agree.
+Generating motion and tasks from a run spec in dirfm is a later stage.
+
+**What the run spec does not carry, or carries but cannot be applied here.**
+- *`engine.platform.output_prefix: auror_nir_` is not applied.* The received jsim has no
+  `output_prefix`, and its outputs are `AurorNIROutput`/`truth1`. `PlatformFilesPlugin` emits
+  no prefix, and the instructions said to reuse it unchanged. dirfm's `DIRSIG.set_output_prefix`
+  stores `_prefix` but nothing reads it (only `PlatformSensorPlugin.set_output_prefix`, which
+  regenerates the platform, emits one). Applying the prefix would rename the outputs, so the
+  job would no longer reproduce the tree. The value appears in no file in the tree, so it looks
+  like an authoring choice in the YAML, not a description of the tree. Settle it in eopticDocs.
+- *The NewAtmosphere backend recipe* (MODTRAN tape: `New Profile`, `MidLatitudeSummer`,
+  `RuralVis23Km`, `Isaac`) has no field in the run spec. `descriptor.collection.atmosphere.regime:
+  mid_latitude_summer` is a vocabulary term, not this recipe. `run_spec.py` fixes it as the
+  received jsim's values (`AUROR_ATMOSPHERE_BACKEND`), as part of the `new_atmosphere` special
+  case. It does not affect the render, which reads the existing database (Phase 5).
+- *`new_atmosphere` is the only atmosphere plugin accepted*, with a specific `RunSpecError`
+  otherwise. `ephemeris` accepts only `spice`; weather accepts only `source: library`.
+- *Scene layout.* `scenes/tahoe` (config-repo nested layout) resolves to the tree-root
+  `tahoe.scene`, a local workaround for the layout question the guide leaves open (§6).
+- *Loading* is plain `yaml.safe_load`. Metadata_v02 §6.15's strict loader (duplicate-key and
+  unknown-key rejection, canonical-JSON hashing) belongs to the MANIFOLD registry side, which is
+  not built. The `content_hash` placeholders are not checked.
+
+**Seeded render.** `engine.run.seed` (42) goes to `DIRSIG.set_seed`, which passes
+`--random_seed` to both `scene2hdf` and `dirsig5` (both accept it). The render is no longer the
+unseeded Phase 5 realisation. The geometry and truth assertions in the display cells pass
+unchanged. PyYAML (6.0.3, already present transitively) is now declared in `pyproject.toml`
+and `environment.yml`. The tests ran under the env's interpreter with pytest from a scratch
+`--target` directory, because pytest is still not installed in the env: 20 passed (9 new).
+
 ## Notebooks (status)
 
 - `notebooks/tutorial_dirfm_basics.ipynb` — Phase 1, complete. 8 stages, executed end to end.
@@ -485,10 +534,10 @@ AUROR_ref as a detection reference.
   executed, and committed (TLE/SGP4 trajectory, dropped the original STK-import approach —
   see `prompt.md` for the full rationale; Stage 2 works around the `GROUND_PLANE` extent with
   a tiled ground). Stage 3 (final render + comparison) not yet written.
-- `notebooks/tutorial_auror_scene.ipynb` — Phase 5, complete. Tutorial, 3 stages, executed end
-  to end: AUROR_ref's configuration driven through dirfm via `scene_ref`, `scene_coverage`,
-  `platform_ref` and `atmosphere_patches`, rendered on this install, image and geolocation
-  truth displayed.
+- `notebooks/stage_01_auror_from_runspec.ipynb` — was `tutorial_auror_scene.ipynb` (Phase 5).
+  Stage 01, complete: the same 3-stage AUROR_ref job, now driven from
+  `run_specs/auror_ref.yaml` via `run_spec`, seeded, executed end to end. Staged
+  implementation, not a tutorial.
 - `notebooks/dev/auror_scene_buildup.ipynb` — Phase 5 discovery log (not a tutorial): how the
   dirfm gaps were found and bridged, and the comparison against the shipped 2025.51 render with
   a same-version repeat as the baseline. Kept as executed; it predates the `src/` helpers.

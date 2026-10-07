@@ -1,0 +1,167 @@
+# Vendored copy. Authored at eopticDocs/projects/MANIFOLD/04-guides/auror_ref_run_spec.yaml -- edit it there, not here.
+# Prototype run spec for the real AUROR_ref tree.
+# Companion to GD_DIRSIG_RunSpec_YAML_v01.md (04-guides/).
+#
+# Built against:
+#   - descriptor schema:  AV_MANIFOLD_Metadata_v02.md §6 (run-spec/1)
+#   - engine schema:      AV_MANIFOLD_Configuration_v02.md Appendix A.8 (dirsig-engine/1)
+#   - tree values:        protoDIRSIG/AUROR_ref, as read by A&T_DIRSIG_example.md §9
+#                          and confirmed against the tree by ROLE_PROPOSAL_2026-10-05.md
+#                          and TRIAL_2026-10-06_dirsig-container.md
+#
+# Differs from the "illustrative instance" in both source documents (Metadata §6.11,
+# Configuration A.8.10) in three ways, each marked below where it occurs:
+#   1. meta.name is Auror's own, not the stale "tacoma-nir-baseline" of the shared instance.
+#   2. atmosphere uses NewAtmosphere + an atmosphere_db reference, matching the tree as
+#      measured, not FourCurveAtmosphere. `new_atmosphere` is NOT an adopted A.8.7 plugin
+#      value yet -- this is a proposed extension, not a conformant dirsig-engine/1 document.
+#   3. run.seed is set (open item #1 against notebooks/tutorial_auror_scene.ipynb, which
+#      does not yet call set_seed() either).
+#
+# Hashes throughout are placeholders, as in both source illustrative instances.
+
+spec_version: run-spec/1
+
+descriptor:
+  meta:
+    name: auror-ref-static-pose          # (1) was "tacoma-nir-baseline" in the shared instance
+    tags: [auror, nir, static-pose, hypersonic-target]
+    description: >
+      Received static-pose detection scene: a NIR staring sensor at a fixed LEO-altitude
+      position over the Tahoe scene, with an embedded hypersonic target track.
+
+  origin:
+    kind: synthetic
+    engine: dirsig
+
+  collection:
+    epoch: "2009-07-27T19:29:32Z"        # .tasks reference datetime, converted to UTC
+    platform:
+      class: satellite
+      position:
+        frame: geodetic
+        datum: WGS84
+        latitude:  {value: 39.0036,   provenance: specified}   # scene origin; axis convention not confirmed
+        longitude: {value: -120.0046, provenance: specified}
+        altitude:  {value: 550000, provenance: specified}
+        altitude_reference: ellipsoid
+    geometry:
+      regime: orbital_nadir
+      range: {value: 500000, provenance: modeled}   # scene-z separation, sensor to target start: |550000 - 50000| m
+    illumination:
+      regime: daylight
+    atmosphere:
+      regime: mid_latitude_summer        # vocabulary term; independent of which plugin models it (see engine.atmosphere)
+    background:
+      regime: rural
+    targets:
+      - class: vehicle_air               # hypersonic bundle target (hypersonic.glist / hypersonic.mat)
+
+  sensor:
+    sensor_system:
+      system_id: auror.nir-staring-01
+      reference_frame:
+        name: rig_body_enu
+        origin: aperture stop centre of the primary instrument
+        handedness: right
+        axis_convention: x_boresight_y_right_z_down   # not confirmed, carried from the shared instance
+      frame_association: {policy: none}
+    entries:
+      - entry_id: auror-nir
+        identity:
+          instrument_id: instr.auror.nir.staring.01
+          sensor_class: staring_array
+        mount: {kind: fixed, translation: [0, 0, 0], rotation: [1, 0, 0, 0]}
+        optics:
+          aperture_diameter: 85.0         # properties.aperturediameter; unit not confirmed, assumed mm (A.9.1)
+          focal_length: 306.0             # properties.focallength; unit not confirmed, assumed mm (A.9.1); f/# = 306/85 = 3.6
+          f_number: 3.6
+          throughput_in_band: {value: 0.875, provenance: specified}
+          distortion: {model: none}
+        focal_planes:
+          - optical_path: {split: none}    # no DIRSIG source; library-asserted (A.9.2)
+            array:
+              SensorWidth: 500
+              SensorHeight: 500
+              SensorPixelWidth: 10.0
+              SensorPixelHeight: 10.0
+              fill_factor: 1.0             # xelementsize / xelementspacing = 1.0
+              channel_layout: single
+            readout:
+              timestamp_reference: exposure_start   # no DIRSIG source; library-asserted
+              SensorShutterMode: Global              # no DIRSIG source; library-asserted
+              AdcBitDepth: 14                        # no DIRSIG source; library-asserted
+            channels:
+              - channel_id: nir-b1
+                band: NIR
+                band_center: 0.85                    # channel.center, µm
+                bandwidth: 0.15                       # channel.width 0.0637 assumed Gaussian sigma; FWHM = 2.3548*sigma, not confirmed
+                radiometric_reference:
+                  quantity: spectral_radiance
+                  unit: "W/(m2.sr.um)"                # imagefile at_fluxunits=electronspersecond; enum for electron flux TBD (A.9.1)
+
+  settings:
+    - entry_id: auror-nir
+      exposure_time: {value: 0.005, provenance: specified}   # capturemethod.temporalintegration, 10 samples
+      frame_rate: {value: 1000, provenance: specified}       # detectorarray.clock.rate
+      gain: {value: 1, provenance: specified}                # channel at_gain
+      black_level: {value: 0, provenance: specified}         # channel at_bias
+
+  fidelity:
+    modeled: [reflective and emissive radiance, atmospheric transmission and path radiance]
+    approximated: [detector noise, optics blur]
+    absent: [platform jitter]
+    valid_for: >
+      Scene-radiometry and sensor-chain studies at the modeled band, geometry and atmosphere.
+      Not yet valid for target-visibility studies: the embedded vehicle target does not appear
+      in the rendered output at the expected brightness (see FINDINGS.md, 2026-10-06 entry);
+      the cause is not yet established.
+
+  extras:
+    dirsig.atmosphere_db: jsims/AurorNewAtmosphere   # NewAtmosphere's HDF5 database, role dirsig:atmosphere_db (ROLE_PROPOSAL R-6)
+    dirsig.weather_file: saw.wth
+
+engine:
+  generator: {tool: dirfm, revision: "<git-sha>", spec_schema: dirsig-engine/1}
+
+  scenes:
+    - ref: {name: scenes/tahoe, content_hash: "sha256:<hash>"}
+      # Config-repo layout (scenes/<scene>/<scene>.scene) per A.8.3; the received AUROR_ref
+      # tree has tahoe.scene at its root with geometry/, materials/, maps/ as siblings, not
+      # descendants. Open — config-repo authoring decision, not resolved here.
+      offset: [0, 0, 0]
+
+  platform:
+    ref: {name: platforms/AurorNIRDetector.platform, content_hash: "sha256:<hash>"}
+    library_entry: auror-nir-detector
+    output_prefix: auror_nir_
+    split_channels: false
+    integration_samples: 10
+
+  motion:
+    kind: static
+    position: {frame: scene, xyz: [-400.0, 400.0, 550000.0]}
+    orientation:
+      kind: euler
+      euler: {order: xyz, units: radians, frame: sceneenu, angles: [0.0, 0.0, 3.141592654]}
+
+  tasks:
+    windows: [{start: 0.0, stop: 0.0}]
+
+  atmosphere:
+    # (2) PROPOSED EXTENSION -- "new_atmosphere" is not an adopted dirsig-engine/1 plugin
+    # value (A.8.7 defines only four_curve and basic). This block matches the real tree
+    # (ROLE_PROPOSAL R-6) and is not yet schema-conformant.
+    plugin: new_atmosphere
+    database:
+      ref: {name: jsims/AurorNewAtmosphere, content_hash: "sha256:<hash>"}
+
+  weather:
+    source: library
+    file: {name: weather/saw.wth, content_hash: "sha256:<hash>"}
+
+  ephemeris:
+    plugin: spice   # no inputs; reads the DIRSIG installation's kernels (A.6)
+
+  run:
+    seed: 42   # (3) value used in TRIAL_2026-10-06_dirsig-container.md's determinism measurement
