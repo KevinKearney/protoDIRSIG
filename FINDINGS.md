@@ -360,7 +360,7 @@ first.
 ## 2026-10-06 — Phase 5: the received AUROR_ref run tree, re-run from a static pose
 
 `notebooks/dev/auror_scene_buildup.ipynb` (the discovery log; the tutorial is
-`notebooks/tutorial_auror_scene.ipynb`, renamed `stage_01_auror_from_runspec.ipynb` on 2026-10-07) re-runs `AUROR_ref/` (received, gitignored; built on
+`notebooks/tutorial_auror_scene.ipynb`) re-runs `AUROR_ref/` (received, gitignored; built on
 Windows with DIRSIG/scene2hdf `2025.51 (822ab24)`) on this install (`2026.38 (a020954)`) and
 compares it with the shipped `jsims/AurorNIROutput.img` + `truth1.img`. `AUROR_ref/` is
 fingerprinted (68 paths) around every render and is unchanged. **Note:** the phase prompt said
@@ -480,9 +480,10 @@ AUROR_ref as a detection reference.
 
 ## 2026-10-07 — Stage 01: the AUROR_ref job driven from a MANIFOLD run spec
 
-`notebooks/tutorial_auror_scene.ipynb` is renamed `notebooks/stage_01_auror_from_runspec.ipynb`.
-It now takes its scene, platform, atmosphere, weather and ephemeris references, and its seed,
-from `run_specs/auror_ref.yaml`, a vendored copy of eopticDocs
+`notebooks/stage_01_auror_from_runspec.ipynb` is a new notebook, started from a copy of
+`notebooks/tutorial_auror_scene.ipynb`, which stays as it was. The new notebook takes its
+scene, platform, atmosphere, weather and ephemeris references, and its seed, from
+`run_specs/auror_ref.yaml`, a vendored copy of eopticDocs
 `projects/MANIFOLD/04-guides/auror_ref_run_spec.yaml`, which is edited there. The values are no
 longer written into its cells. `src/protodirsig/run_spec.py` loads and resolves it, and
 `tests/test_run_spec.py` pins it. `scene_ref`, `platform_ref` and `atmosphere_patches` are
@@ -534,8 +535,12 @@ and `environment.yml`. The tests ran under the env's interpreter with pytest fro
   executed, and committed (TLE/SGP4 trajectory, dropped the original STK-import approach —
   see `prompt.md` for the full rationale; Stage 2 works around the `GROUND_PLANE` extent with
   a tiled ground). Stage 3 (final render + comparison) not yet written.
-- `notebooks/stage_01_auror_from_runspec.ipynb` — was `tutorial_auror_scene.ipynb` (Phase 5).
-  Stage 01, complete: the same 3-stage AUROR_ref job, now driven from
+- `notebooks/tutorial_auror_scene.ipynb` — Phase 5, complete. Tutorial, 3 stages, executed end
+  to end: AUROR_ref's configuration driven through dirfm via `scene_ref`, `scene_coverage`,
+  `platform_ref` and `atmosphere_patches`, rendered on this install, image and geolocation
+  truth displayed.
+- `notebooks/stage_01_auror_from_runspec.ipynb` — Stage 01, complete, started from a copy of
+  the tutorial: the same 3-stage AUROR_ref job, now driven from
   `run_specs/auror_ref.yaml` via `run_spec`, seeded, executed end to end. Staged
   implementation, not a tutorial.
 - `notebooks/dev/auror_scene_buildup.ipynb` — Phase 5 discovery log (not a tutorial): how the
