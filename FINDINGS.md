@@ -630,6 +630,84 @@ was re-run after a one-line change (below).
   and an untracked `sensors/`). The vendored copies match its working tree on 2026-10-08, not a
   commit.
 
+## 2026-10-08 — Stage 04: `config_repo/`, the engine-asset library, as the resolution root
+
+Roadmap Phase 5 (eopticDocs `review/PLAN_2026-10-08_conformance-template-roadmap.md`), with the
+layout from GD_DIRSIG_RunSpec_YAML_v01 §9 and Configuration_v02 A.8: `scenes/<scene>/<scene>.scene`,
+`platforms/<platform>/<platform>.platform`, `weather/<name>.wth`, and the proposed, non-adopted
+`atmosphere/<name>`. The refreshed `run_specs/auror_ref.yaml` differs from the Stage 03 copy only
+in three `ref.name` values (`scenes/tahoe/tahoe.scene`,
+`platforms/AurorNIRDetector/AurorNIRDetector.platform`, `atmosphere/AurorNewAtmosphere`) and in
+comments. I checked that with `diff` before going on.
+
+**A copy, not a move. `AUROR_ref/` is untouched**: its fingerprint (75 paths) is unchanged across
+the copy step, the tests and both notebook renders. Before copying I confirmed that `tahoe.scene`
+has no `<scenebasedirectory>` override and no absolute path (`grep -niE
+"scenebasedirectory|/home/|/Users/|C:"`: no matches). Its only asset references are
+`$SCENE_DIR/materials/tahoe.mat` and `lists/*.glist` relative includes, so the
+`{tahoe.scene, geometry/, materials/}` bundle moved as a unit with no edits.
+`scene_ref.reference_scene` needed no change, because it symlinks the asset directories beside
+wherever the `.scene` file sits.
+
+The copy is 22 files, 57 MB, with no symlinks. Post-copy comparison, all with empty output:
+`diff -r AUROR_ref/geometry config_repo/scenes/tahoe/geometry`,
+`diff -r AUROR_ref/materials config_repo/scenes/tahoe/materials`, `diff` on `tahoe.scene`, on the
+platform file and on `saw.wth`, and `cmp` on `AurorNewAtmosphere`. **Git storage:** each of the 22
+files hashes (`git hash-object`) to a blob already in `.git` (`git cat-file -e`: 22 of 22 exist,
+0 new). Committing `config_repo/` adds only tree objects, not another copy of the content.
+
+**`_scene_file`'s flat/nested fallback is removed.** A scene ref now resolves to exactly
+`config_repo / ref.name`, with `RunSpecError` naming the attempted path otherwise.
+`tests/test_run_spec.py::test_no_flat_scene_fallback` pins this: the old `scenes/tahoe` ref no
+longer finds `AUROR_ref/tahoe.scene`, a flat `tahoe.scene` at the library root fails, and the
+received tree is not accepted as a library.
+
+**Three resolution roots now.** `resolve_auror_run(spec, tree, run_spec_path, config_repo)`
+resolves engine assets in `config_repo`, motion and tasks in `tree`, and the sensor ref beside the
+run spec. `Simulation(run_spec_path, tree_root, config_repo, work_dir=None)` stores both trees,
+and `_assemble` gives each copied input its path relative to the root it came from.
+
+**Result.** 36 tests passed, one of them new (`test_no_flat_scene_fallback`); the rest were
+updated. Both stage notebooks were re-run top to bottom. DIRSIG now reads every asset from
+`config_repo/`: its own `[warn]` lines name `config_repo/scenes/tahoe/materials/...`. Both
+fingerprints are unchanged across each render (`AUROR_ref` 75 paths, `config_repo` 36). The
+stage 01 and stage 02 seed-42 renders are byte-identical to each other (`cmp`), with the same
+image statistics as before the migration.
+
+**Not migrated.**
+- `run_specs/sensors/auror-nir.yaml`: a descriptor-side ref resolved beside the run spec (§7).
+  Whether a sensor library joins the asset repository is left open by the guide.
+- `AUROR_ref/motion/*.ppd` and `AUROR_ref/tasks/*.tasks`: per-run artifacts the generator would
+  emit from `engine.motion`/`engine.tasks`, not reusable library content (guide §3).
+- Also not copied: `AUROR_ref/jsims/AurorSimulation.jsim` (the received job file) and
+  `_to_delete/` (gitignored). There is no `maps/`: the scene's map list is disabled, and its
+  `.pgm` files exist nowhere in the tree.
+
+**Judgment calls the stage prompt did not anticipate:**
+- *A third caller.* `LocalRegistry.submit` also builds a `Simulation`, so it now takes
+  `config_repo` as well: `submit(run_spec_path, tree_root, config_repo, work_dir=None)`. The prompt
+  listed only the two notebooks.
+- *Argument order.* `config_repo` is a required positional argument, added last on
+  `resolve_auror_run` and before the optional `work_dir` on `Simulation` and `submit`. Neither
+  root defaults to the other. Every caller (tests, notebooks, registry) was updated.
+- *More notebook changes.* Besides the `CONFIG_REPO` cell and threading it through, both
+  notebooks' summary prints (`rel = lambda p: p.relative_to(AUROR)`) and stage 01's own
+  `copy_input` loop would have raised for library paths, so they now use the root each path
+  came from. Markdown that described the old flat fallback was updated, including stage 02's
+  "Not the finished template" paragraph, which had been stale since Stage 03. The display cells
+  are unchanged.
+- *The `needs_tree` test guard* now checks for `AUROR_ref/motion` and `tasks`, the only things the
+  tree supplies, instead of `AUROR_ref/tahoe.scene`. A matching `needs_config_repo` guard was added,
+  and `needs_dirsig` requires both trees. No guard was weakened.
+- *The spec-vs-file check reads the library platform file.* `check_received_files` compares
+  `integration_samples` against `run.platform`, which is now config_repo's copy, not the received
+  one. The two are byte-identical today. If they ever diverge, the check is against the library.
+- *A comment in the vendored run spec says `config_repo/scenes/tahoe/` holds `maps/`.* It doesn't
+  (see above). That comment is in the eopticDocs source, so it is left as vendored.
+- *The job's input layout changed.* The jsim now references
+  `platforms/AurorNIRDetector/AurorNIRDetector.platform` inside the work directory, not the flat
+  path. This is cosmetic; the content is byte-identical.
+
 ## Notebooks (status)
 
 - `notebooks/tutorial_dirfm_basics.ipynb` — Phase 1, complete. 8 stages, executed end to end.

@@ -1,16 +1,16 @@
 """protodirsig.registry.LocalRegistry must accept the real AUROR_ref run spec and reject a broken
 one with a reason naming the failed check (FINDINGS.md, 2026-10-08 — Stage 02).
 
-Reads run_specs/auror_ref.yaml and AUROR_ref READ-ONLY; runs a DIRSIG dry run; writes only to
-pytest's tmp_path.
+Reads run_specs/auror_ref.yaml, config_repo and AUROR_ref READ-ONLY; runs a DIRSIG dry run;
+writes only to pytest's tmp_path.
 """
 from protodirsig.registry import LocalRegistry
-from test_simulation import AUROR, SPEC, broken_spec, needs_dirsig
+from test_simulation import AUROR, CONFIG_REPO, SPEC, broken_spec, needs_dirsig
 
 
 @needs_dirsig
 def test_accepts_real_spec(tmp_path):
-    r = LocalRegistry().submit(SPEC, AUROR, tmp_path)
+    r = LocalRegistry().submit(SPEC, AUROR, CONFIG_REPO, tmp_path)
     assert r.verdict == "accepted" and r.accepted and r.reasons == []
     assert r.checks == {"schema": True, "resolution": True, "execution": True}
 
@@ -18,7 +18,7 @@ def test_accepts_real_spec(tmp_path):
 @needs_dirsig
 def test_rejects_missing_scene(tmp_path):
     path = broken_spec(tmp_path, lambda s: s["engine"]["scenes"][0]["ref"].update(name="scenes/no_such_scene"))
-    r = LocalRegistry().submit(path, AUROR, tmp_path / "work")
+    r = LocalRegistry().submit(path, AUROR, CONFIG_REPO, tmp_path / "work")
     assert r.verdict == "rejected" and not r.accepted
     assert r.checks["schema"] and not r.checks["resolution"]
     assert any(reason.startswith("Resolution check failed") and "no_such_scene" in reason for reason in r.reasons)

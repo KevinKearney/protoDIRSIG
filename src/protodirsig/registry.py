@@ -24,8 +24,8 @@ class SubmissionResult:
 
 
 class LocalRegistry:
-    def submit(self, run_spec_path, tree_root, work_dir=None):
-        sim = Simulation.from_run_spec(run_spec_path, tree_root, work_dir)
+    def submit(self, run_spec_path, tree_root, config_repo, work_dir=None):
+        sim = Simulation.from_run_spec(run_spec_path, tree_root, config_repo, work_dir)
         c = sim.validate()
         reasons = []
         if not c.schema_ok:

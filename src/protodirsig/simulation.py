@@ -12,8 +12,9 @@ scope; the vehicle-not-appearing finding in FINDINGS.md passes all three):
    `descriptor` is checked for its required blocks only, not field by field, except that
    `descriptor.sensor` must be a `sensor-spec/1` ref with a string `ref.name`. The file itself is
    not opened here.
-2. **Resolution**: `run_spec.resolve_auror_run` finds every engine reference under the tree root
-   and loads the sensor ref beside the run spec as `sensor-spec/1`, and
+2. **Resolution**: `run_spec.resolve_auror_run` finds every engine asset in `config_repo`, the
+   motion/tasks files in the received tree, and loads the sensor ref beside the run spec as
+   `sensor-spec/1`, and
    `run_spec.check_received_files` finds the received motion/tasks/platform files agree with the
    spec.
 3. **Execution**: the job is assembled as Stage 01 assembled it and DIRSIG is run with
@@ -173,12 +174,14 @@ def _run_dirsig(job, **options):
 class Simulation:
     """One AUROR_ref-type job from a run spec. Construct with `Simulation.from_run_spec`.
 
+    `tree_root` is the received run tree (motion and tasks); `config_repo` is the engine-asset
+    library (scene, platform, atmosphere database, weather). Both are read-only.
     `work_dir` holds everything written: the job inputs (scene reference, input copies, jsim),
     the dry-run scratch logs and the render output. Defaults to a fresh temporary directory.
     """
 
-    def __init__(self, run_spec_path, tree_root, work_dir=None):
-        self.run_spec_path, self.tree_root = Path(run_spec_path), Path(tree_root)
+    def __init__(self, run_spec_path, tree_root, config_repo, work_dir=None):
+        self.run_spec_path, self.tree_root, self.config_repo = Path(run_spec_path), Path(tree_root), Path(config_repo)
         self.work_dir = Path(work_dir) if work_dir is not None else Path(tempfile.mkdtemp(prefix="protodirsig_"))
         self.spec = self.auror_run = None
         self.load_error = self.resolve_error = None
@@ -188,22 +191,25 @@ class Simulation:
             self.load_error = f"{type(e).__name__}: {e}"
         if self.spec is not None:
             try:
-                self.auror_run = resolve_auror_run(self.spec, self.tree_root, self.run_spec_path)
+                self.auror_run = resolve_auror_run(self.spec, self.tree_root, self.run_spec_path, self.config_repo)
             except (RunSpecError, KeyError, TypeError) as e:
                 self.resolve_error = f"{type(e).__name__}: {e}"
 
     @classmethod
-    def from_run_spec(cls, run_spec_path, tree_root, work_dir=None):
-        return cls(run_spec_path, tree_root, work_dir)
+    def from_run_spec(cls, run_spec_path, tree_root, config_repo, work_dir=None):
+        return cls(run_spec_path, tree_root, config_repo, work_dir)
 
     def _assemble(self, in_dir, out_dir):
         """The Stage 01 job: scene reference, byte-identical input copies, four plugins, seed."""
-        r, tree = self.auror_run, self.tree_root
+        r, tree, lib = self.auror_run, self.tree_root, self.config_repo
         ref_file = reference_scene(r.scene, in_dir / "auror_ref")   # wipes and recreates only this subdirectory
         scene = SCENE(r.scene.stem)
         scene._fname = ref_file                                     # private attribute: write() returns it as-is
-        inputs = {n: copy_input(src, in_dir / src.relative_to(tree)) for n, src in [
-            ("platform", r.platform), ("motion", r.motion), ("tasks", r.tasks), ("weather", r.weather)]}
+        # Each input keeps its path relative to the root it came from: per-run files from the
+        # received tree, library assets from config_repo.
+        inputs = {n: copy_input(src, in_dir / src.relative_to(root)) for n, src, root in [
+            ("platform", r.platform, lib), ("motion", r.motion, tree), ("tasks", r.tasks, tree),
+            ("weather", r.weather, lib)]}
         db = copy_input(r.atmosphere_db, in_dir / r.atmosphere_db.name)   # beside the jsim, as received
         job = DIRSIG(in_dir, out_dir)
         job.add_plugin(PlatformFilesPlugin(inputs["platform"], inputs["motion"], inputs["tasks"],

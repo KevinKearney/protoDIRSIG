@@ -1,12 +1,19 @@
 """Read the AUROR_ref job's references from a MANIFOLD run-spec YAML.
 
 Narrow and tree-specific by design: this resolves `run_specs/auror_ref.yaml` (vendored from
-eopticDocs `04-guides/auror_ref_run_spec.yaml`) against the received `AUROR_ref/` tree for
-the stage notebooks (`notebooks/stage_NN_*.ipynb`). It is not a `dirsig-engine/1` interpreter.
+eopticDocs `04-guides/auror_ref_run_spec.yaml`) for the stage notebooks
+(`notebooks/stage_NN_*.ipynb`). It is not a `dirsig-engine/1` interpreter.
+
+Three resolution roots, one per kind of thing referenced:
+- `config_repo`: the engine-asset library (GD_DIRSIG_RunSpec_YAML_v01 §9; Configuration_v02 A.8)
+  for `engine.scenes`, `platform`, `atmosphere.database` and `weather.file`. Each ref name is a path
+  under it, with no fallback search.
+- `tree`: the received run tree (`AUROR_ref/`) for the per-run motion and tasks files.
+- the run spec's own directory, for the `descriptor.sensor` ref (see below).
 
 `descriptor.sensor` is a `sensor-spec/1` ref (GD_DIRSIG_RunSpec_YAML_v01 §7). Unlike every
-`engine` ref, it resolves against the run spec's own directory (`run_specs/sensors/...`), not the
-tree root. It is loaded and checked here, and nothing in the DIRSIG job consumes it.
+`engine` ref, it resolves against the run spec's own directory (`run_specs/sensors/...`), not
+`config_repo` or the tree. It is loaded and checked here, and nothing in the DIRSIG job consumes it.
 
 What it drives: `engine.scenes`, `platform`, `atmosphere`, `weather`, `ephemeris` and
 `run.seed`. Each one names an existing file, or a library entry, that the `scene_ref`,
@@ -73,7 +80,7 @@ def load_sensor_spec(run_spec_path, sensor_ref_name):
 
 @dataclass(frozen=True)
 class AurorRun:
-    """The run spec's values resolved to files in the received tree."""
+    """The run spec's values resolved to files: engine assets in config_repo, motion/tasks in the tree."""
     name: str
     origin: dict
     scene: Path
@@ -91,7 +98,7 @@ class AurorRun:
     sensor: dict             # the loaded sensor-spec/1 document; descriptor-side, not used to build the job
 
     def atmosphere_plugin(self, db=None):
-        """`NewAtmosphere` over `db`, or over the tree's own database if not given. Pass the job's
+        """`NewAtmosphere` over `db`, or over the resolved library database if not given. Pass the job's
         copy of the database so the jsim references it rather than the read-only original."""
         b = AUROR_ATMOSPHERE_BACKEND
         backend = (PatchedModtranTapeBackend().set_profile(b["profile"])
@@ -105,25 +112,18 @@ class AurorRun:
         return SpiceEphemerisPlugin()
 
 
-def _tree_file(tree, rel, what):
-    path = tree / rel
+def _root_file(root, rel, what):
+    path = root / rel
     if not path.is_file():
-        raise RunSpecError(f"{what} {rel!r} not found under {tree}")
+        raise RunSpecError(f"{what} {rel!r} not found: {path} is not a file")
     return path
 
 
-def _scene_file(tree, ref_name):
-    # `scenes/tahoe` names the config repository's intended layout, `scenes/<scene>/<scene>.scene`
-    # (Configuration_v02 A.8.3). The received tree instead has `tahoe.scene` at its root, with
-    # geometry/, materials/ and maps/ beside it. That layout question is open in the guide
-    # (GD_DIRSIG_RunSpec_YAML_v01 §6). Here it is worked around locally, not resolved: try the
-    # nested layout, then the scene's basename at the tree root.
-    stem = Path(ref_name).name
-    for candidate in (tree / ref_name / f"{stem}.scene", tree / f"{stem}.scene"):
-        if candidate.is_file():
-            return candidate
-    raise RunSpecError(f"scene {ref_name!r}: neither {ref_name}/{stem}.scene nor {stem}.scene "
-                       f"exists under {tree}")
+def _scene_file(config_repo, ref_name):
+    # The ref names the `.scene` file itself in the library layout, `scenes/<scene>/<scene>.scene`
+    # (Configuration_v02 A.8.3; guide §9), with geometry/, materials/ and maps/ beside it. No
+    # fallback search: the earlier nested-then-flat guess against the received tree is gone.
+    return _root_file(config_repo, ref_name, "scene")
 
 
 def _single(tree, subdir, pattern, what):
@@ -135,10 +135,10 @@ def _single(tree, subdir, pattern, what):
     return found[0]
 
 
-def resolve_auror_run(spec, tree, run_spec_path):
-    """Resolve a loaded run spec against the received tree at `tree`, and its sensor ref against
-    `run_spec_path`'s directory. Returns an `AurorRun`."""
-    tree = Path(tree)
+def resolve_auror_run(spec, tree, run_spec_path, config_repo):
+    """Resolve a loaded run spec: engine assets against `config_repo`, motion/tasks against the
+    received `tree`, the sensor ref against `run_spec_path`'s directory. Returns an `AurorRun`."""
+    tree, config_repo = Path(tree), Path(config_repo)
     eng = spec["engine"]
     atm = eng["atmosphere"]
     if atm.get("plugin") != "new_atmosphere":
@@ -167,16 +167,16 @@ def resolve_auror_run(spec, tree, run_spec_path):
     return AurorRun(
         name=desc["meta"]["name"],
         origin=dict(desc["origin"]),
-        scene=_scene_file(tree, scene["ref"]["name"]),
+        scene=_scene_file(config_repo, scene["ref"]["name"]),
         scene_offset=list(scene.get("offset", [0, 0, 0])),
-        platform=_tree_file(tree, plat["ref"]["name"], "platform"),
+        platform=_root_file(config_repo, plat["ref"]["name"], "platform"),
         motion=_single(tree, "motion", "*.ppd", "platform motion file"),
         tasks=_single(tree, "tasks", "*.tasks", "tasks file"),
         output_prefix=plat["output_prefix"],
         split_channels=bool(plat["split_channels"]),
         integration_samples=int(plat["integration_samples"]),
-        atmosphere_db=_tree_file(tree, atm["database"]["ref"]["name"], "atmosphere database"),
-        weather=_tree_file(tree, weather["file"]["name"], "weather file"),
+        atmosphere_db=_root_file(config_repo, atm["database"]["ref"]["name"], "atmosphere database"),
+        weather=_root_file(config_repo, weather["file"]["name"], "weather file"),
         ephemeris=ephemeris,
         seed=int(eng["run"]["seed"]),
         sensor=load_sensor_spec(run_spec_path, sensor_name),
