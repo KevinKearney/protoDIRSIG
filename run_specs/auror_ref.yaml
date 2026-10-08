@@ -98,9 +98,10 @@ engine:
   scenes:
     - ref: {name: scenes/tahoe/tahoe.scene, content_hash: "sha256:<hash>"}
       # Config-repo layout (scenes/<scene>/<scene>.scene, A.8.3), resolved in full as of Stage 04:
-      # config_repo/scenes/tahoe/ holds tahoe.scene plus geometry/, materials/ and maps/ as
-      # descendants, copied once from the received AUROR_ref tree where they sat as siblings at
-      # the tree root (FINDINGS.md, Stage 04; guide §9). No longer a flat/nested mismatch.
+      # config_repo/scenes/tahoe/ holds tahoe.scene plus geometry/ and materials/ as descendants
+      # (this scene has no maps/; the convention allows one, per guide §9), copied once from the
+      # received AUROR_ref tree where they sat as siblings at the tree root (FINDINGS.md, Stage 04;
+      # guide §9). No longer a flat/nested mismatch.
       offset: [0, 0, 0]
 
   platform:

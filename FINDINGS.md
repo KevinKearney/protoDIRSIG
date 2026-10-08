@@ -360,7 +360,7 @@ first.
 ## 2026-10-06 — Phase 5: the received AUROR_ref run tree, re-run from a static pose
 
 `notebooks/dev/auror_scene_buildup.ipynb` (the discovery log; the tutorial is
-`notebooks/tutorial_auror_scene.ipynb`) re-runs `AUROR_ref/` (received, gitignored; built on
+`notebooks/dirfm_tutorials/tutorial_auror_scene.ipynb`) re-runs `AUROR_ref/` (received, gitignored; built on
 Windows with DIRSIG/scene2hdf `2025.51 (822ab24)`) on this install (`2026.38 (a020954)`) and
 compares it with the shipped `jsims/AurorNIROutput.img` + `truth1.img`. `AUROR_ref/` is
 fingerprinted (68 paths) around every render and is unchanged. **Note:** the phase prompt said
@@ -481,7 +481,7 @@ AUROR_ref as a detection reference.
 ## 2026-10-07 — Stage 01: the AUROR_ref job driven from a MANIFOLD run spec
 
 `notebooks/stage_01_auror_from_runspec.ipynb` is a new notebook, started from a copy of
-`notebooks/tutorial_auror_scene.ipynb`, which stays as it was. The new notebook takes its
+`notebooks/dirfm_tutorials/tutorial_auror_scene.ipynb`, which stays as it was. The new notebook takes its
 scene, platform, atmosphere, weather and ephemeris references, and its seed, from
 `run_specs/auror_ref.yaml`, a vendored copy of eopticDocs
 `projects/MANIFOLD/04-guides/auror_ref_run_spec.yaml`, which is edited there. The values are no
@@ -710,12 +710,12 @@ image statistics as before the migration.
 
 ## Notebooks (status)
 
-- `notebooks/tutorial_dirfm_basics.ipynb` — Phase 1, complete. 8 stages, executed end to end.
-- `notebooks/tutorial_orbit_to_ground.ipynb` — Phase 2, in progress. Stages 0–2 complete,
+- `notebooks/dirfm_tutorials/tutorial_dirfm_basics.ipynb` — Phase 1, complete. 8 stages, executed end to end.
+- `notebooks/dirfm_tutorials/tutorial_orbit_to_ground.ipynb` — Phase 2, in progress. Stages 0–2 complete,
   executed, and committed (TLE/SGP4 trajectory, dropped the original STK-import approach —
   see `prompt.md` for the full rationale; Stage 2 works around the `GROUND_PLANE` extent with
   a tiled ground). Stage 3 (final render + comparison) not yet written.
-- `notebooks/tutorial_auror_scene.ipynb` — Phase 5, complete. Tutorial, 3 stages, executed end
+- `notebooks/dirfm_tutorials/tutorial_auror_scene.ipynb` — Phase 5, complete. Tutorial, 3 stages, executed end
   to end: AUROR_ref's configuration driven through dirfm via `scene_ref`, `scene_coverage`,
   `platform_ref` and `atmosphere_patches`, rendered on this install, image and geolocation
   truth displayed.
@@ -730,7 +730,7 @@ image statistics as before the migration.
 - `notebooks/dev/auror_scene_buildup.ipynb` — Phase 5 discovery log (not a tutorial): how the
   dirfm gaps were found and bridged, and the comparison against the shipped 2025.51 render with
   a same-version repeat as the baseline. Kept as executed; it predates the `src/` helpers.
-- `notebooks/tutorial_tacoma_scene.ipynb` — Phase 3, complete. 3 stages, executed end to end:
+- `notebooks/dirfm_tutorials/tutorial_tacoma_scene.ipynb` — Phase 3, complete. 3 stages, executed end to end:
   Tacoma referenced via `_fname`, WorldView-2 pass over Tacoma, render + truth-centre check.
   Reuses `src/protodirsig/` (`orbit.py` from Phase 2, `sensors.py` from Phase 1, and since
   Phase 4 `scene_ref.py` and `scene_coverage.py`), with `tests/test_orbit.py` and

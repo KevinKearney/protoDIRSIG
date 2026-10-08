@@ -47,7 +47,12 @@ conda env update -f environment.yml --prune
   approach evolves rather than treating it as a one-shot instruction.
 - `notebooks/` — Jupyter notebooks; the primary development and hand-off
   artifact for this project (see Architecture below — notebook-first is a
-  deliberate convention, not a placeholder for "real" code).
+  deliberate convention, not a placeholder for "real" code). See
+  `notebooks/README.md` for what each notebook does. `dirfm_tutorials/`
+  holds the standalone `dirfm`-fundamentals tutorials; `dev/` holds
+  discovery-log notebooks kept for their own sake, not maintained going
+  forward; the stage notebooks live at the top level of `notebooks/` and
+  are the active, accumulating work.
 - `src/protodirsig/` — supplementary Python modules for gaps `dirfm` does
   not cover, installed editable via `pip install -e .`. Empty scaffold for
   now; populated as Phase 2+ work identifies concrete gaps (see below).
@@ -95,7 +100,7 @@ the module is the extraction.
 
 **Phased scope, in order:**
 
-*Phase 1 — `dirfm` fundamentals (done).* `notebooks/tutorial_dirfm_basics.ipynb`,
+*Phase 1 — `dirfm` fundamentals (done).* `notebooks/dirfm_tutorials/tutorial_dirfm_basics.ipynb`,
 Stages 0–8: materials, primitives, sensor tree, motion, atmosphere, GLIST
 mesh geometry, multi-scene composition, and — closing the phase — empirical
 determinism verification (`set_seed()`, bitwise vs. statistical
