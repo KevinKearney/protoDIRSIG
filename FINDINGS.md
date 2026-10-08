@@ -528,6 +528,62 @@ unchanged. PyYAML (6.0.3, already present transitively) is now declared in `pypr
 and `environment.yml`. The tests ran under the env's interpreter with pytest from a scratch
 `--target` directory, because pytest is still not installed in the env: 20 passed (9 new).
 
+## 2026-10-08 — Stage 02: conformance checks, `Simulation` and `LocalRegistry`
+
+Phases 2–4 of eopticDocs `review/PLAN_2026-10-08_conformance-template-roadmap.md`. Phases 1, 5
+and 6 (sensor-spec split, asset repository, sweeps/ChipMaker) are not built.
+`src/protodirsig/simulation.py` (`Simulation`, `ConformanceResult`, `RunResult`, `schema_errors`)
+and `src/protodirsig/registry.py` (`LocalRegistry`, `SubmissionResult`) are new, pinned by
+`tests/test_simulation.py` and `tests/test_registry.py`. Neither imports any orchestration
+framework. `run_spec`, `scene_ref`, `platform_ref` and `atmosphere_patches` are reused unchanged.
+`notebooks/stage_02_conformance_template.ipynb` is a new notebook copied from stage 01, which
+stays as it was. The prompt said `git mv`.
+
+**What the execution-conformance check invokes.** It assembles the same job Stage 01 assembled,
+under `<work_dir>/validate/`, and runs it through dirfm's `DIRSIG.run(**options)`. That method is
+the only code that builds a `dirsig5` command line, and it already forwards arbitrary options
+(`None` becomes `--flag`, a value becomes `--flag=value`). No dirfm change was needed, and nothing
+in protoDIRSIG calls `dirsig5` itself. The resulting calls:
+`scene2hdf --threads N auror_ref/tahoe.scene --random_seed 42`, then
+`dirsig5 <in>/example.jsim --output_folder=<out> --dry_run --log_info_filename=<work>/validate/log_info.json --random_seed 42`.
+The real render (`Simulation.run`) drops `--dry_run` and adds
+`--run_info_filename=<out>/run_info.json --log_info_filename=<out>/log_info.json`. All three flag
+spellings were confirmed against `dirsig5 --help` (2026.38). The bare `--run_info`/`--log_info`
+also exist as shortcuts for the default filenames, so the guide's prose and its examples are
+both valid. The check fails on a nonzero exit (dirfm raises with DIRSIG's stderr), or on a
+`[error]` line in stderr captured from dirfm's `dirfm.dirsig` logger. A dry run takes about 0.7 s,
+including `scene2hdf`, and writes no images. Example: a corrupt `AurorNewAtmosphere` exits nonzero
+with `Could not open NewAtmosphere HDF`, and no log is written.
+
+**What the JSON log is checked against today (not a schema validation of DIRSIG's format).** The
+`--log_info` file must list exactly one capture. Its `task_index` must name one of the spec's
+`engine.tasks.windows`, its `relative_time_window` must start inside that window, and its
+`run_info.reference_date_time` must equal `descriptor.collection.epoch`.
+
+**How the schema and resolution checks are split.** `resolve_auror_run` raises `RunSpecError` for
+bad values and for files it cannot find alike, so wrapping it as the schema check would report a
+missing scene as a schema failure. Instead, `simulation.schema_errors` checks values on their own:
+required `run-spec/1` and `dirsig-engine/1` members, and the enumerated engine values in
+Configuration_v02 A.8.2–A.8.8 plus the `new_atmosphere` extension. `descriptor` is checked for its
+six required blocks only. Resolution is `resolve_auror_run` plus `check_received_files`. All
+three checks always run. Execution is attempted whenever the references resolve, even if the
+schema check failed, so that each verdict is independent evidence. A schema-valid spec this
+tree-specific loader can't handle (`four_curve`) fails resolution, with the loader's message.
+
+**Side observations.**
+- `run_info.json`'s `plugin_list` records only `NewAtmosphere` and `BasicPlatform`. The jsim's
+  `SpiceEphemeris` and `ThermWeather` don't appear, so `run_info` is not a complete record of the
+  plugins.
+- The roadmap asks what `engine.run.seed` actually seeds. Configuration_v02 A.8.8 and the
+  command lines above agree: dirfm's `set_seed` passes `--random_seed` to both `scene2hdf` and
+  `dirsig5`, and both binaries list the option. It does reproduce a render. Stage 02's seed-42
+  render (`outputs/stage_02_auror/output/`) is byte-identical to Stage 01's (`cmp` on
+  `AurorNIROutput.img` and `truth1.img`). The two ran on different days, with the job assembled
+  by different code (notebook cells, then `Simulation`).
+- Compile-once is not adopted. `DIRSIG.run` always runs `scene2hdf`, so a `submit` followed by
+  `run()` compiles the scene twice (into `validate/input/` and `input/`). At about a second each
+  that doesn't matter for one job. It will for sweeps (Phase 6).
+
 ## Notebooks (status)
 
 - `notebooks/tutorial_dirfm_basics.ipynb` — Phase 1, complete. 8 stages, executed end to end.
@@ -543,6 +599,10 @@ and `environment.yml`. The tests ran under the env's interpreter with pytest fro
   the tutorial: the same 3-stage AUROR_ref job, now driven from
   `run_specs/auror_ref.yaml` via `run_spec`, seeded, executed end to end. Staged
   implementation, not a tutorial.
+- `notebooks/stage_02_conformance_template.ipynb` — Stage 02, complete: the stage 01 job
+  submitted through `LocalRegistry` (schema, resolution and execution checks), and rendered
+  through `Simulation.run()` only if accepted, with DIRSIG's JSON run/info logs. Executed end to
+  end.
 - `notebooks/dev/auror_scene_buildup.ipynb` — Phase 5 discovery log (not a tutorial): how the
   dirfm gaps were found and bridged, and the comparison against the shipped 2025.51 render with
   a same-version repeat as the baseline. Kept as executed; it predates the `src/` helpers.
