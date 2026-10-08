@@ -584,6 +584,52 @@ tree-specific loader can't handle (`four_curve`) fails resolution, with the load
   `run()` compiles the scene twice (into `validate/input/` and `input/`). At about a second each
   that doesn't matter for one job. It will for sweeps (Phase 6).
 
+## 2026-10-08 — Stage 03: `descriptor.sensor` resolved as a `sensor-spec/1` ref
+
+Roadmap Phase 1. `descriptor.sensor` is now a ref, `{ref: {name: sensors/auror-nir.yaml,
+content_hash: "sha256:<hash>"}}`, to a `sensor-spec/1` document (GD_DIRSIG_RunSpec_YAML_v01 §7).
+Two files were vendored, each with a one-line "edit it in eopticDocs" header:
+`run_specs/auror_ref.yaml` (refreshed) and `run_specs/sensors/auror-nir.yaml` (new). Before
+vendoring, I checked the extraction: the sensor block is identical to the old inline one once
+parsed, and nothing else in `descriptor` or `engine` changed.
+
+What this stage adds:
+- `run_spec.load_sensor_spec(run_spec_path, name)` loads the referenced file. It returns the
+  whole document, as `load_run_spec` does. It raises `RunSpecError` if the file is missing, does
+  not parse, is not `sensor-spec/1`, or has no `sensor` mapping.
+- `resolve_auror_run(spec, tree, run_spec_path)` calls it and stores the document as
+  `AurorRun.sensor`.
+- `simulation.schema_errors` requires `descriptor.sensor.ref.name` to be a string. It does not
+  open the file; that is resolution's job.
+- The sensor is not consumed by `_assemble` or anywhere else in the DIRSIG job, and no
+  `content_hash` is verified (by-name trust, §7).
+
+Tests: 35 passed (7 new). The stage 02 notebook was re-run unmodified, and the stage 01 notebook
+was re-run after a one-line change (below).
+
+**Judgment calls (not specified by §7 or the stage prompt):**
+- *Resolution root.* The sensor ref resolves against the run spec's own directory
+  (`run_specs/`), while every `engine` ref resolves against the tree root (`AUROR_ref/`). §7 says
+  the sensor ref has "the same `ref` shape" as `engine.scenes[]`/`engine.platform`, but it does not
+  say what a ref name is relative to. In eopticDocs the two roots happen to coincide (`04-guides/`
+  holds both the run spec and `sensors/`). Here they are two roots, and Phase 5's asset repository
+  will need a single rule.
+- *Inline sensor blocks are now rejected*, by both the schema check and resolution. §7 does not
+  say whether `run-spec/1` still allows an inline `descriptor.sensor` as an alternative to the
+  ref. The prompt asked for ref-only, so an old-style spec fails rather than being accepted.
+- *`load_sensor_spec` also requires a `sensor` mapping*, beyond the `spec_version` check the prompt
+  named. It does not reject extra top-level keys, although §7 says "nothing else". That matches
+  the plain-loader stance everywhere else (no unknown-key rejection; strict loader deferred).
+- *`run_spec_path` is a required argument*, not optional with a skip. An optional argument would
+  silently leave the sensor unchecked. The prompt named `Simulation.__init__` as "the one call
+  site", but `notebooks/stage_01_auror_from_runspec.ipynb` also calls `resolve_auror_run`. Its call
+  now passes `RUN_SPEC` (a one-line source change), and it was re-executed to confirm.
+- *The schema check sits in the `descriptor` branch* of `schema_errors`, as its own short check,
+  not in the `engine`-only refs loop.
+- *The eopticDocs sources were uncommitted* in that repo when vendored (the guide, the run spec,
+  and an untracked `sensors/`). The vendored copies match its working tree on 2026-10-08, not a
+  commit.
+
 ## Notebooks (status)
 
 - `notebooks/tutorial_dirfm_basics.ipynb` — Phase 1, complete. 8 stages, executed end to end.

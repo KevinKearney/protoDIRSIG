@@ -33,10 +33,14 @@ needs_dirsig = pytest.mark.skipif(not ((AUROR / "tahoe.scene").is_file() and _di
 
 
 def broken_spec(tmp_path, edit):
+    """A copy of the real run spec with `edit` applied, written to tmp_path beside a symlink to
+    run_specs/sensors/, since the sensor ref resolves against the run spec's own directory."""
     spec = yaml.safe_load(SPEC.read_text())
     edit(spec)
     path = tmp_path / "broken.yaml"
     path.write_text(yaml.safe_dump(spec, sort_keys=False))
+    if not (tmp_path / "sensors").exists():
+        (tmp_path / "sensors").symlink_to(SPEC.parent / "sensors", target_is_directory=True)
     return path
 
 
@@ -101,3 +105,20 @@ def test_schema_errors_collects_all():
     del spec["descriptor"]["fidelity"]
     errs = schema_errors(spec)
     assert len(errs) == 3 and any("ephemeris" in e for e in errs) and any("seed" in e for e in errs)
+
+
+def test_sensor_ref_schema():
+    spec = yaml.safe_load(SPEC.read_text())
+    del spec["descriptor"]["sensor"]["ref"]["name"]
+    errs = schema_errors(spec)
+    assert len(errs) == 1 and "descriptor.sensor.ref.name" in errs[0]
+    spec["descriptor"]["sensor"] = {"sensor_system": {"system_id": "x"}}   # the old inline shape
+    assert any("descriptor.sensor.ref.name" in e for e in schema_errors(spec))
+
+
+@needs_dirsig
+def test_missing_sensor_file_fails_resolution_only(tmp_path):
+    path = broken_spec(tmp_path, lambda s: s["descriptor"]["sensor"]["ref"].update(name="sensors/no_such_sensor.yaml"))
+    c = Simulation.from_run_spec(path, AUROR, tmp_path / "work").validate()
+    assert c.schema_ok and not c.resolution_ok
+    assert "no_such_sensor.yaml" in c.resolution_mismatches[0]

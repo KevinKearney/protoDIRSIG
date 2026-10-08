@@ -1,0 +1,59 @@
+# Vendored copy. Authored at eopticDocs/projects/MANIFOLD/04-guides/sensors/auror-nir.yaml -- edit it there, not here.
+# sensor-spec/1 extraction of auror_ref_run_spec.yaml's descriptor.sensor block.
+# Companion to GD_DIRSIG_RunSpec_YAML_v01.md §7 (04-guides/).
+#
+# Content unchanged from the inline block this replaces. Referenced by
+# auror_ref_run_spec.yaml as descriptor.sensor.ref. Trust model: by name, like every
+# other ref in the engine body (content_hash authored, not yet verified -- see §7).
+
+spec_version: sensor-spec/1
+
+meta:
+  name: auror-nir
+  tags: [auror, nir, staring-array]
+  description: >
+    NIR staring-array sensor system used in the AUROR_ref tree: a fixed-mount instrument,
+    85 mm aperture, 306 mm focal length, single NIR channel centered at 0.85 µm.
+
+sensor:
+  sensor_system:
+    system_id: auror.nir-staring-01
+    reference_frame:
+      name: rig_body_enu
+      origin: aperture stop centre of the primary instrument
+      handedness: right
+      axis_convention: x_boresight_y_right_z_down   # not confirmed, carried from the shared instance
+    frame_association: {policy: none}
+  entries:
+    - entry_id: auror-nir
+      identity:
+        instrument_id: instr.auror.nir.staring.01
+        sensor_class: staring_array
+      mount: {kind: fixed, translation: [0, 0, 0], rotation: [1, 0, 0, 0]}
+      optics:
+        aperture_diameter: 85.0         # properties.aperturediameter; unit not confirmed, assumed mm (A.9.1)
+        focal_length: 306.0             # properties.focallength; unit not confirmed, assumed mm (A.9.1); f/# = 306/85 = 3.6
+        f_number: 3.6
+        throughput_in_band: {value: 0.875, provenance: specified}
+        distortion: {model: none}
+      focal_planes:
+        - optical_path: {split: none}    # no DIRSIG source; library-asserted (A.9.2)
+          array:
+            SensorWidth: 500
+            SensorHeight: 500
+            SensorPixelWidth: 10.0
+            SensorPixelHeight: 10.0
+            fill_factor: 1.0             # xelementsize / xelementspacing = 1.0
+            channel_layout: single
+          readout:
+            timestamp_reference: exposure_start   # no DIRSIG source; library-asserted
+            SensorShutterMode: Global              # no DIRSIG source; library-asserted
+            AdcBitDepth: 14                        # no DIRSIG source; library-asserted
+          channels:
+            - channel_id: nir-b1
+              band: NIR
+              band_center: 0.85                    # channel.center, µm
+              bandwidth: 0.15                       # channel.width 0.0637 assumed Gaussian sigma; FWHM = 2.3548*sigma, not confirmed
+              radiometric_reference:
+                quantity: spectral_radiance
+                unit: "W/(m2.sr.um)"                # imagefile at_fluxunits=electronspersecond; enum for electron flux TBD (A.9.1)

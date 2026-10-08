@@ -9,8 +9,11 @@ scope; the vehicle-not-appearing finding in FINDINGS.md passes all three):
 1. **Schema**: the run spec parses, the required members of `run-spec/1` and the
    `dirsig-engine/1` body (AV_MANIFOLD_Configuration_v02 A.8) are present, and every enumerated
    engine field holds a value A.8 permits, plus the documented `new_atmosphere` extension.
-   `descriptor` is checked for its required blocks only, not field by field.
-2. **Resolution**: `run_spec.resolve_auror_run` finds every reference under the tree root, and
+   `descriptor` is checked for its required blocks only, not field by field, except that
+   `descriptor.sensor` must be a `sensor-spec/1` ref with a string `ref.name`. The file itself is
+   not opened here.
+2. **Resolution**: `run_spec.resolve_auror_run` finds every engine reference under the tree root
+   and loads the sensor ref beside the run spec as `sensor-spec/1`, and
    `run_spec.check_received_files` finds the received motion/tasks/platform files agree with the
    spec.
 3. **Execution**: the job is assembled as Stage 01 assembled it and DIRSIG is run with
@@ -95,6 +98,9 @@ def schema_errors(spec):
         errs.append("descriptor is missing")
     else:
         errs += [f"descriptor.{k} is missing" for k in DESCRIPTOR_REQUIRED if k not in desc]
+        if "sensor" in desc and not isinstance(_get(desc, ("sensor", "ref", "name")), str):
+            errs.append("descriptor.sensor.ref.name is missing: descriptor.sensor must be a sensor-spec/1 ref "
+                        "(GD_DIRSIG_RunSpec_YAML_v01 §7), not an inline block")
     if not isinstance(eng, dict):
         return errs + ["engine is missing (required for a DIRSIG run)"]
     errs += [f"engine.{k} is missing" for k in ENGINE_REQUIRED if k not in eng]
@@ -182,7 +188,7 @@ class Simulation:
             self.load_error = f"{type(e).__name__}: {e}"
         if self.spec is not None:
             try:
-                self.auror_run = resolve_auror_run(self.spec, self.tree_root)
+                self.auror_run = resolve_auror_run(self.spec, self.tree_root, self.run_spec_path)
             except (RunSpecError, KeyError, TypeError) as e:
                 self.resolve_error = f"{type(e).__name__}: {e}"
 

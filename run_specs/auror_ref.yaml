@@ -15,8 +15,11 @@
 #   2. atmosphere uses NewAtmosphere + an atmosphere_db reference, matching the tree as
 #      measured, not FourCurveAtmosphere. `new_atmosphere` is NOT an adopted A.8.7 plugin
 #      value yet -- this is a proposed extension, not a conformant dirsig-engine/1 document.
-#   3. run.seed is set (open item #1 against notebooks/tutorial_auror_scene.ipynb, which
-#      does not yet call set_seed() either).
+#   3. run.seed is set and confirmed (FINDINGS.md, Stage 02): dirfm passes it as
+#      --random_seed to both scene2hdf and dirsig5, and it reproduces a render byte for byte.
+#
+# descriptor.sensor is a sensor-spec/1 ref (GD_DIRSIG_RunSpec_YAML_v01.md §7), not an inline
+# block -- see sensors/auror-nir.yaml in this folder.
 #
 # Hashes throughout are placeholders, as in both source illustrative instances.
 
@@ -58,47 +61,9 @@ descriptor:
       - class: vehicle_air               # hypersonic bundle target (hypersonic.glist / hypersonic.mat)
 
   sensor:
-    sensor_system:
-      system_id: auror.nir-staring-01
-      reference_frame:
-        name: rig_body_enu
-        origin: aperture stop centre of the primary instrument
-        handedness: right
-        axis_convention: x_boresight_y_right_z_down   # not confirmed, carried from the shared instance
-      frame_association: {policy: none}
-    entries:
-      - entry_id: auror-nir
-        identity:
-          instrument_id: instr.auror.nir.staring.01
-          sensor_class: staring_array
-        mount: {kind: fixed, translation: [0, 0, 0], rotation: [1, 0, 0, 0]}
-        optics:
-          aperture_diameter: 85.0         # properties.aperturediameter; unit not confirmed, assumed mm (A.9.1)
-          focal_length: 306.0             # properties.focallength; unit not confirmed, assumed mm (A.9.1); f/# = 306/85 = 3.6
-          f_number: 3.6
-          throughput_in_band: {value: 0.875, provenance: specified}
-          distortion: {model: none}
-        focal_planes:
-          - optical_path: {split: none}    # no DIRSIG source; library-asserted (A.9.2)
-            array:
-              SensorWidth: 500
-              SensorHeight: 500
-              SensorPixelWidth: 10.0
-              SensorPixelHeight: 10.0
-              fill_factor: 1.0             # xelementsize / xelementspacing = 1.0
-              channel_layout: single
-            readout:
-              timestamp_reference: exposure_start   # no DIRSIG source; library-asserted
-              SensorShutterMode: Global              # no DIRSIG source; library-asserted
-              AdcBitDepth: 14                        # no DIRSIG source; library-asserted
-            channels:
-              - channel_id: nir-b1
-                band: NIR
-                band_center: 0.85                    # channel.center, µm
-                bandwidth: 0.15                       # channel.width 0.0637 assumed Gaussian sigma; FWHM = 2.3548*sigma, not confirmed
-                radiometric_reference:
-                  quantity: spectral_radiance
-                  unit: "W/(m2.sr.um)"                # imagefile at_fluxunits=electronspersecond; enum for electron flux TBD (A.9.1)
+    ref: {name: sensors/auror-nir.yaml, content_hash: "sha256:<hash>"}
+    # (sensor-spec/1 extraction, GD_DIRSIG_RunSpec_YAML_v01.md §7) -- content identical to the
+    # formerly-inline block; see sensors/auror-nir.yaml in this folder.
 
   settings:
     - entry_id: auror-nir
@@ -164,4 +129,4 @@ engine:
     plugin: spice   # no inputs; reads the DIRSIG installation's kernels (A.6)
 
   run:
-    seed: 42   # (3) value used in TRIAL_2026-10-06_dirsig-container.md's determinism measurement
+    seed: 42   # (3) confirmed to seed both scene2hdf and dirsig5 (FINDINGS.md, Stage 02)

@@ -2,7 +2,11 @@
 
 Narrow and tree-specific by design: this resolves `run_specs/auror_ref.yaml` (vendored from
 eopticDocs `04-guides/auror_ref_run_spec.yaml`) against the received `AUROR_ref/` tree for
-`notebooks/stage_01_auror_from_runspec.ipynb`. It is not a `dirsig-engine/1` interpreter.
+the stage notebooks (`notebooks/stage_NN_*.ipynb`). It is not a `dirsig-engine/1` interpreter.
+
+`descriptor.sensor` is a `sensor-spec/1` ref (GD_DIRSIG_RunSpec_YAML_v01 §7). Unlike every
+`engine` ref, it resolves against the run spec's own directory (`run_specs/sensors/...`), not the
+tree root. It is loaded and checked here, and nothing in the DIRSIG job consumes it.
 
 What it drives: `engine.scenes`, `platform`, `atmosphere`, `weather`, `ephemeris` and
 `run.seed`. Each one names an existing file, or a library entry, that the `scene_ref`,
@@ -15,7 +19,8 @@ instead.
 Loading is a plain `yaml.safe_load`. `AV_MANIFOLD_Metadata_v02.md` §6.15 specifies a strict
 loader (duplicate-key rejection, canonical-JSON hashing, unknown-key rejection). That belongs to
 MANIFOLD's registry side, which is not built yet, so it is not built here: a duplicated key in the
-YAML silently keeps the last value, and the `content_hash` placeholders are not checked.
+YAML silently keeps the last value, and no `content_hash` is checked, the sensor ref's
+included (by-name trust, guide §7).
 """
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -47,6 +52,25 @@ def load_run_spec(path):
     return spec
 
 
+def load_sensor_spec(run_spec_path, sensor_ref_name):
+    """Load the `sensor-spec/1` document `sensor_ref_name` names, resolved against the run spec's
+    directory. Returns the whole document, as `load_run_spec` does. Raises `RunSpecError` if the
+    file is missing, does not parse, is not `sensor-spec/1`, or has no `sensor` mapping."""
+    path = Path(run_spec_path).parent / sensor_ref_name
+    if not path.is_file():
+        raise RunSpecError(f"sensor {sensor_ref_name!r} not found beside the run spec ({path})")
+    try:
+        doc = yaml.safe_load(path.read_text())
+    except yaml.YAMLError as e:
+        raise RunSpecError(f"sensor {sensor_ref_name!r} does not parse: {e}") from e
+    version = doc.get("spec_version") if isinstance(doc, dict) else doc
+    if version != "sensor-spec/1":
+        raise RunSpecError(f"sensor {sensor_ref_name!r}: expected a sensor-spec/1 document, got spec_version {version!r}")
+    if not isinstance(doc.get("sensor"), dict):
+        raise RunSpecError(f"sensor {sensor_ref_name!r}: sensor-spec/1 document has no `sensor` mapping")
+    return doc
+
+
 @dataclass(frozen=True)
 class AurorRun:
     """The run spec's values resolved to files in the received tree."""
@@ -64,6 +88,7 @@ class AurorRun:
     weather: Path
     ephemeris: str
     seed: int
+    sensor: dict             # the loaded sensor-spec/1 document; descriptor-side, not used to build the job
 
     def atmosphere_plugin(self, db=None):
         """`NewAtmosphere` over `db`, or over the tree's own database if not given. Pass the job's
@@ -110,8 +135,9 @@ def _single(tree, subdir, pattern, what):
     return found[0]
 
 
-def resolve_auror_run(spec, tree):
-    """Resolve a loaded run spec against the received tree at `tree`. Returns an `AurorRun`."""
+def resolve_auror_run(spec, tree, run_spec_path):
+    """Resolve a loaded run spec against the received tree at `tree`, and its sensor ref against
+    `run_spec_path`'s directory. Returns an `AurorRun`."""
     tree = Path(tree)
     eng = spec["engine"]
     atm = eng["atmosphere"]
@@ -132,6 +158,12 @@ def resolve_auror_run(spec, tree):
 
     scene, plat = eng["scenes"][0], eng["platform"]
     desc = spec["descriptor"]
+    sensor = desc.get("sensor")
+    ref = sensor.get("ref") if isinstance(sensor, dict) else None
+    sensor_name = ref.get("name") if isinstance(ref, dict) else None
+    if not isinstance(sensor_name, str):
+        raise RunSpecError("descriptor.sensor must be a sensor-spec/1 ref ({ref: {name: sensors/<name>.yaml}}), "
+                           f"got {sensor!r:.80}")
     return AurorRun(
         name=desc["meta"]["name"],
         origin=dict(desc["origin"]),
@@ -147,6 +179,7 @@ def resolve_auror_run(spec, tree):
         weather=_tree_file(tree, weather["file"]["name"], "weather file"),
         ephemeris=ephemeris,
         seed=int(eng["run"]["seed"]),
+        sensor=load_sensor_spec(run_spec_path, sensor_name),
     )
 
 
