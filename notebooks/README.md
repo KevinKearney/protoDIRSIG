@@ -21,7 +21,8 @@ maintained going forward.
 - **`stage_01_auror_from_runspec.ipynb`** — Builds and renders the AUROR_ref DIRSIG job driven
   entirely from a MANIFOLD run-spec YAML (`run_specs/auror_ref.yaml`), via
   `src/protodirsig/run_spec.py`. Scene, platform, atmosphere, weather and seed all come from the
-  run spec rather than being written into the notebook's cells.
+  run spec rather than being written into the notebook's cells; the assets resolve in
+  `config_repo/`, and the motion and tasks files are generated from the spec.
 - **`stage_02_conformance_template.ipynb`** — Submits the same job through `LocalRegistry`
   (schema, resolution and execution checks) and renders it with `Simulation.run()` only if
   accepted, capturing DIRSIG's JSON run/info logs alongside the render. This is the current
@@ -38,7 +39,8 @@ maintained going forward.
   directly through `dirfm`.
 - **`tutorial_auror_scene.ipynb`** — The AUROR_ref job (same scene and platform the stage
   notebooks use), driven directly through `dirfm` with no run-spec or registry layer. A plain
-  usage example, not part of the staged work.
+  usage example, not part of the staged work. Reads AUROR_ref's files from their copies in
+  `config_repo/` and `tests/fixtures/auror_ref/`, since `AUROR_ref/` itself was retired.
 
 ## `dev/`
 

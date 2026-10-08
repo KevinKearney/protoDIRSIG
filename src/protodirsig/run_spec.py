@@ -4,24 +4,24 @@ Narrow and tree-specific by design: this resolves `run_specs/auror_ref.yaml` (ve
 eopticDocs `04-guides/auror_ref_run_spec.yaml`) for the stage notebooks
 (`notebooks/stage_NN_*.ipynb`). It is not a `dirsig-engine/1` interpreter.
 
-Three resolution roots, one per kind of thing referenced:
+Two resolution roots, one per kind of thing referenced:
 - `config_repo`: the engine-asset library (GD_DIRSIG_RunSpec_YAML_v01 §9; Configuration_v02 A.8)
   for `engine.scenes`, `platform`, `atmosphere.database` and `weather.file`. Each ref name is a path
   under it, with no fallback search.
-- `tree`: the received run tree (`AUROR_ref/`) for the per-run motion and tasks files.
 - the run spec's own directory, for the `descriptor.sensor` ref (see below).
+Nothing resolves against a received run tree. MANIFOLD has none: the executor materializes a fresh
+run tree from the run spec for every run (Configuration_v02 §2).
 
 `descriptor.sensor` is a `sensor-spec/1` ref (GD_DIRSIG_RunSpec_YAML_v01 §7). Unlike every
 `engine` ref, it resolves against the run spec's own directory (`run_specs/sensors/...`), not
-`config_repo` or the tree. It is loaded and checked here, and nothing in the DIRSIG job consumes it.
+`config_repo`. It is loaded and checked here, and nothing in the DIRSIG job consumes it.
 
 What it drives: `engine.scenes`, `platform`, `atmosphere`, `weather`, `ephemeris` and
-`run.seed`. Each one names an existing file, or a library entry, that the `scene_ref`,
-`platform_ref` and `atmosphere_patches` helpers reference as-is.
-What it does not drive: `engine.motion` and `engine.tasks`. In a received tree those blocks
-describe what `motion/*.ppd` and `tasks/*.tasks` already encode, so the files are referenced and
-never regenerated (FINDINGS.md, "2026-10-07 — Stage 01"). `check_received_files` compares the two
-instead.
+`run.seed` name existing library files that the `scene_ref`, `platform_ref` and
+`atmosphere_patches` helpers reference as-is. `engine.motion` and `engine.tasks` are generated,
+not resolved: `AurorRun` carries their values, and `motion_tasks` writes the `.ppd` and `.tasks`
+files from them (FINDINGS.md, "2026-10-08 — Stage 05"). Only `motion.kind: static` with a
+scene-frame position and a `sceneenu` Euler orientation is generated; anything else is refused.
 
 Loading is a plain `yaml.safe_load`. `AV_MANIFOLD_Metadata_v02.md` §6.15 specifies a strict
 loader (duplicate-key rejection, canonical-JSON hashing, unknown-key rejection). That belongs to
@@ -80,14 +80,17 @@ def load_sensor_spec(run_spec_path, sensor_ref_name):
 
 @dataclass(frozen=True)
 class AurorRun:
-    """The run spec's values resolved to files: engine assets in config_repo, motion/tasks in the tree."""
+    """The run spec's values: engine assets resolved to config_repo files, and the values the
+    motion and tasks files are generated from (`motion_tasks`)."""
     name: str
     origin: dict
     scene: Path
     scene_offset: list
     platform: Path
-    motion: Path
-    tasks: Path
+    motion_position: list    # engine.motion.position.xyz, scene frame, metres
+    motion_orientation: dict # engine.motion.orientation.euler: order, units, angles (frame is sceneenu)
+    tasks_windows: list      # [(start, stop)] seconds relative to `epoch`
+    epoch: datetime          # descriptor.collection.epoch, timezone-aware UTC
     output_prefix: str
     split_channels: bool
     integration_samples: int
@@ -126,19 +129,11 @@ def _scene_file(config_repo, ref_name):
     return _root_file(config_repo, ref_name, "scene")
 
 
-def _single(tree, subdir, pattern, what):
-    # engine.motion / engine.tasks describe the received files' content but do not name them.
-    found = sorted((tree / subdir).glob(pattern))
-    if len(found) != 1:
-        raise RunSpecError(f"expected exactly one {what} ({subdir}/{pattern}) under {tree}, "
-                           f"found {[p.name for p in found]}")
-    return found[0]
-
-
-def resolve_auror_run(spec, tree, run_spec_path, config_repo):
-    """Resolve a loaded run spec: engine assets against `config_repo`, motion/tasks against the
-    received `tree`, the sensor ref against `run_spec_path`'s directory. Returns an `AurorRun`."""
-    tree, config_repo = Path(tree), Path(config_repo)
+def resolve_auror_run(spec, run_spec_path, config_repo):
+    """Resolve a loaded run spec: engine assets against `config_repo`, the sensor ref against
+    `run_spec_path`'s directory, and the motion/tasks values the generator needs. Returns an
+    `AurorRun`."""
+    config_repo = Path(config_repo)
     eng = spec["engine"]
     atm = eng["atmosphere"]
     if atm.get("plugin") != "new_atmosphere":
@@ -156,6 +151,30 @@ def resolve_auror_run(spec, tree, run_spec_path, config_repo):
     if weather is None or weather.get("source") != "library":
         raise RunSpecError(f"engine.weather must be a library file for this tree, got {weather!r}")
 
+    # Motion and tasks are generated with dirfm's PlatformPosition and TASKS (motion_tasks), which
+    # write one static .ppd and one .tasks file. Schema-valid values they cannot express are refused.
+    motion = eng["motion"]
+    if motion.get("kind") != "static":
+        raise RunSpecError(
+            f"engine.motion.kind is {motion.get('kind')!r}; this loader generates only 'static' motion "
+            "(dirfm PlatformPosition). 'waypoints' and 'orbit' need dirfm FlexMotion, a different "
+            "generator not built here; that work lives, unfinished, in protodirsig.orbit and "
+            "notebooks/dirfm_tutorials/tutorial_orbit_to_ground.ipynb.")
+    if motion.get("position", {}).get("frame") != "scene":
+        raise RunSpecError(f"engine.motion.position.frame is {motion.get('position', {}).get('frame')!r}; "
+                           "dirfm PlatformPosition writes only scene-frame locations ('scene')")
+    orient = motion.get("orientation", {})
+    if orient.get("kind") != "euler":
+        raise RunSpecError(f"engine.motion.orientation.kind is {orient.get('kind')!r}; only 'euler' is generated "
+                           "here ('lookat' needs dirfm FlexMotion, not built here)")
+    euler = orient.get("euler", {})
+    if euler.get("frame") != "sceneenu":
+        raise RunSpecError(f"engine.motion.orientation.euler.frame is {euler.get('frame')!r}; dirfm "
+                           "PlatformPosition hardcodes rotationframe='sceneenu'")
+    epoch = datetime.fromisoformat(str(spec["descriptor"]["collection"]["epoch"]).replace("Z", "+00:00"))
+    if epoch.tzinfo is None:                 # dirfm TASKS writes a malformed offset for a naive datetime
+        raise RunSpecError(f"descriptor.collection.epoch {epoch.isoformat()!r} has no UTC offset")
+
     scene, plat = eng["scenes"][0], eng["platform"]
     desc = spec["descriptor"]
     sensor = desc.get("sensor")
@@ -170,8 +189,11 @@ def resolve_auror_run(spec, tree, run_spec_path, config_repo):
         scene=_scene_file(config_repo, scene["ref"]["name"]),
         scene_offset=list(scene.get("offset", [0, 0, 0])),
         platform=_root_file(config_repo, plat["ref"]["name"], "platform"),
-        motion=_single(tree, "motion", "*.ppd", "platform motion file"),
-        tasks=_single(tree, "tasks", "*.tasks", "tasks file"),
+        motion_position=[float(v) for v in motion["position"]["xyz"]],
+        motion_orientation={"order": euler["order"], "units": euler["units"],
+                            "angles": [float(v) for v in euler["angles"]]},
+        tasks_windows=[(float(w["start"]), float(w["stop"])) for w in eng["tasks"]["windows"]],
+        epoch=epoch.astimezone(timezone.utc),
         output_prefix=plat["output_prefix"],
         split_channels=bool(plat["split_channels"]),
         integration_samples=int(plat["integration_samples"]),
@@ -183,50 +205,15 @@ def resolve_auror_run(spec, tree, run_spec_path, config_repo):
     )
 
 
-def check_received_files(spec, run):
-    """Where the run spec restates a value the received files already set, compare the two.
+def check_library_files(spec, run):
+    """Where the run spec restates a value a resolved library file already sets, compare the two.
 
-    Covers `engine.motion` (static pose), `engine.tasks` (window), `integration_samples` and
-    `descriptor.collection.epoch`. Returns a list of mismatch strings; an empty list means they agree.
-    Nothing is regenerated from the spec (see module docstring).
+    Today that is one value: `engine.platform.integration_samples` against the platform file's
+    `capturemethod/temporalintegration/samples`. (Until Stage 05 this also compared motion, tasks
+    and epoch against received files; those files are now generated from the spec, so the
+    comparison would be circular.) Returns a list of mismatch strings; empty means they agree.
     """
-    eng, bad = spec["engine"], []
-
-    def differs(what, spec_val, file_val, tol=1e-6):
-        if len(spec_val) != len(file_val) or any(abs(float(a) - float(b)) > tol for a, b in zip(spec_val, file_val)):
-            bad.append(f"{what}: run spec {spec_val} vs file {file_val}")
-
-    ppd = et.parse(str(run.motion)).getroot()
-    entries = ppd.findall("data/entry")
-    motion = eng["motion"]
-    if motion["kind"] != "static" or len(entries) != 1:
-        bad.append(f"motion: run spec kind {motion['kind']!r}, file has {len(entries)} entries")
-    else:
-        e, data = entries[0], ppd.find("data")
-        differs("motion.position", motion["position"]["xyz"],
-                [e.findtext(f"position/location/point/{k}") for k in "xyz"])
-        differs("motion.orientation", motion["orientation"]["euler"]["angles"],
-                [e.findtext(f"orientation/eulerangles/cartesiantriple/{k}") for k in "xyz"])
-        euler = motion["orientation"]["euler"]
-        for key, attr in (("frame", "rotationframe"), ("order", "rotationorder"), ("units", "angularunits")):
-            if euler[key] != data.get(attr):
-                bad.append(f"motion.orientation.{key}: run spec {euler[key]!r} vs file {data.get(attr)!r}")
-
-    tasks = et.parse(str(run.tasks)).getroot().findall("task")
-    windows = [[float(t.findtext("start/datetime")), float(t.findtext("stop/datetime"))] for t in tasks]
-    spec_windows = [[w["start"], w["stop"]] for w in eng["tasks"]["windows"]]
-    if len(windows) != len(spec_windows):
-        bad.append(f"tasks: run spec {spec_windows} vs file {windows}")
-    else:
-        for s, f in zip(spec_windows, windows):
-            differs("tasks.window", s, f)
-
-    ref = et.parse(str(run.tasks)).getroot().findtext("reference/datetime")
-    file_epoch = datetime.fromisoformat(ref).astimezone(timezone.utc)
-    spec_epoch = datetime.fromisoformat(spec["descriptor"]["collection"]["epoch"].replace("Z", "+00:00"))
-    if file_epoch != spec_epoch:
-        bad.append(f"epoch: run spec {spec_epoch.isoformat()} vs tasks reference {file_epoch.isoformat()}")
-
+    bad = []
     samples = et.parse(str(run.platform)).getroot().findtext(".//capturemethod/temporalintegration/samples")
     if samples is None or int(samples) != run.integration_samples:
         bad.append(f"integration_samples: run spec {run.integration_samples} vs platform file {samples}")

@@ -24,8 +24,8 @@ class SubmissionResult:
 
 
 class LocalRegistry:
-    def submit(self, run_spec_path, tree_root, config_repo, work_dir=None):
-        sim = Simulation.from_run_spec(run_spec_path, tree_root, config_repo, work_dir)
+    def submit(self, run_spec_path, config_repo, work_dir=None):
+        sim = Simulation.from_run_spec(run_spec_path, config_repo, work_dir)
         c = sim.validate()
         reasons = []
         if not c.schema_ok:
@@ -33,7 +33,7 @@ class LocalRegistry:
                            f"{c.schema_error}")
         if not c.resolution_ok:
             reasons.append("Resolution check failed: the run spec's references do not resolve, or do not "
-                           "match the received files. " + "; ".join(c.resolution_mismatches))
+                           "match the library files. " + "; ".join(c.resolution_mismatches))
         if not c.execution_ok:
             reasons.append(f"Execution check failed: DIRSIG did not accept the assembled job in a dry run. "
                            f"{c.execution_error}")

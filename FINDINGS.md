@@ -680,8 +680,10 @@ image statistics as before the migration.
 - `AUROR_ref/motion/*.ppd` and `AUROR_ref/tasks/*.tasks`: per-run artifacts the generator would
   emit from `engine.motion`/`engine.tasks`, not reusable library content (guide §3).
 - Also not copied: `AUROR_ref/jsims/AurorSimulation.jsim` (the received job file) and
-  `_to_delete/` (gitignored). There is no `maps/`: the scene's map list is disabled, and its
-  `.pgm` files exist nowhere in the tree.
+  `_to_delete/` (gitignored). There is no `maps/`: the scene's map list is disabled. *(Corrected
+  in Stage 05: its two `.pgm` files do exist, untracked, in `AUROR_ref/_to_delete/maps/`. They
+  are not in any tracked path, and `config_repo/` doesn't need them while the maps are
+  disabled.)*
 
 **Judgment calls the stage prompt did not anticipate:**
 - *A third caller.* `LocalRegistry.submit` also builds a `Simulation`, so it now takes
@@ -708,6 +710,117 @@ image statistics as before the migration.
   `platforms/AurorNIRDetector/AurorNIRDetector.platform` inside the work directory, not the flat
   path. This is cosmetic; the content is byte-identical.
 
+## 2026-10-08 — Stage 05: motion and tasks generated from the run spec; `AUROR_ref` retired
+
+**Resolve vs generate.** Until now `engine.motion`/`engine.tasks` *described* received files.
+`resolve_auror_run` globbed `AUROR_ref/motion/*.ppd` and `tasks/*.tasks`, and
+`check_received_files` compared their contents back against the spec. MANIFOLD has no received
+tree: its executor materializes a fresh run tree from the run spec for every run (Configuration_v02
+§2). So these blocks are now **inputs**. `resolve_auror_run(spec, run_spec_path, config_repo)`
+puts their values on `AurorRun` (`motion_position`, `motion_orientation`, `tasks_windows`,
+`epoch`), and the new `src/protodirsig/motion_tasks.py` (`generate_motion`, `generate_tasks`)
+writes the `.ppd` and `.tasks` files into the job directory with dirfm's `PlatformPosition` and
+`TASKS`. `Simulation._assemble` calls them; `PlatformFilesPlugin` is unchanged, because it only
+checks that its three paths are files.
+
+What went with it:
+- the `tree` / `tree_root` parameter on `resolve_auror_run`, `Simulation` and
+  `LocalRegistry.submit`;
+- `_single()`;
+- the motion, tasks and epoch comparisons, which would now compare the spec with itself.
+
+`check_received_files` is renamed `check_library_files`; it checks only `integration_samples`
+against the library platform file. `src/protodirsig/` does not reference `tests/`.
+
+**Only `kind: static`.** `resolve_auror_run` refuses, with `RunSpecError`, values that are
+schema-valid but that `PlatformPosition` cannot write:
+- `motion.kind: waypoints`/`orbit` and `orientation.kind: lookat` need `FlexMotion` (unfinished,
+  in `orbit.py` / `tutorial_orbit_to_ground`);
+- `position.frame` other than `scene` and `euler.frame` other than `sceneenu`, because
+  `PlatformPosition` hardcodes both;
+- an epoch with no UTC offset (below).
+
+**dirfm behaviour found by reading the code** (`platform_motion.py`, `tasks.py`):
+- `TASKS.write()` returns `None`, not the path, so `generate_tasks` builds the path itself.
+- `TASKS.write()` formats the offset as `strftime("%z")[:-2] + ":00"`. A naive datetime yields a
+  malformed reference, and a non-whole-hour offset loses its minutes. The epoch is required to be
+  timezone-aware and is normalized to UTC.
+- `PlatformPosition` writes angles to 6 decimals, so the spec's yaw `3.141592654` is written
+  `3.141593` (3.5 × 10⁻⁷ rad), and positions to 3 decimals.
+- `TASKS` writes no task metadata (the received file had Name/Description entries).
+
+`tests/test_motion_tasks.py` compares the generated files with the received ones
+(`tests/fixtures/auror_ref/`) semantically, not textually:
+- frame, order, units, angle type, location type, times and positions are equal;
+- the angles agree within 5 × 10⁻⁷;
+- the epoch is the same UTC instant, written `+00:00` where the received file said `-08:00`;
+- the windows are equal.
+
+**Render: not byte-identical to Stage 04, and the single cause is isolated.** Stage 01 and 02,
+re-run with generated motion and tasks, are byte-identical to *each other*. Against the Stage 04
+renders (saved before re-running), every pixel differs slightly:
+- image: median per-pixel ratio deviation 1.4 × 10⁻⁷, p99 6.5 × 10⁻⁶, correlation 0.999999;
+- truth (BIP): median ECEF hit shift 1.27 mm, which matches the 1.24 mm a 3.46 × 10⁻⁷ rad
+  rotation about the boresight predicts at 18 m pixels. The p99 is 2.1 mm, and the maximum of
+  1.1 m is where rays meet steep relief.
+
+Isolation test: I assembled the same job with `Simulation._assemble`, changed only the generated
+`.ppd`'s yaw text from `3.141593` back to `3.141592654`, and rendered. **Image and truth are then
+byte-identical to Stage 04.** Everything else stayed generated: the UTC `+00:00` epoch, dirfm's
+3-decimal positions, the `0.000000` entry time, and the tasks file without metadata. So the
+generated tasks are exact, and the only difference is dirfm's 6-decimal angle formatting
+(`{:0.6f}` in `PlatformPosition.add_entry`). Nothing works around it here; dirfm is out of scope.
+The upstream fix would be to write angles with `repr`/`{:.17g}` precision.
+
+**`tutorial_auror_scene`** (re-pointed; it is unseeded): its generated `preview.jsim` is
+**byte-identical** to its 6 October one, so its inputs are unchanged. The image cannot be
+byte-compared, because an unseeded render differs run to run. Against 6 October: mean relative
+difference 8.7 × 10⁻⁷, median per-pixel ratio 1.000000, p99 |ratio − 1| 4 × 10⁻⁴, correlation
+0.9998. That is the unseeded repeat noise Phase 5 measured (about 4 × 10⁻⁴).
+
+**`AUROR_ref` retired.**
+- `motion/AurorMotion.ppd` and `tasks/AurorTask.tasks` were moved with `git mv` to
+  `tests/fixtures/auror_ref/`, which is a comparison fixture only.
+- Removed with `git rm` after an individual check against `config_repo/` (empty `diff -r` / `cmp`
+  for each): `tahoe.scene`, `geometry/`, `materials/`, `platforms/AurorNIRDetector.platform`,
+  `weather/saw.wth`, `jsims/AurorNewAtmosphere`.
+- Also removed, with no library counterpart: `jsims/AurorSimulation.jsim`, the received job file.
+  It stays recoverable from git history (last at `b5354e6`) and has a local copy in
+  `notebooks/dev/AUROR_ref/jsims/`.
+- Stale `AUROR_ref/` lines were removed from `.gitignore`.
+
+**Not deleted, pending a decision:** `AUROR_ref/_to_delete/`, about 555 MB, untracked and
+gitignored. The stage prompt said to delete it, but it is **not** redundant with `config_repo/`,
+and deleting untracked files cannot be undone. A per-file content search found 16 files, about
+540 MB, with no copy anywhere in the project: `jsims/result.img` (422 MB), `maps/*.pgm`
+(2 × 54 MB), `platforms/AurorPlatform.platform`, `platforms/AurorHSICamera.platform`,
+`atmospheres/test.atm`, `results/auror.img`, `jsims/auror.img`, `jsims/MultiBandCamera_rgb*.img`,
+`jsims/material_report.json`, `asset_report.txt` and old hypersonic bundle files. The shipped
+2025.51 reference render (`jsims/AurorNIROutput.img`, `truth1.img`) does have a byte-identical copy
+in `notebooks/dev/AUROR_ref/jsims/`. `AUROR_ref/` now contains only this folder. Its
+`.gitignore` line stays until the folder is dealt with.
+
+**Readers of `AUROR_ref/` the stage prompt did not list:**
+- *`tutorial_auror_scene.ipynb`* read the scene, platform, atmosphere, weather, motion and tasks
+  from `AUROR_ref/` directly. Its input paths now point at `config_repo/` and
+  `tests/fixtures/auror_ref/`, with the same in-job destinations, and it was re-executed (below).
+  It also had a `PROJECT` bug from the move into `notebooks/dirfm_tutorials/`:
+  `Path.cwd().parent if name == "notebooks"` resolves to `notebooks/dirfm_tutorials/` when run
+  from the notebook's own folder. It now walks up to the folder containing `pyproject.toml`.
+  **The other three dirfm tutorials have the same bug** (`tutorial_tacoma_scene`,
+  `tutorial_orbit_to_ground` and `tutorial_dirfm_basics` all step up only from a folder named
+  `notebooks`). They were not touched here.
+- *`tests/test_scene_coverage.py::test_auror_bundle_material_is_seen`* read
+  `AUROR_ref/tahoe.scene`. It now reads `config_repo/scenes/tahoe/tahoe.scene`, the byte-identical
+  copy. Before this stage it was running and passing, not skipping. Its `skipif` guard would have
+  turned the deletion into a silent skip.
+
+**Other test changes.** `test_bad_enum_fails_schema` now breaks `generator.tool`, not
+`motion.kind`. A bad motion kind now also fails resolution, which would hide the point of the
+test: schema failing while resolution and execution pass. `test_no_flat_scene_fallback` now uses
+the old `scenes/tahoe` ref against `config_repo`, where the removed nested guess would have
+succeeded. That is a stronger test than checking against the trimmed fixture.
+
 ## Notebooks (status)
 
 - `notebooks/dirfm_tutorials/tutorial_dirfm_basics.ipynb` — Phase 1, complete. 8 stages, executed end to end.
@@ -719,10 +832,12 @@ image statistics as before the migration.
   to end: AUROR_ref's configuration driven through dirfm via `scene_ref`, `scene_coverage`,
   `platform_ref` and `atmosphere_patches`, rendered on this install, image and geolocation
   truth displayed.
+  Since Stage 05 it reads AUROR_ref's files from `config_repo/` and `tests/fixtures/auror_ref/`,
+  and it was re-executed.
 - `notebooks/stage_01_auror_from_runspec.ipynb` — Stage 01, complete, started from a copy of
   the tutorial: the same 3-stage AUROR_ref job, now driven from
   `run_specs/auror_ref.yaml` via `run_spec`, seeded, executed end to end. Staged
-  implementation, not a tutorial.
+  implementation, not a tutorial. Since Stage 05 its motion and tasks are generated from the spec.
 - `notebooks/stage_02_conformance_template.ipynb` — Stage 02, complete: the stage 01 job
   submitted through `LocalRegistry` (schema, resolution and execution checks), and rendered
   through `Simulation.run()` only if accepted, with DIRSIG's JSON run/info logs. Executed end to

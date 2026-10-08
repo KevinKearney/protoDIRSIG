@@ -13,13 +13,8 @@ __pycache__/
 outputs/*
 !outputs/.gitkeep
 
-# Received reference run tree: tracked, but not anything DIRSIG would write into it if run in place
-AUROR_ref/tahoe.scene.hdf
-AUROR_ref/asset_report.txt
-AUROR_ref/material_report.json
-AUROR_ref/jsims/*.img
-AUROR_ref/jsims/*.img.hdr
-AUROR_ref/jsims/material_report.json
+# Leftover of the received AUROR_ref tree (untracked, local only; its tracked content moved to
+# config_repo/ and tests/fixtures/auror_ref/ in Stage 04/05). Kept ignored until its fate is decided.
 AUROR_ref/_to_delete/
 
 # Discovery log + its private data copy (self-contained, local only; last tracked in 6f2688b)

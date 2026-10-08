@@ -1,0 +1,28 @@
+<platformmotion type="generic">
+  <method type="raw" />
+
+  <locationjitter>
+  </locationjitter>
+
+  <orientationjitter>
+  </orientationjitter>
+
+  <data rotationframe="sceneenu" rotationorder="xyz" angletype="absolute" angularunits="radians" spatialunits="meters">
+
+    <entry>
+      <datetime type="relative">0</datetime>
+      <position>
+        <location type="scene">
+          <point><x>-400</x><y>400</y><z>550000</z></point>
+        </location>
+      </position>
+
+      <orientation>
+        <eulerangles>
+          <cartesiantriple><x>0</x><y>0</y><z>3.141592654</z></cartesiantriple>
+        </eulerangles>
+      </orientation>
+    </entry>
+
+  </data>
+</platformmotion>

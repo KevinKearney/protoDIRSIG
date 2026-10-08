@@ -1,9 +1,9 @@
 """protodirsig.simulation's three conformance checks must pass on the real AUROR_ref run spec and
 report a broken spec as a failed check, not an exception (FINDINGS.md, 2026-10-08 — Stage 02).
 
-Reads run_specs/auror_ref.yaml, config_repo and AUROR_ref READ-ONLY; the execution check runs a
-DIRSIG dry run (no render, about a second) and writes only to pytest's tmp_path. Skipped without
-AUROR_ref, config_repo, or dirsig5/scene2hdf on PATH.
+Reads run_specs/auror_ref.yaml and config_repo READ-ONLY; the execution check generates motion and
+tasks and runs a DIRSIG dry run (no render, about a second), writing only to pytest's tmp_path.
+Skipped without config_repo or dirsig5/scene2hdf on PATH.
 """
 import os
 import shutil
@@ -17,7 +17,6 @@ from protodirsig.simulation import Simulation, schema_errors
 
 PROJECT = Path(__file__).resolve().parents[1]
 SPEC = PROJECT / "run_specs" / "auror_ref.yaml"
-AUROR = PROJECT / "AUROR_ref"
 CONFIG_REPO = PROJECT / "config_repo"
 DIRSIG_HOME = Path(os.environ.get("DIRSIG_HOME", Path.home() / "DIRSIG" / "dirsig-2026.38.0.a020954-Linux-x86_64"))
 
@@ -30,9 +29,8 @@ def _dirsig_on_path():
 
 
 needs_dirsig = pytest.mark.skipif(
-    not ((AUROR / "motion").is_dir() and (CONFIG_REPO / "scenes" / "tahoe" / "tahoe.scene").is_file()
-         and _dirsig_on_path()),
-    reason="AUROR_ref, config_repo or DIRSIG not present")
+    not ((CONFIG_REPO / "scenes" / "tahoe" / "tahoe.scene").is_file() and _dirsig_on_path()),
+    reason="config_repo or DIRSIG not present")
 
 
 def broken_spec(tmp_path, edit):
@@ -49,9 +47,9 @@ def broken_spec(tmp_path, edit):
 
 @needs_dirsig
 def test_real_spec_passes_all_three(tmp_path):
-    before = fingerprint(AUROR), fingerprint(CONFIG_REPO)
-    c = Simulation.from_run_spec(SPEC, AUROR, CONFIG_REPO, tmp_path).validate()
-    assert (fingerprint(AUROR), fingerprint(CONFIG_REPO)) == before
+    before = fingerprint(CONFIG_REPO)
+    c = Simulation.from_run_spec(SPEC, CONFIG_REPO, tmp_path).validate()
+    assert fingerprint(CONFIG_REPO) == before
     assert (c.schema_ok, c.resolution_ok, c.execution_ok) == (True, True, True), c
     assert c.passed and c.schema_error is None and c.resolution_mismatches == [] and c.execution_error is None
     caps = c.execution_log["capture_list"]
@@ -62,7 +60,7 @@ def test_real_spec_passes_all_three(tmp_path):
 @needs_dirsig
 def test_missing_scene_fails_resolution_only(tmp_path):
     path = broken_spec(tmp_path, lambda s: s["engine"]["scenes"][0]["ref"].update(name="scenes/no_such_scene"))
-    c = Simulation.from_run_spec(path, AUROR, CONFIG_REPO, tmp_path / "work").validate()
+    c = Simulation.from_run_spec(path, CONFIG_REPO, tmp_path / "work").validate()
     assert c.schema_ok and not c.resolution_ok and not c.passed
     assert "no_such_scene" in c.resolution_mismatches[0]
     assert not c.execution_ok and c.execution_error.startswith("not attempted")
@@ -70,11 +68,12 @@ def test_missing_scene_fails_resolution_only(tmp_path):
 
 @needs_dirsig
 def test_bad_enum_fails_schema(tmp_path):
-    path = broken_spec(tmp_path, lambda s: s["engine"]["motion"].update(kind="teleport"))
-    c = Simulation.from_run_spec(path, AUROR, CONFIG_REPO, tmp_path / "work").validate()
-    assert not c.schema_ok and "engine.motion.kind" in c.schema_error
-    assert not c.resolution_ok                        # check_received_files: spec kind != the static .ppd
-    assert c.execution_ok                             # the job itself (from the received files) is still fine
+    # generator.tool is read by nothing that builds the job, so only the schema check can fail.
+    # (A bad motion.kind would now also fail resolution, which refuses motion it can't generate.)
+    path = broken_spec(tmp_path, lambda s: s["engine"]["generator"].update(tool="make"))
+    c = Simulation.from_run_spec(path, CONFIG_REPO, tmp_path / "work").validate()
+    assert not c.schema_ok and "engine.generator.tool" in c.schema_error
+    assert c.resolution_ok and c.execution_ok         # each check is independent evidence
 
 
 @needs_dirsig
@@ -86,7 +85,7 @@ def test_corrupt_atmosphere_fails_execution(tmp_path):
             (lib / p.name).symlink_to(p)
     (lib / "atmosphere").mkdir()
     (lib / "atmosphere" / "AurorNewAtmosphere").write_bytes(b"not an hdf5 file")
-    c = Simulation.from_run_spec(SPEC, AUROR, lib, tmp_path / "work").validate()
+    c = Simulation.from_run_spec(SPEC, lib, tmp_path / "work").validate()
     assert c.schema_ok and c.resolution_ok and not c.execution_ok
     assert "NewAtmosphere" in c.execution_error
 
@@ -94,7 +93,7 @@ def test_corrupt_atmosphere_fails_execution(tmp_path):
 def test_unparseable_spec_is_a_result(tmp_path):
     path = tmp_path / "bad.yaml"
     path.write_text("spec_version: [unclosed\n")
-    c = Simulation.from_run_spec(path, AUROR, CONFIG_REPO, tmp_path / "work").validate()
+    c = Simulation.from_run_spec(path, CONFIG_REPO, tmp_path / "work").validate()
     assert not (c.schema_ok or c.resolution_ok or c.execution_ok) and "did not load" in c.schema_error
 
 
@@ -122,6 +121,6 @@ def test_sensor_ref_schema():
 @needs_dirsig
 def test_missing_sensor_file_fails_resolution_only(tmp_path):
     path = broken_spec(tmp_path, lambda s: s["descriptor"]["sensor"]["ref"].update(name="sensors/no_such_sensor.yaml"))
-    c = Simulation.from_run_spec(path, AUROR, CONFIG_REPO, tmp_path / "work").validate()
+    c = Simulation.from_run_spec(path, CONFIG_REPO, tmp_path / "work").validate()
     assert c.schema_ok and not c.resolution_ok
     assert "no_such_sensor.yaml" in c.resolution_mismatches[0]

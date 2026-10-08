@@ -12,12 +12,12 @@ scope; the vehicle-not-appearing finding in FINDINGS.md passes all three):
    `descriptor` is checked for its required blocks only, not field by field, except that
    `descriptor.sensor` must be a `sensor-spec/1` ref with a string `ref.name`. The file itself is
    not opened here.
-2. **Resolution**: `run_spec.resolve_auror_run` finds every engine asset in `config_repo`, the
-   motion/tasks files in the received tree, and loads the sensor ref beside the run spec as
-   `sensor-spec/1`, and
-   `run_spec.check_received_files` finds the received motion/tasks/platform files agree with the
-   spec.
-3. **Execution**: the job is assembled as Stage 01 assembled it and DIRSIG is run with
+2. **Resolution**: `run_spec.resolve_auror_run` finds every engine asset in `config_repo`, loads
+   the sensor ref beside the run spec as `sensor-spec/1`, and accepts the motion as one this
+   loader can generate (static, scene frame, `sceneenu` Euler). `run_spec.check_library_files`
+   finds the library platform file agrees with the spec's `integration_samples`.
+3. **Execution**: the job is assembled (library inputs copied, motion and tasks generated from
+   the spec by `motion_tasks`) and DIRSIG is run with
    `--dry_run --log_info_filename=...`, which loads everything and schedules the captures without
    rendering. A nonzero exit or an `[error]` line on stderr fails it, and the JSON log must
    describe the single capture the spec's task window implies.
@@ -36,7 +36,8 @@ from dirfm import DIRSIG, SCENE
 from dirfm.weather import ThermWeatherFilePlugin
 
 from protodirsig.platform_ref import PlatformFilesPlugin
-from protodirsig.run_spec import RunSpecError, check_received_files, load_run_spec, resolve_auror_run
+from protodirsig.motion_tasks import generate_motion, generate_tasks
+from protodirsig.run_spec import RunSpecError, check_library_files, load_run_spec, resolve_auror_run
 from protodirsig.scene_ref import copy_input, reference_scene
 
 # Required members, from AV_MANIFOLD_Metadata_v02 §6 (descriptor) and Configuration_v02 A.8.1.
@@ -174,14 +175,14 @@ def _run_dirsig(job, **options):
 class Simulation:
     """One AUROR_ref-type job from a run spec. Construct with `Simulation.from_run_spec`.
 
-    `tree_root` is the received run tree (motion and tasks); `config_repo` is the engine-asset
-    library (scene, platform, atmosphere database, weather). Both are read-only.
-    `work_dir` holds everything written: the job inputs (scene reference, input copies, jsim),
+    `config_repo` is the engine-asset library (scene, platform, atmosphere database, weather),
+    read-only. `work_dir` holds everything written: the job inputs (scene reference, input
+    copies, generated motion and tasks, jsim),
     the dry-run scratch logs and the render output. Defaults to a fresh temporary directory.
     """
 
-    def __init__(self, run_spec_path, tree_root, config_repo, work_dir=None):
-        self.run_spec_path, self.tree_root, self.config_repo = Path(run_spec_path), Path(tree_root), Path(config_repo)
+    def __init__(self, run_spec_path, config_repo, work_dir=None):
+        self.run_spec_path, self.config_repo = Path(run_spec_path), Path(config_repo)
         self.work_dir = Path(work_dir) if work_dir is not None else Path(tempfile.mkdtemp(prefix="protodirsig_"))
         self.spec = self.auror_run = None
         self.load_error = self.resolve_error = None
@@ -191,29 +192,28 @@ class Simulation:
             self.load_error = f"{type(e).__name__}: {e}"
         if self.spec is not None:
             try:
-                self.auror_run = resolve_auror_run(self.spec, self.tree_root, self.run_spec_path, self.config_repo)
+                self.auror_run = resolve_auror_run(self.spec, self.run_spec_path, self.config_repo)
             except (RunSpecError, KeyError, TypeError) as e:
                 self.resolve_error = f"{type(e).__name__}: {e}"
 
     @classmethod
-    def from_run_spec(cls, run_spec_path, tree_root, config_repo, work_dir=None):
-        return cls(run_spec_path, tree_root, config_repo, work_dir)
+    def from_run_spec(cls, run_spec_path, config_repo, work_dir=None):
+        return cls(run_spec_path, config_repo, work_dir)
 
     def _assemble(self, in_dir, out_dir):
-        """The Stage 01 job: scene reference, byte-identical input copies, four plugins, seed."""
-        r, tree, lib = self.auror_run, self.tree_root, self.config_repo
+        """The Stage 01 job: scene reference, byte-identical library copies, generated motion and
+        tasks, four plugins, seed."""
+        r, lib = self.auror_run, self.config_repo
         ref_file = reference_scene(r.scene, in_dir / "auror_ref")   # wipes and recreates only this subdirectory
         scene = SCENE(r.scene.stem)
         scene._fname = ref_file                                     # private attribute: write() returns it as-is
-        # Each input keeps its path relative to the root it came from: per-run files from the
-        # received tree, library assets from config_repo.
-        inputs = {n: copy_input(src, in_dir / src.relative_to(root)) for n, src, root in [
-            ("platform", r.platform, lib), ("motion", r.motion, tree), ("tasks", r.tasks, tree),
-            ("weather", r.weather, lib)]}
+        # Library assets keep their config_repo-relative paths; motion and tasks are generated.
+        inputs = {n: copy_input(src, in_dir / src.relative_to(lib)) for n, src in [
+            ("platform", r.platform), ("weather", r.weather)]}
         db = copy_input(r.atmosphere_db, in_dir / r.atmosphere_db.name)   # beside the jsim, as received
+        motion, tasks = generate_motion(r, in_dir / "motion"), generate_tasks(r, in_dir / "tasks")
         job = DIRSIG(in_dir, out_dir)
-        job.add_plugin(PlatformFilesPlugin(inputs["platform"], inputs["motion"], inputs["tasks"],
-                                           split_channels=r.split_channels))
+        job.add_plugin(PlatformFilesPlugin(inputs["platform"], motion, tasks, split_channels=r.split_channels))
         job.add_plugin(r.atmosphere_plugin(db))
         job.add_plugin(r.ephemeris_plugin())
         job.add_plugin(ThermWeatherFilePlugin(inputs["weather"]))
@@ -253,9 +253,9 @@ class Simulation:
             mismatches = [f"references did not resolve: {self.resolve_error}"]
         else:
             try:
-                mismatches = check_received_files(self.spec, self.auror_run)
+                mismatches = check_library_files(self.spec, self.auror_run)
             except Exception as e:  # noqa: BLE001
-                mismatches = [f"received files could not be compared: {type(e).__name__}: {e}"]
+                mismatches = [f"library files could not be compared: {type(e).__name__}: {e}"]
 
         exec_log = exec_err = None
         if self.auror_run is None:
