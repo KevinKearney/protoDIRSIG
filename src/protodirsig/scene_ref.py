@@ -35,9 +35,9 @@ def reference_scene(scene_file, ref_dir, asset_dirs=ASSET_DIRS):
 
 
 def copy_input(src, dst):
-    """Copy one received input file (platform, motion, tasks, weather, atmosphere database) to
-    `dst`, asserted byte-identical. Returns `dst`. Used so a job references its own copy, never
-    the read-only original."""
+    """Copy one read-only input file to `dst`, asserted byte-identical. Returns `dst`. Used so a
+    job references its own copy, never the original: in the stage jobs, the config_repo platform,
+    weather and atmosphere database (motion and tasks are generated, not copied)."""
     src, dst = Path(src), Path(dst)
     dst.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(src, dst)

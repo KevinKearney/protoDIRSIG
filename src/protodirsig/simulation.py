@@ -14,7 +14,8 @@ scope; the vehicle-not-appearing finding in FINDINGS.md passes all three):
    not opened here.
 2. **Resolution**: `run_spec.resolve_auror_run` finds every engine asset in `config_repo`, loads
    the sensor ref beside the run spec as `sensor-spec/1`, and accepts the motion as one this
-   loader can generate (static, scene frame, `sceneenu` Euler). `run_spec.check_library_files`
+   loader can generate (static, scene frame, `sceneenu` Euler) and an epoch with a UTC offset.
+   `run_spec.check_library_files`
    finds the library platform file agrees with the spec's `integration_samples`.
 3. **Execution**: the job is assembled (library inputs copied, motion and tasks generated from
    the spec by `motion_tasks`) and DIRSIG is run with
@@ -177,8 +178,8 @@ class Simulation:
 
     `config_repo` is the engine-asset library (scene, platform, atmosphere database, weather),
     read-only. `work_dir` holds everything written: the job inputs (scene reference, input
-    copies, generated motion and tasks, jsim),
-    the dry-run scratch logs and the render output. Defaults to a fresh temporary directory.
+    copies, generated motion and tasks, jsim), the dry-run scratch logs and the render output.
+    Defaults to a fresh temporary directory.
     """
 
     def __init__(self, run_spec_path, config_repo, work_dir=None):

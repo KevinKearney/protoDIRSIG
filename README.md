@@ -54,14 +54,24 @@ conda env update -f environment.yml --prune
   forward; the stage notebooks live at the top level of `notebooks/` and
   are the active, accumulating work.
 - `src/protodirsig/` — supplementary Python modules for gaps `dirfm` does
-  not cover, installed editable via `pip install -e .`. Empty scaffold for
-  now; populated as Phase 2+ work identifies concrete gaps (see below).
+  not cover, installed editable via `pip install -e .`: the run-spec loader
+  (`run_spec`), motion/tasks generation (`motion_tasks`), the conformance
+  checks and render (`simulation`), the local submission stand-in
+  (`registry`), and the dirfm workarounds and helpers the notebooks use.
+- `run_specs/` — MANIFOLD run-spec YAMLs (and `sensors/`, the
+  `sensor-spec/1` files they reference), vendored from eopticDocs
+  `projects/MANIFOLD/04-guides/`; edit them there, not here.
+- `config_repo/` — the engine-asset library the run specs' `engine` refs
+  resolve against (scenes, platforms, weather, atmosphere databases), in
+  the layout of GD_DIRSIG_RunSpec_YAML_v01 §9. Read-only at run time.
 - `scripts/` — standalone CLI entry points, if/when notebook logic
   graduates out of prototyping.
 - `outputs/` — DIRSIG input/output roots written by notebooks and scripts.
   Gitignored except for a placeholder; nothing here is source, and nothing
   here is ever written into `dirfm`'s own checkout.
-- `tests/` — pytest suite for `src/protodirsig`.
+- `tests/` — pytest suite for `src/protodirsig`. `tests/fixtures/auror_ref/`
+  holds the received AUROR_ref motion and tasks files, kept only to compare
+  generated files against.
 - `docs/` — historical planning documents; not current (see above).
 
 ## Architecture
@@ -109,8 +119,9 @@ reproducibility) and the `convergence`/`max_nodes` render-quality knobs
 
 *Phase 2 — SDA/orbital reference demos (in progress).* Reconstructing
 DIRSIG's own bundled orbit-relevant demos with `dirfm` directly, starting
-with `StkImport1` (a real WorldView-2 LEO trajectory, STK-ephemeris-driven,
-imaging toward Earth — the only orbit-to-ground demo in DIRSIG's catalog;
+with `StkImport1` (a real WorldView-2 LEO trajectory, imaging toward Earth —
+the only orbit-to-ground demo in DIRSIG's catalog; reconstructed from a TLE
+with skyfield/SGP4 rather than by STK-ephemeris import, see FINDINGS.md;
 `Ssa1`–`Ssa3` are satellite-to-satellite). This phase is also where `dirfm`'s
 actual orbital-motion coverage gets tested empirically (STK ephemeris
 ingestion, ECI/ECEF handling) rather than assumed, surfacing concrete

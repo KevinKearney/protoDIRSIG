@@ -798,7 +798,9 @@ and deleting untracked files cannot be undone. A per-file content search found 1
 `jsims/material_report.json`, `asset_report.txt` and old hypersonic bundle files. The shipped
 2025.51 reference render (`jsims/AurorNIROutput.img`, `truth1.img`) does have a byte-identical copy
 in `notebooks/dev/AUROR_ref/jsims/`. `AUROR_ref/` now contains only this folder. Its
-`.gitignore` line stays until the folder is dealt with.
+`.gitignore` line stays until the folder is dealt with. *(Update, post-Stage-05 audit: resolved
+outside this log. The `.gitignore` entry was dropped in `5d32d3f`, and `AUROR_ref/` no longer
+exists in the working tree.)*
 
 **Readers of `AUROR_ref/` the stage prompt did not list:**
 - *`tutorial_auror_scene.ipynb`* read the scene, platform, atmosphere, weather, motion and tasks
@@ -809,7 +811,8 @@ in `notebooks/dev/AUROR_ref/jsims/`. `AUROR_ref/` now contains only this folder.
   from the notebook's own folder. It now walks up to the folder containing `pyproject.toml`.
   **The other three dirfm tutorials have the same bug** (`tutorial_tacoma_scene`,
   `tutorial_orbit_to_ground` and `tutorial_dirfm_basics` all step up only from a folder named
-  `notebooks`). They were not touched here.
+  `notebooks`). They were not touched here. *(Fixed in `3f18eeb` with the same ancestor walk; all
+  three were re-executed from `notebooks/dirfm_tutorials/`.)*
 - *`tests/test_scene_coverage.py::test_auror_bundle_material_is_seen`* read
   `AUROR_ref/tahoe.scene`. It now reads `config_repo/scenes/tahoe/tahoe.scene`, the byte-identical
   copy. Before this stage it was running and passing, not skipping. Its `skipif` guard would have

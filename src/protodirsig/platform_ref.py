@@ -1,7 +1,10 @@
 """Reference existing platform/motion/tasks files and SPICE defaults from a dirfm job.
 
-The plugin-side counterpart of `scene_ref`: a received run tree's `.platform`, `.ppd`/`.motion`
-and `.tasks` files are used as they are instead of being rebuilt from dirfm objects.
+The plugin-side counterpart of `scene_ref`: a `.platform`, `.ppd`/`.motion` and `.tasks` file
+that already exist on disk are used as they are, instead of being rebuilt from dirfm objects. In
+the stage jobs the platform is the config_repo library file and the motion and tasks are
+generated from the run spec by `motion_tasks` (Stage 05); the plugin only checks that the three
+paths are files.
 `PlatformSensorPlugin.prepare()` always regenerates those files, and `DIRSIG.write_files()`
 requires a `PlatformSensorPlugin` instance to be present. So `PlatformFilesPlugin` subclasses
 it with no attachments, which also means dirfm's coverage loop has nothing to iterate. Use

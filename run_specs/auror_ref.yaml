@@ -44,7 +44,7 @@ descriptor:
     engine: dirsig
 
   collection:
-    epoch: "2009-07-27T19:29:32Z"        # .tasks reference datetime, converted to UTC
+    epoch: "2009-07-27T19:29:32Z"        # written as the generated .tasks reference datetime (received file: 11:29:32-08:00)
     platform:
       class: satellite
       position:
