@@ -76,6 +76,11 @@ descriptor:
       frame_rate: {value: 1000, provenance: specified}       # detectorarray.clock.rate
       gain: {value: 1, provenance: specified}                # channel at_gain
       black_level: {value: 0, provenance: specified}         # channel at_bias
+      roi:                                                   # modeled window, SFNC names; detectorarray.xelementcount / yelementcount
+        Width: 500
+        Height: 500
+        OffsetX: null                                        # position in the full frame; not recorded
+        OffsetY: null
 
   fidelity:
     modeled: [reflective and emissive radiance, atmospheric transmission and path radiance]

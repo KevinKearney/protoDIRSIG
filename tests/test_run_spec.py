@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from protodirsig.run_spec import (RunSpecError, check_library_files, load_run_spec, load_sensor_spec,
+from protodirsig.run_spec import (RunSpecError, _check_settings_roi, check_library_files, load_run_spec, load_sensor_spec,
                                   resolve_auror_run)
 
 PROJECT = Path(__file__).resolve().parents[1]
@@ -182,7 +182,7 @@ def test_load_sensor_spec():
     doc = load_sensor_spec(SPEC.parent.parent / "sensors", "auror-nir.yaml")
     assert doc["spec_version"] == "sensor-spec/1" and set(doc) == {"spec_version", "meta", "sensor"}
     entry = doc["sensor"]["entries"][0]
-    assert entry["entry_id"] == "auror-nir" and entry["focal_planes"][0]["array"]["SensorWidth"] == 500
+    assert entry["entry_id"] == "auror-nir" and "roi" not in entry["focal_planes"][0]
 
 
 @pytest.mark.parametrize("text, match", [
@@ -204,3 +204,16 @@ def test_missing_sensor_ref_is_specific(tmp_path):
     spec["descriptor"]["sensor"] = {"sensor_system": {}}                     # the old inline shape
     with pytest.raises(RunSpecError, match="sensor-spec/1 ref"):
         resolve_auror_run(spec, SPEC, CONFIG_REPO)
+
+
+def test_settings_roi_checked_against_detector():
+    spec = load_run_spec(SPEC)
+    assert spec["descriptor"]["settings"][0]["roi"]["Width"] == 500
+    lib = SPEC.parent.parent / "sensors"
+    doc = load_sensor_spec(lib, "deepscan_850_306_nir_1280.yaml")
+    _check_settings_roi([{"entry_id": "deepscan-850-306-nir-1280", "roi": {"Width": 500, "Height": 500}}], doc)
+    with pytest.raises(RunSpecError, match="exceeds detector SensorWidth"):
+        _check_settings_roi([{"entry_id": "deepscan-850-306-nir-1280",
+                              "roi": {"Width": 500, "Height": 500, "OffsetX": 800}}], doc)
+    with pytest.raises(RunSpecError, match="matches no sensor entry"):
+        _check_settings_roi([{"entry_id": "nope"}], doc)

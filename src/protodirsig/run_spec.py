@@ -133,6 +133,23 @@ def default_sensor_library(run_spec_path):
     return Path(run_spec_path).resolve().parent.parent / "sensors"
 
 
+def _check_settings_roi(settings, sensor_doc):
+    """Each `settings` member must name a sensor entry; a known `roi` must lie inside that entry's full frame."""
+    entries = {e["entry_id"]: e for e in sensor_doc["sensor"]["entries"]}
+    for s in settings:
+        entry = entries.get(s.get("entry_id"))
+        if entry is None:
+            raise RunSpecError(f"settings entry_id {s.get('entry_id')!r} matches no sensor entry ({sorted(entries)})")
+        roi = s.get("roi")
+        if not roi:
+            continue
+        det = entry["focal_planes"][0]["detector"]
+        for size, off, full in (("Width", "OffsetX", "SensorWidth"), ("Height", "OffsetY", "SensorHeight")):
+            if det.get(full) is not None and (roi.get(off) or 0) + roi[size] > det[full]:
+                raise RunSpecError(f"settings roi {off}+{size} exceeds detector {full} {det[full]} "
+                                   f"for entry {s['entry_id']!r}")
+
+
 def resolve_auror_run(spec, run_spec_path, config_repo, sensor_library=None):
     """Resolve a loaded run spec: engine assets against `config_repo`, the sensor ref against
     `sensor_library` (default: `default_sensor_library(run_spec_path)`), and the motion/tasks
@@ -189,6 +206,8 @@ def resolve_auror_run(spec, run_spec_path, config_repo, sensor_library=None):
     if not isinstance(sensor_name, str):
         raise RunSpecError("descriptor.sensor must be a sensor-spec/1 ref ({ref: {name: <name>.yaml}}), "
                            f"got {sensor!r:.80}")
+    sensor_doc = load_sensor_spec(sensor_library, sensor_name)
+    _check_settings_roi(desc.get("settings", []), sensor_doc)
     return AurorRun(
         name=desc["meta"]["name"],
         origin=dict(desc["origin"]),
@@ -207,7 +226,7 @@ def resolve_auror_run(spec, run_spec_path, config_repo, sensor_library=None):
         weather=_root_file(config_repo, weather["file"]["name"], "weather file"),
         ephemeris=ephemeris,
         seed=int(eng["run"]["seed"]),
-        sensor=load_sensor_spec(sensor_library, sensor_name),
+        sensor=sensor_doc,
     )
 
 

@@ -14,10 +14,17 @@ Default off; global. The reference render has the same black vehicle, and three 
 byte-identical renders. Enable only for scenarios with an intended hot emitter. Needs a decision, then an
 `engine.run` field or a `Simulation` option.
 
-### Detector manufacturer and model number in sensor-spec
-Reuse `AV_MANIFOLD_Detector_v02.md` §6.3, `identity.DeviceVendorName` and `identity.DeviceModelName` (SFNC).
-Open: placement in the focal-plane block; SFNC spelling or snake_case; the `auror-nir` value, which has no
-DIRSIG source and needs a provenance tag. Scope: `sensors/*.yaml`, the `sensor-spec/1` section of the CONOPS.
+### Modeled window written into the `.platform`
+`roi` is a run-spec `settings` member (Detector_v02 treats it as commanded). DIRSIG's `.platform` fixes the array
+size (`detectorarray.xelementcount`, `yelementcount`), so the generator still uses the `.platform` from
+`config_repo/`. Writing the window from `settings.roi` into a generated `.platform` is not built; until then the
+`roi` in `run_specs/auror_ref.yaml` records the window and is not applied. Confirm the placement with MANIFOLD (TBR).
+
+### Confirm the DeepScan values carried from auror-nir
+`sensors/deepscan_850_306_nir_1280.yaml` copies optics (85 mm, 306 mm, f/3.6), throughput 0.875, shutter, ADC
+depth 14, fill factor 1.0, band width, reference frame, and mount from
+`auror-nir`. Confirm against the DeepScan design and the SCION datasheet. Remaining null: Teledyne part
+number.
 
 ### `engine.platform.output_prefix: auror_nir_` is not applied
 Applying it renames the outputs and breaks reproduction of the tree. It appears in no file in the tree, so it

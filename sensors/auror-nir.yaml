@@ -37,11 +37,13 @@ sensor:
         distortion: {model: none}
       focal_planes:
         - optical_path: {split: none}    # no DIRSIG source; library-asserted (A.9.2)
-          array:
-            SensorWidth: 500
-            SensorHeight: 500
-            SensorPixelWidth: 10.0
-            SensorPixelHeight: 10.0
+          detector:                      # the physical device; fixed properties (CONOPS C-15)
+            DeviceVendorName: null       # not recorded for AUROR_ref
+            DeviceModelName: null        # not recorded for AUROR_ref
+            SensorWidth: null            # full frame, columns; not recorded
+            SensorHeight: null           # full frame, rows; not recorded
+            SensorPixelWidth: 10.0       # um; detectorarray.xelementspacing
+            SensorPixelHeight: 10.0      # um; detectorarray.yelementspacing
             fill_factor: 1.0             # xelementsize / xelementspacing = 1.0
             channel_layout: single
           readout:

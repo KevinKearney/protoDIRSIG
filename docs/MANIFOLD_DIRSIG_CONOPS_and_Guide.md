@@ -158,6 +158,17 @@ An inline `descriptor.sensor` is rejected by the schema and resolution checks. T
 
 `content_hash` is authored and carried through; nothing computes or verifies it.
 
+Each focal plane carries a `detector` block: the physical device, whose properties are fixed.
+`DeviceVendorName`, `DeviceModelName`, `SensorWidth` and `SensorHeight` (the full frame), `SensorPixelWidth`,
+`SensorPixelHeight`, `fill_factor`, `channel_layout`. A value not known is `null`, never a guess.
+The window DIRSIG models, usually a subset of the full frame, is the commanded `roi` setting
+(`Width`, `Height`, `OffsetX`, `OffsetY`, SFNC names) in the run spec's `settings` member for the entry. The loader
+rejects a `settings` member whose `entry_id` matches no sensor entry, and a known `roi` that exceeds the
+detector's full frame.
+Library entries: `auror-nir` (AUROR_ref; vendor, model, and full frame not recorded) and
+`deepscan_850_306_nir_1280` (Eoptic DeepScan with a Teledyne SCION 1280 x 1024 VisGaAs sensor; optics and
+readout values pending).
+
 Several required `sensor` fields have no DIRSIG source (`SensorShutterMode`, `AdcBitDepth`,
 `timestamp_reference`, `optical_path`, `system_id`, `reference_frame`). They are assigned in the library entry
 with `provenance: specified` or `modeled`, not read from any DIRSIG file. `entry_id` joins each sensor entry
@@ -337,4 +348,5 @@ One row per interface item. `Outcome` is filled after review with the MANIFOLD t
 | C-10 | `engine.platform.output_prefix` | applying it renames outputs and breaks tree reproduction; it appears in no file of the tree | `open` | |
 | C-11 | Illustrative instances in Metadata_v02 §6.11 and Configuration_v02 A.8.10 | `meta.name: tacoma-nir-baseline` is stale (values are AUROR); `scenes/tahoe` path matches the nested layout, not the flat received tree; `four_curve` should be `new_atmosphere` | `open` | |
 | C-12 | Strict loader and hashing | duplicate and unknown key rejection, canonical-JSON hashing, `content_hash` verification belong on the registry side; not built here | `open` | |
-| C-14 | Detector manufacturer and model | reuse `identity.DeviceVendorName`, `DeviceModelName` (Detector_v02 §6.3); placement and spelling open | `open` | |
+| C-14 | Detector manufacturer and model | `focal_planes[].detector.DeviceVendorName` and `DeviceModelName` (SFNC names, Detector_v02 §6.3); placement in the focal plane rather than `identity` | `proposed` | |
+| C-15 | Full frame versus modeled window | `detector` is the Detector_v02 `array` block (SFNC `SensorWidth`, `SensorHeight`, pitch, `fill_factor`, `channel_layout`, all the full sensor) plus vendor and model, under a different block name. The window DIRSIG models is the commanded `roi` (SFNC `Width`, `Height`, `OffsetX`, `OffsetY`) in run-spec `settings`, as Detector_v02 treats a region of interest | `proposed` | |
