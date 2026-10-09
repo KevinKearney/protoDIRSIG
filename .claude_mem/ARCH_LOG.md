@@ -530,3 +530,17 @@ Kevin unavailable; prompt.md "Sensor model, round two". Decisions in order made:
   cases store `{layer, field}` only; message text is not part of the contract. Every expected spec passes
   schema_errors.
 - **Step 2, suite** 185 passed (156 + 29 in test_compose).
+- **Step 3, documents.** CONOPS: new §3.5 Composition (`proposed`: terms run / job directory / sweep / recipe,
+  layer table, recipe fields, rules, reference-constructor statement); Overview diagram gains "0. compose" before
+  the driver, step 1 "Author and compose"; roles table gains "Input construction"; folder table, §2 step list,
+  §3.1 sensor bullet, §4 (inline accepted; radiometric_reference is calibration, null; Step 1.5 table of fields a
+  non-DIRSIG engine needs), §5 tree, §7 module table and scripts line. §9 was done in Step 1. §10: C-20 rewritten
+  to "is radiometric_reference optional?" (`open`; electron_exposure member withdrawn); C-21 added (`proposed`);
+  C-18 ("one run per sensor"; sweep fans out above the engine) and C-19 (composition accepts one settings member
+  per entry; several sensors/entries are several runs) revised. No C-22: nothing in the sweep needs a MANIFOLD
+  decision before it is built; sweep-id recording is listed in the BACKLOG item and can become a row then.
+- **Step 3, other docs.** DIRSIG_Platform_Decomposition.md rows 263/312 no longer propose electron_exposure.
+  BACKLOG: sweep item added; "inline stays disallowed" clause now points at C-21; Doc-code drift item narrowed
+  (the run-spec half is now tested); C-18 wording. READMEs: new manifold_run_specs/README.md; root README,
+  manifold_sensors/README.md, manifold_contracts/README.md (vectors) updated. notebooks/README still true
+  (stage_03 still uses derive_run_spec).

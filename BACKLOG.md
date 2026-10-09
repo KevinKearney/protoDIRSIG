@@ -16,7 +16,7 @@ byte-identical renders. Enable only for scenarios with an intended hot emitter. 
 
 ### Modeled window and per-sensor run specs: placement (TBR)
 `roi` is a run-spec `settings` member and the generator writes it into the `.platform` (Detector_v02 treats it as
-commanded). Confirm with MANIFOLD, with C-18 (one run spec per sensor, no run-time override).
+commanded). Confirm with MANIFOLD, with C-18 (one run per sensor, no run-time override).
 
 ### Confirm the DeepScan values carried from auror-nir
 `manifold_sensors/deepscan_850_306_nir_1280.yaml` copies optics (85 mm, 306 mm, f/3.6), throughput 0.875, shutter, ADC
@@ -29,7 +29,8 @@ looks like an authoring choice in the YAML. Settle with MANIFOLD.
 
 ### Three resolution roots, one rule
 Engine assets resolve against `manifold_config_repo/`, the sensor ref against `manifold_sensors/`, motion and
-tasks are generated. Still open: whether inline `descriptor.sensor` stays disallowed (the code rejects it).
+tasks are generated. A run spec may carry the sensor as a ref or inline; which form the registered descriptor
+carries is C-21.
 
 ### Strict loader and canonical hashing (MANIFOLD registry side)
 Duplicate-key and unknown-key rejection and canonical-JSON hashing are not built. The loader is plain
@@ -94,8 +95,17 @@ needing the UV or LWIR needs a template with that bandpass and scene and atmosph
 ## SDK and run-spec engine
 
 ### Doc-code drift check
-A test asserting that every `manifold_run_specs/*.yaml` passes `schema_errors` and every module in `src/protodirsig`
-appears in the CONOPS module table.
+A test asserting that every module in `src/protodirsig` appears in the CONOPS module table. (Every composed run
+spec passing `schema_errors` is tested in `tests/test_compose.py`.)
+
+### Sweep: one recipe, several runs
+A recipe with a `sensors:` list (and later other axes) expands into one composed run per combination, under a
+sweep id; the engine never fans out (C-18, C-19). To decide: grid versus zip across axes; a run-count cap
+before anything is submitted; per-run failure status recorded under the sweep id, so one failed run does not
+fail the rest; `settings` members naming another sensor's entries are dropped per run, which `compose/1`
+reserves for this. A shared `engine.run.seed` does not give equal noise across sensors (different sampling).
+Later optimization: a compiled-scene cache keyed by scene hash, so runs sharing a scene compile it once
+(with compile-once).
 
 ### Release repo plan
 Cut the validated SDK, tests, and notebooks into a new repository under formal change control. Strip

@@ -10,8 +10,9 @@ the code is right until the document is corrected in the same commit.
 ## Overview
 
 protoDIRSIG is the DIRSIG-side driver of the MANIFOLD synthetic-data path, built without the MANIFOLD
-registry, executor or orchestrator. A run spec states a collection and a sensor; the driver validates it,
-generates the DIRSIG input files that the spec determines, executes `dirsig5`, and returns imagery with truth.
+registry, executor or orchestrator. A run spec states a collection and a sensor; it is composed from layer files
+(a recipe naming a scenario, an engine profile and a library sensor), and the driver validates it, generates the
+DIRSIG input files that the spec determines, executes `dirsig5`, and returns imagery with truth.
 `LocalRegistry` stands in for the registry and executor so the interface to MANIFOLD can be exercised before
 they exist.
 
@@ -20,10 +21,15 @@ they exist.
 ```mermaid
 flowchart LR
   subgraph AUTH["Authored inputs"]
-    RS["run spec<br/>manifold_run_specs/*.yaml"]
+    LY["layers<br/>manifold_run_specs/ : recipes, scenarios, engine_profiles"]
     SL["sensor library<br/>manifold_sensors/ : sensor-spec + spectral curves"]
     CR["engine-asset library<br/>manifold_config_repo/ : scenes, platform template,<br/>weather, atmosphere database"]
   end
+  CP["0. compose<br/>protodirsig.compose (reference for a<br/>MANIFOLD input constructor)"]
+  RS["run spec<br/>manifold_run_specs/*.yaml (generated)"]
+  LY --> CP
+  SL --> CP
+  CP --> RS
   subgraph DRV["protodirsig driver (stand-in for MANIFOLD registry + executor)"]
     direction TB
     A["1. schema check"] --> B["2. resolve refs,<br/>verify content hashes"]
@@ -39,10 +45,12 @@ flowchart LR
   NB["notebooks / scripts"] -.->|"submit"| A
 ```
 
-1. **Author.** A run spec splits into `descriptor` (what was observed: engine-independent, registered,
-   hashed) and `engine` (how DIRSIG is driven: origin-specific, not indexed). The sensor is a reference into
-   the sensor library; scenes, platform template, weather and atmosphere are references into the engine-asset
-   library.
+1. **Author and compose.** A run is authored as layers: a recipe (meta, settings, fidelity, and the names of the
+   other layers), a scenario (the collection), an engine profile (origin, extras, the engine block) and a
+   library sensor, never copied. `compose` merges them into one run spec (section 3.5). A run spec splits into
+   `descriptor` (what was observed: engine-independent, registered, hashed) and `engine` (how DIRSIG is driven:
+   origin-specific, not indexed). The sensor is a reference into the sensor library; scenes, platform
+   template, weather and atmosphere are references into the engine-asset library.
 2. **Admit.** Schema check, reference resolution with content-hash verification, and a DIRSIG dry-run. An
    admitted job has resolvable inputs and a command line `dirsig5` accepts.
 3. **Assemble.** A job directory is built under `outputs/`: library files copied or linked, and the files the
@@ -72,6 +80,7 @@ sensor changes the `sensor` reference and nothing else in the run spec.
 
 | Role | Today | Future |
 |---|---|---|
+| Input construction | `compose`, `scripts/compose.py`, `LocalRegistry.submit_recipe` | MANIFOLD input constructor, with `compose` as its reference (C-21) |
 | Registry and admission | `LocalRegistry`, `simulation.schema_errors` | MANIFOLD registry (hashing, extraction, catalog) |
 | Executor | `Simulation.run` | MANIFOLD executor; mounts the DIRSIG runtime |
 | Generator | `run_spec`, `platform_gen`, `motion_tasks` | SDK (`src/protodirsig`) |
@@ -86,8 +95,8 @@ A `manifold_` prefix marks a folder that maps to a future MANIFOLD repository (`
 |---|---|---|
 | `manifold_config_repo/` | engine assets | MANIFOLD config repository |
 | `manifold_sensors/` | sensor-spec library, spectral curves | sensor profile library |
-| `manifold_run_specs/` | run-spec documents | registered run specs |
-| `manifold_contracts/` | schemas, vocabulary, validators | `manifold-contracts` |
+| `manifold_run_specs/` | layer files and the run specs composed from them | registered run specs |
+| `manifold_contracts/` | schemas, vocabulary, validators, conformance vectors | `manifold-contracts` |
 | `src/protodirsig/` | driver and SDK | SDK |
 | `external/`, `scripts/`, `notebooks/`, `tests/`, `outputs/` | tooling | none |
 
@@ -123,7 +132,9 @@ Layers, bottom to top:
 - **`src/protodirsig`**: gap-fillers and the run-spec driver (section 7).
 - **Notebooks**: stage notebooks (the conformance template), `dirfm` tutorials, sidebars (section 8).
 
-A run spec becomes a job in three steps, each independently testable (hash verification and `.platform` rendering sit in steps 2 and 3):
+A recipe is composed into a run spec (`compose`, section 3.5); a composition error names the layer file and field.
+A run spec then becomes a job in three steps, each independently testable (hash verification and `.platform`
+rendering sit in steps 2 and 3):
 
 1. **Schema check** (`simulation.schema_errors`): required members and enumerated values of `run-spec/1` and
    `dirsig-engine/1`.
@@ -131,7 +142,8 @@ A run spec becomes a job in three steps, each independently testable (hash verif
 3. **Execution check** (`Simulation.validate`): the job is assembled in a scratch directory and run with
    `dirsig5 --dry_run --log_info_filename`.
 
-`LocalRegistry.submit` runs the three and accepts or rejects. `Simulation.run` renders only an accepted job.
+`LocalRegistry.submit` runs the three and accepts or rejects; `submit_recipe` composes first. `Simulation.run`
+renders only an accepted job.
 
 **Resolved versus generated** `built`. Each `engine.*` block is one or the other.
 
@@ -176,7 +188,8 @@ is required iff `origin.kind: field`. `extras` is optional. Unknown keys are rej
 - **`collection`.** Observation conditions as governed terms and derived quantities, not engine parameters.
   `atmosphere.regime` is a vocabulary term, not a DIRSIG preset. `epoch` is phenomenon time (read from
   `.tasks`). `geometry.range` is required when `targets` is non-empty.
-- **`sensor`.** A `sensor-spec/1` reference; structure per `AV_MANIFOLD_Detector_v02` (section 4).
+- **`sensor`.** A `sensor-spec/1` reference, or the sensor-spec's `sensor` block in place; structure per
+  `AV_MANIFOLD_Detector_v02` (section 4).
 - **`settings`.** Commanded per-entry values: exposure, frame rate, gain, black level, ROI, binning. One
   member per job (C-19), naming the `sensor.entries[]` entry the job models; `entry_id` must resolve. Stays in the run spec, not the sensor file.
 - **`fidelity`.** `modeled`, `approximated`, `absent` lists and free-text `valid_for`. Authored, not
@@ -240,14 +253,60 @@ registered files and compares them with the descriptor (MD-13); a column with no
 `unvalidated`. protoDIRSIG implements none of admission, extraction, or hashing. The loader is
 `yaml.safe_load`; stamped `content_hash` values of sensor files and curves are verified by the loaders, `.scene` refs remain placeholders; duplicate-key rejection is absent.
 
+### 3.5 Composition `proposed`
+
+A **run** is one composed run spec and one execution; its **job directory** is the DIRSIG working directory of
+that run; a **sweep** is a set of runs (not built). The authored file that names a run's layers is a **recipe**.
+Runs are authored as layer files and composed into the single `run-spec/1` that MANIFOLD receives, so the
+scenario and the engine block are written once and the sensor file is never copied: a new sensor is a new
+library file, a new engine a new engine-profile file. `protodirsig.compose` is the reference for a MANIFOLD input
+constructor (C-21): what composes and validates here is what that constructor should accept, and the user needs no
+knowledge of MANIFOLD internals (descriptor/engine split, hashes, admission-set fields). The composed spec obeys
+the `run-spec/1` rules unchanged, so if MANIFOLD declines layered submission only the authoring layer is lost.
+
+| Layer | File | Supplies |
+|---|---|---|
+| recipe | `manifold_run_specs/recipes/<name>.yaml` | `descriptor.meta`, `settings`, `fidelity`; names the other layers |
+| scenario | `manifold_run_specs/scenarios/<name>.yaml` | `descriptor.collection` |
+| engine profile | `manifold_run_specs/engine_profiles/<name>.yaml` | `descriptor.origin`, `descriptor.extras`, `engine` |
+| sensor | `manifold_sensors/<file>.yaml` | `descriptor.sensor`: `{ref: {name, content_hash}}`, or inline |
+| (generated) | `manifold_run_specs/<name>.yaml` | the composed run spec; tracked, `GENERATED` header |
+
+An engine profile is the engine block for one scenario under one engine (scene, motion, tasks, atmosphere,
+generator, run); splitting scene-specific from engine-general content is deferred. `auror_ref` and
+`synthetic_vis` share the scenario `tahoe_static_pose` and differ in engine profile only by `channel_response`.
+
+Recipe fields (rules version `compose/1`): `compose: compose/1`; `meta` (`name`, `tags`, `description`);
+`sensor` (a sensor-library file name); `scenario` and `engine_profile` (layer names); `settings` (members keyed
+by `entry_id`); `fidelity` (`modeled`, `approximated`, `absent`, `valid_for`).
+
+Rules:
+
+- The layers own disjoint members. A member present in two layers is an error, not a merge; the overridable set
+  that would allow one is empty. An unknown key or a missing required member is an error.
+- Each `settings` member's `entry_id` must name an entry of the sensor, at most once; the composed list follows
+  the sensor's entry order. Dropping members that name another sensor is reserved for a recipe naming several
+  sensors (a sweep). The `roi` check (section 4) applies to the composed spec.
+- `descriptor.sensor` is the ref form by default, its `content_hash` the sha256 of the sensor file's bytes;
+  `inline_sensor` puts the sensor-spec `sensor` block in place. The loader and resolver accept both.
+- No descriptor key is added outside the layers' members. Layer provenance (file and sha256 per member) is
+  returned by `explain` and printed by `scripts/compose.py --explain`, never written into the spec.
+- The same layers give the same bytes. Errors name the layer file and the field in it, never a path in the
+  composed document.
+
+`scripts/compose.py [--check] [--inline-sensor] [--explain <recipe>]` writes `manifold_run_specs/<name>.yaml` for
+every recipe; `--check` fails on a stale generated file. `run_spec.derive_run_spec` composes through the same merge.
+Conformance vectors for a constructor are in `manifold_contracts/vectors/compose/`. The generated `auror_ref` and
+`synthetic_vis` equal the flat files they replaced member for member, and their `.platform`, `.ppd` and `.tasks`
+are byte-identical.
+
 ## 4. `sensor-spec/1` `built`
 
 A sensor system is reusable across runs. `sensor-spec/1` is the `descriptor.sensor` block as its own
 document: `spec_version: sensor-spec/1`, `meta` (`name`, `tags`, `description`), and `sensor` as in 3.1.
 A run spec carries `descriptor.sensor: {ref: {name: "<name>.yaml", content_hash: "sha256:<hash>"}}`; the name resolves against the
-sensor library, `manifold_sensors/`.
-An inline `descriptor.sensor` is rejected by the schema and resolution checks. The first entry is
-`manifold_sensors/auror-nir.yaml`.
+sensor library, `manifold_sensors/`. The sensor-spec's `sensor` block in place (`sensor_system` and `entries`) is
+also accepted (section 3.5; C-21). The first entry is `manifold_sensors/auror-nir.yaml`.
 
 `content_hash` on a file ref is the sha256 of the file bytes, stamped by `scripts/stamp_hashes.py` (`--check`
 fails on a stale hash). The loaders verify a stamped hash when they read the file; the `sha256:<hash>` placeholder
@@ -286,18 +345,36 @@ Units: `aperture_diameter` and `focal_length` are millimetres; the generator wri
 in metres and `focallength` in millimetres. `fill_factor` is the linear element size over spacing. A generated
 channel is named by its `channel_id`, which becomes the ENVI band name.
 
-**Radiometric reference.** Each channel's `radiometric_reference` states what an image pixel holds:
-`quantity: electron_exposure`, `unit: "e-/m2"`, photo-electrons per m² of focal plane accumulated over the
-exposure (section 9). The schema closes `quantity` to Detector_v02's five members (`radiance`,
-`spectral_radiance`, `irradiance`, `brightness_temperature`, `digital_number`) plus `electron_exposure`, a
-proposed extension (C-20). `scale` and `offset` are optional and absent: the image is already in the stated unit.
-A library test ties the field to the `imagefile` the generator renders, so the two cannot disagree.
+**Radiometric reference.** Each channel's `radiometric_reference` is the sensor's own radiometric calibration
+(Detector_v02 §6.8), for example DN to spectral radiance. Detector_v02 requires `quantity` and `unit`; no library
+sensor has a known calibration, so both are `null`, and `scale` and `offset` are omitted. The schema closes
+`quantity` to Detector_v02's five members (`radiance`, `spectral_radiance`, `irradiance`,
+`brightness_temperature`, `digital_number`) or `null`. What the image holds is a property of the engine, not of
+the sensor: for DIRSIG, photo-electrons per m² of focal plane over the exposure (section 9; C-20).
+
+**Fields an engine other than DIRSIG would need.** A field audit found one engine-shaped field in
+`sensor-spec/1`, the former electron `radiometric_reference`; the rest are sensor properties, some of which the
+template substitution consumes. These Detector_v02 fields are absent or null in every library sensor and would be
+needed by an engine that models the detector chain (for example SatSim):
+
+| Need | Detector_v02 field | Today |
+|---|---|---|
+| Spatial response | `mtf_at_nyquist_row`, `mtf_at_nyquist_column`; a PSF kernel (sampled function, referenced) | absent; PSF has no field; DIRSIG keeps the template's |
+| Temporal noise | `read_noise`, `dark_current` (with detector temperature), `noise_figure` | absent |
+| Saturation and conversion | `full_well`, `conversion_gain` (e-/DN), `linearity_error` | absent; `settings.gain` is commanded and unitless |
+| Calibration | `radiometric_reference` `scale`, `offset` (required with `digital_number`) | null |
+| Defects | `defect_fraction`, `defect_map_reference` | absent |
+| Readout timing | `readout.rolling_line_period`, `exposure_time_min`, `exposure_time_max` | absent (Global shutter only) |
+| Geometry | `array.offset`, `optics.focus_distance` | absent |
+
+`AdcBitDepth` is present but library-asserted. Platform jitter is absent on the platform side.
 
 Library entries: `auror-nir` (AUROR_ref; vendor, model, and full frame not recorded; no QE), `deepscan_850_306_nir_1280`
 (Eoptic DeepScan, Teledyne SCION 1280 x 1024 VisGaAs; synthetic QE until vendor data), and
 `synthetic_600_200_vis_1920` (an invented VIS camera: 50 mm, 200 mm, 1920 x 1080 at 5.5 um, synthetic silicon QE
-and lens curves). A different sensor is a different run spec: `manifold_run_specs/synthetic_vis.yaml` is `auror_ref.yaml`
-with that sensor, and `run_spec.derive_run_spec` makes one. There is no run-time sensor override.
+and lens curves). A different sensor is a different run: `recipes/synthetic_vis.yaml` names the VIS camera with
+`auror_ref`'s scenario, and `run_spec.derive_run_spec` makes such a spec from a loaded one. There is no run-time
+sensor override.
 
 Several required `sensor` fields have no DIRSIG source (`SensorShutterMode`, `AdcBitDepth`,
 `timestamp_reference`, `optical_path`, `system_id`, `reference_frame`). They are assigned in the library entry
@@ -316,13 +393,18 @@ manifold_config_repo/
   platforms/<platform>/<platform>.platform
   weather/<name>.wth
   atmosphere/<name>             # proposed path; see section 10
-manifold_run_specs/             # run-spec/1 documents
-manifold_sensors/               # sensor library: sensor-spec/1 documents
+manifold_run_specs/
+  recipes/<name>.yaml           # compose/1 recipe: meta, settings, fidelity; names the layers below and a sensor
+  scenarios/<name>.yaml         # descriptor.collection
+  engine_profiles/<name>.yaml   # descriptor.origin, descriptor.extras, engine
+  <name>.yaml                   # run-spec/1, GENERATED by scripts/compose.py from recipes/<name>.yaml
+manifold_sensors/               # sensor library: sensor-spec/1 documents; never copied into a run spec
   spectral/<qe|optics|filter>/  # spectral-curve/1 CSVs
 manifold_contracts/             # schemas, vocabulary, validators (sensor-spec-1.schema.json)
+  vectors/compose/<case>/       # conformance vectors for an input constructor
 external/                       # pinned dirfm, agent-docs, DIRSIG link; gitignored (pins.json tracked)
 src/protodirsig/  tests/  notebooks/
-scripts/                        # bootstrap, stamp_hashes, import_curve, crosscheck_sgp4
+scripts/                        # bootstrap, compose, stamp_hashes, import_curve, crosscheck_sgp4
 tests/fixtures/auror_ref/       # motion and tasks files; compared with generated files only
 outputs/<job>/                  # ephemeral job directories; gitignored
 ```
@@ -381,6 +463,7 @@ test fixture.
 
 | Module | Role | Status |
 |---|---|---|
+| `compose` | run spec composed from recipe, scenario, engine profile and library sensor (`compose/1`) | `built`; rules `proposed` |
 | `run_spec` | run-spec loader and AUROR resolver | `built, partial` |
 | `platform_gen` | `.platform` rendered from the library template, `sensor-spec/1` and `settings` | `built` (one focal plane per entry) |
 | `spectral` | `spectral-curve/1` reader, channel shapes, response composition | `built` |
@@ -390,8 +473,9 @@ test fixture.
 | `scene_ref`, `platform_ref`, `scene_coverage`, `atmosphere_patches` | `dirfm` gap-fillers | `built` |
 | `orbit`, `sensors` | skyfield TEME→ECEF and trajectory; sensor helpers | `built` |
 
-`scripts/stamp_hashes.py [--check]` stamps and verifies `content_hash` values; `scripts/import_curve.py` converts
-measured curves to `spectral-curve/1`. Pending work is in `BACKLOG.md`.
+`scripts/compose.py [--check]` writes the generated run specs; `scripts/stamp_hashes.py [--check]` stamps
+`content_hash` values in sensor and layer files and verifies them in generated run specs; `scripts/import_curve.py`
+converts measured curves to `spectral-curve/1`. Pending work is in `BACKLOG.md`.
 
 ## 8. Notebooks
 
@@ -534,8 +618,9 @@ One row per interface item. `Outcome` is filled after review with the MANIFOLD t
 | C-12 | Strict loader and hashing | duplicate and unknown key rejection, canonical-JSON hashing, `content_hash` verification belong on the registry side; not built here | `open` | |
 | C-16 | Spectral references | `optics.throughput_reference`, `qe_reference`, `srf_reference` are Detector_v02 names, resolved to `spectral-curve/1` CSV files (`{name, content_hash}`). `srf_model` (gaussian, rectangular) is a program-minted analytic alternative to `srf_reference`. Absent `qe_reference` means unit QE. The generator, not the spec, decides how the factors reach the engine | `proposed` | |
 | C-17 | `engine.platform.channel_response` | `tabulated` (default) or `native`; DIRSIG-specific, so engine-side. `native` exists to reproduce a received platform whose gaussian channel peaks at 1/√(2π) | `proposed` | |
-| C-18 | One run spec per sensor | a sensor change is a new run spec (`derive_run_spec`), not a run-time override, so a run spec describes its run alone | `proposed` | |
+| C-18 | One run per sensor | a sensor change is a new run: a new recipe naming another library sensor composes a new run spec (`derive_run_spec` does the same from a loaded spec), not a run-time override, so a run spec describes its run alone. A sweep over sensors (not built) fans out above the engine into one run per sensor | `proposed` | |
 | C-14 | Detector manufacturer and model | `focal_planes[].detector.DeviceVendorName` and `DeviceModelName` (SFNC names, Detector_v02 §6.3); placement in the focal plane rather than `identity` | `proposed` | |
 | C-15 | Full frame versus modeled window | `detector` is the Detector_v02 `array` block (SFNC `SensorWidth`, `SensorHeight`, pitch, `fill_factor`, `channel_layout`, all the full sensor) plus vendor and model, under a different block name. The window DIRSIG models is the commanded `roi` (SFNC `Width`, `Height`, `OffsetX`, `OffsetY`) in run-spec `settings`, as Detector_v02 treats a region of interest; the offset places the window in the field (DIRSIG array offset), so it is not decorative | `proposed` | |
-| C-19 | Entries per DIRSIG job | one sensor entry, one focal plane, one `settings` member; several channels per focal plane. A multi-entry or multi-focal-plane sensor-spec is refused, not partly rendered. Open: does MANIFOLD expect one run spec per entry, or one job per entry from one run spec? | `open` | |
-| C-20 | Electron member of `radiometric_reference.quantity` | the generated image is photo-electrons per m² of focal plane over the exposure (`imagefile` `fluxunits="electronspersecond"`, `areaunits="m2"`, temporal integration), which none of Detector_v02 A.9.1's five members describes. Proposed member `electron_exposure`, unit `e-/m2`. Question: does Detector_v02 add an electron member (exposure, or a rate with integration time stated separately), or does the `imagefile` electron output map to another field? | `proposed` | |
+| C-19 | Entries per DIRSIG run | one sensor entry, one focal plane, one `settings` member; several channels per focal plane. A multi-entry or multi-focal-plane sensor-spec is refused at resolution, not partly rendered; composition accepts one `settings` member per entry. Several sensors or entries become several runs above the engine (a sweep), so the engine never fans out. Open: does MANIFOLD expect one run spec per entry, or one job per entry from one run spec? | `open` | |
+| C-20 | Is `radiometric_reference` optional? | what an image holds is a property of the engine, not of the sensor: DIRSIG's is photo-electrons per m² of focal plane over the exposure (`platform_gen.IMAGE_QUANTITY`, section 9), at gain 1 and bias 0. `radiometric_reference` is the sensor's own calibration; Detector_v02 §6.8 makes `quantity` and `unit` required, so a sensor with no known calibration carries both as `null`. The earlier proposal of an `electron_exposure` member is withdrawn. Question: may `radiometric_reference` be optional (0..1) when no calibration is known, and where is an engine's image quantity recorded (engine schema or execution record)? | `open` | |
+| C-21 | Layered submission and a MANIFOLD input constructor | a run is authored as a recipe, a scenario, an engine profile and a library sensor, and composed into one `run-spec/1` (section 3.5). Ask: MANIFOLD accepts layered submission and adopts `protodirsig.compose` as the reference for its input constructor, tested by `manifold_contracts/vectors/compose/`. Questions: does the registered descriptor carry the sensor inline or by name and hash (both compose and resolve here; the default is the ref); where is layer provenance (file and hash per member) recorded, given it is kept out of the spec; is `compose/1` the version tag for the composition rules? The composed spec conforms to `run-spec/1` as it is, so a rejection loses only the authoring layer | `proposed` | |

@@ -12,13 +12,14 @@ to-do list.
 ## What it does
 
 A `run-spec/1` YAML names a collection, a sensor (a reference into `manifold_sensors/`) and engine assets (references
-into `manifold_config_repo/`). The driver validates the spec, verifies content hashes, renders the `.platform` from the
+into `manifold_config_repo/`). It is composed from layer files: a recipe naming a scenario, an engine profile and a
+library sensor (`scripts/compose.py`). The driver validates the spec, verifies content hashes, renders the `.platform` from the
 sensor description, generates motion and tasks files, runs a DIRSIG dry-run, and renders through `dirfm`.
 Output is imagery in electrons per m² of focal plane plus truth. Three sensors are in the library
 (AUROR NIR, a 1280-pixel NIR, a 1920-pixel VIS); the AUROR job reproduces the received platform file.
 
 ```python
-from protodirsig.registry import LocalRegistry   # submit a run spec, then Simulation.run
+from protodirsig.registry import LocalRegistry   # submit_recipe (or submit a run spec), then Simulation.run
 ```
 
 `notebooks/stage_01`–`stage_03` run the reference job, the conformance path and a sensor sweep.
@@ -70,21 +71,23 @@ conda env update -f environment.yml --prune
   forward; the stage notebooks live at the top level of `notebooks/` and
   are the active, accumulating work.
 - `src/protodirsig/` — supplementary Python modules for gaps `dirfm` does
-  not cover, installed editable via `pip install -e .`: the run-spec loader
+  not cover, installed editable via `pip install -e .`: the run-spec composer (`compose`) and loader
   (`run_spec`), `.platform` generation from the sensor description (`platform_gen`, `spectral`),
   motion/tasks generation (`motion_tasks`), the conformance checks and render (`simulation`), the local
   submission stand-in (`registry`), and the dirfm workarounds and helpers the notebooks use.
-- `manifold_run_specs/` — MANIFOLD run-spec YAMLs. The only copy; protoDIRSIG is the source of truth.
+- `manifold_run_specs/` — MANIFOLD run specs: the layer files (`recipes/`, `scenarios/`, `engine_profiles/`) and the
+  run specs composed from them (see its README). The only copy; protoDIRSIG is the source of truth.
 - `manifold_sensors/` — the sensor library: `sensor-spec/1` files that run specs reference, and `spectral/`
   (QE, optics and filter curves, `spectral-curve/1` CSV).
-- `manifold_contracts/` — schemas, vocabulary and validators (`sensor-spec-1.schema.json` today; future
-  `manifold-contracts`).
+- `manifold_contracts/` — schemas, vocabulary and validators (`sensor-spec-1.schema.json` and the composition
+  vectors today; future `manifold-contracts`).
 - `external/` — pinned dirfm and agent-docs checkouts and a link to the DIRSIG install,
   populated by `python scripts/bootstrap.py install`; gitignored except `pins.json`.
 - `manifold_config_repo/` — the engine-asset library the run specs' `engine` refs
   resolve against (scenes, platforms, weather, atmosphere databases), in
   the layout of the CONOPS and Guide §5. Read-only at run time.
-- `scripts/` — CLI entry points: `bootstrap.py` (pinned dependencies), `stamp_hashes.py` (content hashes),
+- `scripts/` — CLI entry points: `bootstrap.py` (pinned dependencies), `compose.py` (run specs from layers),
+  `stamp_hashes.py` (content hashes),
   `import_curve.py` (measured curve intake), `crosscheck_sgp4.py`.
 - `outputs/` — DIRSIG input/output roots written by notebooks and scripts.
   Gitignored except for a placeholder; nothing here is source, and nothing

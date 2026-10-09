@@ -8,8 +8,9 @@ The sensor library: one `sensor-spec/1` document per sensor system.
 | `deepscan_850_306_nir_1280.yaml` | 1280-pixel NIR |
 | `synthetic_600_200_vis_1920.yaml` | 1920-pixel VIS |
 
-A run spec references an entry by name, `descriptor.sensor.ref.name: auror-nir.yaml`, and the name resolves
-against this folder. `platform_gen` renders the DIRSIG `.platform` from the entry and the run spec's
+A recipe names a file here (`sensor: auror-nir.yaml`, `manifold_run_specs/recipes/`); the composed run spec refers to it
+by name and hash, `descriptor.sensor.ref`, or carries its `sensor` block inline, and the name resolves against this
+folder. Files here are never copied into a run spec's layers. `platform_gen` renders the DIRSIG `.platform` from the entry and the run spec's
 `settings`. CONOPS and Guide §4.
 
 `spectral/` holds the QE, optics and filter curves entries reference (`spectral-curve/1`; see its README).
