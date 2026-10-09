@@ -15,7 +15,7 @@ dependencies:
   - lxml
   - h5py
   - matplotlib
-  - pyyaml        # run_specs/*.yaml (protodirsig.run_spec)
+  - pyyaml        # manifold_run_specs/*.yaml (protodirsig.run_spec)
   - skyfield      # SGP4 (via sgp4) + TEME->ITRS frame chain for TLE propagation
   - jupyter
   - jsonschema

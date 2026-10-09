@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Stamp or check `content_hash` on file refs in sensors/*.yaml and run_specs/*.yaml. stdlib only.
+"""Stamp or check `content_hash` on file refs in manifold_sensors/*.yaml and manifold_run_specs/*.yaml. stdlib only.
 
     python scripts/stamp_hashes.py            rewrite stale or placeholder hashes in place
     python scripts/stamp_hashes.py --check    list stale hashes, exit 1 if any (CI)
 
 A ref is `{name: <path>, content_hash: "<sha256:...>"}`. The name resolves as the loaders resolve it: a
-sensor-spec ref (`*.yaml` without a directory) and spectral curves against `sensors/`; every other name
-against `config_repo/`. A name that is not a single file (a `.scene` whose geometry and materials sit beside
+sensor-spec ref (`*.yaml` without a directory) and spectral curves against `manifold_sensors/`; every other name
+against `manifold_config_repo/`. A name that is not a single file (a `.scene` whose geometry and materials sit beside
 it) is left as written, because one file's hash would not identify the asset. The hash is `sha256` of the
 file bytes. MANIFOLD's canonical-JSON hash (Metadata_v02 §6.15) replaces it when the registry is built.
 """
@@ -24,9 +24,9 @@ def resolve(name, in_sensors_file):
     name = name.strip()
     if name.endswith(SKIP_SUFFIX):
         return None
-    candidates = [ROOT / "sensors" / name] if (in_sensors_file or name.startswith("spectral/") or
+    candidates = [ROOT / "manifold_sensors" / name] if (in_sensors_file or name.startswith("spectral/") or
                                                 ("/" not in name and name.endswith(".yaml"))) \
-        else [ROOT / "config_repo" / name]
+        else [ROOT / "manifold_config_repo" / name]
     return next((c for c in candidates if c.is_file()), None)
 
 
@@ -36,7 +36,7 @@ def digest(path):
 
 def process(path, write):
     text, stale = path.read_text(), []
-    in_sensors = path.parent.name == "sensors"
+    in_sensors = path.parent.name == "manifold_sensors"
 
     def sub(m):
         target = resolve(m.group(2), in_sensors)
@@ -55,7 +55,7 @@ def process(path, write):
 def main(argv):
     check = "--check" in argv
     stale = []
-    for f in sorted((ROOT / "sensors").glob("*.yaml")) + sorted((ROOT / "run_specs").glob("*.yaml")):
+    for f in sorted((ROOT / "manifold_sensors").glob("*.yaml")) + sorted((ROOT / "manifold_run_specs").glob("*.yaml")):
         stale += process(f, write=not check)
     for s in stale:
         print(("stale  " if check else "stamped ") + s)

@@ -1,19 +1,19 @@
 """Read the AUROR_ref job's references from a MANIFOLD run-spec YAML.
 
-Narrow and tree-specific by design: this resolves `run_specs/auror_ref.yaml` for the stage notebooks
+Narrow and tree-specific by design: this resolves `manifold_run_specs/auror_ref.yaml` for the stage notebooks
 (`notebooks/stage_NN_*.ipynb`). It is not a `dirsig-engine/1` interpreter.
 
 Two resolution roots, one per kind of thing referenced:
 - `config_repo`: the engine-asset library (CONOPS and Guide §5; Configuration_v02 A.8)
   for `engine.scenes`, `platform`, `atmosphere.database` and `weather.file`. Each ref name is a path
   under it, with no fallback search.
-- `sensor_library`: the sensor library (`sensors/`), for the `descriptor.sensor` ref (see below).
+- `sensor_library`: the sensor library (`manifold_sensors/`), for the `descriptor.sensor` ref (see below).
 Nothing resolves against a received run tree. MANIFOLD has none: the executor materializes a fresh
 run tree from the run spec for every run (Configuration_v02 §2).
 
 `descriptor.sensor` is a `sensor-spec/1` ref (CONOPS and Guide §4). Unlike every
 `engine` ref, it resolves against `sensor_library`, not `config_repo`. The ref name is a path under
-the library (`auror-nir.yaml`). The default library is `sensors/`, a sibling of the folder holding the
+the library (`auror-nir.yaml`). The default library is `manifold_sensors/`, a sibling of the folder holding the
 run spec. It is loaded and checked here, and `platform_gen` renders the job's `.platform` from it and the
 run spec's `settings`.
 
@@ -83,7 +83,7 @@ def load_sensor_spec(sensor_library, sensor_ref_name):
 
 @dataclass(frozen=True)
 class AurorRun:
-    """The run spec's values: engine assets resolved to config_repo files, and the values the
+    """The run spec's values: engine assets resolved to manifold_config_repo files, and the values the
     motion and tasks files are generated from (`motion_tasks`)."""
     name: str
     origin: dict
@@ -145,8 +145,8 @@ def _scene_file(config_repo, ref_name):
 
 
 def default_sensor_library(run_spec_path):
-    """`sensors/`, the sibling of the folder that holds the run spec."""
-    return Path(run_spec_path).resolve().parent.parent / "sensors"
+    """`manifold_sensors/`, the sibling of the folder that holds the run spec."""
+    return Path(run_spec_path).resolve().parent.parent / "manifold_sensors"
 
 
 def _check_settings_roi(settings, sensor_doc):

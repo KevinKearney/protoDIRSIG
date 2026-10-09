@@ -7,7 +7,7 @@
 
 Input: two numeric columns (wavelength, value), comma- or whitespace-separated. Lines starting with `#` and
 lines whose first two fields are not numbers (column headers) are skipped. Output:
-`sensors/spectral/<kind>/<name>.csv` (sensors/spectral/README.md), at the input's own wavelength grid:
+`manifold_sensors/spectral/<kind>/<name>.csv` (manifold_sensors/spectral/README.md), at the input's own wavelength grid:
 
 - wavelength converted to um and sorted ascending; a repeated wavelength with the same value is kept once, a
   repeated wavelength with two different values is refused (the file does not say which is right);
@@ -124,7 +124,7 @@ def render(name, kind, provenance, source, acquired, wl, v, measured, padded, de
 
 
 def import_curve(src, kind, name, wavelength_unit, percent, provenance, source, pad_zero_to=None,
-                 acquired=None, description=None, library=ROOT / "sensors"):
+                 acquired=None, description=None, library=ROOT / "manifold_sensors"):
     """Write `<library>/spectral/<kind>/<name>.csv` from `src`. Returns its path."""
     if kind not in KINDS:
         raise CurveImportError(f"--kind {kind!r}: expected one of {sorted(KINDS)}")
@@ -137,7 +137,7 @@ def import_curve(src, kind, name, wavelength_unit, percent, provenance, source, 
         raise CurveImportError("--source is empty: say where the data came from")
     out = Path(library) / "spectral" / kind / f"{name}.csv"
     if out.exists():
-        raise CurveImportError(f"{out} exists; a new curve gets a new name (sensors/spectral/README.md)")
+        raise CurveImportError(f"{out} exists; a new curve gets a new name (manifold_sensors/spectral/README.md)")
     wl, v = clean(parse_rows(Path(src).read_text(encoding="utf-8-sig")), wavelength_unit, percent)
     measured = (wl[0], wl[-1])
     if pad_zero_to is not None:
@@ -170,7 +170,7 @@ def main(argv=None):
     p.add_argument("--pad-zero-to", type=_pair, metavar="LO,HI",
                    help="write zero response out to LO and HI um (recorded in the header); none by default")
     p.add_argument("--description")
-    p.add_argument("--library", type=Path, default=ROOT / "sensors", help="sensor library root (default sensors/)")
+    p.add_argument("--library", type=Path, default=ROOT / "manifold_sensors", help="sensor library root (default manifold_sensors/)")
     a = p.parse_args(argv)
     if a.acquired:
         dt.date.fromisoformat(a.acquired)

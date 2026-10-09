@@ -1,7 +1,7 @@
 """protodirsig.scene_coverage must reproduce the hand-checked Tacoma result
 and fail closed on material kinds it does not understand.
 
-Reads the Tacoma bundle in the DIRSIG install and config_repo's tahoe scene READ-ONLY (each
+Reads the Tacoma bundle in the DIRSIG install and manifold_config_repo's tahoe scene READ-ONLY (each
 skipped if absent); writes only to pytest's tmp_path.
 """
 import math
@@ -14,8 +14,8 @@ from protodirsig.scene_coverage import scene_coverage
 
 DIRSIG_HOME = Path(os.environ.get("DIRSIG_HOME", Path.home() / "DIRSIG" / "dirsig-2026.38.0.a020954-Linux-x86_64"))
 TACOMA_SCENE = DIRSIG_HOME / "Tacoma-08-Apr-2022" / "Tacoma" / "tacoma.scene"
-# The AUROR_ref tahoe scene, now in the config_repo library (byte-identical copy, Stage 04).
-AUROR_SCENE = Path(__file__).resolve().parents[1] / "config_repo" / "scenes" / "tahoe" / "tahoe.scene"
+# The AUROR_ref tahoe scene, now in the manifold_config_repo library (byte-identical copy, Stage 04).
+AUROR_SCENE = Path(__file__).resolve().parents[1] / "manifold_config_repo" / "scenes" / "tahoe" / "tahoe.scene"
 
 
 @pytest.mark.skipif(not TACOMA_SCENE.is_file(), reason="Tacoma bundle not present")
@@ -57,7 +57,7 @@ def test_missing_file_is_unknown(tmp_path):
     assert not scene_coverage(tmp_path / "x.scene").covers(0.5, 0.6)
 
 
-@pytest.mark.skipif(not AUROR_SCENE.is_file(), reason="config_repo tahoe scene not present")
+@pytest.mark.skipif(not AUROR_SCENE.is_file(), reason="manifold_config_repo tahoe scene not present")
 def test_auror_bundle_material_is_seen():
     """Gidder_mat lives only in the hypersonic bundle's hypersonic.mat, reached through
     geometrylistinclude lists/hypersonic.glist -> bundles/hypersonic/hypersonic.glist."""

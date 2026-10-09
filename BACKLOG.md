@@ -19,7 +19,7 @@ byte-identical renders. Enable only for scenarios with an intended hot emitter. 
 commanded). Confirm with MANIFOLD, with C-18 (one run spec per sensor, no run-time override).
 
 ### Confirm the DeepScan values carried from auror-nir
-`sensors/deepscan_850_306_nir_1280.yaml` copies optics (85 mm, 306 mm, f/3.6), throughput 0.875, shutter, ADC
+`manifold_sensors/deepscan_850_306_nir_1280.yaml` copies optics (85 mm, 306 mm, f/3.6), throughput 0.875, shutter, ADC
 depth 14, fill factor 1.0, band width, reference frame, and mount from `auror-nir`. Confirm against the DeepScan
 design and the SCION datasheet. Remaining null: Teledyne part number. Its QE is `synthetic_visgaas`.
 
@@ -28,7 +28,7 @@ Applying it renames the outputs and breaks reproduction of the tree. It appears 
 looks like an authoring choice in the YAML. Settle with MANIFOLD.
 
 ### Three resolution roots, one rule
-Engine assets resolve against `config_repo/`, the sensor ref against `sensors/`, motion and
+Engine assets resolve against `manifold_config_repo/`, the sensor ref against `manifold_sensors/`, motion and
 tasks are generated. Still open: whether inline `descriptor.sensor` stays disallowed (the code rejects it).
 
 ### Strict loader and canonical hashing (MANIFOLD registry side)
@@ -94,7 +94,7 @@ needing the UV or LWIR needs a template with that bandpass and scene and atmosph
 ## SDK and run-spec engine
 
 ### Doc-code drift check
-A test asserting that every `run_specs/*.yaml` passes `schema_errors` and every module in `src/protodirsig`
+A test asserting that every `manifold_run_specs/*.yaml` passes `schema_errors` and every module in `src/protodirsig`
 appears in the CONOPS module table.
 
 ### Release repo plan
@@ -156,10 +156,10 @@ Notebook first cells set `DIRSIG_HOME` and locate `dirfm` by home-relative paths
 `stage_03_sensor_sweep` does. Tests still fall back to `~/DIRSIG/<version>`.
 
 ### Asset manifest for large scenes and databases
-`config_repo/` holds real files, so scenes and databases over about 50 MB cannot go in git. Add a manifest
+`manifold_config_repo/` holds real files, so scenes and databases over about 50 MB cannot go in git. Add a manifest
 (name, sha256, size, source) and a `bootstrap.py assets` step that copies each asset from its source (the
 DIRSIG install for shipped demo scenes such as Tacoma and HarvardForest, an artifact store for acquired ones)
-into a gitignored `config_repo/` path and verifies the hash. Decide LFS versus a content-addressed store
+into a gitignored `manifold_config_repo/` path and verifies the hash. Decide LFS versus a content-addressed store
 first. Each new scene also needs a matched atmosphere database, weather file, and platform.
 
 ### CI job

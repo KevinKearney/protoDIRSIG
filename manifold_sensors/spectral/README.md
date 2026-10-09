@@ -68,5 +68,5 @@ All three are synthetic placeholders for pipeline development, not vendor data.
 ## Referencing a curve
 
 A sensor-spec names a curve as `{name: spectral/<kind>/<file>.csv, content_hash: "sha256:..."}`, resolved against
-`sensors/`, in `optics.throughput_reference`, `channels[].qe_reference`, or `channels[].srf_reference`
+`manifold_sensors/`, in `optics.throughput_reference`, `channels[].qe_reference`, or `channels[].srf_reference`
 (CONOPS and Guide §4). `scripts/stamp_hashes.py` stamps the hash; the loader verifies it.

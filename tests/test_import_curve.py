@@ -1,6 +1,6 @@
 """`scripts/import_curve.py`: vendor-style input (nm, percent, non-uniform, about 0.3-1.7 um) becomes a
 `spectral-curve/1` file that the library reads and the platform generator composes. The inputs are fabricated
-in a temporary directory; nothing is written to `sensors/`."""
+in a temporary directory; nothing is written to `manifold_sensors/`."""
 import copy
 import importlib.util
 import shutil
@@ -15,8 +15,8 @@ from protodirsig.run_spec import load_run_spec, load_sensor_spec
 from protodirsig.spectral import read_curve
 
 ROOT = Path(__file__).resolve().parents[1]
-TEMPLATE = ROOT / "config_repo" / "platforms" / "AurorNIRDetector" / "AurorNIRDetector.platform"
-SETTINGS = load_run_spec(ROOT / "run_specs" / "auror_ref.yaml")["descriptor"]["settings"]
+TEMPLATE = ROOT / "manifold_config_repo" / "platforms" / "AurorNIRDetector" / "AurorNIRDetector.platform"
+SETTINGS = load_run_spec(ROOT / "manifold_run_specs" / "auror_ref.yaml")["descriptor"]["settings"]
 _spec = importlib.util.spec_from_file_location("import_curve", ROOT / "scripts" / "import_curve.py")
 ic = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(ic)
@@ -136,7 +136,7 @@ def _deepscan_with(lib, qe_name):
 
 def test_padded_curve_composes_through_platform_gen(tmp_path):
     lib = tmp_path / "lib"
-    shutil.copytree(ROOT / "sensors", lib)
+    shutil.copytree(ROOT / "manifold_sensors", lib)
     run(tmp_path, vendor_file(tmp_path), name="padded_qe", pad_zero_to=(0.150, 14.000))
     run(tmp_path, vendor_file(tmp_path), name="bare_qe")
     settings = [{**SETTINGS[0], "entry_id": "deepscan-850-306-nir-1280"}]

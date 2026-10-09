@@ -1,4 +1,4 @@
-"""Every sensors/spectral/<kind>/*.csv is a spectral-curve/1 file: required metadata, ascending wavelength,
+"""Every manifold_sensors/spectral/<kind>/*.csv is a spectral-curve/1 file: required metadata, ascending wavelength,
 values in [0, 1], and the first and last rows match the declared range. Also `spectral.py` itself."""
 from pathlib import Path
 
@@ -8,7 +8,7 @@ import pytest
 from protodirsig.spectral import (FWHM_PER_SIGMA, KINDS, SpectralError, band_grid, channel_response, read_curve,
                                   srf_model_values)
 
-SPECTRAL = Path(__file__).resolve().parents[1] / "sensors" / "spectral"
+SPECTRAL = Path(__file__).resolve().parents[1] / "manifold_sensors" / "spectral"
 FILES = sorted(SPECTRAL.glob("*/*.csv"))
 
 

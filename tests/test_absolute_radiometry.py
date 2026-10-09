@@ -30,8 +30,8 @@ from protodirsig.platform_gen import render_platform
 from protodirsig.run_spec import load_run_spec, load_sensor_spec
 
 ROOT = Path(__file__).resolve().parents[1]
-LIB = ROOT / "sensors"
-TEMPLATE = ROOT / "config_repo" / "platforms" / "AurorNIRDetector" / "AurorNIRDetector.platform"
+LIB = ROOT / "manifold_sensors"
+TEMPLATE = ROOT / "manifold_config_repo" / "platforms" / "AurorNIRDetector" / "AurorNIRDetector.platform"
 DIRSIG_HOME = Path(os.environ.get("DIRSIG_HOME", Path.home() / "DIRSIG" / "dirsig-2026.38.0.a020954-Linux-x86_64"))
 WEATHER = DIRSIG_HOME / "lib" / "data" / "weather" / "mls.wth"     # required by BasicAtmosphere; no effect here
 
@@ -61,7 +61,7 @@ def render_plane(work, sensor, entry_id, E, rho, zenith, n=8):
 
     inp = work / "input"
     inp.mkdir(parents=True)
-    settings = [{**load_run_spec(ROOT / "run_specs" / "auror_ref.yaml")["descriptor"]["settings"][0],
+    settings = [{**load_run_spec(ROOT / "manifold_run_specs" / "auror_ref.yaml")["descriptor"]["settings"][0],
                  "entry_id": entry_id, "roi": {"Width": n, "Height": n, "OffsetX": None, "OffsetY": None}}]
     platform = render_platform(TEMPLATE, load_sensor_spec(LIB, sensor), entry_id, settings, 10, LIB,
                                inp / "plane.platform").path
@@ -130,5 +130,5 @@ def expected(sensor, E, rho, zenith, t):
 def test_electrons_match_the_analytic_value(tmp_path, sensor, entry_id, E, rho, zenith):
     img = render_plane(tmp_path, sensor, entry_id, E, rho, zenith)
     assert img.std() <= 1e-9 * img.mean()                              # uniform plane, uniform image
-    t = load_run_spec(ROOT / "run_specs" / "auror_ref.yaml")["descriptor"]["settings"][0]["exposure_time"]["value"]
+    t = load_run_spec(ROOT / "manifold_run_specs" / "auror_ref.yaml")["descriptor"]["settings"][0]["exposure_time"]["value"]
     assert img.mean() == pytest.approx(expected(sensor, E, rho, zenith, t), rel=1e-3)

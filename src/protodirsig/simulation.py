@@ -181,7 +181,7 @@ class Simulation:
     """One AUROR_ref-type job from a run spec. Construct with `Simulation.from_run_spec`.
 
     `config_repo` is the engine-asset library (scene, platform, atmosphere database, weather),
-    read-only. `sensor_library` holds the `sensor-spec/1` documents (default `sensors/`, beside
+    read-only. `sensor_library` holds the `sensor-spec/1` documents (default `manifold_sensors/`, beside
     the run spec's folder). `work_dir` holds everything written: the job inputs (scene reference, input
     copies, generated motion and tasks, jsim), the dry-run scratch logs and the render output.
     Defaults to a fresh temporary directory.
@@ -214,7 +214,7 @@ class Simulation:
         ref_file = reference_scene(r.scene, in_dir / "auror_ref")   # wipes and recreates only this subdirectory
         scene = SCENE(r.scene.stem)
         scene._fname = ref_file                                     # private attribute: write() returns it as-is
-        # Library assets keep their config_repo-relative paths; motion and tasks are generated.
+        # Library assets keep their manifold_config_repo-relative paths; motion and tasks are generated.
         inputs = {"weather": copy_input(r.weather, in_dir / r.weather.relative_to(lib))}
         # The platform is rendered from the library template, the sensor-spec and `settings`.
         inputs["platform"] = render_platform(r.platform, r.sensor, r.settings[0]["entry_id"], r.settings,

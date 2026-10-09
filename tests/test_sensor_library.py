@@ -1,4 +1,4 @@
-"""Every sensors/*.yaml validates against contracts/sensor-spec-1.schema.json, and the fields that restate one
+"""Every manifold_sensors/*.yaml validates against manifold_contracts/sensor-spec-1.schema.json, and the fields that restate one
 another agree: the name matches the file, the channel's band_center and bandwidth match its srf_model, qe_peak
 matches the maximum of the QE curve, and every referenced curve exists with its stamped hash."""
 import json
@@ -11,9 +11,9 @@ from jsonschema import Draft202012Validator
 from protodirsig.spectral import read_curve, resolve_curve
 
 ROOT = Path(__file__).resolve().parents[1]
-SENSORS = ROOT / "sensors"
+SENSORS = ROOT / "manifold_sensors"
 FILES = sorted(SENSORS.glob("*.yaml"))
-SCHEMA = json.loads((ROOT / "contracts" / "sensor-spec-1.schema.json").read_text())
+SCHEMA = json.loads((ROOT / "manifold_contracts" / "sensor-spec-1.schema.json").read_text())
 
 
 def test_library_is_not_empty():
@@ -102,8 +102,8 @@ def test_radiometric_reference_matches_the_generated_image(tmp_path, path):
 
     from protodirsig.platform_gen import render_platform
     from protodirsig.run_spec import load_run_spec, load_sensor_spec
-    template = ROOT / "config_repo" / "platforms" / "AurorNIRDetector" / "AurorNIRDetector.platform"
-    settings = load_run_spec(ROOT / "run_specs" / "auror_ref.yaml")["descriptor"]["settings"][0]
+    template = ROOT / "manifold_config_repo" / "platforms" / "AurorNIRDetector" / "AurorNIRDetector.platform"
+    settings = load_run_spec(ROOT / "manifold_run_specs" / "auror_ref.yaml")["descriptor"]["settings"][0]
     doc = load_sensor_spec(SENSORS, path.name)
     for entry in doc["sensor"]["entries"]:
         out = render_platform(template, doc, entry["entry_id"], [{**settings, "entry_id": entry["entry_id"]}], 10,

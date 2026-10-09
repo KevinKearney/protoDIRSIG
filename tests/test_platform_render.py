@@ -14,9 +14,9 @@ from protodirsig.run_spec import load_run_spec, load_sensor_spec
 from protodirsig.spectral import read_curve, srf_model_values
 
 ROOT = Path(__file__).resolve().parents[1]
-TEMPLATE = ROOT / "config_repo" / "platforms" / "AurorNIRDetector" / "AurorNIRDetector.platform"
-LIB = ROOT / "sensors"
-SETTINGS = load_run_spec(ROOT / "run_specs" / "auror_ref.yaml")["descriptor"]["settings"]
+TEMPLATE = ROOT / "manifold_config_repo" / "platforms" / "AurorNIRDetector" / "AurorNIRDetector.platform"
+LIB = ROOT / "manifold_sensors"
+SETTINGS = load_run_spec(ROOT / "manifold_run_specs" / "auror_ref.yaml")["descriptor"]["settings"]
 
 
 def render(tmp_path, sensor, entry, settings=None, samples=10, mode="tabulated"):
@@ -53,7 +53,7 @@ def test_reproduction_gate_auror_nir(tmp_path):
 
 
 def test_run_spec_asks_for_the_native_gate():
-    assert load_run_spec(ROOT / "run_specs" / "auror_ref.yaml")["engine"]["platform"]["channel_response"] == "native"
+    assert load_run_spec(ROOT / "manifold_run_specs" / "auror_ref.yaml")["engine"]["platform"]["channel_response"] == "native"
 
 
 def test_native_refuses_a_curve(tmp_path):

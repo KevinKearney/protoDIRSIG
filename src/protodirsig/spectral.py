@@ -1,4 +1,4 @@
-"""Spectral curves (`spectral-curve/1`, sensors/spectral/README.md) and the per-channel response the
+"""Spectral curves (`spectral-curve/1`, manifold_sensors/spectral/README.md) and the per-channel response the
 platform generator composes from them.
 
 A channel's effective response is the product of three factors that Detector_v02 keeps apart

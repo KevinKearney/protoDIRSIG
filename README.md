@@ -11,8 +11,8 @@ to-do list.
 
 ## What it does
 
-A `run-spec/1` YAML names a collection, a sensor (a reference into `sensors/`) and engine assets (references
-into `config_repo/`). The driver validates the spec, verifies content hashes, renders the `.platform` from the
+A `run-spec/1` YAML names a collection, a sensor (a reference into `manifold_sensors/`) and engine assets (references
+into `manifold_config_repo/`). The driver validates the spec, verifies content hashes, renders the `.platform` from the
 sensor description, generates motion and tasks files, runs a DIRSIG dry-run, and renders through `dirfm`.
 Output is imagery in electrons per m² of focal plane plus truth. Three sensors are in the library
 (AUROR NIR, a 1280-pixel NIR, a 1920-pixel VIS); the AUROR job reproduces the received platform file.
@@ -75,14 +75,14 @@ conda env update -f environment.yml --prune
   (`run_spec`), `.platform` generation from the sensor description (`platform_gen`, `spectral`),
   motion/tasks generation (`motion_tasks`), the conformance checks and render (`simulation`), the local
   submission stand-in (`registry`), and the dirfm workarounds and helpers the notebooks use.
-- `run_specs/` — MANIFOLD run-spec YAMLs. The only copy; protoDIRSIG is the source of truth.
-- `sensors/` — the sensor library: `sensor-spec/1` files that run specs reference, and `spectral/`
+- `manifold_run_specs/` — MANIFOLD run-spec YAMLs. The only copy; protoDIRSIG is the source of truth.
+- `manifold_sensors/` — the sensor library: `sensor-spec/1` files that run specs reference, and `spectral/`
   (QE, optics and filter curves, `spectral-curve/1` CSV).
-- `contracts/` — schemas, vocabulary and validators (`sensor-spec-1.schema.json` today; future
+- `manifold_contracts/` — schemas, vocabulary and validators (`sensor-spec-1.schema.json` today; future
   `manifold-contracts`).
 - `external/` — pinned dirfm and agent-docs checkouts and a link to the DIRSIG install,
   populated by `python scripts/bootstrap.py install`; gitignored except `pins.json`.
-- `config_repo/` — the engine-asset library the run specs' `engine` refs
+- `manifold_config_repo/` — the engine-asset library the run specs' `engine` refs
   resolve against (scenes, platforms, weather, atmosphere databases), in
   the layout of the CONOPS and Guide §5. Read-only at run time.
 - `scripts/` — CLI entry points: `bootstrap.py` (pinned dependencies), `stamp_hashes.py` (content hashes),

@@ -22,18 +22,18 @@ results are cited in the CONOPS and Guide.
 ## Stage notebooks
 
 - **`stage_01_auror_from_runspec.ipynb`** — Builds and renders the AUROR_ref DIRSIG job driven
-  entirely from a MANIFOLD run-spec YAML (`run_specs/auror_ref.yaml`), via
+  entirely from a MANIFOLD run-spec YAML (`manifold_run_specs/auror_ref.yaml`), via
   `src/protodirsig/run_spec.py`. Scene, platform, atmosphere, weather and seed all come from the
   run spec rather than being written into the notebook's cells; the assets resolve in
-  `config_repo/`, and the motion and tasks files are generated from the spec.
+  `manifold_config_repo/`, and the motion and tasks files are generated from the spec.
 - **`stage_02_conformance_template.ipynb`** — Submits the same job through `LocalRegistry`
   (schema, resolution and execution checks) and renders it with `Simulation.run()` only if
   accepted, capturing DIRSIG's JSON run/info logs alongside the render. This is the current
   conformance-template notebook. As received, the vehicle target never appears, so the notebook
   adds an oversized (8-pixel) Lambertian disk that flies with it. The disk goes into a mirror of
-  `config_repo/` under `outputs/`; `config_repo/` itself is unchanged.
+  `manifold_config_repo/` under `outputs/`; `manifold_config_repo/` itself is unchanged.
 - **`stage_03_sensor_sweep.ipynb`** — The same scenario through different sensors. Shows the sensor
-  library (`sensors/`), one entry's blocks, the three spectral curves, and the channel response the
+  library (`manifold_sensors/`), one entry's blocks, the three spectral curves, and the channel response the
   generator writes into each `.platform`. Then derives a run spec per sensor from `auror_ref.yaml`
   with `derive_run_spec`, submits each through `LocalRegistry`, and renders two sensors in a 32 × 32
   window (seconds each). Compares the ground sample distance measured from the geolocation truth
@@ -52,7 +52,7 @@ results are cited in the CONOPS and Guide.
 - **`tutorial_auror_scene.ipynb`** — The AUROR_ref job (same scene and platform the stage
   notebooks use), driven directly through `dirfm` with no run-spec or registry layer. A plain
   usage example, not part of the staged work. Reads AUROR_ref's files from their copies in
-  `config_repo/` and `tests/fixtures/auror_ref/`, since `AUROR_ref/` itself was retired.
+  `manifold_config_repo/` and `tests/fixtures/auror_ref/`, since `AUROR_ref/` itself was retired.
 
 ## `sidebars/`
 

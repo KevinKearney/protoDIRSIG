@@ -1,9 +1,9 @@
-"""protodirsig.motion_tasks must generate, from run_specs/auror_ref.yaml, motion and tasks files that
+"""protodirsig.motion_tasks must generate, from manifold_run_specs/auror_ref.yaml, motion and tasks files that
 mean what the received AUROR_ref files meant.
 
 The comparison is semantic, not textual: dirfm formats numbers differently from the received
 files (`3.141593` vs `3.141592654`, `0.0` vs `0`), and the tasks reference is written in UTC
-(`+00:00`) where the received file used `-08:00`, the same instant. Reads the run spec, config_repo
+(`+00:00`) where the received file used `-08:00`, the same instant. Reads the run spec, manifold_config_repo
 and tests/fixtures/auror_ref READ-ONLY; writes only to pytest's tmp_path.
 """
 from datetime import datetime, timezone
@@ -16,12 +16,12 @@ from protodirsig.motion_tasks import generate_motion, generate_tasks
 from protodirsig.run_spec import load_run_spec, resolve_auror_run
 
 PROJECT = Path(__file__).resolve().parents[1]
-SPEC = PROJECT / "run_specs" / "auror_ref.yaml"
-CONFIG_REPO = PROJECT / "config_repo"
+SPEC = PROJECT / "manifold_run_specs" / "auror_ref.yaml"
+CONFIG_REPO = PROJECT / "manifold_config_repo"
 FIXTURE = PROJECT / "tests" / "fixtures" / "auror_ref"
 pytestmark = pytest.mark.skipif(
     not ((CONFIG_REPO / "scenes" / "tahoe" / "tahoe.scene").is_file() and (FIXTURE / "motion").is_dir()),
-    reason="config_repo or tests/fixtures/auror_ref not present")
+    reason="manifold_config_repo or tests/fixtures/auror_ref not present")
 
 
 def _motion(path):

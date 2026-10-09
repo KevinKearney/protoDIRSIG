@@ -2,7 +2,7 @@
 
 The plugin-side counterpart of `scene_ref`: a `.platform`, `.ppd`/`.motion` and `.tasks` file
 that already exist on disk are used as they are, instead of being rebuilt from dirfm objects. In
-the stage jobs the platform is the config_repo library file and the motion and tasks are
+the stage jobs the platform is the manifold_config_repo library file and the motion and tasks are
 generated from the run spec by `motion_tasks` (Stage 05); the plugin only checks that the three
 paths are files.
 `PlatformSensorPlugin.prepare()` always regenerates those files, and `DIRSIG.write_files()`

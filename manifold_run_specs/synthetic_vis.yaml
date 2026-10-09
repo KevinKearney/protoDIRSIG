@@ -1,5 +1,5 @@
 # Run spec: the auror_ref scene, geometry, atmosphere and seed imaged by the synthetic VIS camera.
-# Derived from run_specs/auror_ref.yaml (see its header for the sources of every engine value); only the
+# Derived from manifold_run_specs/auror_ref.yaml (see its header for the sources of every engine value); only the
 # descriptor's name, tags, description, sensor ref, settings entry and fidelity differ. A different sensor
 # is a different run spec (CONOPS and Guide §4); protodirsig.run_spec.derive_run_spec writes one.
 
@@ -11,7 +11,7 @@ descriptor:
     tags: [synthetic, vis, static-pose, hypersonic-target]
     description: >
       The auror_ref scene, geometry and atmosphere imaged by the synthetic VIS staring camera
-      (sensors/synthetic_600_200_vis_1920.yaml): same fixed LEO-altitude position over the Tahoe scene.
+      (manifold_sensors/synthetic_600_200_vis_1920.yaml): same fixed LEO-altitude position over the Tahoe scene.
 
   origin:
     kind: synthetic
@@ -43,7 +43,7 @@ descriptor:
   sensor:
     ref: {name: synthetic_600_200_vis_1920.yaml, content_hash: "sha256:6b24ff96baa3da0362693a1cb414e5d2f3f3a9ea7ea17f7c61f090d443c31d35"}
     # (sensor-spec/1 extraction, CONOPS and Guide §4) -- content identical to the
-    # formerly-inline block; see sensors/auror-nir.yaml (the sensor library).
+    # formerly-inline block; see manifold_sensors/auror-nir.yaml (the sensor library).
 
   settings:
     - entry_id: synthetic-600-200-vis-1920
@@ -77,7 +77,7 @@ engine:
   scenes:
     - ref: {name: scenes/tahoe/tahoe.scene, content_hash: "sha256:<hash>"}
       # Config-repo layout (scenes/<scene>/<scene>.scene, A.8.3), resolved in full as of Stage 04:
-      # config_repo/scenes/tahoe/ holds tahoe.scene plus geometry/ and materials/ as descendants
+      # manifold_config_repo/scenes/tahoe/ holds tahoe.scene plus geometry/ and materials/ as descendants
       # (this scene has no maps/; the convention allows one, per CONOPS and Guide §5), copied once from the
       # received AUROR_ref tree where they sat as siblings at the tree root (FINDINGS.md, Stage 04;
       # guide §9). No longer a flat/nested mismatch.
@@ -117,7 +117,7 @@ engine:
     source: library
     file: {name: weather/saw.wth, content_hash: "sha256:7ab85eefcdbb14a945498f5156262d861ec6f933fb10742bde84852c96ef2676"}
     # Already matched the config-repo convention (weather/<name>.wth, A.8) by coincidence; now
-    # relocated under config_repo/ alongside the other assets rather than left in AUROR_ref/.
+    # relocated under manifold_config_repo/ alongside the other assets rather than left in AUROR_ref/.
 
   ephemeris:
     plugin: spice   # no inputs; reads the DIRSIG installation's kernels (A.6)

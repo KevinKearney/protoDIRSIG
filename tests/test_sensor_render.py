@@ -24,9 +24,9 @@ from protodirsig.run_spec import derive_run_spec, load_run_spec
 from protodirsig.simulation import Simulation
 
 ROOT = Path(__file__).resolve().parents[1]
-SPEC = ROOT / "run_specs" / "auror_ref.yaml"
-CONFIG_REPO = ROOT / "config_repo"
-LIB = ROOT / "sensors"
+SPEC = ROOT / "manifold_run_specs" / "auror_ref.yaml"
+CONFIG_REPO = ROOT / "manifold_config_repo"
+LIB = ROOT / "manifold_sensors"
 DIRSIG_HOME = Path(os.environ.get("DIRSIG_HOME", Path.home() / "DIRSIG" / "dirsig-2026.38.0.a020954-Linux-x86_64"))
 
 
@@ -39,7 +39,7 @@ def _dirsig_on_path():
 
 needs_dirsig = pytest.mark.skipif(
     not ((CONFIG_REPO / "scenes" / "tahoe" / "tahoe.scene").is_file() and _dirsig_on_path()),
-    reason="config_repo or DIRSIG not present")
+    reason="manifold_config_repo or DIRSIG not present")
 
 HDR = """# spectral-curve/1
 # name: {name}
@@ -74,7 +74,7 @@ def step_curve(lib, name, lo, hi):
 
 def variant(tmp_path, edit):
     """A copy of the sensor library whose `variant.yaml` is auror-nir with `edit(entry)` applied."""
-    lib = tmp_path / "sensors"
+    lib = tmp_path / "manifold_sensors"
     shutil.copytree(LIB, lib)
     doc = yaml.safe_load((LIB / "auror-nir.yaml").read_text())
     entry = doc["sensor"]["entries"][0]
@@ -117,7 +117,7 @@ def baseline(tmp_path_factory):
     ("auror_ref.yaml", "deepscan_850_306_nir_1280.yaml", "deepscan-850-306-nir-1280"),
 ], ids=["auror-nir", "synthetic-vis", "deepscan"])
 def test_each_library_sensor_validates(tmp_path, spec_name, ref, entry_id):
-    spec = load_run_spec(ROOT / "run_specs" / spec_name)
+    spec = load_run_spec(ROOT / "manifold_run_specs" / spec_name)
     if ref:
         spec = derive_run_spec(spec, ref, entry_id)
     path = tmp_path / "spec.yaml"

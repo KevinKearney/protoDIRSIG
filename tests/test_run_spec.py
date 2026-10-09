@@ -1,8 +1,8 @@
-"""protodirsig.run_spec must resolve run_specs/auror_ref.yaml (engine assets against config_repo,
+"""protodirsig.run_spec must resolve manifold_run_specs/auror_ref.yaml (engine assets against manifold_config_repo,
 the sensor ref in the sensor library), carry the motion/tasks values the generator needs, and refuse
 what it is not built for.
 
-Reads the run spec and config_repo READ-ONLY (tests needing config_repo skipped if absent);
+Reads the run spec and manifold_config_repo READ-ONLY (tests needing manifold_config_repo skipped if absent);
 writes only to pytest's tmp_path.
 """
 from datetime import datetime, timezone
@@ -15,11 +15,11 @@ from protodirsig.run_spec import (RunSpecError, _check_settings_roi, derive_run_
                                   resolve_auror_run)
 
 PROJECT = Path(__file__).resolve().parents[1]
-SPEC = PROJECT / "run_specs" / "auror_ref.yaml"
-CONFIG_REPO = PROJECT / "config_repo"
+SPEC = PROJECT / "manifold_run_specs" / "auror_ref.yaml"
+CONFIG_REPO = PROJECT / "manifold_config_repo"
 FIXTURE = PROJECT / "tests" / "fixtures" / "auror_ref"     # the received motion/tasks; never resolved against
 needs_config_repo = pytest.mark.skipif(not (CONFIG_REPO / "scenes" / "tahoe" / "tahoe.scene").is_file(),
-                                       reason="config_repo not present")
+                                       reason="manifold_config_repo not present")
 
 
 def test_spec_values():
@@ -39,7 +39,7 @@ def test_resolves_against_config_repo():
     spec = load_run_spec(SPEC)
     run = resolve_auror_run(spec, SPEC, CONFIG_REPO)
     assert run.name == "auror-ref-static-pose" and run.origin == {"kind": "synthetic", "engine": "dirsig"}
-    # Engine assets come from config_repo's library layout; motion/tasks are values to generate from.
+    # Engine assets come from manifold_config_repo's library layout; motion/tasks are values to generate from.
     assert run.scene == CONFIG_REPO / "scenes" / "tahoe" / "tahoe.scene"
     assert run.platform == CONFIG_REPO / "platforms" / "AurorNIRDetector" / "AurorNIRDetector.platform"
     assert run.atmosphere_db == CONFIG_REPO / "atmosphere" / "AurorNewAtmosphere"
@@ -52,7 +52,7 @@ def test_resolves_against_config_repo():
     assert (run.seed, run.ephemeris, run.split_channels, run.integration_samples) == (42, "spice", False, 10)
     assert run.output_prefix == "auror_nir_"
     assert check_library_files(spec, run) == []
-    # The sensor ref resolves in the sensor library (sensors/), not in config_repo.
+    # The sensor ref resolves in the sensor library (manifold_sensors/), not in manifold_config_repo.
     assert run.sensor["meta"]["name"] == "auror-nir"
     assert run.sensor["sensor"]["sensor_system"]["system_id"] == "auror.nir-staring-01"
 
@@ -79,8 +79,8 @@ def test_library_files_render_cleanly():
 @needs_config_repo
 def test_unrenderable_sensor_is_reported(tmp_path):
     import shutil
-    lib = tmp_path / "sensors"
-    shutil.copytree(SPEC.parent.parent / "sensors", lib)
+    lib = tmp_path / "manifold_sensors"
+    shutil.copytree(SPEC.parent.parent / "manifold_sensors", lib)
     shutil.rmtree(lib / "spectral")                                  # the QE curve the DeepScan entry references
     spec = derive_run_spec(load_run_spec(SPEC), "deepscan_850_306_nir_1280.yaml", "deepscan-850-306-nir-1280")
     bad = check_library_files(spec, resolve_auror_run(spec, SPEC, CONFIG_REPO, lib))
@@ -132,7 +132,7 @@ def _ref(path, name):
     (lambda e: _drop(e, "weather"), "must be a library file"),
     # one spectral state per channel: the NewAtmosphere database has none (tests/test_sensor_render.py)
     (lambda e: e["platform"].update(split_channels=True), "split_channels true is not handled"),
-    # each library ref that is not the scene must also resolve to a file in config_repo
+    # each library ref that is not the scene must also resolve to a file in manifold_config_repo
     (_ref(("platform", "ref"), "platforms/nope/nope.platform"), "platform 'platforms/nope/nope.platform' not found"),
     (_ref(("atmosphere", "database", "ref"), "atmosphere/nope"), "atmosphere database 'atmosphere/nope' not found"),
     (_ref(("weather", "file"), "weather/nope.wth"), "weather file 'weather/nope.wth' not found"),
@@ -170,7 +170,7 @@ def test_missing_scene_is_specific(tmp_path):
 
 @needs_config_repo
 def test_no_flat_scene_fallback():
-    """The Stage 01-03 nested-then-flat guess is gone: a ref resolves under config_repo exactly."""
+    """The Stage 01-03 nested-then-flat guess is gone: a ref resolves under manifold_config_repo exactly."""
     spec = load_run_spec(SPEC)
     spec["engine"]["scenes"][0]["ref"]["name"] = "scenes/tahoe"          # the old ref value: a directory here,
     with pytest.raises(RunSpecError, match="scenes/tahoe"):              # which the removed nested guess would
@@ -190,7 +190,7 @@ def test_rejects_non_run_spec(tmp_path):
 
 
 def test_load_sensor_spec():
-    doc = load_sensor_spec(SPEC.parent.parent / "sensors", "auror-nir.yaml")
+    doc = load_sensor_spec(SPEC.parent.parent / "manifold_sensors", "auror-nir.yaml")
     assert doc["spec_version"] == "sensor-spec/1" and set(doc) == {"spec_version", "meta", "sensor"}
     entry = doc["sensor"]["entries"][0]
     assert entry["entry_id"] == "auror-nir" and "roi" not in entry["focal_planes"][0]
@@ -220,7 +220,7 @@ def test_missing_sensor_ref_is_specific(tmp_path):
 def test_settings_roi_checked_against_detector():
     spec = load_run_spec(SPEC)
     assert spec["descriptor"]["settings"][0]["roi"]["Width"] == 500
-    lib = SPEC.parent.parent / "sensors"
+    lib = SPEC.parent.parent / "manifold_sensors"
     doc = load_sensor_spec(lib, "deepscan_850_306_nir_1280.yaml")
     _check_settings_roi([{"entry_id": "deepscan-850-306-nir-1280", "roi": {"Width": 500, "Height": 500}}], doc)
     with pytest.raises(RunSpecError, match="exceeds detector SensorWidth"):
@@ -247,7 +247,7 @@ def _two_of(lib, what):
     """A copy of auror-nir in `lib` with its entry, or its entry's focal plane, doubled."""
     import copy
     import shutil
-    shutil.copytree(PROJECT / "sensors", lib)
+    shutil.copytree(PROJECT / "manifold_sensors", lib)
     doc = yaml.safe_load((lib / "auror-nir.yaml").read_text())
     entry = doc["sensor"]["entries"][0]
     if what == "entries":
@@ -271,12 +271,12 @@ def test_rejects_sensor_shapes_it_does_not_generate(tmp_path, what, settings, ma
     """One sensor entry, one focal plane and one settings member per job; anything else fails at resolution,
     so `Simulation` never assembles or renders it."""
     from protodirsig.simulation import Simulation
-    lib = tmp_path / "sensors"
+    lib = tmp_path / "manifold_sensors"
     if what:
         _two_of(lib, what)
     else:
         import shutil
-        shutil.copytree(PROJECT / "sensors", lib)
+        shutil.copytree(PROJECT / "manifold_sensors", lib)
     spec = load_run_spec(SPEC)
     spec["descriptor"]["sensor"]["ref"]["content_hash"] = "sha256:<hash>"
     st = spec["descriptor"]["settings"]

@@ -1,4 +1,4 @@
-# sensors/
+# manifold_sensors/
 
 The sensor library: one `sensor-spec/1` document per sensor system.
 
@@ -13,7 +13,7 @@ against this folder. `platform_gen` renders the DIRSIG `.platform` from the entr
 `settings`. CONOPS and Guide §4.
 
 `spectral/` holds the QE, optics and filter curves entries reference (`spectral-curve/1`; see its README).
-Schema: `contracts/sensor-spec-1.schema.json`. `content_hash` values are stamped and checked with
+Schema: `manifold_contracts/sensor-spec-1.schema.json`. `content_hash` values are stamped and checked with
 `python scripts/stamp_hashes.py [--check]`; run it after editing any file here.
 
 Future MANIFOLD home: a library of validated sensor profiles, versioned apart from run specs.

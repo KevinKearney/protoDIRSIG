@@ -1,9 +1,9 @@
 """protodirsig.simulation's three conformance checks must pass on the real AUROR_ref run spec and
 report a broken spec as a failed check, not an exception.
 
-Reads run_specs/auror_ref.yaml and config_repo READ-ONLY; the execution check generates motion and
+Reads manifold_run_specs/auror_ref.yaml and manifold_config_repo READ-ONLY; the execution check generates motion and
 tasks and runs a DIRSIG dry run (no render, about a second), writing only to pytest's tmp_path.
-Skipped without config_repo or dirsig5/scene2hdf on PATH.
+Skipped without manifold_config_repo or dirsig5/scene2hdf on PATH.
 """
 import os
 import shutil
@@ -16,9 +16,9 @@ from protodirsig.scene_ref import fingerprint
 from protodirsig.simulation import Simulation, schema_errors
 
 PROJECT = Path(__file__).resolve().parents[1]
-SPEC = PROJECT / "run_specs" / "auror_ref.yaml"
-SENSORS = PROJECT / "sensors"
-CONFIG_REPO = PROJECT / "config_repo"
+SPEC = PROJECT / "manifold_run_specs" / "auror_ref.yaml"
+SENSORS = PROJECT / "manifold_sensors"
+CONFIG_REPO = PROJECT / "manifold_config_repo"
 DIRSIG_HOME = Path(os.environ.get("DIRSIG_HOME", Path.home() / "DIRSIG" / "dirsig-2026.38.0.a020954-Linux-x86_64"))
 
 
@@ -31,12 +31,12 @@ def _dirsig_on_path():
 
 needs_dirsig = pytest.mark.skipif(
     not ((CONFIG_REPO / "scenes" / "tahoe" / "tahoe.scene").is_file() and _dirsig_on_path()),
-    reason="config_repo or DIRSIG not present")
+    reason="manifold_config_repo or DIRSIG not present")
 
 
 def broken_spec(tmp_path, edit):
     """A copy of the real run spec with `edit` applied, written to tmp_path. The sensor ref resolves
-    against the real `sensors/` library, which `Simulation` is given explicitly."""
+    against the real `manifold_sensors/` library, which `Simulation` is given explicitly."""
     spec = yaml.safe_load(SPEC.read_text())
     edit(spec)
     path = tmp_path / "broken.yaml"
@@ -77,7 +77,7 @@ def test_bad_enum_fails_schema(tmp_path):
 
 @needs_dirsig
 def test_corrupt_atmosphere_fails_execution(tmp_path):
-    lib = tmp_path / "config_repo"                   # symlinks into config_repo, except a corrupt database
+    lib = tmp_path / "manifold_config_repo"                   # symlinks into manifold_config_repo, except a corrupt database
     lib.mkdir()
     for p in CONFIG_REPO.iterdir():
         if p.name != "atmosphere":
@@ -93,7 +93,7 @@ def test_corrupt_atmosphere_fails_execution(tmp_path):
 
 @needs_dirsig
 def test_stamped_hash_rejects_a_corrupt_asset_at_resolution(tmp_path):
-    lib = tmp_path / "config_repo"
+    lib = tmp_path / "manifold_config_repo"
     lib.mkdir()
     for p in CONFIG_REPO.iterdir():
         if p.name != "atmosphere":

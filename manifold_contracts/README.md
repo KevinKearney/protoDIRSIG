@@ -1,4 +1,4 @@
-# contracts/
+# manifold_contracts/
 
 Machine-readable contracts: JSON Schemas for `run-spec/1`, `sensor-spec/1`, and `dirsig-engine/1`, the
 governed vocabulary, test vectors, and validators. Today: `sensor-spec-1.schema.json` (proposed; validated in `tests/test_sensor_library.py`). The other checks live in

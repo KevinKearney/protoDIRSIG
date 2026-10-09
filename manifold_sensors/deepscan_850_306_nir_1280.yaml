@@ -2,7 +2,7 @@
 # Companion to the protoDIRSIG CONOPS and Guide §4 (docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md).
 #
 # The same sensor as auror-nir under a product-line name: optics, readout, channel, reference frame,
-# mount, fill factor, and modeled window are copied from sensors/auror-nir.yaml.
+# mount, fill factor, and modeled window are copied from manifold_sensors/auror-nir.yaml.
 # Vendor values (Teledyne SCION family release, teledynevisionsolutions.com): 1280 x 1024 and
 # 640 x 512 formats, 10 um pixel pitch, VisGaAs 300-1700 nm. The release does not state the model
 # number, ADC bit depth, shutter mode, or fill factor; those come from auror-nir.

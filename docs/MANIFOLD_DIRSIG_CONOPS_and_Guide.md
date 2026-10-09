@@ -20,9 +20,9 @@ they exist.
 ```mermaid
 flowchart LR
   subgraph AUTH["Authored inputs"]
-    RS["run spec<br/>run_specs/*.yaml"]
-    SL["sensor library<br/>sensors/ : sensor-spec + spectral curves"]
-    CR["engine-asset library<br/>config_repo/ : scenes, platform template,<br/>weather, atmosphere database"]
+    RS["run spec<br/>manifold_run_specs/*.yaml"]
+    SL["sensor library<br/>manifold_sensors/ : sensor-spec + spectral curves"]
+    CR["engine-asset library<br/>manifold_config_repo/ : scenes, platform template,<br/>weather, atmosphere database"]
   end
   subgraph DRV["protodirsig driver (stand-in for MANIFOLD registry + executor)"]
     direction TB
@@ -79,12 +79,15 @@ sensor changes the `sensor` reference and nothing else in the run spec.
 
 ### Repository folders and their MANIFOLD counterparts
 
+A `manifold_` prefix marks a folder that maps to a future MANIFOLD repository (`manifold_sensors` and
+`manifold_run_specs` are provisional names until the MANIFOLD team names those repositories).
+
 | Folder | Holds | Counterpart |
 |---|---|---|
-| `config_repo/` | engine assets | MANIFOLD config repository |
-| `sensors/` | sensor-spec library, spectral curves | sensor profile library |
-| `run_specs/` | run-spec documents | registered run specs |
-| `contracts/` | schemas, vocabulary, validators | `manifold-contracts` |
+| `manifold_config_repo/` | engine assets | MANIFOLD config repository |
+| `manifold_sensors/` | sensor-spec library, spectral curves | sensor profile library |
+| `manifold_run_specs/` | run-spec documents | registered run specs |
+| `manifold_contracts/` | schemas, vocabulary, validators | `manifold-contracts` |
 | `src/protodirsig/` | driver and SDK | SDK |
 | `external/`, `scripts/`, `notebooks/`, `tests/`, `outputs/` | tooling | none |
 
@@ -107,7 +110,7 @@ MANIFOLD executor, registry, or orchestrator. Its purposes are: (a) establish wh
 `dirsig-engine/1` run spec a real job can be driven from; (b) validate and integrate `dirfm`; (c) grow an
 abstraction layer (`src/protodirsig`) into the SDK; (d) provide notebooks for new `dirfm` and SDK users;
 (e) test the MANIFOLD requirements by conforming to them. The reference job is the AUROR static NIR pass over
-DIRSIG's Tahoe scene, `run_specs/auror_ref.yaml`.
+DIRSIG's Tahoe scene, `manifold_run_specs/auror_ref.yaml`.
 
 ## 2. System overview
 
@@ -242,9 +245,9 @@ registered files and compares them with the descriptor (MD-13); a column with no
 A sensor system is reusable across runs. `sensor-spec/1` is the `descriptor.sensor` block as its own
 document: `spec_version: sensor-spec/1`, `meta` (`name`, `tags`, `description`), and `sensor` as in 3.1.
 A run spec carries `descriptor.sensor: {ref: {name: "<name>.yaml", content_hash: "sha256:<hash>"}}`; the name resolves against the
-sensor library, `sensors/`.
+sensor library, `manifold_sensors/`.
 An inline `descriptor.sensor` is rejected by the schema and resolution checks. The first entry is
-`sensors/auror-nir.yaml`.
+`manifold_sensors/auror-nir.yaml`.
 
 `content_hash` on a file ref is the sha256 of the file bytes, stamped by `scripts/stamp_hashes.py` (`--check`
 fails on a stale hash). The loaders verify a stamped hash when they read the file; the `sha256:<hash>` placeholder
@@ -268,7 +271,7 @@ may carry several channels; each becomes one band of the image.
 (`srf_reference`, a curve, or the program-minted `srf_model`: `gaussian` with `center` and `fwhm`, or
 `rectangular` with `center` and `width`, peak 1, an edge sample weighted by the fraction of its grid bin inside
 the band), and `qe_reference` (absolute QE). References are
-`{name, content_hash}` to `spectral-curve/1` files under `sensors/spectral/<kind>/` (`sensors/spectral/README.md`).
+`{name, content_hash}` to `spectral-curve/1` files under `manifold_sensors/spectral/<kind>/` (`manifold_sensors/spectral/README.md`).
 Vendor and measured curves enter through `scripts/import_curve.py`, which keeps the source grid, converts nm and
 percent, refuses out-of-range values, and records `source`, `acquired` and the measured range. A curve is never
 extrapolated: zero response outside the measured range is written only on request (`--pad-zero-to`) and
@@ -293,7 +296,7 @@ A library test ties the field to the `imagefile` the generator renders, so the t
 Library entries: `auror-nir` (AUROR_ref; vendor, model, and full frame not recorded; no QE), `deepscan_850_306_nir_1280`
 (Eoptic DeepScan, Teledyne SCION 1280 x 1024 VisGaAs; synthetic QE until vendor data), and
 `synthetic_600_200_vis_1920` (an invented VIS camera: 50 mm, 200 mm, 1920 x 1080 at 5.5 um, synthetic silicon QE
-and lens curves). A different sensor is a different run spec: `run_specs/synthetic_vis.yaml` is `auror_ref.yaml`
+and lens curves). A different sensor is a different run spec: `manifold_run_specs/synthetic_vis.yaml` is `auror_ref.yaml`
 with that sensor, and `run_spec.derive_run_spec` makes one. There is no run-time sensor override.
 
 Several required `sensor` fields have no DIRSIG source (`SensorShutterMode`, `AdcBitDepth`,
@@ -308,41 +311,41 @@ to its `settings` member in the run spec.
 ## 5. Repository layout and resolution roots `built`
 
 ```
-config_repo/
-  scenes/<scene>/<scene>.scene     # geometry/, materials/, maps/ as descendants
+manifold_config_repo/
+  scenes/<scene>/<scene>.scene  # geometry/, materials/, maps/ as descendants
   platforms/<platform>/<platform>.platform
   weather/<name>.wth
-  atmosphere/<name>                # proposed path; see section 10
-run_specs/                         # run-spec/1 documents
-sensors/                           # sensor library: sensor-spec/1 documents
-  spectral/<qe|optics|filter>/     # spectral-curve/1 CSVs
-contracts/                         # schemas, vocabulary, validators (sensor-spec-1.schema.json)
-external/                          # pinned dirfm, agent-docs, DIRSIG link; gitignored (pins.json tracked)
+  atmosphere/<name>             # proposed path; see section 10
+manifold_run_specs/             # run-spec/1 documents
+manifold_sensors/               # sensor library: sensor-spec/1 documents
+  spectral/<qe|optics|filter>/  # spectral-curve/1 CSVs
+manifold_contracts/             # schemas, vocabulary, validators (sensor-spec-1.schema.json)
+external/                       # pinned dirfm, agent-docs, DIRSIG link; gitignored (pins.json tracked)
 src/protodirsig/  tests/  notebooks/
-scripts/                           # bootstrap, stamp_hashes, import_curve, crosscheck_sgp4
-tests/fixtures/auror_ref/          # motion and tasks files; compared with generated files only
-outputs/<job>/                     # ephemeral job directories; gitignored
+scripts/                        # bootstrap, stamp_hashes, import_curve, crosscheck_sgp4
+tests/fixtures/auror_ref/       # motion and tasks files; compared with generated files only
+outputs/<job>/                  # ephemeral job directories; gitignored
 ```
 
 Refs resolve by which side of the schema they sit on.
 
 | Ref | Resolves against |
 |---|---|
-| `engine.*` (`scenes[].ref`, `platform.ref`, `atmosphere.database.ref`, `weather.file`) | `config_repo/` |
-| `descriptor.*` (`sensor.ref`) | `sensors/` (the sensor library) |
+| `engine.*` (`scenes[].ref`, `platform.ref`, `atmosphere.database.ref`, `weather.file`) | `manifold_config_repo/` |
+| `descriptor.*` (`sensor.ref`) | `manifold_sensors/` (the sensor library) |
 | `engine.motion`, `engine.tasks` | not resolved; generated into the job directory |
 
 Each library folder is a resolution root and maps to a future MANIFOLD repository. Any `descriptor` ref
-added later resolves against its own library, regardless of where the engine-asset library lives. `config_repo/` is read-only at run time. A job directory holds a scene reference
+added later resolves against its own library, regardless of where the engine-asset library lives. `manifold_config_repo/` is read-only at run time. A job directory holds a scene reference
 copy (geometry and materials symlinked back to the library), byte-identical copies of the weather file and
 atmosphere database, the `.platform` rendered by `platform_gen`, and the generated motion and tasks files.
 
-`config_repo/` follows Configuration_v02 A.8.3 for `scenes/` and `platforms/`. The nesting is also DIRSIG's
+`manifold_config_repo/` follows Configuration_v02 A.8.3 for `scenes/` and `platforms/`. The nesting is also DIRSIG's
 own convention: `$SCENE_DIR` defaults to the `.scene` file's folder, and the reference layout nests
 `geometry/`, `materials/`, `maps/` there.
 
 Library assets are real files. The MANIFOLD hashing procedure rejects symlinks (Configuration_v02 §2.3), and
-symlinks appear only in the per-run view the executor builds (AD A-42). `config_repo/` therefore holds no
+symlinks appear only in the per-run view the executor builds (AD A-42). `manifold_config_repo/` therefore holds no
 symlinks. Data that ships with the DIRSIG installation (`FourCurveAtmosphere` presets, SPICE kernels, demo
 scenes) is not copied into it: presets are referenced by name and covered by the installation's data hash.
 
@@ -513,7 +516,7 @@ One row per interface item. `Outcome` is filled after review with the MANIFOLD t
 
 | ID | Item | Our position | Status | Outcome |
 |---|---|---|---|---|
-| C-01 | `descriptor.sensor` refs resolve against the sensor library; `engine` refs resolve against `config_repo/` | resolve by schema side, not one tree; `sensors/` is its own library, not part of the asset library | `open` | |
+| C-01 | `descriptor.sensor` refs resolve against the sensor library; `engine` refs resolve against `manifold_config_repo/` | resolve by schema side, not one tree; `manifold_sensors/` is its own library, not part of the asset library | `open` | |
 | C-02 | `atmosphere/<name>` flat library path | modeled on `weather/<name>.wth`; ratify with C-03 | `proposed` | |
 | C-03 | `new_atmosphere` plugin value in A.8.7 (database role `dirsig:atmosphere_db`) | AUROR's atmosphere is `NewAtmosphere` reading a prebuilt HDF5 database; `four_curve` in the architecture-view instances is wrong for this tree. The recipe (MODTRAN tape, `Isaac`) has no run-spec field | `proposed` | |
 | C-04 | Where motion and tasks are generated | at `materialize`, from `engine.motion` and `engine.tasks`; or does MANIFOLD expect them pre-built upstream? | `open` | |

@@ -401,3 +401,35 @@ Kevin unavailable; prompt.md "Sensor model, round two". Decisions in order made:
   (line 212) left as quoted; the two rows at 263 and 312 gained a pointer to C-20 in their note cells (kept the
   tables valid rather than adding free lines inside them). sensors/README and contracts/README state nothing false;
   unchanged. README.md line 17 ("electrons per m² of focal plane") already true.
+- **Step 3, baseline.** 155 passed; stamp --check 0; generated .platform and .ppd for auror_ref.yaml and
+  synthetic_vis.yaml (resolve_auror_run with the default sensor library + render_platform + generate_motion)
+  saved to scratch.
+- **Step 3, rename.** `git mv` x4 (34 R entries; no untracked content left behind). Path references rewritten
+  by two reviewed patterns, `<name>/` (not after a word char, `.` or `-`) and quoted `"<name>"`, applied to
+  every tracked text file except prompt.md, .claude_mem and notebook JSON, then the whole diff reviewed by eye.
+  One false positive reverted: tests/test_simulation.py:153 is a ref.name value (`sensors/no_such_sensor.yaml`,
+  a deliberately missing library-relative ref) and ref names do not change. Bare `config_repo` in prose,
+  comments, skip reasons and test docstrings renamed where it names the folder; kept where it names the
+  parameter/attribute (run_spec.py docstring list item, simulation.py §2 and class docstring, all signatures).
+  Kept: `protodirsig.sensors` module and its callers (crosscheck_sgp4.py, tacoma notebook), English "sensors",
+  "contracts tag/repository" prose in the decomposition doc, `manifold-contracts` (repository name).
+  tmp-dir names in tests (`tmp_path / "sensors"` etc.) were renamed too: harmless, and the vehicle sidebar's
+  run-spec copy needs its sibling link named `manifold_sensors` for the default-library rule.
+- **Step 3, hashes.** Sensor-file edit: deepscan_850_306_nir_1280.yaml comment only, and no committed run spec
+  references deepscan, so no stored hash moved; --check 0 and a write pass changed nothing.
+  synthetic_vis.yaml's descriptor.meta.description names the sensor file path; updated (text, not a ref).
+- **Step 3, notebooks.** Cell sources of all tracked notebooks rewritten (json, sort_keys round trip).
+  Re-executed stage 01-03 per step 3.6; stage 01 and 02 render the authored 500x500 job (~7 min each). The
+  constraint says no 500x500 renders, but 3.6 explicitly requires these re-executions; ran them. Not
+  re-executed (each renders 500x500 several times or is not a stage notebook): tutorial_auror_scene,
+  vehicle_point_source, tutorial_tacoma/basics/orbit — their stored outputs keep old absolute paths
+  (printed at run time), sources are updated.
+- **Step 3, docs.** CONOPS folder table: one sentence with the provisional-name clause; §5 tree realigned.
+  .gitattributes: check-attr shows LF on manifold_sensors/** and manifold_run_specs/**, -text on
+  manifold_config_repo/**. pyproject/pins.json/bootstrap.py name no folder; environment.yml comment updated.
+- **Step 3, verification.** check-attr OK; stamp --check 0 and a write pass changed nothing; .platform and .ppd for
+  both run specs byte-identical to baseline (cmp); default sensor library resolves to `manifold_sensors` (asserted
+  in the comparison script); suite 155 = baseline. Stage notebooks re-executed: 01 240 s, 02 255 s, 03 13 s, no
+  errors, no old path in any output. Remaining `<old>/` hits, all explained: stored outputs of
+  tutorial_auror_scene (12) and vehicle_point_source (22), sources clean, not re-executed (500x500 renders, not
+  stage notebooks); tests/test_simulation.py:153, a library-relative ref.name, unchanged by rule.
