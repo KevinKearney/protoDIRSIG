@@ -109,6 +109,22 @@ def test_schema_errors_collects_all():
     assert len(errs) == 3 and any("ephemeris" in e for e in errs) and any("seed" in e for e in errs)
 
 
+@pytest.mark.parametrize("path", [
+    ("generator", "spec_schema"), ("motion", "kind"), ("motion", "orientation", "kind"),
+    ("atmosphere", "plugin"), ("weather", "source"),
+])
+def test_schema_rejects_each_enum(path):
+    """Every ENGINE_ENUMS field rejects a value outside its set. generator.tool and
+    ephemeris.plugin are covered by test_bad_enum_fails_schema / test_schema_errors_collects_all."""
+    spec = yaml.safe_load(SPEC.read_text())
+    d = spec["engine"]
+    for k in path[:-1]:
+        d = d[k]
+    d[path[-1]] = "bogus"
+    errs = schema_errors(spec)
+    assert len(errs) == 1 and errs[0].startswith(f"engine.{'.'.join(path)} is 'bogus', not one of"), errs
+
+
 def test_sensor_ref_schema():
     spec = yaml.safe_load(SPEC.read_text())
     del spec["descriptor"]["sensor"]["ref"]["name"]

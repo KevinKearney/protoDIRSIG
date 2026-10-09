@@ -97,6 +97,44 @@ def test_rejects_motion_it_cannot_generate(path, value, match):
         resolve_auror_run(spec, SPEC, CONFIG_REPO)
 
 
+def _drop(d, key):
+    del d[key]
+
+
+def _ref(path, name):
+    def edit(eng):
+        d = eng
+        for k in path:
+            d = d[k]
+        d["name"] = name
+    return edit
+
+
+@needs_config_repo
+@pytest.mark.parametrize("edit, match", [
+    # ephemeris is optional and has one schema value ('spice'); this loader requires it present.
+    (lambda e: e["ephemeris"].update(plugin="jpl"), "only 'spice'"),
+    (lambda e: _drop(e, "ephemeris"), "only 'spice'"),
+    # scenes is "list, at least 1" in the schema; this loader handles exactly one.
+    (lambda e: e.update(scenes=[]), "expected one engine.scenes entry, got 0"),
+    (lambda e: e.update(scenes=e["scenes"] * 2), "expected one engine.scenes entry, got 2"),
+    # weather is optional and may be 'install'; this loader needs a library file.
+    (lambda e: e["weather"].update(source="install"), "must be a library file"),
+    (lambda e: _drop(e, "weather"), "must be a library file"),
+    # each library ref that is not the scene must also resolve to a file in config_repo
+    (_ref(("platform", "ref"), "platforms/nope/nope.platform"), "platform 'platforms/nope/nope.platform' not found"),
+    (_ref(("atmosphere", "database", "ref"), "atmosphere/nope"), "atmosphere database 'atmosphere/nope' not found"),
+    (_ref(("weather", "file"), "weather/nope.wth"), "weather file 'weather/nope.wth' not found"),
+], ids=["ephemeris-jpl", "ephemeris-absent", "scenes-0", "scenes-2", "weather-install", "weather-absent",
+        "platform-missing", "atmosphere-db-missing", "weather-file-missing"])
+def test_rejects_engine_values_it_does_not_handle(edit, match):
+    """The remaining RunSpecError branches of resolve_auror_run (FINDINGS.md, post-Stage-05 audit)."""
+    spec = load_run_spec(SPEC)
+    edit(spec["engine"])
+    with pytest.raises(RunSpecError, match=match):
+        resolve_auror_run(spec, SPEC, CONFIG_REPO)
+
+
 @needs_config_repo
 def test_rejects_naive_epoch():
     spec = load_run_spec(SPEC)
