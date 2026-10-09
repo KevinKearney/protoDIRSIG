@@ -484,3 +484,49 @@ Kevin unavailable; prompt.md "Sensor model, round two". Decisions in order made:
   `defect_map_reference`; `radiometric_reference` scale/offset (null; required for digital_number output);
   `readout.rolling_line_period` (Global only today); `exposure_time_min/max`; `array.offset`; `focus_distance`;
   jitter (absent, platform side). AdcBitDepth exists but is library-asserted.
+- **Step 2, where the composer lives.** `src/protodirsig/compose.py` (SDK; the reference for a MANIFOLD input
+  constructor). Vectors in `manifold_contracts/vectors/compose/` (what MANIFOLD would run against their own
+  constructor). Layer files under `manifold_run_specs/{recipes,scenarios,engine_profiles}/`; generated run specs
+  stay at `manifold_run_specs/<name>.yaml` (tracked, header line). Sensor library default: sibling
+  `manifold_sensors/` of the layer root, same rule as run_spec.default_sensor_library. compose() gained an optional
+  `sensor_library=` keyword (beside `inline_sensor`), needed by the vectors' own library and by submit_recipe.
+- **Step 2, layer shape.** Scenario file = `{collection}`; engine profile = `{origin, extras, engine}`; recipe =
+  `{compose, meta, sensor, scenario, engine_profile, settings, fidelity}`. One owner table (OWNER) checks every
+  key: an unknown key, a missing required member, a member in a non-owner layer, and a member in two layers are
+  each a ComposeError carrying `.layer` (root-relative file) and `.field` (field in that file). The two-layer
+  error blames the non-owner layer and names the owner. OVERRIDABLE is empty; nothing needed it.
+- **Step 2, two engine profiles.** auror_ref has `engine.platform.channel_response: native`, synthetic_vis has
+  none (tabulated). The engine block is otherwise identical, so the profiles are `tahoe_static_pose_native` and
+  `tahoe_static_pose`: ~60 duplicated lines. Not solved with an override (would need a nested merge, which the
+  prompt rules out); the deferred split of scene-specific from engine-general content is where it goes away.
+  `channel_response` is also sensor-coupled (native exists to reproduce auror-nir's received channel). Deferred.
+- **Step 2, settings rule.** Each member's entry_id must name an entry of the sensor (else error at
+  `settings[i].entry_id`); a second member for the same entry is an error; the composed list follows the sensor's
+  entry order (my reading of "per-sensor settings keyed by entry_id selecting the right entry": the vector is a
+  two-entry sensor with the settings written out of order). Then run_spec._check_settings_roi on the composed list,
+  re-raised as a recipe `settings` error. No gain rule (Step 1: gain/bias are written).
+- **Step 2, determinism.** `compose.dump` = header line + `yaml.safe_dump(sort_keys=False, width=110)`; member
+  order fixed (spec_version, descriptor in DESCRIPTOR_ORDER, engine). Generated files lose the flat files'
+  comments and flow style; the comments now live in the layer files (header "Built against", differences 1-3
+  split between recipe and engine profile, every inline comment carried with its field).
+- **Step 2, derive_run_spec** now builds the three layers in memory from the loaded spec and calls
+  `compose.merge` (sensor_doc None: entry checks skipped, placeholder hash, as before). Same outputs; stage_03
+  re-run to scratch: 0 errors; notebook not edited.
+- **Step 2, inline sensor.** `run_spec.is_inline_sensor` (a dict with sensor_system and an entries list, no
+  `ref`); resolve_auror_run wraps it as a sensor-spec doc; schema_errors accepts it. The old `{sensor_system: {}}`
+  shape (no entries) is still rejected, so the existing rejection tests hold. Test: both forms render the same
+  .platform bytes for both recipes.
+- **Step 2, hashes.** stamp_hashes now stamps the layer files (flow-style refs) and only verifies generated files
+  (block-style refs via BLOCK_REF; reports "regenerate with scripts/compose.py", never rewrites them). The sensor
+  ref hash in a generated file is computed by compose from the bytes. `.gitattributes`: vectors LF.
+- **Step 2, equivalence gate.** (1) layers authored from the flat files; (2) compose() == load_run_spec(flat)
+  for both, member for member, including key order of descriptor and top level; (3) flat files replaced by the
+  generated ones; .platform/.ppd/.tasks (16x16) byte-identical to the Step 0 baseline; stamp --check 0;
+  compose --check 0.
+- **Step 2, vectors.** Cases: auror_ref, synthetic_vis (copies of the repo layers; a test keeps them byte-equal to
+  the repo and their expected.yaml equal to the generated file), member_in_two_layers, missing_sensor,
+  unresolved_entry_id, settings_by_entry_id, inline_sensor (expected.yaml + expected_inline.yaml). Shared vector
+  library `vectors/compose/manifold_sensors/` (copies of auror-nir and the VIS camera, plus two_entry.yaml). Error
+  cases store `{layer, field}` only; message text is not part of the contract. Every expected spec passes
+  schema_errors.
+- **Step 2, suite** 185 passed (156 + 29 in test_compose).

@@ -2,3 +2,4 @@
 manifold_sensors/** text eol=lf
 manifold_run_specs/** text eol=lf
 manifold_config_repo/** -text
+manifold_contracts/vectors/** text eol=lf

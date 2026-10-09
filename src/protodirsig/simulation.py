@@ -10,8 +10,8 @@ scope; the vehicle-not-appearing finding passes all three):
    `dirsig-engine/1` body (AV_MANIFOLD_Configuration_v02 A.8) are present, and every enumerated
    engine field holds a value A.8 permits, plus the documented `new_atmosphere` extension.
    `descriptor` is checked for its required blocks only, not field by field, except that
-   `descriptor.sensor` must be a `sensor-spec/1` ref with a string `ref.name`. The file itself is
-   not opened here.
+   `descriptor.sensor` must be a `sensor-spec/1` ref with a string `ref.name`, or an inline sensor block
+   (`sensor_system` and `entries`). A referenced file is not opened here.
 2. **Resolution**: `run_spec.resolve_auror_run` finds every engine asset in `config_repo`, loads
    the sensor ref in the sensor library as `sensor-spec/1`, and accepts the motion as one this
    loader can generate (static, scene frame, `sceneenu` Euler) and an epoch with a UTC offset.
@@ -39,7 +39,7 @@ from dirfm.weather import ThermWeatherFilePlugin
 from protodirsig.platform_gen import render_platform
 from protodirsig.platform_ref import PlatformFilesPlugin
 from protodirsig.motion_tasks import generate_motion, generate_tasks
-from protodirsig.run_spec import RunSpecError, check_library_files, load_run_spec, resolve_auror_run
+from protodirsig.run_spec import RunSpecError, check_library_files, is_inline_sensor, load_run_spec, resolve_auror_run
 from protodirsig.scene_ref import copy_input, reference_scene
 
 # Required members, from AV_MANIFOLD_Metadata_v02 §6 (descriptor) and Configuration_v02 A.8.1.
@@ -102,9 +102,10 @@ def schema_errors(spec):
         errs.append("descriptor is missing")
     else:
         errs += [f"descriptor.{k} is missing" for k in DESCRIPTOR_REQUIRED if k not in desc]
-        if "sensor" in desc and not isinstance(_get(desc, ("sensor", "ref", "name")), str):
+        if ("sensor" in desc and not isinstance(_get(desc, ("sensor", "ref", "name")), str)
+                and not is_inline_sensor(desc["sensor"])):
             errs.append("descriptor.sensor.ref.name is missing: descriptor.sensor must be a sensor-spec/1 ref "
-                        "(CONOPS and Guide §4), not an inline block")
+                        "or an inline sensor block with sensor_system and entries (CONOPS and Guide §4)")
     if not isinstance(eng, dict):
         return errs + ["engine is missing (required for a DIRSIG run)"]
     errs += [f"engine.{k} is missing" for k in ENGINE_REQUIRED if k not in eng]

@@ -1,0 +1,47 @@
+# Conformance vector (manifold_contracts/vectors/compose): settings for a two-entry sensor, listed out of entry order; expected: one member per entry, in the sensor's order.
+# Recipe (compose/1): the received AUROR_ref static-pose job. scripts/compose.py composes it into
+# manifold_run_specs/auror_ref.yaml. Companion to the protoDIRSIG CONOPS and Guide (docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md).
+#
+# meta differs from the "illustrative instance" in both source documents (Metadata §6.11, Configuration A.8.10):
+#   1. meta.name is Auror's own, not the stale "tacoma-nir-baseline" of the shared instance.
+# (Differences 2 and 3 are in the engine profile.)
+#
+# The sensor is a sensor-spec/1 file in the sensor library (manifold_sensors/auror-nir.yaml), never copied; the
+# composed run spec refers to it by name and hash (CONOPS and Guide §4).
+
+compose: compose/1
+
+meta:
+  name: auror-ref-static-pose          # (1) was "tacoma-nir-baseline" in the shared instance
+  tags: [auror, nir, static-pose, hypersonic-target]
+  description: >
+    Received static-pose detection scene: a NIR staring sensor at a fixed LEO-altitude
+    position over the Tahoe scene, with an embedded hypersonic target track.
+
+sensor: two_entry.yaml
+scenario: tahoe_static_pose
+engine_profile: tahoe_static_pose_native     # channel_response native reproduces the received platform
+
+settings:                                                  # listed out of the sensor's entry order
+  - entry_id: auror-nir-b
+    exposure_time: {value: 0.010, provenance: specified}
+    frame_rate: {value: 500, provenance: specified}
+    gain: {value: 1, provenance: specified}
+    black_level: {value: 0, provenance: specified}
+    roi: {Width: 16, Height: 16, OffsetX: null, OffsetY: null}
+  - entry_id: auror-nir
+    exposure_time: {value: 0.005, provenance: specified}
+    frame_rate: {value: 1000, provenance: specified}
+    gain: {value: 1, provenance: specified}
+    black_level: {value: 0, provenance: specified}
+    roi: {Width: 32, Height: 32, OffsetX: null, OffsetY: null}
+
+fidelity:
+  modeled: [reflective and emissive radiance, atmospheric transmission and path radiance]
+  approximated: [detector noise, optics blur]
+  absent: [platform jitter]
+  valid_for: >
+    Scene-radiometry and sensor-chain studies at the modeled band, geometry and atmosphere.
+    Not valid for target-visibility studies: the vehicle's material has zero reflectance and its
+    1500 K emission is not evaluated in a 0.41-2.0 um job unless temperature prediction is
+    forced, so the vehicle renders black.

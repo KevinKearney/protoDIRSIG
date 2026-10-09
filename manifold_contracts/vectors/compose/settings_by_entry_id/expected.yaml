@@ -48,8 +48,8 @@ descriptor:
     - class: vehicle_air
   sensor:
     ref:
-      name: auror-nir.yaml
-      content_hash: sha256:0f8c20403e1d94e65d2c3e1cbe930411dbabe045158a0eec68c04feacd977a41
+      name: two_entry.yaml
+      content_hash: sha256:35c499a122680869f2dd9fc17cc38be09b0286c8853d5361e79a8800ee92acf9
   settings:
   - entry_id: auror-nir
     exposure_time:
@@ -65,8 +65,26 @@ descriptor:
       value: 0
       provenance: specified
     roi:
-      Width: 500
-      Height: 500
+      Width: 32
+      Height: 32
+      OffsetX: null
+      OffsetY: null
+  - entry_id: auror-nir-b
+    exposure_time:
+      value: 0.01
+      provenance: specified
+    frame_rate:
+      value: 500
+      provenance: specified
+    gain:
+      value: 1
+      provenance: specified
+    black_level:
+      value: 0
+      provenance: specified
+    roi:
+      Width: 16
+      Height: 16
       OffsetX: null
       OffsetY: null
   fidelity:

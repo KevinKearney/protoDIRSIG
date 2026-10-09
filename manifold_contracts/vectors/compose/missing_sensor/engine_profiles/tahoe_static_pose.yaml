@@ -1,0 +1,89 @@
+# Engine-profile layer (compose/1): descriptor.origin, descriptor.extras and the dirsig-engine/1 block for the
+# tahoe_static_pose scenario, with every
+# channel tabulated (the default channel_response). Identical to tahoe_static_pose_native.yaml otherwise.
+# Companion to the protoDIRSIG CONOPS and Guide (docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md).
+#
+# Built against:
+#   - engine schema:      AV_MANIFOLD_Configuration_v02.md Appendix A.8 (dirsig-engine/1)
+#   - tree values:        protoDIRSIG/AUROR_ref, as read by A&T_DIRSIG_example.md §9
+#                          and confirmed against the tree by ROLE_PROPOSAL_2026-10-05.md
+#                          and TRIAL_2026-10-06_dirsig-container.md
+#
+# Differs from the "illustrative instance" in both source documents (Metadata §6.11,
+# Configuration A.8.10), each marked below where it occurs (difference 1, meta.name, is in the recipe):
+#   2. atmosphere uses NewAtmosphere + an atmosphere_db reference, matching the tree as
+#      measured, not FourCurveAtmosphere. `new_atmosphere` is NOT an adopted A.8.7 plugin
+#      value yet -- this is a proposed extension, not a conformant dirsig-engine/1 document.
+#   3. run.seed is set and confirmed (FINDINGS.md, Stage 02): dirfm passes it as
+#      --random_seed to both scene2hdf and dirsig5, and it reproduces a render byte for byte.
+#
+# engine.scenes / platform / atmosphere.database / weather.file are manifold_config_repo library paths
+# (CONOPS and Guide §5), not paths into the received AUROR_ref tree. The
+# config-repo layout mismatch flagged in §6 for the architecture-view illustrative instances is
+# resolved for this prototype's own run spec as of Stage 04 (FINDINGS.md): a real manifold_config_repo/
+# holds these assets, copied once from AUROR_ref, in the library layout A.8 specifies.
+#
+# The .scene hash is a placeholder (its geometry and materials sit beside it); the other refs are stamped
+# by scripts/stamp_hashes.py.
+
+origin:
+  kind: synthetic
+  engine: dirsig
+
+extras:
+  dirsig.atmosphere_db: jsims/AurorNewAtmosphere   # NewAtmosphere's HDF5 database, role dirsig:atmosphere_db (role R-6)
+  dirsig.weather_file: saw.wth
+
+engine:
+  generator: {tool: dirfm, revision: "<git-sha>", spec_schema: dirsig-engine/1}
+
+  scenes:
+    - ref: {name: scenes/tahoe/tahoe.scene, content_hash: "sha256:<hash>"}
+      # Config-repo layout (scenes/<scene>/<scene>.scene, A.8.3), resolved in full as of Stage 04:
+      # manifold_config_repo/scenes/tahoe/ holds tahoe.scene plus geometry/ and materials/ as descendants
+      # (this scene has no maps/; the convention allows one, per CONOPS and Guide §5), copied once from the
+      # received AUROR_ref tree where they sat as siblings at the tree root (FINDINGS.md, Stage 04;
+      # guide §9). No longer a flat/nested mismatch.
+      offset: [0, 0, 0]
+
+  platform:
+    ref: {name: platforms/AurorNIRDetector/AurorNIRDetector.platform, content_hash: "sha256:bed58062f31a1e21945ad357dc36ccfc9e88b5fd14ec4e365a42d2f4df4b2515"}
+    # Config-repo layout (platforms/<platform>/<platform>.platform, A.8); previously resolved
+    # only by coincidence against the received tree's flat platforms/AurorNIRDetector.platform.
+    library_entry: auror-nir-detector
+    output_prefix: auror_nir_
+    split_channels: false
+    integration_samples: 10
+
+  motion:
+    kind: static
+    position: {frame: scene, xyz: [-400.0, 400.0, 550000.0]}
+    orientation:
+      kind: euler
+      euler: {order: xyz, units: radians, frame: sceneenu, angles: [0.0, 0.0, 3.141592654]}
+
+  tasks:
+    windows: [{start: 0.0, stop: 0.0}]
+
+  atmosphere:
+    # (2) PROPOSED EXTENSION -- "new_atmosphere" is not an adopted dirsig-engine/1 plugin
+    # value (A.8.7 defines only four_curve and basic). This block matches the real tree
+    # (role R-6) and is not yet schema-conformant.
+    plugin: new_atmosphere
+    database:
+      ref: {name: atmosphere/AurorNewAtmosphere, content_hash: "sha256:7bbaf61d8a26806d0f22818d5c2b816a62fe69b120e5f2c1ef81d334253b8168"}
+      # atmosphere/<name>, flat, is a proposed config-repo convention (guide §9): A.8 defines no
+      # library path for new_atmosphere's database, consistent with the plugin itself being a
+      # non-adopted extension. Modeled on weather/<name>.wth's flat, single-file convention.
+
+  weather:
+    source: library
+    file: {name: weather/saw.wth, content_hash: "sha256:7ab85eefcdbb14a945498f5156262d861ec6f933fb10742bde84852c96ef2676"}
+    # Already matched the config-repo convention (weather/<name>.wth, A.8) by coincidence; now
+    # relocated under manifold_config_repo/ alongside the other assets rather than left in AUROR_ref/.
+
+  ephemeris:
+    plugin: spice   # no inputs; reads the DIRSIG installation's kernels (A.6)
+
+  run:
+    seed: 42   # (3) confirmed to seed both scene2hdf and dirsig5 (FINDINGS.md, Stage 02)

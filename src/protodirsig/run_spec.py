@@ -11,10 +11,11 @@ Two resolution roots, one per kind of thing referenced:
 Nothing resolves against a received run tree. MANIFOLD has none: the executor materializes a fresh
 run tree from the run spec for every run (Configuration_v02 §2).
 
-`descriptor.sensor` is a `sensor-spec/1` ref (CONOPS and Guide §4). Unlike every
-`engine` ref, it resolves against `sensor_library`, not `config_repo`. The ref name is a path under
-the library (`auror-nir.yaml`). The default library is `manifold_sensors/`, a sibling of the folder holding the
-run spec. It is loaded and checked here, and `platform_gen` renders the job's `.platform` from it and the
+`descriptor.sensor` is a `sensor-spec/1` ref (CONOPS and Guide §4), or the sensor-spec's `sensor` block in place
+(`compose(..., inline_sensor=True)`). Unlike every `engine` ref, the ref resolves against `sensor_library`, not
+`config_repo`. The ref name is a path under the library (`auror-nir.yaml`). The default library is
+`manifold_sensors/`, a sibling of the folder holding the run spec; an inline block still takes its spectral curves
+from it. The sensor is loaded and checked here, and `platform_gen` renders the job's `.platform` from it and the
 run spec's `settings`.
 
 What it drives: `engine.scenes`, `platform`, `atmosphere`, `weather`, `ephemeris` and
@@ -144,6 +145,12 @@ def _scene_file(config_repo, ref_name):
     return _root_file(config_repo, ref_name, "scene")
 
 
+def is_inline_sensor(sensor):
+    """`descriptor.sensor` given in place: a sensor-spec `sensor` block (`sensor_system` and an `entries` list)."""
+    return isinstance(sensor, dict) and "ref" not in sensor and isinstance(sensor.get("sensor_system"), dict) \
+        and isinstance(sensor.get("entries"), list)
+
+
 def default_sensor_library(run_spec_path):
     """`manifold_sensors/`, the sibling of the folder that holds the run spec."""
     return Path(run_spec_path).resolve().parent.parent / "manifold_sensors"
@@ -225,13 +232,18 @@ def resolve_auror_run(spec, run_spec_path, config_repo, sensor_library=None):
                            "holds no per-channel spectral states, so the render fails after the dry run passes")
     desc = spec["descriptor"]
     sensor = desc.get("sensor")
-    ref = sensor.get("ref") if isinstance(sensor, dict) else None
-    sensor_name = ref.get("name") if isinstance(ref, dict) else None
-    if not isinstance(sensor_name, str):
-        raise RunSpecError("descriptor.sensor must be a sensor-spec/1 ref ({ref: {name: <name>.yaml}}), "
-                           f"got {sensor!r:.80}")
-    _verify_hash(Path(sensor_library) / sensor_name, ref, "sensor-spec") if (Path(sensor_library) / sensor_name).is_file() else None
-    sensor_doc = load_sensor_spec(sensor_library, sensor_name)
+    if is_inline_sensor(sensor):
+        sensor_name = f"{desc['meta']['name']} (inline)"
+        sensor_doc = {"spec_version": "sensor-spec/1", "meta": {"name": sensor_name}, "sensor": sensor}
+    else:
+        ref = sensor.get("ref") if isinstance(sensor, dict) else None
+        sensor_name = ref.get("name") if isinstance(ref, dict) else None
+        if not isinstance(sensor_name, str):
+            raise RunSpecError("descriptor.sensor must be a sensor-spec/1 ref ({ref: {name: <name>.yaml}}) or an inline "
+                               f"sensor block (sensor_system, entries), got {sensor!r:.80}")
+        if (Path(sensor_library) / sensor_name).is_file():
+            _verify_hash(Path(sensor_library) / sensor_name, ref, "sensor-spec")
+        sensor_doc = load_sensor_spec(sensor_library, sensor_name)
     entries = sensor_doc["sensor"].get("entries") or []
     if len(entries) != 1:
         raise RunSpecError(f"sensor {sensor_name!r} has {len(entries)} entries; one sensor entry per job is "
@@ -295,21 +307,29 @@ def check_library_files(spec, run):
 
 
 def derive_run_spec(spec, sensor_ref_name, entry_id, roi=None, name=None):
-    """A copy of a loaded run spec that images the same scenario with another sensor entry.
+    """A run spec that images the same scenario as a loaded one with another sensor entry.
 
     A run spec describes its run completely, so a different sensor is a different run spec; there is no
     run-time sensor override. `settings` (exposure, frame rate, gain, black level) carry over; `roi`
-    replaces the window when given and is dropped (full frame) when `roi` is `{}`.
+    replaces the window when given and is dropped (full frame) when `roi` is `{}`. Composed by
+    `compose.merge`, the one composition path: the loaded spec is split into its recipe, scenario and engine
+    profile in memory, with `channel_response` removed (a derived sensor is rendered tabulated). The sensor ref
+    carries the `sha256:<hash>` placeholder, since no sensor library is named here.
     """
-    new = copy.deepcopy(spec)
-    desc = new["descriptor"]
-    desc["sensor"] = {"ref": {"name": sensor_ref_name, "content_hash": "sha256:<hash>"}}
-    st = desc["settings"][0]
+    from protodirsig.compose import RULES, merge
+    desc = spec["descriptor"]
+    st = copy.deepcopy(desc["settings"][0])
     st["entry_id"] = entry_id
     if roi is not None:
         st.pop("roi", None)
         if roi:
             st["roi"] = dict(roi)
-    desc["meta"]["name"] = name or f"{desc['meta']['name']}-{entry_id}"
-    new["engine"]["platform"].pop("channel_response", None)      # a derived sensor is rendered tabulated
-    return new
+    recipe = {"compose": RULES, "meta": {**desc["meta"], "name": name or f"{desc['meta']['name']}-{entry_id}"},
+              "sensor": sensor_ref_name, "scenario": None, "engine_profile": None, "settings": [st],
+              "fidelity": desc["fidelity"]}
+    engine = copy.deepcopy(spec["engine"])
+    engine["platform"].pop("channel_response", None)
+    profile = {"origin": desc["origin"], "engine": engine, **({"extras": desc["extras"]} if "extras" in desc else {})}
+    layers = {"recipe": ("derived recipe", recipe), "scenario": ("base spec collection", {"collection": desc["collection"]}),
+              "engine_profile": ("base spec engine profile", profile)}
+    return merge(layers, {"name": sensor_ref_name, "content_hash": "sha256:<hash>"})[0]

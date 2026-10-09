@@ -1,0 +1,61 @@
+# sensor-spec/1 extraction of auror_ref_run_spec.yaml's descriptor.sensor block.
+# Companion to the protoDIRSIG CONOPS and Guide §4 (docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md).
+#
+# Content unchanged from the inline block this replaces. Referenced by
+# auror_ref_run_spec.yaml as descriptor.sensor.ref. Trust model: by name, like every
+# other ref in the engine body (content_hash authored, not yet verified -- see §7).
+
+spec_version: sensor-spec/1
+
+meta:
+  name: auror-nir
+  tags: [auror, nir, staring-array]
+  description: >
+    NIR staring-array sensor system used in the AUROR_ref tree: a fixed-mount instrument,
+    85 mm aperture, 306 mm focal length, single NIR channel centered at 0.85 µm.
+
+sensor:
+  sensor_system:
+    system_id: auror.nir-staring-01
+    reference_frame:
+      name: rig_body_enu
+      origin: aperture stop centre of the primary instrument
+      handedness: right
+      axis_convention: x_boresight_y_right_z_down   # not confirmed, carried from the shared instance
+    frame_association: {policy: none}
+  entries:
+    - entry_id: auror-nir
+      identity:
+        instrument_id: instr.auror.nir.staring.01
+        sensor_class: staring_array
+      mount: {kind: fixed, translation: [0, 0, 0], rotation: [1, 0, 0, 0]}
+      optics:
+        aperture_diameter: 85.0         # mm; written to properties.aperturediameter in metres (0.085)
+        focal_length: 306.0             # mm; properties.focallength; f/# = 306/85 = 3.6
+        f_number: 3.6
+        throughput_in_band: {value: 0.875, provenance: specified}
+        distortion: {model: none}
+      focal_planes:
+        - optical_path: {split: none}    # no DIRSIG source; library-asserted (A.9.2)
+          detector:                      # the physical device; fixed properties (CONOPS C-15)
+            DeviceVendorName: null       # not recorded for AUROR_ref
+            DeviceModelName: null        # not recorded for AUROR_ref
+            SensorWidth: null            # full frame, columns; not recorded
+            SensorHeight: null           # full frame, rows; not recorded
+            SensorPixelWidth: 10.0       # um; detectorarray.xelementspacing
+            SensorPixelHeight: 10.0      # um; detectorarray.yelementspacing
+            fill_factor: 1.0             # xelementsize / xelementspacing = 1.0
+            channel_layout: single
+          readout:
+            timestamp_reference: exposure_start   # no DIRSIG source; library-asserted
+            SensorShutterMode: Global              # no DIRSIG source; library-asserted
+            AdcBitDepth: 14                        # no DIRSIG source; library-asserted
+          channels:
+            - channel_id: nir-b1
+              band: NIR
+              band_center: 0.85                    # channel.center, µm
+              bandwidth: 0.15                      # FWHM, um; equals srf_model.fwhm
+              srf_model: {kind: gaussian, center: 0.85, fwhm: 0.15}   # DIRSIG channel width = fwhm / 2.3548 (sigma, assumed; checked in tests/test_platform_render.py)
+              radiometric_reference:              # the sensor's own calibration (Detector_v02 6.8, required); none known
+                quantity: null
+                unit: null
