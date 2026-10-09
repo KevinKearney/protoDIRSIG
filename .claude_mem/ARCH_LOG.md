@@ -359,3 +359,14 @@ Kevin unavailable; prompt.md "Sensor model, round two". Decisions in order made:
   /tmp 5.5 G). Causes: 1.9 G of my scratch renders, and `baseline` in test_sensor_render leaking a 33 MB
   mkdtemp per session (12 today). Deleted my scratch render dirs and the leaked dirs; fixture now uses
   tmp_path_factory (pytest prunes to three sessions). Suite 148 passed after.
+
+## 2026-10-09 (round three) — radiometric_reference, manifold_ folder prefix (unattended)
+
+- **Step 0.** `python -m pytest -q` from the root: 1 collection error, `external/dirsig-file-maker/demos/
+  test_EmissivityVariation1.py` (no `perlin_noise`). Cause: `external/` was populated by bootstrap last round and
+  bare pytest recurses into it. Fix: `[tool.pytest.ini_options] testpaths = ["tests"]` in pyproject.toml, own
+  commit. Then 148 passed. stamp_hashes --check 0.
+- **Step 0 inventory** (grep radiometric_reference, excl. external/outputs/.git): three sensor files, schema (line
+  56 `{"type": "object"}`, also in channel `required`), tests/test_sensor_render.py B2, stage_03 notebook source
+  (cell printing channels[0]), BACKLOG:80, docs/DIRSIG_Platform_Decomposition.md 205/212/263/312, prompt.md,
+  ARCH_LOG. No other code reads it (platform_gen does not).

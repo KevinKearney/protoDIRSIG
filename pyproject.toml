@@ -23,3 +23,6 @@ dev = ["pytest", "ruff", "jupyter", "jsonschema"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]       # external/ holds dirfm's own demos/test_*.py; they are not this suite
