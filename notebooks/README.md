@@ -1,6 +1,6 @@
 # Notebooks
 
-Two kinds of notebook live here, and they're not interchangeable.
+Several kinds of notebook live here, and they're not interchangeable.
 
 **Stage notebooks** (`stage_NN_<slug>.ipynb`, top level) are the active, accumulating work: each
 one builds toward a MANIFOLD-conformant template notebook, one stage at a time. A later stage
@@ -15,6 +15,9 @@ stage progression. They stay as worked examples.
 **`dev/`** holds discovery-log notebooks — working notes from exploring a received tree or tool
 behavior before the pattern was understood well enough to write cleanly. Kept as executed, not
 maintained going forward.
+
+**`sidebars/`** holds side investigations: exploratory like `dev/`, but tracked, because their
+results are cited in FINDINGS.md.
 
 ## Stage notebooks
 
@@ -43,6 +46,18 @@ maintained going forward.
   notebooks use), driven directly through `dirfm` with no run-spec or registry layer. A plain
   usage example, not part of the staged work. Reads AUROR_ref's files from their copies in
   `config_repo/` and `tests/fixtures/auror_ref/`, since `AUROR_ref/` itself was retired.
+
+## `sidebars/`
+
+Side investigations that a stage or tutorial raised but that don't belong in one: exploratory,
+kept as executed, and tracked (unlike `dev/`, which `.gitignore` keeps local). Each notebook keeps
+any assets it adds in a folder of the same name beside it.
+
+- **`vehicle_point_source.ipynb`** — Distils the real AUROR vehicle mesh, given a reflective
+  material, into a radiant intensity from a close-range DIRSIG render at the task's exact sun and
+  view angles. Writes it as a `.int` point source, and renders the 500 km scene with it. Also
+  renders the received 1500 K emitter with thermal prediction forced. Findings in FINDINGS.md
+  (2026-10-09).
 
 ## `dev/`
 

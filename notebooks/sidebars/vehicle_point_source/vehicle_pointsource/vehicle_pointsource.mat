@@ -1,0 +1,9 @@
+MATERIAL_ENTRY {
+    ID   = vehicle_pointsource
+    NAME = AUROR vehicle as a point source (sunlight reflected by the real mesh, close-range distillation)
+    OPTICAL_DESCRIPTION = SOURCE
+    INTENSITY_FILENAME  = vehicle.int
+    SOURCE_SHAPE    = 0.0
+    NORMALIZE_SHAPE = TRUE
+    EDITOR_COLOR    = 1.0, 1.0, 1.0
+}

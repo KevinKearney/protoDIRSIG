@@ -965,6 +965,143 @@ directories, every file a symlink to its original) and adds three real files:
 The disk is a sandbox device, two orders of magnitude larger than the airframe. It says nothing
 about how bright the real vehicle would be.
 
+## 2026-10-09 — The vehicle as a point source, distilled from the real mesh (sidebar)
+
+`notebooks/sidebars/vehicle_point_source.ipynb`, with its assets in
+`notebooks/sidebars/vehicle_point_source/`. The goal was to turn the real `hypersonic.obj`
+into a physically grounded radiant intensity using DIRSIG's own renderer, and hand that back to
+DIRSIG as a native point source in the 500 km scene. **The distillation works; the hand-back does
+not.** DIRSIG5 2026.38 does not render a directly viewed point source, so the source adds
+nothing to the AUROR image.
+
+**Where the notebook lives.** `notebooks/README.md` says discovery work belongs in `dev/`, but
+`.gitignore` makes `notebooks/dev/` local-only (since `b5354e6`), and this step had to be
+committed. So it went into a new tracked folder, `notebooks/sidebars/`, described in the README
+as exploratory side investigations that are kept as executed but are neither stages nor
+tutorials. Placing it in `dev/` would have meant force-adding against an explicit ignore rule.
+
+**Decision: a new material, not an in-place edit of `ref.txt`.** The grep (previous entry) shows
+`Gidder_mat` is used only by the AUROR vehicle, which by the prompt's test would favour editing in
+place. That one target, though, is rendered by three tracked notebooks:
+- stage 01 and stage 02, whose seed-42 renders have been pinned byte-identical across stages;
+- `tutorial_auror_scene`.
+
+`tests/test_scene_coverage.py` also pins `ref.txt` (`files == {"ref.txt": (0.4, 3.0, 1)}`).
+Mutating the library for an exploratory sidebar would silently change all of those. And the
+all-zero `ref.txt` is the received configuration, which is the thing Phase 5 diagnosed. So the
+received files are untouched, and three new files sit in the sidebar folder, not in
+`config_repo/`:
+- `hypersonic_reflective/ref_reflective.txt`: the same seven wavelengths, all 0.30;
+- `hypersonic_reflective.mat`: the received `.mat` with ID and NAME changed to
+  `Gidder_mat_reflective` and `TXT_FILENAME = ref_reflective.txt` (3 lines; temperature and
+  solver unchanged);
+- `hypersonic_reflective.glist`: the same `hypersonic.obj`, linked rather than copied, with
+  `<assign id="Gidder_mat_reflective">Gidder_mat</assign>`.
+
+The notebook adds these to a symlink mirror of `config_repo/` under `outputs/`.
+
+**Decision: reflectance 0.30, flat.** No measured curve exists. 0.30 is the low end of the
+plausible 0.3–0.8. Hot airframe surfaces are given high-emissivity (low-reflectance) coatings,
+and a low value doesn't flatter detectability. The reflected intensity is linear in ρ for a gray
+Lambertian surface, so other values are a rescale.
+
+**Method (pass A).** The AUROR job itself, with the sensor moved to 1 km above the vehicle
+(50 → 51 km): same scene, epoch, NewAtmosphere database, SPICE ephemeris and vehicle motion. So
+the sun (zenith 21.5°, azimuth 155.4° in DIRSIG's own `log_info`) and the straight-down view
+match the task exactly.
+
+The close sensor is the AUROR platform with four changes:
+- no aperture, so the output is at-aperture radiance;
+- 79 normalized 0.02 µm rectangular channels over 0.41–1.99 µm, in W m⁻² sr⁻¹ µm⁻¹;
+- no temporal integration, so the 100 m/s vehicle doesn't smear;
+- 128 × 128 pixels, plus abundance, temperature and sun-fraction truth.
+
+At 1 km a pixel is 3.3 cm, and the mesh is ~60 px long. The 1 km slab at 50 km holds under
+0.1 % of sea-level air (Rayleigh optical depth ~10⁻⁶ at 0.85 µm), which is an explicitly
+negligible path. The full-scene source would carry the 50 → 550 km transmission itself.
+
+Integration: $I(\lambda) = R^2\Omega[\sum_i L_i - L_{bg}\sum_i(1-f_i)]$, with $f_i$ the
+abundance truth and $L_{bg}$ the median over $f=0$ pixels (the terrain 51 km below). This is
+$\bar L \cdot A_{proj}$ with edge pixels weighted by their fill.
+
+**Results.**
+- $A_{proj}$ = **0.826 m²**, against the 0.827 m² rasterized silhouette.
+- Sun fraction on the mesh 0.99.
+- At 0.84 µm: $\bar L$ = 82.2 W m⁻² sr⁻¹ µm⁻¹ and **I = 67.9 W sr⁻¹ µm⁻¹**. A flat ρ = 0.30
+  plate in exo-atmospheric sun at 21.5° gives ≈ 82, so the mesh behaves like a gray plate seen
+  face-on.
+- AUROR-channel weighted: I = **67.0 W sr⁻¹ µm⁻¹**.
+- Background-subtraction uncertainty: the same integral over the black received mesh returns
+  2.0 W sr⁻¹ µm⁻¹ instead of 0, about 3 % of I.
+- `vehicle.int`: 81 samples, 0.41–2.00 µm, written by the notebook and committed.
+
+**The point source** (`vehicle_pointsource/`). It is defined per `sources.html` "User-Defined
+Sources" and `glist.html` "Base Sources", both checked locally:
+- `.mat`: `OPTICAL_DESCRIPTION = SOURCE`, `INTENSITY_FILENAME = vehicle.int`, `SOURCE_SHAPE = 0`,
+  `NORMALIZE_SHAPE = TRUE`;
+- `.glist`: a `<basesource><pointsource>` bundle with a local material, instanced in the scene on
+  a copy of the vehicle's `<dynamicinstance>`, raised 0.25 m to sit above the mesh top.
+
+**Decision: alongside the received mesh, not replacing it.** Under the job's default flags the
+received mesh adds no light (previous entry), so it can't double-count with the source. It still
+blocks the 0.31 % of terrain behind it, about 27 % of the expected source signal, which a bare
+point source would omit.
+
+**Full-scene result (pass D vs baseline C, both seed 42): no pixel changes at all.** The
+predicted excess was +0.0115 of one pixel's signal. That is $I\tau/(R^2\Omega L_{terrain})$
+with the AUROR-channel terrain radiance 21.8 from pass A and τ ≈ 1 above 50 km: about 1 %,
+against 4 × 4 block sums that vary by ±1.18 pixels across the frame. The source *is* compiled:
+the scene HDF's `Objects/Sources` lists it with its curve. The cause is DIRSIG5, not this setup.
+On DIRSIG's own `Sources1` demo (re-run in the notebook):
+- the shipped job lights its plate;
+- with the plate scene dropped, its six point sources sit in a downward-looking sensor's field
+  at 2–5 m, and the image is **exactly zero**.
+
+`sources.html` lists the direct-viewing description and `secondarysources.viewdirect` under
+"Relevant Options (DIRSIG4 only)". DIRSIG5's BasicPlatform does not add a source's intensity to
+the pixel that sees it. Its point sources only illuminate surfaces.
+
+Scratch checks behind this (not in the notebook):
+- moving the source to a flexible-motion instance doesn't stop it working in the demo;
+- a source scaled 10⁹× produced no change at all, even indirectly on the terrain 50 km below.
+  That last one is *unexplained*, since the demo's indirect term works at metres. Range-based
+  culling is a guess, not checked.
+- the same source on a static instance at (−400, 400, 50 000) made the whole close-pass image
+  zero, a separate oddity also not chased.
+
+**`secondarysources.threshold`.**
+- It is a DIRSIG4 `.options` entry (default 1 × 10⁻⁵), and these jobs have no `.options` file.
+- DIRSIG5's counterpart is `--source_threshold`, whose help gives no default. Passing 0 changed
+  nothing in the 10⁹× test.
+- It gates the indirect term only. The source's irradiance on the terrain would be
+  2.7 × 10⁻⁸ W m⁻² µm⁻¹, irrelevant either way.
+
+**Against the other results** (excess summed over the 4 × 4 block at the boresight, in units of
+one median pixel's signal):
+
+| Case | Rendered | Predicted |
+|---|---|---|
+| Step 1 disk (8 px, ρ 0.8) | core pixels 10.9 × the median | — (visibility device) |
+| D: reflected point source, ρ 0.30 | **0** (not rendered by DIRSIG5) | +0.0115 |
+| E: received 1500 K emitter, `--force_temperature_prediction` | **+0.56** | +0.51 from pass B's I = 2961 W sr⁻¹ µm⁻¹ (its mesh radiance 3131 at 0.84 µm is the 1500 K blackbody's 3129); FINDINGS 2026-10-06 expected +0.49 |
+
+So Phase 5's emitter expectation was right in magnitude: the 1500 K vehicle *does* appear once
+DIRSIG predicts temperatures. Pass E changes exactly two pixels against the seeded baseline.
+Rendered vs predicted differ by 10 %, which is within the edge effects of a target split
+across pixels and the crude band weighting. The true-sized reflective vehicle at ρ = 0.30
+would be a ~1 % excess, far below the terrain's pixel-to-pixel variation. Reflected sunlight
+alone would not make it detectable in this geometry; its emission at 1500 K would.
+
+**Possible next steps, not taken.**
+- To get the distilled intensity into the 500 km image with DIRSIG5, the source has to be
+  geometry the renderer samples. One option is a small hypersampled (`::IMPORTANT::`) emitter
+  whose radiance × area equals $I$.
+- The `LightCurve` sensor plugin (`lightcurve_plugin.html`) is an independent check of
+  magnitude against time, not an imager. It is incompatible with AUROR's `new_atmosphere` setup,
+  per the manual. Not implemented.
+- The vendored run spec's `fidelity.valid_for` still says the vehicle's absence is unexplained.
+  That text lives in eopticDocs.
+
 ## Notebooks (status)
 
 - `notebooks/dirfm_tutorials/tutorial_dirfm_basics.ipynb` — Phase 1, complete. 8 stages, executed end to end.
@@ -988,6 +1125,10 @@ about how bright the real vehicle would be.
   end.
   Since 2026-10-09 it adds an oversized Lambertian visibility disk on the vehicle's motion,
   through a library mirror under `outputs/`, so the target shows up.
+- `notebooks/sidebars/vehicle_point_source.ipynb` — 2026-10-09 sidebar, executed end to end:
+  the real vehicle mesh distilled to a radiant intensity at the AUROR geometry (ρ 0.30, I ≈ 67
+  W sr⁻¹ µm⁻¹), its point source (which DIRSIG5 does not render when directly viewed), and the
+  received 1500 K emitter rendered with thermal prediction forced. Not a stage or tutorial.
 - `notebooks/dev/auror_scene_buildup.ipynb` — Phase 5 discovery log (not a tutorial): how the
   dirfm gaps were found and bridged, and the comparison against the shipped 2025.51 render with
   a same-version repeat as the baseline. Kept as executed; it predates the `src/` helpers.
