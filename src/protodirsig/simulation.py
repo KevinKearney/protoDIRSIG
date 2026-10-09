@@ -16,9 +16,9 @@ scope; the vehicle-not-appearing finding passes all three):
    the sensor ref in the sensor library as `sensor-spec/1`, and accepts the motion as one this
    loader can generate (static, scene frame, `sceneenu` Euler) and an epoch with a UTC offset.
    `run_spec.check_library_files`
-   finds the library platform file agrees with the spec's `integration_samples`.
-3. **Execution**: the job is assembled (library inputs copied, motion and tasks generated from
-   the spec by `motion_tasks`) and DIRSIG is run with
+   finds the library platform template renderable from the sensor-spec and `settings`.
+3. **Execution**: the job is assembled (platform rendered by `platform_gen`, other library inputs copied, motion and tasks
+   generated from the spec by `motion_tasks`) and DIRSIG is run with
    `--dry_run --log_info_filename=...`, which loads everything and schedules the captures without
    rendering. A nonzero exit or an `[error]` line on stderr fails it, and the JSON log must
    describe the single capture the spec's task window implies.
@@ -36,6 +36,7 @@ from pathlib import Path
 from dirfm import DIRSIG, SCENE
 from dirfm.weather import ThermWeatherFilePlugin
 
+from protodirsig.platform_gen import render_platform
 from protodirsig.platform_ref import PlatformFilesPlugin
 from protodirsig.motion_tasks import generate_motion, generate_tasks
 from protodirsig.run_spec import RunSpecError, check_library_files, load_run_spec, resolve_auror_run
@@ -128,6 +129,9 @@ def schema_errors(spec):
     for key in ("library_entry", "output_prefix"):
         if "platform" in eng and _get(eng, ("platform", key)) is _MISSING:
             errs.append(f"engine.platform.{key} is missing")
+    mode = _get(eng, ("platform", "channel_response"))
+    if mode is not _MISSING and mode not in ("tabulated", "native"):
+        errs.append(f"engine.platform.channel_response is {mode!r}, expected 'tabulated' or 'native'")
     samples = _get(eng, ("platform", "integration_samples"))
     if samples is not _MISSING and not (isinstance(samples, int) and samples >= 1):
         errs.append(f"engine.platform.integration_samples is {samples!r}, expected an integer >= 1")
@@ -211,8 +215,11 @@ class Simulation:
         scene = SCENE(r.scene.stem)
         scene._fname = ref_file                                     # private attribute: write() returns it as-is
         # Library assets keep their config_repo-relative paths; motion and tasks are generated.
-        inputs = {n: copy_input(src, in_dir / src.relative_to(lib)) for n, src in [
-            ("platform", r.platform), ("weather", r.weather)]}
+        inputs = {"weather": copy_input(r.weather, in_dir / r.weather.relative_to(lib))}
+        # The platform is rendered from the library template, the sensor-spec and `settings`.
+        inputs["platform"] = render_platform(r.platform, r.sensor, r.settings[0]["entry_id"], r.settings,
+                                             r.integration_samples, r.sensor_library,
+                                             in_dir / r.platform.relative_to(lib), r.channel_response).path
         db = copy_input(r.atmosphere_db, in_dir / r.atmosphere_db.name)   # beside the jsim, as received
         motion, tasks = generate_motion(r, in_dir / "motion"), generate_tasks(r, in_dir / "tasks")
         job = DIRSIG(in_dir, out_dir)

@@ -1,0 +1,62 @@
+# sensor-spec/1: synthetic VIS staring camera. An invented configuration (no vendor, no product line)
+# that exercises the generator with a second band, pixel pitch, focal length, aperture, optics curve and
+# detector QE curve. Name pattern: <line>_<band nm>_<focal length mm>_<band>_<columns>.
+# Companion to the protoDIRSIG CONOPS and Guide §4 (docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md).
+
+spec_version: sensor-spec/1
+
+meta:
+  name: synthetic_600_200_vis_1920
+  tags: [synthetic, vis, staring-array]
+  description: >
+    Synthetic VIS panchromatic staring camera: 50 mm aperture, 200 mm focal length, 1920x1080 array at 5.5 um
+    pitch, 0.45-0.75 um band, synthetic silicon QE and AR-coated optics curves.
+
+sensor:
+  sensor_system:
+    system_id: synthetic.vis-staring-600-200-1920
+    reference_frame:
+      name: rig_body_enu
+      origin: aperture stop centre of the primary instrument
+      handedness: right
+      axis_convention: x_boresight_y_right_z_down   # carried from auror-nir
+    frame_association: {policy: none}
+  entries:
+    - entry_id: synthetic-600-200-vis-1920
+      identity:
+        instrument_id: instr.synthetic.vis.600.200.1920
+        sensor_class: staring_array
+      mount: {kind: fixed, translation: [0, 0, 0], rotation: [1, 0, 0, 0]}
+      optics:
+        aperture_diameter: 50.0         # mm
+        focal_length: 200.0             # mm; f/# = 200/50 = 4.0
+        f_number: 4.0
+        throughput_in_band: {value: 0.92, provenance: derived}   # band mean of throughput_reference
+        throughput_reference: {name: spectral/optics/synthetic_vis_lens.csv, content_hash: "sha256:088dc8fa5c2b4e9b321f976237db9245f14e49b0b43f7b9d92b707073998126b"}
+        distortion: {model: none}
+      focal_planes:
+        - optical_path: {split: none}
+          detector:
+            DeviceVendorName: synthetic
+            DeviceModelName: synthetic-cmos-1920x1080
+            SensorWidth: 1920
+            SensorHeight: 1080
+            SensorPixelWidth: 5.5        # um
+            SensorPixelHeight: 5.5
+            fill_factor: 1.0
+            channel_layout: single
+          readout:
+            timestamp_reference: exposure_start
+            SensorShutterMode: Global
+            AdcBitDepth: 12
+          channels:
+            - channel_id: vis-pan
+              band: VIS
+              band_center: 0.60                    # um
+              bandwidth: 0.30                      # um; equals srf_model.width
+              srf_model: {kind: rectangular, center: 0.60, width: 0.30}
+              qe_reference: {name: spectral/qe/synthetic_silicon.csv, content_hash: "sha256:37bf797fdc0376db6bbad16b6c15dbb90bc0dd5e6e6de197f227b89fbca4c049"}
+              qe_peak: {value: 0.9, provenance: derived}
+              radiometric_reference:
+                quantity: spectral_radiance
+                unit: "W/(m2.sr.um)"                # enum for electron flux TBD (A.9.1)

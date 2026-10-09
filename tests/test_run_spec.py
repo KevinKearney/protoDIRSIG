@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from protodirsig.run_spec import (RunSpecError, _check_settings_roi, check_library_files, load_run_spec, load_sensor_spec,
+from protodirsig.run_spec import (RunSpecError, _check_settings_roi, derive_run_spec, check_library_files, load_run_spec, load_sensor_spec,
                                   resolve_auror_run)
 
 PROJECT = Path(__file__).resolve().parents[1]
@@ -71,11 +71,20 @@ def test_plugins_match_received_jsim(tmp_path):
 
 
 @needs_config_repo
-def test_mismatch_is_reported():
+def test_library_files_render_cleanly():
     spec = load_run_spec(SPEC)
-    spec["engine"]["platform"]["integration_samples"] = 4
-    bad = check_library_files(spec, resolve_auror_run(spec, SPEC, CONFIG_REPO))
-    assert len(bad) == 1 and bad[0].startswith("integration_samples")
+    assert check_library_files(spec, resolve_auror_run(spec, SPEC, CONFIG_REPO)) == []
+
+
+@needs_config_repo
+def test_unrenderable_sensor_is_reported(tmp_path):
+    import shutil
+    lib = tmp_path / "sensors"
+    shutil.copytree(SPEC.parent.parent / "sensors", lib)
+    shutil.rmtree(lib / "spectral")                                  # the QE curve the DeepScan entry references
+    spec = derive_run_spec(load_run_spec(SPEC), "deepscan_850_306_nir_1280.yaml", "deepscan-850-306-nir-1280")
+    bad = check_library_files(spec, resolve_auror_run(spec, SPEC, CONFIG_REPO, lib))
+    assert len(bad) == 1 and "could not be rendered" in bad[0] and "not found" in bad[0]
 
 
 @needs_config_repo
@@ -217,3 +226,16 @@ def test_settings_roi_checked_against_detector():
                               "roi": {"Width": 500, "Height": 500, "OffsetX": 800}}], doc)
     with pytest.raises(RunSpecError, match="matches no sensor entry"):
         _check_settings_roi([{"entry_id": "nope"}], doc)
+
+
+def test_derive_run_spec_swaps_sensor_only():
+    base = load_run_spec(SPEC)
+    new = derive_run_spec(base, "deepscan_850_306_nir_1280.yaml", "deepscan-850-306-nir-1280", roi={"Width": 64, "Height": 32})
+    assert new["descriptor"]["sensor"]["ref"]["name"] == "deepscan_850_306_nir_1280.yaml"
+    st = new["descriptor"]["settings"][0]
+    assert st["entry_id"] == "deepscan-850-306-nir-1280" and st["roi"] == {"Width": 64, "Height": 32}
+    assert st["exposure_time"] == base["descriptor"]["settings"][0]["exposure_time"]
+    assert "channel_response" not in new["engine"]["platform"]               # a derived sensor is tabulated
+    assert {k: v for k, v in new["engine"].items() if k != "platform"} == {k: v for k, v in base["engine"].items() if k != "platform"}
+    assert base["descriptor"]["settings"][0]["roi"]["Width"] == 500          # the base is not modified
+    assert "roi" not in derive_run_spec(base, "a.yaml", "a", roi={})["descriptor"]["settings"][0]

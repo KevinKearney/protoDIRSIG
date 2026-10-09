@@ -1,0 +1,4 @@
+# Hashes in run specs and sensor-spec refs are over file bytes: no line-ending conversion.
+sensors/** text eol=lf
+run_specs/** text eol=lf
+config_repo/** -text

@@ -14,7 +14,8 @@ run tree from the run spec for every run (Configuration_v02 §2).
 `descriptor.sensor` is a `sensor-spec/1` ref (CONOPS and Guide §4). Unlike every
 `engine` ref, it resolves against `sensor_library`, not `config_repo`. The ref name is a path under
 the library (`auror-nir.yaml`). The default library is `sensors/`, a sibling of the folder holding the
-run spec. It is loaded and checked here, and nothing in the DIRSIG job consumes it.
+run spec. It is loaded and checked here, and `platform_gen` renders the job's `.platform` from it and the
+run spec's `settings`.
 
 What it drives: `engine.scenes`, `platform`, `atmosphere`, `weather`, `ephemeris` and
 `run.seed` name existing library files that the `scene_ref`, `platform_ref` and
@@ -26,9 +27,11 @@ scene-frame position and a `sceneenu` Euler orientation is generated; anything e
 Loading is a plain `yaml.safe_load`. `AV_MANIFOLD_Metadata_v02.md` §6.15 specifies a strict
 loader (duplicate-key rejection, canonical-JSON hashing, unknown-key rejection). That belongs to
 MANIFOLD's registry side, which is not built yet, so it is not built here: a duplicated key in the
-YAML silently keeps the last value, and no `content_hash` is checked, the sensor ref's
-included (by-name trust, guide §7).
+YAML silently keeps the last value, and no `content_hash` is computed canonically. A stamped hash (sha256 of the file bytes, `scripts/stamp_hashes.py`)
+on a file ref is verified when the file is read; the `sha256:<hash>` placeholder is not (a `.scene` ref stays
+a placeholder, since its geometry and materials sit beside it).
 """
+import copy
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -38,6 +41,7 @@ import yaml
 
 from protodirsig.atmosphere_patches import PatchedModtranTapeBackend, PatchedNewAtmospherePlugin
 from protodirsig.platform_ref import SpiceEphemerisPlugin
+from protodirsig.spectral import PLACEHOLDER, sha256_file
 
 # The received jsim's MODTRAN-tape recipe: what atm_builder would use to rebuild the database.
 # The render reads the existing HDF5 database, not this block, and the run
@@ -97,7 +101,10 @@ class AurorRun:
     weather: Path
     ephemeris: str
     seed: int
-    sensor: dict             # the loaded sensor-spec/1 document; descriptor-side, not used to build the job
+    sensor: dict             # the loaded sensor-spec/1 document; `platform_gen` renders the job's .platform from it
+    settings: list           # descriptor.settings: one member, for the sensor entry the job models
+    sensor_library: Path     # resolution root for the sensor-spec and its spectral curves
+    channel_response: str = "tabulated"   # engine.platform.channel_response: tabulated | native (platform_gen)
 
     def atmosphere_plugin(self, db=None):
         """`NewAtmosphere` over `db`, or over the resolved library database if not given. Pass the job's
@@ -114,11 +121,20 @@ class AurorRun:
         return SpiceEphemerisPlugin()
 
 
-def _root_file(root, rel, what):
+def _root_file(root, rel, what, ref=None):
     path = root / rel
     if not path.is_file():
         raise RunSpecError(f"{what} {rel!r} not found: {path} is not a file")
+    _verify_hash(path, ref, what)
     return path
+
+
+def _verify_hash(path, ref, what):
+    """A stamped `content_hash` (not the `sha256:<hash>` placeholder) must equal the file's sha256."""
+    want = ref.get("content_hash") if isinstance(ref, dict) else None
+    if isinstance(want, str) and PLACEHOLDER not in want and sha256_file(path) != want:
+        raise RunSpecError(f"{what} {path.name}: content_hash {want[:19]}... does not match the file "
+                           f"({sha256_file(path)[:19]}...); run scripts/stamp_hashes.py after an intended edit")
 
 
 def _scene_file(config_repo, ref_name):
@@ -199,6 +215,9 @@ def resolve_auror_run(spec, run_spec_path, config_repo, sensor_library=None):
         raise RunSpecError(f"descriptor.collection.epoch {epoch.isoformat()!r} has no UTC offset")
 
     scene, plat = eng["scenes"][0], eng["platform"]
+    channel_response = plat.get("channel_response", "tabulated")
+    if channel_response not in ("tabulated", "native"):
+        raise RunSpecError(f"engine.platform.channel_response is {channel_response!r}; expected 'tabulated' or 'native'")
     desc = spec["descriptor"]
     sensor = desc.get("sensor")
     ref = sensor.get("ref") if isinstance(sensor, dict) else None
@@ -206,14 +225,18 @@ def resolve_auror_run(spec, run_spec_path, config_repo, sensor_library=None):
     if not isinstance(sensor_name, str):
         raise RunSpecError("descriptor.sensor must be a sensor-spec/1 ref ({ref: {name: <name>.yaml}}), "
                            f"got {sensor!r:.80}")
+    _verify_hash(Path(sensor_library) / sensor_name, ref, "sensor-spec") if (Path(sensor_library) / sensor_name).is_file() else None
     sensor_doc = load_sensor_spec(sensor_library, sensor_name)
     _check_settings_roi(desc.get("settings", []), sensor_doc)
+    if len(desc["settings"]) != 1:
+        raise RunSpecError(f"descriptor.settings has {len(desc['settings'])} members; this loader generates one "
+                           "sensor entry per job")
     return AurorRun(
         name=desc["meta"]["name"],
         origin=dict(desc["origin"]),
         scene=_scene_file(config_repo, scene["ref"]["name"]),
         scene_offset=list(scene.get("offset", [0, 0, 0])),
-        platform=_root_file(config_repo, plat["ref"]["name"], "platform"),
+        platform=_root_file(config_repo, plat["ref"]["name"], "platform", plat["ref"]),
         motion_position=[float(v) for v in motion["position"]["xyz"]],
         motion_orientation={"order": euler["order"], "units": euler["units"],
                             "angles": [float(v) for v in euler["angles"]]},
@@ -222,24 +245,57 @@ def resolve_auror_run(spec, run_spec_path, config_repo, sensor_library=None):
         output_prefix=plat["output_prefix"],
         split_channels=bool(plat["split_channels"]),
         integration_samples=int(plat["integration_samples"]),
-        atmosphere_db=_root_file(config_repo, atm["database"]["ref"]["name"], "atmosphere database"),
-        weather=_root_file(config_repo, weather["file"]["name"], "weather file"),
+        atmosphere_db=_root_file(config_repo, atm["database"]["ref"]["name"], "atmosphere database",
+                                  atm["database"]["ref"]),
+        weather=_root_file(config_repo, weather["file"]["name"], "weather file", weather["file"]),
         ephemeris=ephemeris,
         seed=int(eng["run"]["seed"]),
         sensor=sensor_doc,
+        settings=list(desc["settings"]),
+        sensor_library=Path(sensor_library),
+        channel_response=channel_response,
     )
 
 
 def check_library_files(spec, run):
-    """Where the run spec restates a value a resolved library file already sets, compare the two.
+    """Problems that stop the job's `.platform` from being rendered; empty means it can be.
 
-    Today that is one value: `engine.platform.integration_samples` against the platform file's
-    `capturemethod/temporalintegration/samples`. (Until Stage 05 this also compared motion, tasks
-    and epoch against received files; those files are now generated from the spec, so the
-    comparison would be circular.) Returns a list of mismatch strings; empty means they agree.
+    The library platform file is a template (`platform_gen`). This checks its structure, then renders it
+    to a scratch directory so a missing spectral curve, a response outside the job's bandpass, or a
+    settings value the generator cannot place is reported here, as a resolution problem, not at execution.
     """
-    bad = []
-    samples = et.parse(str(run.platform)).getroot().findtext(".//capturemethod/temporalintegration/samples")
-    if samples is None or int(samples) != run.integration_samples:
-        bad.append(f"integration_samples: run spec {run.integration_samples} vs platform file {samples}")
-    return bad
+    from tempfile import TemporaryDirectory
+
+    from protodirsig.platform_gen import PlatformGenError, check_template, render_platform
+    from protodirsig.spectral import SpectralError
+    bad = check_template(run.platform)
+    if bad:
+        return bad
+    try:
+        with TemporaryDirectory() as tmp:
+            render_platform(run.platform, run.sensor, run.settings[0]["entry_id"], run.settings,
+                            run.integration_samples, run.sensor_library, Path(tmp) / "x.platform", run.channel_response)
+    except (PlatformGenError, SpectralError, KeyError) as e:
+        return [f"platform could not be rendered from the sensor-spec: {type(e).__name__}: {e}"]
+    return []
+
+
+def derive_run_spec(spec, sensor_ref_name, entry_id, roi=None, name=None):
+    """A copy of a loaded run spec that images the same scenario with another sensor entry.
+
+    A run spec describes its run completely, so a different sensor is a different run spec; there is no
+    run-time sensor override. `settings` (exposure, frame rate, gain, black level) carry over; `roi`
+    replaces the window when given and is dropped (full frame) when `roi` is `{}`.
+    """
+    new = copy.deepcopy(spec)
+    desc = new["descriptor"]
+    desc["sensor"] = {"ref": {"name": sensor_ref_name, "content_hash": "sha256:<hash>"}}
+    st = desc["settings"][0]
+    st["entry_id"] = entry_id
+    if roi is not None:
+        st.pop("roi", None)
+        if roi:
+            st["roi"] = dict(roi)
+    desc["meta"]["name"] = name or f"{desc['meta']['name']}-{entry_id}"
+    new["engine"]["platform"].pop("channel_response", None)      # a derived sensor is rendered tabulated
+    return new

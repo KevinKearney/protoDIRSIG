@@ -1,42 +1,17 @@
-# Prototype run spec for the real AUROR_ref tree.
-# Companion to the protoDIRSIG CONOPS and Guide (docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md).
-#
-# Built against:
-#   - descriptor schema:  AV_MANIFOLD_Metadata_v02.md §6 (run-spec/1)
-#   - engine schema:      AV_MANIFOLD_Configuration_v02.md Appendix A.8 (dirsig-engine/1)
-#   - tree values:        protoDIRSIG/AUROR_ref, as read by A&T_DIRSIG_example.md §9
-#                          and confirmed against the tree by ROLE_PROPOSAL_2026-10-05.md
-#                          and TRIAL_2026-10-06_dirsig-container.md
-#
-# Differs from the "illustrative instance" in both source documents (Metadata §6.11,
-# Configuration A.8.10) in three ways, each marked below where it occurs:
-#   1. meta.name is Auror's own, not the stale "tacoma-nir-baseline" of the shared instance.
-#   2. atmosphere uses NewAtmosphere + an atmosphere_db reference, matching the tree as
-#      measured, not FourCurveAtmosphere. `new_atmosphere` is NOT an adopted A.8.7 plugin
-#      value yet -- this is a proposed extension, not a conformant dirsig-engine/1 document.
-#   3. run.seed is set and confirmed (FINDINGS.md, Stage 02): dirfm passes it as
-#      --random_seed to both scene2hdf and dirsig5, and it reproduces a render byte for byte.
-#
-# descriptor.sensor is a sensor-spec/1 ref (CONOPS and Guide §4), not an inline
-# block -- see sensors/auror-nir.yaml (the sensor library, beside this folder).
-#
-# engine.scenes / platform / atmosphere.database / weather.file are config_repo library paths
-# (CONOPS and Guide §5), not paths into the received AUROR_ref tree. The
-# config-repo layout mismatch flagged in §6 for the architecture-view illustrative instances is
-# resolved for this prototype's own run spec as of Stage 04 (FINDINGS.md): a real config_repo/
-# holds these assets, copied once from AUROR_ref, in the library layout A.8 specifies.
-#
-# Hashes throughout are placeholders, as in both source illustrative instances.
+# Run spec: the auror_ref scene, geometry, atmosphere and seed imaged by the synthetic VIS camera.
+# Derived from run_specs/auror_ref.yaml (see its header for the sources of every engine value); only the
+# descriptor's name, tags, description, sensor ref, settings entry and fidelity differ. A different sensor
+# is a different run spec (CONOPS and Guide §4); protodirsig.run_spec.derive_run_spec writes one.
 
 spec_version: run-spec/1
 
 descriptor:
   meta:
-    name: auror-ref-static-pose          # (1) was "tacoma-nir-baseline" in the shared instance
-    tags: [auror, nir, static-pose, hypersonic-target]
+    name: synthetic-vis-static-pose
+    tags: [synthetic, vis, static-pose, hypersonic-target]
     description: >
-      Received static-pose detection scene: a NIR staring sensor at a fixed LEO-altitude
-      position over the Tahoe scene, with an embedded hypersonic target track.
+      The auror_ref scene, geometry and atmosphere imaged by the synthetic VIS staring camera
+      (sensors/synthetic_600_200_vis_1920.yaml): same fixed LEO-altitude position over the Tahoe scene.
 
   origin:
     kind: synthetic
@@ -66,12 +41,12 @@ descriptor:
       - class: vehicle_air               # hypersonic bundle target (hypersonic.glist / hypersonic.mat)
 
   sensor:
-    ref: {name: auror-nir.yaml, content_hash: "sha256:798ff6a5dd9e52a12a4290c2de6c030f05346ca2cf54d29ea2d37c4e3cf56299"}
+    ref: {name: synthetic_600_200_vis_1920.yaml, content_hash: "sha256:5a6f2023530f6f287fdd97bf7bf1f521c5b44cb00eb0767c2d384459e1cc26d2"}
     # (sensor-spec/1 extraction, CONOPS and Guide §4) -- content identical to the
     # formerly-inline block; see sensors/auror-nir.yaml (the sensor library).
 
   settings:
-    - entry_id: auror-nir
+    - entry_id: synthetic-600-200-vis-1920
       exposure_time: {value: 0.005, provenance: specified}   # capturemethod.temporalintegration, 10 samples
       frame_rate: {value: 1000, provenance: specified}       # detectorarray.clock.rate
       gain: {value: 1, provenance: specified}                # channel at_gain
@@ -84,7 +59,7 @@ descriptor:
 
   fidelity:
     modeled: [reflective and emissive radiance, atmospheric transmission and path radiance]
-    approximated: [detector noise, optics blur]
+    approximated: [detector noise, optics blur, sensor spectral response (synthetic QE and optics curves)]
     absent: [platform jitter]
     valid_for: >
       Scene-radiometry and sensor-chain studies at the modeled band, geometry and atmosphere.
@@ -116,7 +91,6 @@ engine:
     output_prefix: auror_nir_
     split_channels: false
     integration_samples: 10
-    channel_response: native   # reproduces the received platform: DIRSIG's own gaussian channel, peak 1/sqrt(2 pi) (CONOPS and Guide §9)
 
   motion:
     kind: static

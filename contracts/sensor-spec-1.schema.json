@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sensor-spec/1",
+  "title": "sensor-spec/1 (proposed; Detector_v02 field names, program extensions marked in CONOPS section 10)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["spec_version", "meta", "sensor"],
+  "properties": {
+    "spec_version": {"const": "sensor-spec/1"},
+    "meta": {
+      "type": "object", "additionalProperties": false, "required": ["name", "description"],
+      "properties": {"name": {"type": "string"}, "tags": {"type": "array", "items": {"type": "string"}},
+                     "description": {"type": "string"}}
+    },
+    "sensor": {
+      "type": "object", "additionalProperties": false, "required": ["sensor_system", "entries"],
+      "properties": {
+        "sensor_system": {"type": "object"},
+        "entries": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/entry"}}
+      }
+    }
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$", "maxLength": 128},
+    "quantity": {
+      "type": "object", "additionalProperties": false, "required": ["value", "provenance"],
+      "properties": {"value": {"type": "number", "minimum": 0}, "provenance": {"type": "string"}}
+    },
+    "curveRef": {
+      "type": "object", "additionalProperties": false, "required": ["name"],
+      "properties": {"name": {"type": "string", "pattern": "^spectral/(qe|optics|filter)/[^/]+\\.csv$"},
+                     "content_hash": {"type": "string", "pattern": "^sha256:([0-9a-f]{64}|<hash>)$"}}
+    },
+    "srfModel": {
+      "oneOf": [
+        {"type": "object", "additionalProperties": false, "required": ["kind", "center", "fwhm"],
+         "properties": {"kind": {"const": "gaussian"}, "center": {"type": "number", "exclusiveMinimum": 0},
+                        "fwhm": {"type": "number", "exclusiveMinimum": 0}}},
+        {"type": "object", "additionalProperties": false, "required": ["kind", "center", "width"],
+         "properties": {"kind": {"const": "rectangular"}, "center": {"type": "number", "exclusiveMinimum": 0},
+                        "width": {"type": "number", "exclusiveMinimum": 0}}}
+      ]
+    },
+    "channel": {
+      "type": "object", "additionalProperties": false,
+      "required": ["channel_id", "band", "band_center", "bandwidth", "radiometric_reference"],
+      "properties": {
+        "channel_id": {"$ref": "#/$defs/identifier"},
+        "band": {"type": "string"},
+        "band_center": {"type": "number"},
+        "bandwidth": {"type": "number"},
+        "srf_model": {"$ref": "#/$defs/srfModel"},
+        "srf_reference": {"$ref": "#/$defs/curveRef"},
+        "qe_reference": {"$ref": "#/$defs/curveRef"},
+        "qe_peak": {"$ref": "#/$defs/quantity"},
+        "radiometric_reference": {"type": "object"}
+      },
+      "oneOf": [{"required": ["srf_model"]}, {"required": ["srf_reference"]}]
+    },
+    "detector": {
+      "type": "object", "additionalProperties": false,
+      "required": ["DeviceVendorName", "DeviceModelName", "SensorWidth", "SensorHeight", "SensorPixelWidth",
+                   "SensorPixelHeight", "fill_factor", "channel_layout"],
+      "properties": {
+        "DeviceVendorName": {"type": ["string", "null"]}, "DeviceModelName": {"type": ["string", "null"]},
+        "SensorWidth": {"type": ["integer", "null"], "minimum": 1}, "SensorHeight": {"type": ["integer", "null"], "minimum": 1},
+        "SensorPixelWidth": {"type": "number", "exclusiveMinimum": 0}, "SensorPixelHeight": {"type": "number", "exclusiveMinimum": 0},
+        "fill_factor": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+        "channel_layout": {"type": "string"}
+      }
+    },
+    "focalPlane": {
+      "type": "object", "additionalProperties": false, "required": ["optical_path", "detector", "readout", "channels"],
+      "properties": {
+        "optical_path": {"type": "object"}, "detector": {"$ref": "#/$defs/detector"},
+        "readout": {"type": "object"},
+        "channels": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/channel"}}
+      }
+    },
+    "optics": {
+      "type": "object", "additionalProperties": false,
+      "required": ["aperture_diameter", "focal_length", "f_number", "throughput_in_band", "distortion"],
+      "properties": {
+        "aperture_diameter": {"type": "number", "exclusiveMinimum": 0, "description": "mm"},
+        "focal_length": {"type": "number", "exclusiveMinimum": 0, "description": "mm"},
+        "f_number": {"type": "number", "exclusiveMinimum": 0},
+        "throughput_in_band": {"$ref": "#/$defs/quantity"},
+        "throughput_reference": {"$ref": "#/$defs/curveRef"},
+        "distortion": {"type": "object"}
+      }
+    },
+    "entry": {
+      "type": "object", "additionalProperties": false,
+      "required": ["entry_id", "identity", "mount", "optics", "focal_planes"],
+      "properties": {
+        "entry_id": {"$ref": "#/$defs/identifier"}, "identity": {"type": "object"}, "mount": {"type": "object"},
+        "optics": {"$ref": "#/$defs/optics"},
+        "focal_planes": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/focalPlane"}}
+      }
+    }
+  }
+}

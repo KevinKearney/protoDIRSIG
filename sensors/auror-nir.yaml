@@ -30,8 +30,8 @@ sensor:
         sensor_class: staring_array
       mount: {kind: fixed, translation: [0, 0, 0], rotation: [1, 0, 0, 0]}
       optics:
-        aperture_diameter: 85.0         # properties.aperturediameter; unit not confirmed, assumed mm (A.9.1)
-        focal_length: 306.0             # properties.focallength; unit not confirmed, assumed mm (A.9.1); f/# = 306/85 = 3.6
+        aperture_diameter: 85.0         # mm; written to properties.aperturediameter in metres (0.085)
+        focal_length: 306.0             # mm; properties.focallength; f/# = 306/85 = 3.6
         f_number: 3.6
         throughput_in_band: {value: 0.875, provenance: specified}
         distortion: {model: none}
@@ -54,7 +54,8 @@ sensor:
             - channel_id: nir-b1
               band: NIR
               band_center: 0.85                    # channel.center, µm
-              bandwidth: 0.15                       # channel.width 0.0637 assumed Gaussian sigma; FWHM = 2.3548*sigma, not confirmed
+              bandwidth: 0.15                      # FWHM, um; equals srf_model.fwhm
+              srf_model: {kind: gaussian, center: 0.85, fwhm: 0.15}   # DIRSIG channel width = fwhm / 2.3548 (sigma, assumed; checked in tests/test_platform_render.py)
               radiometric_reference:
                 quantity: spectral_radiance
                 unit: "W/(m2.sr.um)"                # imagefile at_fluxunits=electronspersecond; enum for electron flux TBD (A.9.1)

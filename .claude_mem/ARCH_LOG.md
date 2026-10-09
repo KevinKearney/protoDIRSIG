@@ -222,3 +222,49 @@ test checks against) and renaming it in place to something like `motion_repo` (i
 resolution root parallel to `config_repo`, which it no longer is once motion/tasks are generated
 rather than resolved). A `tests/fixtures/` location makes its role — comparison data for the test
 suite, read by nothing in `src/protodirsig/` — unambiguous from the path alone.
+
+
+## 2026-10-09 — sensor model, generator, second sensor (decisions made unattended)
+
+Kevin: run Phases 0-4, choose VIS for the second sensor, decide and log. Decisions, in order made:
+
+- **Env.** Device python is 3.10 (5 tests fail on `fromisoformat` with 4-digit fractions). Made a 3.11 venv with uv
+  at `~/py311` on the device (outside mnt); full suite then 68 passed before changes. Renders: 500x500 takes
+  ~7 min; 16x16 takes ~3 s. Background processes do not survive a device_bash call, so renders run in the
+  foreground. Tests use a 16x16 window.
+- **Spectral schema follows Detector_v02, not mine.** Detector_v02 already separates `optics.throughput_reference`,
+  channel `srf_reference`, `qe_reference` (§4.4, §6.5-6.8) and says QE is defined at the channel and no field
+  asserts the pipeline stage. Adopted those names verbatim. `srf_model` (gaussian, rectangular) is program-minted
+  so AUROR's analytic channel needs no curve file (C-16). Hybrid = components in the spec, product in the generator.
+- **DIRSIG takes one response per channel.** Docs: `electronspersecond` assumes response is QE; channel shapes
+  gaussian/rectangular/triangular/tabulated. So the generator writes `tabulated` carrying optics x shape x QE.
+- **Template, not synthesis.** `engine.platform.ref` stays the template (names, truth collections, PSF, hypersampling,
+  bandpass). Generated bandpass is not changed: the template's 0.41-2.0 um is the job's spectral-data range; a
+  response over 0.1 % outside it is refused (clip check).
+- **Units.** Spec mm; DIRSIG aperturediameter m, focallength mm (confirmed by identity with the template).
+  fill_factor linear: element size = spacing x fill. Settings drive exposure, frame rate, gain, bias, ROI;
+  integration_samples from engine.platform. The old samples-vs-template check became circular and was replaced by a
+  render check (`check_library_files`).
+- **Finding: native gaussian peaks at 1/sqrt(2 pi).** Tabulated unit-peak gaussian (sigma = FWHM/2.3548) renders
+  2.5066x the native channel at every pixel (spread 5e-6 across pixels, so same width; amplitude is the
+  standard-normal density). The received AUROR_ref radiometry carries that 0.399. Decision: `channel_response`
+  engine option; `native` only for auror_ref (reproduction gate: generated platform == received, channel name
+  excluded since name = channel_id), `tabulated` default. `derive_run_spec` drops `native`. Backlog item.
+- **Reproduction gate is XML equality, not a render.** Equal numerics in the XML imply an identical render; a full
+  render is 7 min. Render tests compare tabulated variants of one another at 16x16: unity QE == no QE, folded
+  optics == scalar, QE x0.5 == 0.5 image, complementary QE windows sum to full band, native x sqrt(2 pi) ==
+  tabulated, GSD == pitch/f x range (horizontal; 3-D ECEF spacing is biased by terrain relief).
+- **Sweep model: one run spec per sensor, no run-time override** (C-18). `derive_run_spec` + committed
+  `run_specs/synthetic_vis.yaml`. Reason: a run spec should describe its run alone.
+- **Second sensor is invented and labelled synthetic** (`synthetic_600_200_vis_1920`), not an Eoptic product: 50 mm,
+  200 mm, 1920x1080 at 5.5 um, rectangular 0.45-0.75 um, silicon QE, lens curve. Chosen to differ from auror in
+  band, pitch, focal length, aperture, optics curve and QE.
+- **QE curves.** 1 nm over 0.150-14.000 um (README), zero outside detector support, compact-support smoothsteps.
+  Absolute-radiometry check not built (needs a known-radiance scene); backlog.
+- **Hashing.** sha256 of file bytes; `scripts/stamp_hashes.py` stamps and `--check`s; loaders verify stamped hashes
+  and ignore `sha256:<hash>`. Friction accepted (re-stamp after an intended edit). Scene refs left as placeholders.
+  `.gitattributes` pins LF for sensors/ and run_specs/ so hashes survive checkout.
+- **JSON Schema** for sensor-spec/1 in `contracts/` (jsonschema added to dev deps); replaces ad hoc key-set tests;
+  restated-field consistency tests (f/#, band_center/bandwidth vs srf_model, qe_peak vs curve max) stay in pytest.
+- **Not done:** run-spec JSON Schema (schema_errors still hand-written), multi-channel/multi-focal-plane, PSF,
+  absolute radiometry, real QE, notebook updates.

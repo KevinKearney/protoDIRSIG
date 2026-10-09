@@ -84,9 +84,24 @@ def test_corrupt_atmosphere_fails_execution(tmp_path):
             (lib / p.name).symlink_to(p)
     (lib / "atmosphere").mkdir()
     (lib / "atmosphere" / "AurorNewAtmosphere").write_bytes(b"not an hdf5 file")
-    c = Simulation.from_run_spec(SPEC, lib, tmp_path / "work").validate()
+    # The stamped hash would reject the corrupt file at resolution; a placeholder lets it reach DIRSIG.
+    path = broken_spec(tmp_path, lambda s: s["engine"]["atmosphere"]["database"]["ref"].update(content_hash="sha256:<hash>"))
+    c = Simulation.from_run_spec(path, lib, tmp_path / "work", SENSORS).validate()
     assert c.schema_ok and c.resolution_ok and not c.execution_ok
     assert "NewAtmosphere" in c.execution_error
+
+
+@needs_dirsig
+def test_stamped_hash_rejects_a_corrupt_asset_at_resolution(tmp_path):
+    lib = tmp_path / "config_repo"
+    lib.mkdir()
+    for p in CONFIG_REPO.iterdir():
+        if p.name != "atmosphere":
+            (lib / p.name).symlink_to(p)
+    (lib / "atmosphere").mkdir()
+    (lib / "atmosphere" / "AurorNewAtmosphere").write_bytes(b"not an hdf5 file")
+    c = Simulation.from_run_spec(SPEC, lib, tmp_path / "work").validate()
+    assert c.schema_ok and not c.resolution_ok and "stamp_hashes" in c.resolution_mismatches[0]
 
 
 def test_unparseable_spec_is_a_result(tmp_path):

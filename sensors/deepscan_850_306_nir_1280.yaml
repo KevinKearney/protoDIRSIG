@@ -31,8 +31,8 @@ sensor:
         sensor_class: staring_array
       mount: {kind: fixed, translation: [0, 0, 0], rotation: [1, 0, 0, 0]}
       optics:
-        aperture_diameter: 85.0          # from auror-nir; unit not confirmed, assumed mm (A.9.1)
-        focal_length: 306.0              # from auror-nir; unit not confirmed, assumed mm (A.9.1); f/# = 306/85 = 3.6
+        aperture_diameter: 85.0         # mm; written to properties.aperturediameter in metres (0.085)
+        focal_length: 306.0             # mm; properties.focallength; f/# = 306/85 = 3.6
         f_number: 3.6
         throughput_in_band: {value: 0.875, provenance: specified}
         distortion: {model: none}
@@ -55,7 +55,10 @@ sensor:
             - channel_id: nir-b1
               band: NIR
               band_center: 0.85                    # channel.center, um
-              bandwidth: 0.15                       # from auror-nir: channel.width 0.0637 assumed Gaussian sigma; FWHM = 2.3548*sigma, not confirmed
+              bandwidth: 0.15                      # FWHM, um; equals srf_model.fwhm
+              srf_model: {kind: gaussian, center: 0.85, fwhm: 0.15}   # DIRSIG channel width = fwhm / 2.3548 (sigma, assumed; checked in tests/test_platform_render.py)
+              qe_reference: {name: spectral/qe/synthetic_visgaas.csv, content_hash: "sha256:03f086de4625c3acf0bbf1275323db6b90f026c8a48df652a195155726fc082d"}
+              qe_peak: {value: 0.8, provenance: derived}   # maximum of qe_reference; synthetic placeholder until vendor data
               radiometric_reference:
                 quantity: spectral_radiance
                 unit: "W/(m2.sr.um)"                # enum for electron flux TBD (A.9.1)

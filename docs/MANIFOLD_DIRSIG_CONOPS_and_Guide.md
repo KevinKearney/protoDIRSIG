@@ -114,9 +114,12 @@ Members (Configuration_v02 A.8.1): `generator`, `scenes`, `platform`, `motion`, 
 - **`scenes[]`.** Library scene references with optional `[x,y,z]` offsets. `scene2hdf` compiles the HDF at
   run time beside the `.scene` file; the HDF is derived, outside the manifest, never pre-compiled in the
   library.
-- **`platform`.** References a library `.platform` by name and hash, with a `library_entry` whose `sensor`
-  instance is checked for equality. `output_prefix`, `split_channels`, `integration_samples`. The
-  `.platform` is not regenerated from `descriptor.sensor`.
+- **`platform`.** References a library `.platform` by name and hash; the file is a template. The generator
+  (`platform_gen`) substitutes every value `descriptor.sensor` and `descriptor.settings` model (section 4) and
+  keeps the rest: names, mount, truth collections, spatial response, hypersampling, bandpass.
+  `output_prefix`, `split_channels`, `integration_samples`, and `channel_response`: `tabulated` (default)
+  writes each channel as a tabulated response; `native` reproduces the received platform's DIRSIG gaussian
+  channel (section 9) and is used only by `auror_ref.yaml`.
 - **`motion`.** `static | waypoints | orbit`. Orbit propagation (skyfield + SGP4 with UT1–UTC) runs outside
   DIRSIG; only ECEF waypoint samples cross into the engine body.
 - **`tasks`.** `{start, stop}` windows relative to `descriptor.collection.epoch`; `start == stop` is one
@@ -156,7 +159,10 @@ sensor library, `sensors/`.
 An inline `descriptor.sensor` is rejected by the schema and resolution checks. The first entry is
 `sensors/auror-nir.yaml`.
 
-`content_hash` is authored and carried through; nothing computes or verifies it.
+`content_hash` on a file ref is the sha256 of the file bytes, stamped by `scripts/stamp_hashes.py` (`--check`
+fails on a stale hash). The loaders verify a stamped hash when they read the file; the `sha256:<hash>` placeholder
+is not verified. A `.scene` ref stays a placeholder because its geometry and materials sit beside it.
+MANIFOLD's canonical-JSON hash replaces this (C-12).
 
 Each focal plane carries a `detector` block: the physical device, whose properties are fixed.
 `DeviceVendorName`, `DeviceModelName`, `SensorWidth` and `SensorHeight` (the full frame), `SensorPixelWidth`,
@@ -165,9 +171,26 @@ The window DIRSIG models, usually a subset of the full frame, is the commanded `
 (`Width`, `Height`, `OffsetX`, `OffsetY`, SFNC names) in the run spec's `settings` member for the entry. The loader
 rejects a `settings` member whose `entry_id` matches no sensor entry, and a known `roi` that exceeds the
 detector's full frame.
-Library entries: `auror-nir` (AUROR_ref; vendor, model, and full frame not recorded) and
-`deepscan_850_306_nir_1280` (Eoptic DeepScan with a Teledyne SCION 1280 x 1024 VisGaAs sensor; optics and
-readout values pending).
+**Spectral model.** The response DIRSIG sees is the product of three factors that the spec keeps apart
+(Detector_v02 §4.4): `optics.throughput_reference` (transmission of the common path), the channel's shape
+(`srf_reference`, a curve, or the program-minted `srf_model`: `gaussian` with `center` and `fwhm`, or
+`rectangular` with `center` and `width`, peak 1), and `qe_reference` (absolute QE). References are
+`{name, content_hash}` to `spectral-curve/1` files under `sensors/spectral/<kind>/` (`sensors/spectral/README.md`).
+`optics.throughput_in_band` is the band mean of the optics curve, or, with no curve, the grey scalar written as
+DIRSIG's `aperturethroughput`; with a curve the generator writes `aperturethroughput` 1 and folds the curve into
+the channel, so the factors are applied once. A channel with no `qe_reference` has unit QE. The generator
+tabulates the product on the template's bandpass grid and refuses a channel whose response lies outside it
+(over 0.1 %), because the job's spectral data end there.
+
+Units: `aperture_diameter` and `focal_length` are millimetres; the generator writes DIRSIG's `aperturediameter`
+in metres and `focallength` in millimetres. `fill_factor` is the linear element size over spacing. A generated
+channel is named by its `channel_id`, which becomes the ENVI band name.
+
+Library entries: `auror-nir` (AUROR_ref; vendor, model, and full frame not recorded; no QE), `deepscan_850_306_nir_1280`
+(Eoptic DeepScan, Teledyne SCION 1280 x 1024 VisGaAs; synthetic QE until vendor data), and
+`synthetic_600_200_vis_1920` (an invented VIS camera: 50 mm, 200 mm, 1920 x 1080 at 5.5 um, synthetic silicon QE
+and lens curves). A different sensor is a different run spec: `run_specs/synthetic_vis.yaml` is `auror_ref.yaml`
+with that sensor, and `run_spec.derive_run_spec` makes one. There is no run-time sensor override.
 
 Several required `sensor` fields have no DIRSIG source (`SensorShutterMode`, `AdcBitDepth`,
 `timestamp_reference`, `optical_path`, `system_id`, `reference_frame`). They are assigned in the library entry
@@ -201,8 +224,8 @@ Refs resolve by which side of the schema they sit on.
 
 Each library folder is a resolution root and maps to a future MANIFOLD repository. Any `descriptor` ref
 added later resolves against its own library, regardless of where the engine-asset library lives. `config_repo/` is read-only at run time. A job directory holds a scene reference
-copy, byte-identical copies of resolved library files (geometry and materials symlinked back to the library),
-and the generated motion and tasks files.
+copy (geometry and materials symlinked back to the library), byte-identical copies of the weather file and
+atmosphere database, the `.platform` rendered by `platform_gen`, and the generated motion and tasks files.
 
 `config_repo/` follows Configuration_v02 A.8.3 for `scenes/` and `platforms/`. The nesting is also DIRSIG's
 own convention: `$SCENE_DIR` defaults to the `.scene` file's folder, and the reference layout nests
@@ -246,6 +269,8 @@ test fixture.
 | Module | Role | Status |
 |---|---|---|
 | `run_spec` | run-spec loader and AUROR resolver | `built, partial` |
+| `platform_gen` | `.platform` rendered from the library template, `sensor-spec/1` and `settings` | `built` (one focal plane per entry) |
+| `spectral` | `spectral-curve/1` reader, channel shapes, response composition | `built` |
 | `motion_tasks` | `.ppd` and `.tasks` generation from `engine.motion`, `engine.tasks` | `built, partial` (static) |
 | `simulation` | schema, resolution, execution checks; render | `built` |
 | `registry` | `LocalRegistry`: local stand-in for submission | `built` |
@@ -317,6 +342,21 @@ documentation.
   `[error]`-line check.
 - `LightCurve` plugin: magnitude-vs-time diagnostic, not an imager, incompatible with `new_atmosphere`.
 
+**Sensor radiometry**
+
+- A DIRSIG native gaussian channel with `normalize="false"` has peak 1/√(2π) = 0.399 and its `width` is σ. A
+  tabulated unit-peak gaussian with σ = FWHM/2.3548 differs from it by √(2π) at every pixel
+  (`tests/test_sensor_render.py`). The received AUROR_ref electrons are therefore 0.399 times those of a
+  unit-peak channel; `channel_response: native` keeps them, `tabulated` does not.
+- A tabulated channel with `normalize="false"` and `fluxunits="electronspersecond"` is absolute: DIRSIG treats the
+  response as quantum efficiency. The image scales linearly with it, two complementary QE windows sum to the
+  full-band image, and `aperturethroughput` 1 with the optics curve folded into the channel equals the scalar
+  `aperturethroughput`.
+- `aperturediameter` is in metres and `focallength` in millimetres. Adjacent-pixel horizontal spacing on the
+  ground equals pitch / focal length × range within 1 % (three sensors, nadir view).
+- Scene material curves cover 0.40-15.6 µm against scene wavelengths 0.35-2.55 µm (DIRSIG warns). The job's
+  bandpass is the template's 0.41-2.0 µm.
+
 **Scene data**
 
 - The AUROR atmosphere database was built for western NY (43.12 N, −78.45, 250 m), not Tahoe; the tasks
@@ -348,5 +388,8 @@ One row per interface item. `Outcome` is filled after review with the MANIFOLD t
 | C-10 | `engine.platform.output_prefix` | applying it renames outputs and breaks tree reproduction; it appears in no file of the tree | `open` | |
 | C-11 | Illustrative instances in Metadata_v02 §6.11 and Configuration_v02 A.8.10 | `meta.name: tacoma-nir-baseline` is stale (values are AUROR); `scenes/tahoe` path matches the nested layout, not the flat received tree; `four_curve` should be `new_atmosphere` | `open` | |
 | C-12 | Strict loader and hashing | duplicate and unknown key rejection, canonical-JSON hashing, `content_hash` verification belong on the registry side; not built here | `open` | |
+| C-16 | Spectral references | `optics.throughput_reference`, `qe_reference`, `srf_reference` are Detector_v02 names, resolved to `spectral-curve/1` CSV files (`{name, content_hash}`). `srf_model` (gaussian, rectangular) is a program-minted analytic alternative to `srf_reference`. Absent `qe_reference` means unit QE. The generator, not the spec, decides how the factors reach the engine | `proposed` | |
+| C-17 | `engine.platform.channel_response` | `tabulated` (default) or `native`; DIRSIG-specific, so engine-side. `native` exists to reproduce a received platform whose gaussian channel peaks at 1/√(2π) | `proposed` | |
+| C-18 | One run spec per sensor | a sensor change is a new run spec (`derive_run_spec`), not a run-time override, so a run spec describes its run alone | `proposed` | |
 | C-14 | Detector manufacturer and model | `focal_planes[].detector.DeviceVendorName` and `DeviceModelName` (SFNC names, Detector_v02 §6.3); placement in the focal plane rather than `identity` | `proposed` | |
 | C-15 | Full frame versus modeled window | `detector` is the Detector_v02 `array` block (SFNC `SensorWidth`, `SensorHeight`, pitch, `fill_factor`, `channel_layout`, all the full sensor) plus vendor and model, under a different block name. The window DIRSIG models is the commanded `roi` (SFNC `Width`, `Height`, `OffsetX`, `OffsetY`) in run-spec `settings`, as Detector_v02 treats a region of interest | `proposed` | |

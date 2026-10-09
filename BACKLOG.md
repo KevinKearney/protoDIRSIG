@@ -14,17 +14,14 @@ Default off; global. The reference render has the same black vehicle, and three 
 byte-identical renders. Enable only for scenarios with an intended hot emitter. Needs a decision, then an
 `engine.run` field or a `Simulation` option.
 
-### Modeled window written into the `.platform`
-`roi` is a run-spec `settings` member (Detector_v02 treats it as commanded). DIRSIG's `.platform` fixes the array
-size (`detectorarray.xelementcount`, `yelementcount`), so the generator still uses the `.platform` from
-`config_repo/`. Writing the window from `settings.roi` into a generated `.platform` is not built; until then the
-`roi` in `run_specs/auror_ref.yaml` records the window and is not applied. Confirm the placement with MANIFOLD (TBR).
+### Modeled window and per-sensor run specs: placement (TBR)
+`roi` is a run-spec `settings` member and the generator writes it into the `.platform` (Detector_v02 treats it as
+commanded). Confirm with MANIFOLD, with C-18 (one run spec per sensor, no run-time override).
 
 ### Confirm the DeepScan values carried from auror-nir
 `sensors/deepscan_850_306_nir_1280.yaml` copies optics (85 mm, 306 mm, f/3.6), throughput 0.875, shutter, ADC
-depth 14, fill factor 1.0, band width, reference frame, and mount from
-`auror-nir`. Confirm against the DeepScan design and the SCION datasheet. Remaining null: Teledyne part
-number.
+depth 14, fill factor 1.0, band width, reference frame, and mount from `auror-nir`. Confirm against the DeepScan
+design and the SCION datasheet. Remaining null: Teledyne part number. Its QE is `synthetic_visgaas`.
 
 ### `engine.platform.output_prefix: auror_nir_` is not applied
 Applying it renames the outputs and breaks reproduction of the tree. It appears in no file in the tree, so it
@@ -34,9 +31,10 @@ looks like an authoring choice in the YAML. Settle with MANIFOLD.
 Engine assets resolve against `config_repo/`, the sensor ref against `sensors/`, motion and
 tasks are generated. Still open: whether inline `descriptor.sensor` stays disallowed (the code rejects it).
 
-### Strict loader and content hashing (MANIFOLD registry side)
-Duplicate-key and unknown-key rejection, canonical-JSON hashing, and `content_hash` verification are not
-built. The loader is plain `yaml.safe_load`; the hashes are placeholders.
+### Strict loader and canonical hashing (MANIFOLD registry side)
+Duplicate-key and unknown-key rejection and canonical-JSON hashing are not built. The loader is plain
+`yaml.safe_load`. `content_hash` is the sha256 of file bytes (`scripts/stamp_hashes.py`), verified when stamped; a
+`.scene` ref is not stamped, since geometry and materials sit beside it. Replace the stamp with the registry's hash.
 
 ### Compile-once
 `submit` then `run()` runs `scene2hdf` twice. Irrelevant for one job, material for sweeps.
@@ -56,6 +54,32 @@ It accepts only `new_atmosphere`, ephemeris `spice`, weather `library`, one scen
 ### Waypoint and orbit motion generation
 Motion generation covers `kind: static` only. Waypoints and orbits need `dirfm.FlexMotion` and a design
 decision.
+
+## Sensor model
+
+### Real QE and optics data
+Replace `synthetic_visgaas` with the Teledyne SCION curve (vendor typical or measured) under a new name, with
+`provenance` set; state whether the quoted QE includes the die window or microlens. Likewise
+`synthetic_silicon` and `synthetic_vis_lens` if a real VIS sensor replaces the invented one.
+
+### Absolute radiometric check
+The render tests establish shape, linearity, additivity and geometry (`tests/test_sensor_render.py`) but not the
+absolute electron count. That needs a scene with a known radiance (uniform source or a known-reflectance target
+under a known irradiance) and the analytic integral of L(λ)·τ·QE(λ)·A·Ω·t·λ/hc over the response.
+
+### Received AUROR_ref radiometry carries a 0.399 factor
+Its native gaussian channel peaks at 1/√(2π) (CONOPS section 9). Decide whether `auror_ref.yaml` stays `native`
+(reproduces the tree) or moves to `tabulated` (unit peak) and its reference renders are regenerated.
+
+### Generator scope
+One focal plane per entry; the template's single channel pattern is cloned per channel. Instrument and focal
+plane names, truth collections, spatial response (PSF), and hypersampling stay as the template has them and are
+not driven by the sensor-spec. `throughput_in_band` is checked against the optics curve only in the tests.
+Multi-band channels, beam-split optical paths, and `.platform` noise models are not generated.
+
+### Spectral grid
+Curves are 1 nm over 0.150-14.000 µm. Channels are tabulated on the template's 0.41-2.0 µm bandpass; a sensor
+needing the UV or LWIR needs a template with that bandpass and scene and atmosphere data to match.
 
 ## SDK and run-spec engine
 
