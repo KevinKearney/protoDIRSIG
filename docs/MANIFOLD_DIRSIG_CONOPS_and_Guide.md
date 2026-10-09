@@ -197,6 +197,11 @@ and the generated motion and tasks files.
 own convention: `$SCENE_DIR` defaults to the `.scene` file's folder, and the reference layout nests
 `geometry/`, `materials/`, `maps/` there.
 
+Library assets are real files. The MANIFOLD hashing procedure rejects symlinks (Configuration_v02 §2.3), and
+symlinks appear only in the per-run view the executor builds (AD A-42). `config_repo/` therefore holds no
+symlinks. Data that ships with the DIRSIG installation (`FourCurveAtmosphere` presets, SPICE kernels, demo
+scenes) is not copied into it: presets are referenced by name and covered by the installation's data hash.
+
 A top-level folder exists here only if it has a MANIFOLD analog. `AUROR_ref/` had none and is retired to the
 test fixture.
 

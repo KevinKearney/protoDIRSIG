@@ -113,6 +113,13 @@ the errors or delete the file once its content is absorbed into the CONOPS.
 Notebook first cells set `DIRSIG_HOME` and locate `dirfm` by home-relative paths. Switch them to
 `external/` (the `dirsig` link and `dirsig-file-maker`) so the bootstrap is the only setup step.
 
+### Asset manifest for large scenes and databases
+`config_repo/` holds real files, so scenes and databases over about 50 MB cannot go in git. Add a manifest
+(name, sha256, size, source) and a `bootstrap.py assets` step that copies each asset from its source (the
+DIRSIG install for shipped demo scenes such as Tacoma and HarvardForest, an artifact store for acquired ones)
+into a gitignored `config_repo/` path and verifies the hash. Decide LFS versus a content-addressed store
+first. Each new scene also needs a matched atmosphere database, weather file, and platform.
+
 ### CI job
 Run `scripts/bootstrap.py status`, then the test suite, on a clean clone. Needs a runner with a DIRSIG
 install or a container image that has one.
