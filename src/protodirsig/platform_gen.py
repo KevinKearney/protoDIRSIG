@@ -11,6 +11,8 @@ instrument with no other edit. Values substituted, with the units DIRSIG expects
                                                  optics.throughput_reference folds the optics curve
                                                  into the channel (the factors multiply)
   detectorarray           xelementcount/yelementcount = settings.roi Width/Height (full frame if absent)
+                          xarrayoffset/yarrayoffset [um] = (roi Offset + size/2 - full frame/2) x pitch,
+                          0 for a null offset (a centred window)
                           xelementspacing/yelementspacing = pitch [um]; element size = pitch x fill_factor
                           clock rate [Hz] = settings.frame_rate
   temporalintegration     time [s] = settings.exposure_time; samples = engine.platform.integration_samples
@@ -23,7 +25,9 @@ instrument with no other edit. Values substituted, with the units DIRSIG expects
                           DIRSIG's own shape instead (see render_platform).
 
 Left as the template has them: names, truth collections, spatial response, hypersampling, bandpass,
-image file base names (`engine.platform.output_prefix` is not applied; BACKLOG).
+image file base names (`engine.platform.output_prefix` is not applied; BACKLOG). A modeled value the
+template cannot express (a non-identity mount, distortion, a mosaic layout, a rolling shutter, a timestamp
+other than exposure start) is refused, not dropped (`_check_unwritten`).
 """
 import copy
 from dataclasses import dataclass, field
@@ -35,6 +39,7 @@ from protodirsig.spectral import FWHM_PER_SIGMA, SpectralError, band_grid, resol
 from protodirsig.spectral import channel_response as compose_response
 
 CLIP_LIMIT = 1e-3       # response fraction allowed outside the template bandpass
+X_OFFSET_SIGN = Y_OFFSET_SIGN = 1     # SFNC OffsetX/Y (from the full frame's first column/row) to DIRSIG array offset
 
 
 class PlatformGenError(ValueError):
@@ -84,6 +89,46 @@ def _q(x):
     return x["value"] if isinstance(x, dict) else x
 
 
+def _array_offset(offset, size, full, pitch, sign, entry_id, name):
+    """DIRSIG `<x|yarrayoffset>` [um]: the window centre's displacement from the full-frame centre. A null
+    offset is a centred window (0)."""
+    if offset is None:
+        return 0.0
+    if full is None:
+        raise PlatformGenError(f"entry {entry_id!r}: roi {name} {offset} needs the detector's full frame, which is null")
+    return sign * (offset + size / 2.0 - full / 2.0) * pitch
+
+
+def _check_unwritten(entry, fp):
+    """Refuse a modeled value the generator does not write, unless it is what the template already does.
+
+    The template is a fixed-mount, distortion-free, single-channel-layout, global-shutter camera whose
+    capture starts at the task time. A sensor-spec saying otherwise would be rendered as that camera with no
+    error, so it is refused here (BACKLOG "Generator scope"). `AdcBitDepth` is not checked: DIRSIG quantizes
+    only inside its detector model, which the generator does not enable, so the output is electrons at any depth.
+    """
+    eid, problems = entry["entry_id"], []
+    mount = entry.get("mount") or {}
+    if (mount.get("kind") != "fixed" or list(mount.get("translation", [0, 0, 0])) != [0, 0, 0]
+            or list(mount.get("rotation", [1, 0, 0, 0])) != [1, 0, 0, 0]):
+        problems.append(f"mount {mount} (only a fixed identity mount is generated)")
+    model = (entry["optics"].get("distortion") or {}).get("model", "none")
+    if model != "none":
+        problems.append(f"optics.distortion.model {model!r} (only 'none' is generated)")
+    if fp["detector"].get("channel_layout") != "single":
+        problems.append(f"channel_layout {fp['detector'].get('channel_layout')!r} (only 'single'; a mosaic needs "
+                        "DIRSIG's <channelpattern>)")
+    readout = fp.get("readout") or {}
+    if readout.get("SensorShutterMode", "Global") != "Global":
+        problems.append(f"SensorShutterMode {readout['SensorShutterMode']!r} (only Global; DIRSIG's rolling shutter "
+                        "needs a line readout time, detectorarray@rollingreadout, that the sensor-spec does not carry)")
+    if readout.get("timestamp_reference", "exposure_start") != "exposure_start":
+        problems.append(f"timestamp_reference {readout['timestamp_reference']!r} (DIRSIG integrates from the task "
+                        "time, so only 'exposure_start' is generated)")
+    if problems:
+        raise PlatformGenError(f"entry {eid!r}: not generated: " + "; ".join(problems))
+
+
 def check_template(template):
     """Structure problems in a template platform file; empty means it can be rendered."""
     try:
@@ -116,6 +161,7 @@ def render_platform(template, sensor_doc, entry_id, settings, integration_sample
         raise PlatformGenError(f"entry {entry_id!r}: only one focal plane per entry is generated")
     fp = entry["focal_planes"][0]
     opt, det = entry["optics"], fp["detector"]
+    _check_unwritten(entry, fp)
 
     props = _single(root, ".//instrument/properties")
     optics_curve = None
@@ -131,7 +177,11 @@ def render_platform(template, sensor_doc, entry_id, settings, integration_sample
     if width is None or height is None:
         raise PlatformGenError(f"entry {entry_id!r}: no roi in settings and no full frame in the detector block")
     px, py, fill = det["SensorPixelWidth"], det["SensorPixelHeight"], det["fill_factor"]
+    xoff, yoff = (_array_offset(roi.get(o), size, det[full], pitch, sign, entry_id, o)
+                  for o, size, full, pitch, sign in (("OffsetX", width, "SensorWidth", px, X_OFFSET_SIGN),
+                                                     ("OffsetY", height, "SensorHeight", py, Y_OFFSET_SIGN)))
     for tag, val in (("xelementcount", str(int(width))), ("yelementcount", str(int(height))),
+                     ("xarrayoffset", f"{xoff:.6f}"), ("yarrayoffset", f"{yoff:.6f}"),
                      ("xelementspacing", f"{px:.6f}"), ("yelementspacing", f"{py:.6f}"),
                      ("xelementsize", f"{px * fill:.6f}"), ("yelementsize", f"{py * fill:.6f}")):
         _set(arr, tag, val)

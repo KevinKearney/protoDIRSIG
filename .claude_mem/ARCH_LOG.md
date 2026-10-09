@@ -294,3 +294,30 @@ Kevin unavailable; prompt.md "Sensor model, round two". Decisions in order made:
   - Recommended default `--pad-zero-to 0.150,14.000` (library range), not the template's 0.41-2.0: a curve is a
     detector property and must not be tied to one template's bandpass; the clip check then sees the whole
     response. Stated in sensors/spectral/README.md. No implicit padding anywhere (Curve.at unchanged).
+- **Step 2, native rectangular.** Measured with 16x16 renders: native rect = tabulated rect with edge samples 1/2
+  (grid-aligned edges, ratio 1.000003); inclusive/exclusive are off by ∓0.6 %. Off-grid edges: a least-squares fit
+  over 12 single-sample (delta) channels plus a core band (residual 1e-10, cond 1.6e7) gives ringing edge weights
+  (-0.21/1.21 at a half-step edge), integral = width. Decision: change `srf_model_values` rectangular from
+  inclusive to bin-fraction weights. Reasons: integral equals `width` exactly; identical to native for grid-aligned
+  edges (all library sensors). Effect: synthetic VIS (0.45-0.75 grid-aligned) loses half of each edge sample,
+  ~-0.3 % signal; no committed render pins it. DIRSIG's off-grid ringing is not imitated (≤0.3 %).
+- **Step 2, guards.** Entries != 1, focal planes != 1, settings != 1 now fail in `resolve_auror_run` (before
+  check_library_files and any assembly). Previously two entries were silently accepted (the settings member picked
+  one). Settings-count message rewritten to cover a missing list.
+- **Step 2, split_channels.** First scratch attempt "dry run rejects split" was wrong: my script lacked DIRSIG on
+  PATH, then used a relative config_repo (broken symlinks). With both fixed: native and tabulated, split=true is
+  accepted by LocalRegistry and the render fails "Missing spectral/temporal state in atmosphere database", even for
+  one channel. Decision: refuse at resolution (a submit that passes must render). Test bypasses the refusal with
+  dataclasses.replace to pin the render failure; it flags when a database with per-channel states lifts it.
+- **Step 2, offsets.** ROI OffsetX/Y were modeled and not written. DIRSIG `x/yarrayoffset` (um, detectorarray
+  spatialunits) = (offset + size/2 - full/2) x pitch; sign +1 both axes, confirmed by four 16x16 quadrants vs a
+  centred 32x32 window (mean ECEF diff <=0.2 m at 16 m GSD; per-pixel ~2 m is sampling). Null offset = 0 (centred,
+  the existing behaviour); offset with null full frame refused. Test uses one quadrant (top-right) so x and y
+  signs are both pinned.
+- **Step 2, unwritten values.** Docs/demos: rolling shutter is `detectorarray@rollingreadout` (RollingShutter1
+  demo; not in basicplatform_plugin.html text); ADC is `<detectormodel><bitdepth>` with min/max electrons and noise
+  terms; flips `x/yflipaxis`. Decision: refuse what the template cannot express (non-identity mount, distortion,
+  non-single layout, Rolling, timestamp != exposure_start) instead of dropping it; AdcBitDepth, flips, vendor/model,
+  radiometric_reference listed in BACKLOG "Generator scope", not refused (they do not change the electrons image).
+  timestamp: DIRSIG log `relative_time_window` [0, 0.005] -> integration starts at the task time.
+- **Step 2, CONOPS C-19** (open): one entry per job is a MANIFOLD-facing limit.

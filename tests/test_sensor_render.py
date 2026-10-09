@@ -7,6 +7,10 @@
 - Folding the optics throughput into the channel (aperturethroughput 1) equals the scalar aperturethroughput:
   the factors multiply, so a scalar and a curve are not both applied.
 - QE scales the image linearly.
+- DIRSIG's native rectangular channel has unit amplitude, and an edge on a bandpass grid point weighs 1/2,
+  as `srf_model_values` writes it.
+- A two-channel entry renders a two-band image whose bands equal the single-channel renders; the window's
+  offset in the full frame places it where it sits in a larger window.
 """
 import os
 import shutil
@@ -81,17 +85,23 @@ def variant(tmp_path, edit):
     return lib
 
 
-def render(tmp_path, lib, ref="variant.yaml", entry_id="auror-nir", roi=None, tag="r", native=False, truth=False):
+def simulation(tmp_path, lib, ref="variant.yaml", entry_id="auror-nir", roi=None, tag="r", native=False, edit=None):
     spec = derive_run_spec(load_run_spec(SPEC), ref, entry_id, roi=roi or {"Width": 16, "Height": 16}, name=tag)
     if native:
         spec["engine"]["platform"]["channel_response"] = "native"
+    if edit:
+        edit(spec)
     work = tmp_path / tag
     work.mkdir()
     (work / "spec.yaml").write_text(yaml.safe_dump(spec, sort_keys=False))
-    sim = Simulation.from_run_spec(work / "spec.yaml", CONFIG_REPO, work_dir=work / "w", sensor_library=lib)
-    out = sim.run()
-    if truth:
-        return np.fromfile(out.truth[0], dtype="<f8").reshape(16, 16, 6)     # geodetic lat, lon, alt; ECEF x, y, z
+    return Simulation.from_run_spec(work / "spec.yaml", CONFIG_REPO, work_dir=work / "w", sensor_library=lib)
+
+
+def render(tmp_path, lib, ref="variant.yaml", entry_id="auror-nir", roi=None, tag="r", native=False, truth=False):
+    roi = roi or {"Width": 16, "Height": 16}
+    out = simulation(tmp_path, lib, ref, entry_id, roi, tag, native).run()
+    if truth:     # geodetic lat, lon, alt; ECEF x, y, z
+        return np.fromfile(out.truth[0], dtype="<f8").reshape(roi["Height"], roi["Width"], 6)
     return np.fromfile(out.image, dtype="<f8")
 
 
@@ -176,3 +186,60 @@ def test_complementary_qe_windows_sum_to_the_full_band(tmp_path, baseline):
     lo, hi = window(0.0, 0.85, "lo"), window(0.85, 99.0, "hi")
     assert (lo > 0).all() and (hi > 0).all()
     np.testing.assert_allclose(lo + hi, baseline, rtol=1e-4)
+
+
+@needs_dirsig
+def test_native_rectangular_is_unit_peak_with_half_weight_edges(tmp_path):
+    """Grid-aligned edges (0.775, 0.925 um on the 1 nm bandpass): native equals the tabulated rectangle whose
+    edge samples are 1/2. Inclusive edges would be 0.6 % brighter, exclusive 0.6 % darker."""
+    lib = variant(tmp_path, lambda lib, e, ch: ch.update(srf_model={"kind": "rectangular", "center": 0.85, "width": 0.15}))
+    native = render(tmp_path, lib, tag="native", native=True)
+    np.testing.assert_allclose(render(tmp_path, lib, tag="tab"), native, rtol=2e-5)
+
+
+B2 = {"channel_id": "nir-b2", "band": "SWIR", "band_center": 1.25, "bandwidth": 0.1,
+      "srf_model": {"kind": "gaussian", "center": 1.25, "fwhm": 0.1},
+      "radiometric_reference": {"quantity": "spectral_radiance", "unit": "W/(m2.sr.um)"}}
+
+
+@needs_dirsig
+def test_two_channel_entry_renders_two_bands(tmp_path, baseline):
+    """Each band of a two-channel render equals the single-channel render of that channel, value for value
+    (one spectral state for the focal plane: `split_channels` false)."""
+    (tmp_path / "lib2").mkdir()
+    (tmp_path / "lib_b2").mkdir()
+    two = variant(tmp_path / "lib2", lambda lib, e, ch: e["focal_planes"][0]["channels"].append(dict(B2)))
+    only_b2 = variant(tmp_path / "lib_b2", lambda lib, e, ch: e["focal_planes"][0].update(channels=[dict(B2)]))
+    out = simulation(tmp_path, two, tag="two").run()
+    hdr = Path(f"{out.image}.hdr").read_text()
+    assert "bands = 2" in hdr and "nir-b1,nir-b2" in hdr
+    img = np.fromfile(out.image, dtype="<f8").reshape(16, 16, 2)             # BIP
+    np.testing.assert_array_equal(img[..., 0].ravel(), baseline)
+    np.testing.assert_array_equal(img[..., 1].ravel(), render(tmp_path, only_b2, tag="b2only"))
+
+
+@needs_dirsig
+def test_split_channels_render_fails_with_this_atmosphere_database(tmp_path):
+    """Why `resolve_auror_run` refuses `split_channels: true`: one spectral state per channel, which the AUROR
+    NewAtmosphere database does not hold. The dry run passes; the render fails. If this test starts failing
+    because the render succeeds, the refusal can go."""
+    import dataclasses
+    sim = simulation(tmp_path, LIB, "auror-nir.yaml", tag="split")
+    sim.auror_run = dataclasses.replace(sim.auror_run, split_channels=True)      # past the resolution refusal
+    c = sim.validate()
+    assert (c.schema_ok, c.resolution_ok, c.execution_ok) == (True, True, True), c
+    with pytest.raises(RuntimeError, match="Missing spectral/temporal state in atmosphere database"):
+        sim.run()
+
+
+@needs_dirsig
+def test_roi_offset_places_the_window_in_the_full_frame(tmp_path):
+    """A 16 x 16 window at OffsetX 640, OffsetY 496 of DeepScan's 1280 x 1024 frame images the top-right
+    quadrant of the centred 32 x 32 window (OffsetX 624, OffsetY 496). Per-pixel geolocation differs by the
+    sampling (~2 m at 16 m GSD); a wrong sign or axis would shift it by 16 pixels."""
+    ref, eid = "deepscan_850_306_nir_1280.yaml", "deepscan-850-306-nir-1280"
+    big = render(tmp_path, LIB, ref, eid, {"Width": 32, "Height": 32, "OffsetX": 624, "OffsetY": 496}, "big", truth=True)
+    quad = render(tmp_path, LIB, ref, eid, {"Width": 16, "Height": 16, "OffsetX": 640, "OffsetY": 496}, "q", truth=True)
+    d = np.linalg.norm(quad[..., 3:6] - big[:16, 16:, 3:6], axis=-1)
+    gsd = 10e-6 / 0.306 * 500000.0
+    assert np.median(d) < 0.25 * gsd and np.linalg.norm((quad[..., 3:6] - big[:16, 16:, 3:6]).mean((0, 1))) < 0.05 * gsd

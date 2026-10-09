@@ -119,7 +119,8 @@ Members (Configuration_v02 A.8.1): `generator`, `scenes`, `platform`, `motion`, 
   keeps the rest: names, mount, truth collections, spatial response, hypersampling, bandpass.
   `output_prefix`, `split_channels`, `integration_samples`, and `channel_response`: `tabulated` (default)
   writes each channel as a tabulated response; `native` reproduces the received platform's DIRSIG gaussian
-  channel (section 9) and is used only by `auror_ref.yaml`.
+  channel (section 9) and is used only by `auror_ref.yaml`. `split_channels: true` is refused at resolution:
+  it asks for one spectral state per channel, which the `new_atmosphere` database does not hold (section 9).
 - **`motion`.** `static | waypoints | orbit`. Orbit propagation (skyfield + SGP4 with UT1–UTC) runs outside
   DIRSIG; only ECEF waypoint samples cross into the engine body.
 - **`tasks`.** `{start, stop}` windows relative to `descriptor.collection.epoch`; `start == stop` is one
@@ -168,13 +169,19 @@ Each focal plane carries a `detector` block: the physical device, whose properti
 `DeviceVendorName`, `DeviceModelName`, `SensorWidth` and `SensorHeight` (the full frame), `SensorPixelWidth`,
 `SensorPixelHeight`, `fill_factor`, `channel_layout`. A value not known is `null`, never a guess.
 The window DIRSIG models, usually a subset of the full frame, is the commanded `roi` setting
-(`Width`, `Height`, `OffsetX`, `OffsetY`, SFNC names) in the run spec's `settings` member for the entry. The loader
-rejects a `settings` member whose `entry_id` matches no sensor entry, and a known `roi` that exceeds the
-detector's full frame.
+(`Width`, `Height`, `OffsetX`, `OffsetY`, SFNC names) in the run spec's `settings` member for the entry. The
+generator writes the window's size as DIRSIG's element counts and its offset as the array offset, (offset +
+size/2 − full frame/2) × pitch in µm, so a window images the part of the field its offset names; a null offset is
+a centred window, and an offset with a null full frame is refused. The loader rejects a `settings` member whose
+`entry_id` matches no sensor entry, and a known `roi` that exceeds the detector's full frame.
+A job models one sensor entry with one focal plane and one `settings` member; a sensor-spec with more entries
+or focal planes, or a `settings` list of another length, fails at resolution with a specific error. A focal plane
+may carry several channels; each becomes one band of the image.
 **Spectral model.** The response DIRSIG sees is the product of three factors that the spec keeps apart
 (Detector_v02 §4.4): `optics.throughput_reference` (transmission of the common path), the channel's shape
 (`srf_reference`, a curve, or the program-minted `srf_model`: `gaussian` with `center` and `fwhm`, or
-`rectangular` with `center` and `width`, peak 1), and `qe_reference` (absolute QE). References are
+`rectangular` with `center` and `width`, peak 1, an edge sample weighted by the fraction of its grid bin inside
+the band), and `qe_reference` (absolute QE). References are
 `{name, content_hash}` to `spectral-curve/1` files under `sensors/spectral/<kind>/` (`sensors/spectral/README.md`).
 Vendor and measured curves enter through `scripts/import_curve.py`, which keeps the source grid, converts nm and
 percent, refuses out-of-range values, and records `source`, `acquired` and the measured range. A curve is never
@@ -198,7 +205,11 @@ with that sensor, and `run_spec.derive_run_spec` makes one. There is no run-time
 
 Several required `sensor` fields have no DIRSIG source (`SensorShutterMode`, `AdcBitDepth`,
 `timestamp_reference`, `optical_path`, `system_id`, `reference_frame`). They are assigned in the library entry
-with `provenance: specified` or `modeled`, not read from any DIRSIG file. `entry_id` joins each sensor entry
+with `provenance: specified` or `modeled`, not read from any DIRSIG file. A value the template camera cannot
+express is refused by the generator rather than dropped: a mount other than fixed identity, a distortion model,
+a channel layout other than `single`, a shutter other than `Global`, a `timestamp_reference` other than
+`exposure_start` (DIRSIG integrates from the task time). `AdcBitDepth` is not written: the image is in
+electrons, and DIRSIG quantizes only inside its detector model, which is not generated. `entry_id` joins each sensor entry
 to its `settings` member in the run spec.
 
 ## 5. Repository layout and resolution roots `built`
@@ -352,12 +363,25 @@ documentation.
   tabulated unit-peak gaussian with σ = FWHM/2.3548 differs from it by √(2π) at every pixel
   (`tests/test_sensor_render.py`). The received AUROR_ref electrons are therefore 0.399 times those of a
   unit-peak channel; `channel_response: native` keeps them, `tabulated` does not.
+- A DIRSIG native rectangular channel has peak 1 (not normalized) and integrates to its `width`. An edge on a
+  bandpass grid point weighs 1/2, neither inclusive nor exclusive: native equals the tabulated rectangle with
+  half-weight edge samples to 3e-6, and inclusive or exclusive edges differ by ±0.6 % for a 0.15 µm band
+  (`tests/test_sensor_render.py`). An edge between grid points is spread over the neighbouring samples with
+  negative side lobes (fitted weights −0.21, 1.21 for an edge half a step from a sample), so native and a
+  tabulated rectangle with fractional edge weights differ by up to 0.3 % there. The generator's tabulated
+  rectangle uses fractional edge weights.
+- `split_channels: true` makes `BasicPlatform` submit one spectral state per channel. With the AUROR
+  `NewAtmosphere` database the dry run passes and the render fails ("Missing spectral/temporal state in
+  atmosphere database"). With `split_channels: false`, each band of a two-channel image equals the
+  single-channel render value for value.
 - A tabulated channel with `normalize="false"` and `fluxunits="electronspersecond"` is absolute: DIRSIG treats the
   response as quantum efficiency. The image scales linearly with it, two complementary QE windows sum to the
   full-band image, and `aperturethroughput` 1 with the optics curve folded into the channel equals the scalar
   `aperturethroughput`.
 - `aperturediameter` is in metres and `focallength` in millimetres. Adjacent-pixel horizontal spacing on the
-  ground equals pitch / focal length × range within 1 % (three sensors, nadir view).
+  ground equals pitch / focal length × range within 1 % (three sensors, nadir view). `xarrayoffset` and
+  `yarrayoffset` are in µm and positive toward increasing column and row: a 16 × 16 window offset by +8 pixels
+  from the centre images the corresponding quadrant of a centred 32 × 32 window.
 - Scene material curves cover 0.40-15.6 µm against scene wavelengths 0.35-2.55 µm (DIRSIG warns). The job's
   bandpass is the template's 0.41-2.0 µm.
 
@@ -396,4 +420,5 @@ One row per interface item. `Outcome` is filled after review with the MANIFOLD t
 | C-17 | `engine.platform.channel_response` | `tabulated` (default) or `native`; DIRSIG-specific, so engine-side. `native` exists to reproduce a received platform whose gaussian channel peaks at 1/√(2π) | `proposed` | |
 | C-18 | One run spec per sensor | a sensor change is a new run spec (`derive_run_spec`), not a run-time override, so a run spec describes its run alone | `proposed` | |
 | C-14 | Detector manufacturer and model | `focal_planes[].detector.DeviceVendorName` and `DeviceModelName` (SFNC names, Detector_v02 §6.3); placement in the focal plane rather than `identity` | `proposed` | |
-| C-15 | Full frame versus modeled window | `detector` is the Detector_v02 `array` block (SFNC `SensorWidth`, `SensorHeight`, pitch, `fill_factor`, `channel_layout`, all the full sensor) plus vendor and model, under a different block name. The window DIRSIG models is the commanded `roi` (SFNC `Width`, `Height`, `OffsetX`, `OffsetY`) in run-spec `settings`, as Detector_v02 treats a region of interest | `proposed` | |
+| C-15 | Full frame versus modeled window | `detector` is the Detector_v02 `array` block (SFNC `SensorWidth`, `SensorHeight`, pitch, `fill_factor`, `channel_layout`, all the full sensor) plus vendor and model, under a different block name. The window DIRSIG models is the commanded `roi` (SFNC `Width`, `Height`, `OffsetX`, `OffsetY`) in run-spec `settings`, as Detector_v02 treats a region of interest; the offset places the window in the field (DIRSIG array offset), so it is not decorative | `proposed` | |
+| C-19 | Entries per DIRSIG job | one sensor entry, one focal plane, one `settings` member; several channels per focal plane. A multi-entry or multi-focal-plane sensor-spec is refused, not partly rendered. Open: does MANIFOLD expect one run spec per entry, or one job per entry from one run spec? | `open` | |

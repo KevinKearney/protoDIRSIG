@@ -130,12 +130,14 @@ def _ref(path, name):
     # weather is optional and may be 'install'; this loader needs a library file.
     (lambda e: e["weather"].update(source="install"), "must be a library file"),
     (lambda e: _drop(e, "weather"), "must be a library file"),
+    # one spectral state per channel: the NewAtmosphere database has none (tests/test_sensor_render.py)
+    (lambda e: e["platform"].update(split_channels=True), "split_channels true is not handled"),
     # each library ref that is not the scene must also resolve to a file in config_repo
     (_ref(("platform", "ref"), "platforms/nope/nope.platform"), "platform 'platforms/nope/nope.platform' not found"),
     (_ref(("atmosphere", "database", "ref"), "atmosphere/nope"), "atmosphere database 'atmosphere/nope' not found"),
     (_ref(("weather", "file"), "weather/nope.wth"), "weather file 'weather/nope.wth' not found"),
 ], ids=["ephemeris-jpl", "ephemeris-absent", "scenes-0", "scenes-2", "weather-install", "weather-absent",
-        "platform-missing", "atmosphere-db-missing", "weather-file-missing"])
+        "split-channels", "platform-missing", "atmosphere-db-missing", "weather-file-missing"])
 def test_rejects_engine_values_it_does_not_handle(edit, match):
     """The remaining RunSpecError branches of resolve_auror_run."""
     spec = load_run_spec(SPEC)
@@ -239,3 +241,55 @@ def test_derive_run_spec_swaps_sensor_only():
     assert {k: v for k, v in new["engine"].items() if k != "platform"} == {k: v for k, v in base["engine"].items() if k != "platform"}
     assert base["descriptor"]["settings"][0]["roi"]["Width"] == 500          # the base is not modified
     assert "roi" not in derive_run_spec(base, "a.yaml", "a", roi={})["descriptor"]["settings"][0]
+
+
+def _two_of(lib, what):
+    """A copy of auror-nir in `lib` with its entry, or its entry's focal plane, doubled."""
+    import copy
+    import shutil
+    shutil.copytree(PROJECT / "sensors", lib)
+    doc = yaml.safe_load((lib / "auror-nir.yaml").read_text())
+    entry = doc["sensor"]["entries"][0]
+    if what == "entries":
+        second = copy.deepcopy(entry)
+        second["entry_id"] = "auror-nir-2"
+        doc["sensor"]["entries"].append(second)
+    else:
+        entry["focal_planes"].append(copy.deepcopy(entry["focal_planes"][0]))
+    (lib / "auror-nir.yaml").write_text(yaml.safe_dump(doc, sort_keys=False))
+
+
+@needs_config_repo
+@pytest.mark.parametrize("what, settings, match", [
+    ("entries", None, "has 2 entries; one sensor entry per job"),
+    ("focal_planes", None, "has 2 focal planes; one focal plane per entry"),
+    (None, 0, "settings must have one member.*got 0 members"),
+    (None, 2, "settings must have one member.*got 2 members"),
+    (None, "absent", "settings must have one member.*got None"),
+], ids=["two-entries", "two-focal-planes", "settings-0", "settings-2", "settings-absent"])
+def test_rejects_sensor_shapes_it_does_not_generate(tmp_path, what, settings, match):
+    """One sensor entry, one focal plane and one settings member per job; anything else fails at resolution,
+    so `Simulation` never assembles or renders it."""
+    from protodirsig.simulation import Simulation
+    lib = tmp_path / "sensors"
+    if what:
+        _two_of(lib, what)
+    else:
+        import shutil
+        shutil.copytree(PROJECT / "sensors", lib)
+    spec = load_run_spec(SPEC)
+    spec["descriptor"]["sensor"]["ref"]["content_hash"] = "sha256:<hash>"
+    st = spec["descriptor"]["settings"]
+    if settings == "absent":
+        del spec["descriptor"]["settings"]
+    elif settings is not None:
+        spec["descriptor"]["settings"] = (st * 2)[:settings]
+    with pytest.raises(RunSpecError, match=match):
+        resolve_auror_run(spec, SPEC, CONFIG_REPO, lib)
+    path = tmp_path / "spec.yaml"
+    path.write_text(yaml.safe_dump(spec, sort_keys=False))
+    sim = Simulation.from_run_spec(path, CONFIG_REPO, tmp_path / "work", lib)
+    c = sim.validate()
+    assert not c.resolution_ok and not c.execution_ok and "not attempted" in c.execution_error
+    with pytest.raises(RunSpecError, match="cannot run"):
+        sim.run()

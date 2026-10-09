@@ -74,10 +74,23 @@ Its native gaussian channel peaks at 1/√(2π) (CONOPS section 9). Decide wheth
 (reproduces the tree) or moves to `tabulated` (unit peak) and its reference renders are regenerated.
 
 ### Generator scope
-One focal plane per entry; the template's single channel pattern is cloned per channel. Instrument and focal
-plane names, truth collections, spatial response (PSF), and hypersampling stay as the template has them and are
-not driven by the sensor-spec. `throughput_in_band` is checked against the optics curve only in the tests.
-Multi-band channels, beam-split optical paths, and `.platform` noise models are not generated.
+One sensor entry, one focal plane, one `settings` member per job (refused otherwise at resolution); several
+channels per focal plane are generated. Not generated, and refused when a sensor-spec asks for them: a
+non-identity mount (needs the quaternion-to-`<mount>` convention, and `axis_convention` is unconfirmed), lens
+distortion, a mosaic `channel_layout` (DIRSIG `<channelpattern>`), a rolling shutter (DIRSIG
+`detectorarray@rollingreadout`, seconds per line, which the sensor-spec does not carry), a `timestamp_reference`
+other than `exposure_start`. Not written and not refused: `AdcBitDepth` (DIRSIG quantizes only in
+`<detectormodel>`, which also needs full well, read noise and dark current, none of them modeled), image flips
+(`x/yflipaxis`; no sensor-spec field), `DeviceVendorName`/`DeviceModelName` (no DIRSIG element; platform
+metadata is free text), and `radiometric_reference` (says spectral radiance; the image is electrons, A.9.1).
+Instrument and focal plane names, truth collections, spatial response (PSF) and hypersampling stay as the
+template has them. `throughput_in_band` is checked against the optics curve only in the tests. Beam-split
+optical paths and `.platform` noise models are not generated.
+
+### `split_channels: true` with `new_atmosphere`
+Refused at resolution: the AUROR database has no per-channel spectral states, and the render fails after the
+dry run passes. A database built for the per-channel states would lift it; `tests/test_sensor_render.py` flags
+when the render succeeds.
 
 ### Spectral grid
 Synthetic curves are 1 nm over 0.150-14.000 µm; imported curves keep their source grid. Channels are tabulated on the template's 0.41-2.0 µm bandpass; a sensor

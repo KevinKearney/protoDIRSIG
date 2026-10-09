@@ -218,6 +218,11 @@ def resolve_auror_run(spec, run_spec_path, config_repo, sensor_library=None):
     channel_response = plat.get("channel_response", "tabulated")
     if channel_response not in ("tabulated", "native"):
         raise RunSpecError(f"engine.platform.channel_response is {channel_response!r}; expected 'tabulated' or 'native'")
+    if plat.get("split_channels"):
+        # One spectral state per channel; the NewAtmosphere database has states for the focal plane's bandpass
+        # only. The dry run passes and the render fails ("Missing spectral/temporal state"), so refuse it here.
+        raise RunSpecError("engine.platform.split_channels true is not handled with new_atmosphere: the database "
+                           "holds no per-channel spectral states, so the render fails after the dry run passes")
     desc = spec["descriptor"]
     sensor = desc.get("sensor")
     ref = sensor.get("ref") if isinstance(sensor, dict) else None
@@ -227,10 +232,19 @@ def resolve_auror_run(spec, run_spec_path, config_repo, sensor_library=None):
                            f"got {sensor!r:.80}")
     _verify_hash(Path(sensor_library) / sensor_name, ref, "sensor-spec") if (Path(sensor_library) / sensor_name).is_file() else None
     sensor_doc = load_sensor_spec(sensor_library, sensor_name)
-    _check_settings_roi(desc.get("settings", []), sensor_doc)
-    if len(desc["settings"]) != 1:
-        raise RunSpecError(f"descriptor.settings has {len(desc['settings'])} members; this loader generates one "
-                           "sensor entry per job")
+    entries = sensor_doc["sensor"].get("entries") or []
+    if len(entries) != 1:
+        raise RunSpecError(f"sensor {sensor_name!r} has {len(entries)} entries; one sensor entry per job is "
+                           "generated (one run spec per sensor, CONOPS C-18)")
+    planes = entries[0].get("focal_planes") or []
+    if len(planes) != 1:
+        raise RunSpecError(f"sensor entry {entries[0].get('entry_id')!r} has {len(planes)} focal planes; one focal "
+                           "plane per entry is generated")
+    settings = desc.get("settings")
+    if not isinstance(settings, list) or len(settings) != 1:
+        got = f"{len(settings)} members" if isinstance(settings, list) else repr(settings)
+        raise RunSpecError(f"descriptor.settings must have one member (one sensor entry per job); got {got}")
+    _check_settings_roi(settings, sensor_doc)
     return AurorRun(
         name=desc["meta"]["name"],
         origin=dict(desc["origin"]),

@@ -1111,6 +1111,20 @@ composes into a tabulated channel. Scratch demo on a fabricated SCION-like table
 1.701, HI added), header records `padding: zero below 0.300 um and above 1.700 um; not measured`; the same file
 without `--percent` is refused ("value 4.8 at 0.3 um is outside [0, 1]").
 
+**Native rectangular channel** (16x16, auror geometry, rect 0.85/0.15 um on the 0.001 um bandpass). Ratios
+native / tabulated: half-weight edges 1.000003 (std 7e-8); inclusive 0.99372; exclusive 1.00637; lower-edge-only
+0.99795; upper-only 1.00206. Off-grid centre 0.8505: native / tabulated 150 interior samples 1.00003. Width scan
+0.150-0.152: effective width tracks w, with edge-placement-dependent deviations to 0.3 %. Delta-channel fit
+(c=0.85): w=0.150 edge weights 774:-0.10 775:0.51 776:1.09; w=0.151 774:-0.21 775:1.21 776:0.97; sums match w.
+
+**Two channels.** auror-nir + gaussian 1.25/0.10 um, tabulated, split false: 2-band ENVI (`nir-b1,nir-b2`,
+DIRSIG fwhm 0.148, 0.098); each band byte-identical to the single-channel render. split true: dry run accepted,
+render fails "NewAtmosphere::updateState: Missing spectral/temporal state in atmosphere database!", also with one
+channel and with the native channel.
+
+**ROI offset.** DeepScan 1280x1024, 32x32 centred (OffsetX 624, OffsetY 496) vs four 16x16 quadrants: each
+quadrant's GeoLocation matches its block, mean ECEF difference <= 0.21 m, median per-pixel 1.9-2.1 m (GSD 16.3 m).
+
 ## Notebooks (status)
 
 - `notebooks/dirfm_tutorials/tutorial_dirfm_basics.ipynb` — Phase 1, complete. 8 stages, executed end to end.

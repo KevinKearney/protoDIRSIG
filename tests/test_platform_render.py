@@ -142,3 +142,93 @@ def test_missing_curve_is_specific(tmp_path):
     with pytest.raises(SpectralError, match="not found"):
         render_platform(TEMPLATE, doc, "deepscan-850-306-nir-1280",
                         [{**SETTINGS[0], "entry_id": "deepscan-850-306-nir-1280"}], 10, LIB, tmp_path / "x.platform")
+
+
+def _vis_doc():
+    return copy.deepcopy(load_sensor_spec(LIB, "synthetic_600_200_vis_1920.yaml"))
+
+
+VIS = "synthetic-600-200-vis-1920"
+VIS_SETTINGS = [{**SETTINGS[0], "entry_id": VIS, "roi": {"Width": 16, "Height": 16}}]
+
+
+def test_srf_reference_equals_matching_srf_model(tmp_path):
+    """A filter curve tabulating the 0.45-0.75 um rectangle (edge samples 1/2, as `srf_model_values` writes it)
+    in place of `srf_model` gives the same platform."""
+    import shutil
+    lib = tmp_path / "lib"
+    shutil.copytree(LIB, lib)
+    wl = np.arange(150, 14001) / 1000.0
+    v = srf_model_values({"kind": "rectangular", "center": 0.60, "width": 0.30}, wl)
+    (lib / "spectral" / "filter").mkdir()
+    (lib / "spectral" / "filter" / "rect_450_750.csv").write_text(
+        "# spectral-curve/1\n# name: rect_450_750\n# quantity: transmission\n# x: wavelength_um\n"
+        "# range_um: 0.150 14.000\n# interpolation: linear\n# extrapolation: none\n# provenance: synthetic\n"
+        "wavelength_um,transmission\n" + "".join(f"{a:.3f},{b:g}\n" for a, b in zip(wl, v)))
+    doc = _vis_doc()
+    ch = doc["sensor"]["entries"][0]["focal_planes"][0]["channels"][0]
+    ch.pop("srf_model")
+    ch["srf_reference"] = {"name": "spectral/filter/rect_450_750.csv"}
+    a = render_platform(TEMPLATE, _vis_doc(), VIS, VIS_SETTINGS, 10, LIB, tmp_path / "model.platform")
+    b = render_platform(TEMPLATE, doc, VIS, VIS_SETTINGS, 10, lib, tmp_path / "ref.platform")
+    assert a.channels == b.channels == [("vis-pan", "tabulated")]
+    same(et.parse(str(b.path)).getroot(), et.parse(str(a.path)).getroot())
+
+
+def test_rectangle_edges_weigh_one_half(tmp_path):
+    out = render_platform(TEMPLATE, _vis_doc(), VIS, VIS_SETTINGS, 10, LIB, tmp_path / "x.platform")
+    ch = et.parse(str(out.path)).getroot().find(".//channellist/channel")
+    srf = {e.findtext("spectralpoint"): float(e.findtext("value")) for e in ch.findall("entry")}
+    lens, si = read_curve(LIB / "spectral/optics/synthetic_vis_lens.csv"), read_curve(LIB / "spectral/qe/synthetic_silicon.csv")
+    for wl, w in (("0.449", 0.0), ("0.450", 0.5), ("0.451", 1.0), ("0.749", 1.0), ("0.750", 0.5), ("0.751", 0.0)):
+        assert srf[wl] == pytest.approx(w * lens.at(float(wl)) * si.at(float(wl)), rel=1e-8)
+
+
+def test_two_channel_entry(tmp_path):
+    doc = copy.deepcopy(load_sensor_spec(LIB, "auror-nir.yaml"))
+    chans = doc["sensor"]["entries"][0]["focal_planes"][0]["channels"]
+    chans.append({**copy.deepcopy(chans[0]), "channel_id": "nir-b2", "band_center": 1.25, "bandwidth": 0.1,
+                  "srf_model": {"kind": "gaussian", "center": 1.25, "fwhm": 0.1}})
+    settings = [{**SETTINGS[0], "gain": {"value": 2.5, "provenance": "specified"},
+                 "black_level": {"value": 7, "provenance": "specified"}}]
+    out = render_platform(TEMPLATE, doc, "auror-nir", settings, 10, LIB, tmp_path / "x.platform")
+    assert out.channels == [("nir-b1", "tabulated"), ("nir-b2", "tabulated")]
+    nodes = et.parse(str(out.path)).getroot().findall(".//channellist/channel")
+    assert [(c.get("name"), c.get("shape"), c.get("gain"), c.get("bias")) for c in nodes] == \
+        [("nir-b1", "tabulated", "2.5", "7"), ("nir-b2", "tabulated", "2.5", "7")]
+    peak = [max(nodes[i].findall("entry"), key=lambda e: float(e.findtext("value"))).findtext("spectralpoint")
+            for i in (0, 1)]
+    assert peak == ["0.850", "1.250"]
+
+
+@pytest.mark.parametrize("roi, expect", [
+    ({"Width": 16, "Height": 16, "OffsetX": None, "OffsetY": None}, ("0.000000", "0.000000")),
+    ({"Width": 16, "Height": 16, "OffsetX": 632, "OffsetY": 504}, ("0.000000", "0.000000")),        # centred
+    ({"Width": 16, "Height": 16, "OffsetX": 0, "OffsetY": 1008}, ("-6320.000000", "5040.000000")),  # corner
+])
+def test_roi_offset_is_written_as_array_offset(tmp_path, roi, expect):
+    settings = [{**SETTINGS[0], "entry_id": "deepscan-850-306-nir-1280", "roi": roi}]
+    out = render(tmp_path, "deepscan_850_306_nir_1280.yaml", "deepscan-850-306-nir-1280", settings)
+    r = et.parse(str(out.path)).getroot()
+    assert (r.findtext(".//xarrayoffset"), r.findtext(".//yarrayoffset")) == expect
+
+
+def test_roi_offset_without_full_frame_is_refused(tmp_path):
+    settings = [{**SETTINGS[0], "roi": {"Width": 16, "Height": 16, "OffsetX": 10, "OffsetY": None}}]
+    with pytest.raises(PlatformGenError, match="OffsetX 10 needs the detector's full frame"):
+        render(tmp_path, "auror-nir.yaml", "auror-nir", settings)
+
+
+@pytest.mark.parametrize("edit, match", [
+    (lambda e, fp: e["mount"].update(rotation=[0, 1, 0, 0]), "only a fixed identity mount"),
+    (lambda e, fp: e["optics"].update(distortion={"model": "brown_conrady"}), "only 'none'"),
+    (lambda e, fp: fp["detector"].update(channel_layout="bayer_rggb"), "channelpattern"),
+    (lambda e, fp: fp["readout"].update(SensorShutterMode="Rolling"), "rollingreadout"),
+    (lambda e, fp: fp["readout"].update(timestamp_reference="exposure_mid"), "exposure_start"),
+], ids=["mount", "distortion", "mosaic", "rolling-shutter", "timestamp"])
+def test_values_the_template_cannot_express_are_refused(tmp_path, edit, match):
+    doc = copy.deepcopy(load_sensor_spec(LIB, "auror-nir.yaml"))
+    e = doc["sensor"]["entries"][0]
+    edit(e, e["focal_planes"][0])
+    with pytest.raises(PlatformGenError, match=match):
+        render_platform(TEMPLATE, doc, "auror-nir", SETTINGS, 10, LIB, tmp_path / "x.platform")

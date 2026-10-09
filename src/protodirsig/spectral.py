@@ -84,14 +84,27 @@ def resolve_curve(sensor_library, ref):
 
 
 def srf_model_values(model, wl):
-    """Analytic channel shape on `wl` (peak 1): `gaussian` {center, fwhm} or `rectangular` {center, width}."""
+    """Analytic channel shape on `wl` (peak 1): `gaussian` {center, fwhm} or `rectangular` {center, width}.
+
+    A rectangle on an ascending grid is the fraction of each sample's bin (midpoint to midpoint) inside
+    [center - width/2, center + width/2]: its sum times the step is `width`, and an edge on a grid point weighs
+    1/2, as in DIRSIG's native rectangular channel (CONOPS section 9). A single wavelength gets the inclusive
+    indicator.
+    """
     wl = np.asarray(wl, dtype=float)
     kind = model["kind"]
     if kind == "gaussian":
         sigma = model["fwhm"] / FWHM_PER_SIGMA
         return np.exp(-0.5 * ((wl - model["center"]) / sigma) ** 2)
     if kind == "rectangular":
-        return (np.abs(wl - model["center"]) <= model["width"] / 2.0 + 1e-9).astype(float)   # edges inclusive
+        lo, hi = model["center"] - model["width"] / 2.0, model["center"] + model["width"] / 2.0
+        if wl.size < 2:
+            return ((wl >= lo - 1e-9) & (wl <= hi + 1e-9)).astype(float)
+        mid = (wl[1:] + wl[:-1]) / 2.0
+        left = np.concatenate([[wl[0] - (wl[1] - wl[0]) / 2.0], mid])
+        right = np.concatenate([mid, [wl[-1] + (wl[-1] - wl[-2]) / 2.0]])
+        frac = (np.minimum(right, hi) - np.maximum(left, lo)) / (right - left)
+        return np.round(np.clip(frac, 0.0, 1.0), 9)           # an edge on a grid point weighs exactly 1/2
     raise SpectralError(f"srf_model.kind {kind!r} is not gaussian or rectangular")
 
 
