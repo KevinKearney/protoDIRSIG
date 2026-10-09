@@ -6,7 +6,22 @@ automation workstream (see the MANIFOLD Drive project for the governing
 charter and requirements docs — not duplicated here).
 
 `docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md` is the as-built description of the driver, the run-spec contract,
-and the interface to MANIFOLD. `BACKLOG.md` is the to-do list.
+and the interface to MANIFOLD; its Overview gives the workflow at block-diagram level. `BACKLOG.md` is the
+to-do list.
+
+## What it does
+
+A `run-spec/1` YAML names a collection, a sensor (a reference into `sensors/`) and engine assets (references
+into `config_repo/`). The driver validates the spec, verifies content hashes, renders the `.platform` from the
+sensor description, generates motion and tasks files, runs a DIRSIG dry-run, and renders through `dirfm`.
+Output is imagery in electrons per m² of focal plane plus truth. Three sensors are in the library
+(AUROR NIR, a 1280-pixel NIR, a 1920-pixel VIS); the AUROR job reproduces the received platform file.
+
+```python
+from protodirsig.registry import LocalRegistry   # submit a run spec, then Simulation.run
+```
+
+`notebooks/stage_01`–`stage_03` run the reference job, the conformance path and a sensor sweep.
 
 ## Environment setup
 
@@ -22,7 +37,7 @@ python scripts/bootstrap.py status         # check each against its pin
 conda env create -f environment.yml
 conda activate protodirsig
 pip install -e external/dirsig-file-maker
-pip install -e .
+pip install -e ".[dev]"                 # adds pytest, jsonschema
 python -m ipykernel install --user --name protodirsig --display-name "Python (protodirsig)"
 ```
 
@@ -45,9 +60,8 @@ conda env update -f environment.yml --prune
 
 ## Layout
 
-- `prompt.md` — the standing, versioned prompt handed to Claude Code for
-  notebook development. This is the actual spec; update it in place as the
-  approach evolves rather than treating it as a one-shot instruction.
+- `prompt.md` — the current prompt handed to Claude Code. Overwritten per work package
+  (commit message `Update prompt.md (<topic>)`); the executed prompt is in git history.
 - `notebooks/` — Jupyter notebooks; the primary development and hand-off
   artifact for this project (see Architecture below — notebook-first is a
   deliberate convention, not a placeholder for "real" code). See
@@ -58,26 +72,28 @@ conda env update -f environment.yml --prune
   are the active, accumulating work.
 - `src/protodirsig/` — supplementary Python modules for gaps `dirfm` does
   not cover, installed editable via `pip install -e .`: the run-spec loader
-  (`run_spec`), motion/tasks generation (`motion_tasks`), the conformance
-  checks and render (`simulation`), the local submission stand-in
-  (`registry`), and the dirfm workarounds and helpers the notebooks use.
+  (`run_spec`), `.platform` generation from the sensor description (`platform_gen`, `spectral`),
+  motion/tasks generation (`motion_tasks`), the conformance checks and render (`simulation`), the local
+  submission stand-in (`registry`), and the dirfm workarounds and helpers the notebooks use.
 - `run_specs/` — MANIFOLD run-spec YAMLs. The only copy; protoDIRSIG is the source of truth.
-- `sensors/` — the sensor library: `sensor-spec/1` files that run specs reference.
-- `contracts/` — schemas, vocabulary and validators (empty today; future `manifold-contracts`).
+- `sensors/` — the sensor library: `sensor-spec/1` files that run specs reference, and `spectral/`
+  (QE, optics and filter curves, `spectral-curve/1` CSV).
+- `contracts/` — schemas, vocabulary and validators (`sensor-spec-1.schema.json` today; future
+  `manifold-contracts`).
 - `external/` — pinned dirfm and agent-docs checkouts and a link to the DIRSIG install,
   populated by `python scripts/bootstrap.py install`; gitignored except `pins.json`.
 - `config_repo/` — the engine-asset library the run specs' `engine` refs
   resolve against (scenes, platforms, weather, atmosphere databases), in
   the layout of the CONOPS and Guide §5. Read-only at run time.
-- `scripts/` — standalone CLI entry points, if/when notebook logic
-  graduates out of prototyping.
+- `scripts/` — CLI entry points: `bootstrap.py` (pinned dependencies), `stamp_hashes.py` (content hashes),
+  `import_curve.py` (measured curve intake), `crosscheck_sgp4.py`.
 - `outputs/` — DIRSIG input/output roots written by notebooks and scripts.
   Gitignored except for a placeholder; nothing here is source, and nothing
   here is ever written into `dirfm`'s own checkout.
 - `tests/` — pytest suite for `src/protodirsig`. `tests/fixtures/auror_ref/`
   holds the received AUROR_ref motion and tasks files, kept only to compare
   generated files against.
-- `docs/` — the CONOPS and Guide, plus Kevin's DIRSIG motion notes.
+- `docs/` — the CONOPS and Guide, and the DIRSIG platform decomposition notes.
 
 ## Architecture
 

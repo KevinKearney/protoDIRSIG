@@ -7,6 +7,90 @@ periodically against the MANIFOLD implementation team. Section 10 records each d
 **Authority:** this document is the single description of what is built. When code and document disagree,
 the code is right until the document is corrected in the same commit.
 
+## Overview
+
+protoDIRSIG is the DIRSIG-side driver of the MANIFOLD synthetic-data path, built without the MANIFOLD
+registry, executor or orchestrator. A run spec states a collection and a sensor; the driver validates it,
+generates the DIRSIG input files that the spec determines, executes `dirsig5`, and returns imagery with truth.
+`LocalRegistry` stands in for the registry and executor so the interface to MANIFOLD can be exercised before
+they exist.
+
+### System workflow
+
+```mermaid
+flowchart LR
+  subgraph AUTH["Authored inputs"]
+    RS["run spec<br/>run_specs/*.yaml"]
+    SL["sensor library<br/>sensors/ : sensor-spec + spectral curves"]
+    CR["engine-asset library<br/>config_repo/ : scenes, platform template,<br/>weather, atmosphere database"]
+  end
+  subgraph DRV["protodirsig driver (stand-in for MANIFOLD registry + executor)"]
+    direction TB
+    A["1. schema check"] --> B["2. resolve refs,<br/>verify content hashes"]
+    B --> C["3. generate .platform, .ppd, .tasks"]
+    C --> D["4. dry-run: dirsig5 --dry_run"]
+    D --> E["5. render"]
+  end
+  RS --> A
+  SL --> B
+  CR --> B
+  E -->|"dirfm.DIRSIG.run"| DS["scene2hdf + dirsig5"]
+  DS --> OUT["job directory<br/>ENVI imagery, truth, logs"]
+  NB["notebooks / scripts"] -.->|"submit"| A
+```
+
+1. **Author.** A run spec splits into `descriptor` (what was observed: engine-independent, registered,
+   hashed) and `engine` (how DIRSIG is driven: origin-specific, not indexed). The sensor is a reference into
+   the sensor library; scenes, platform template, weather and atmosphere are references into the engine-asset
+   library.
+2. **Admit.** Schema check, reference resolution with content-hash verification, and a DIRSIG dry-run. An
+   admitted job has resolvable inputs and a command line `dirsig5` accepts.
+3. **Assemble.** A job directory is built under `outputs/`: library files copied or linked, and the files the
+   spec determines generated into it (`.platform` from the sensor, `.ppd` from the motion block, `.tasks`
+   from the collection epoch and windows).
+4. **Execute.** `dirfm` invokes `scene2hdf` and `dirsig5`. A seeded render is byte-reproducible.
+5. **Return.** Imagery in electrons per m² of focal plane, truth bands, and logs in the job directory.
+
+### Sensor path
+
+```mermaid
+flowchart LR
+  Q["spectral curves<br/>QE, optics, filter"] --> G
+  SS["sensor-spec<br/>optics, focal plane, channels"] --> G
+  ST["settings<br/>exposure, ROI, gain"] --> G
+  T[".platform template<br/>(library)"] --> G["platform_gen"]
+  G --> P["generated .platform<br/>tabulated channel responses"]
+  P --> D["dirsig5"]
+  D --> I["image<br/>e- per m2 of focal plane"]
+```
+
+The sensor description is the single source for modeled sensor values. The library `.platform` supplies only
+what the specs do not model (names, mount, truth collections, spatial response, hypersampling). Swapping the
+sensor changes the `sensor` reference and nothing else in the run spec.
+
+### Roles
+
+| Role | Today | Future |
+|---|---|---|
+| Registry and admission | `LocalRegistry`, `simulation.schema_errors` | MANIFOLD registry (hashing, extraction, catalog) |
+| Executor | `Simulation.run` | MANIFOLD executor; mounts the DIRSIG runtime |
+| Generator | `run_spec`, `platform_gen`, `motion_tasks` | SDK (`src/protodirsig`) |
+| Orchestration | notebooks | Dagster (out of scope here) |
+
+### Repository folders and their MANIFOLD counterparts
+
+| Folder | Holds | Counterpart |
+|---|---|---|
+| `config_repo/` | engine assets | MANIFOLD config repository |
+| `sensors/` | sensor-spec library, spectral curves | sensor profile library |
+| `run_specs/` | run-spec documents | registered run specs |
+| `contracts/` | schemas, vocabulary, validators | `manifold-contracts` |
+| `src/protodirsig/` | driver and SDK | SDK |
+| `external/`, `scripts/`, `notebooks/`, `tests/`, `outputs/` | tooling | none |
+
+The sections below are the detailed description. Section 10 records the points where this description and the
+MANIFOLD documents disagree.
+
 Status markers used in section headings and tables:
 
 | Marker | Meaning |
@@ -36,7 +120,7 @@ Layers, bottom to top:
 - **`src/protodirsig`**: gap-fillers and the run-spec driver (section 7).
 - **Notebooks**: stage notebooks (the conformance template), `dirfm` tutorials, sidebars (section 8).
 
-A run spec becomes a job in three steps, each independently testable:
+A run spec becomes a job in three steps, each independently testable (hash verification and `.platform` rendering sit in steps 2 and 3):
 
 1. **Schema check** (`simulation.schema_errors`): required members and enumerated values of `run-spec/1` and
    `dirsig-engine/1`.
@@ -50,10 +134,12 @@ A run spec becomes a job in three steps, each independently testable:
 
 - *Resolved*: the block names an existing file and the spec selects it by reference. `scenes`, `platform`,
   `atmosphere.database`, `weather.file`. Nothing is built from spec values.
-- *Generated*: the block states values from which a file is built at job-assembly time. `motion` (`.ppd`) and
-  `tasks` (`.tasks`) only. Generation uses `dirfm.platform_motion.PlatformPosition` and `dirfm.tasks.TASKS`,
-  and is `built, partial`: `motion.kind: static` with Euler orientation in the `scene`/`sceneenu` frames.
-  `waypoints` and `orbit` need `dirfm.FlexMotion` and are rejected at resolution.
+- *Generated*: the block, or the sensor description it references, states values from which a file is built at
+  job-assembly time. `motion` (`.ppd`), `tasks` (`.tasks`) and the `.platform`. Motion and tasks use
+  `dirfm.platform_motion.PlatformPosition` and `dirfm.tasks.TASKS` and are `built, partial`:
+  `motion.kind: static` with Euler orientation in the `scene`/`sceneenu` frames. `waypoints` and `orbit` need
+  `dirfm.FlexMotion` and are rejected at resolution. The `.platform` is rendered from the library template
+  by `platform_gen` (section 4); `engine.platform` still names the template.
 
 Generation happens where `Simulation._assemble()` copies resolved assets into the job's `inputs/` directory.
 The closest MANIFOLD analog is `materialize` into `<work>/<run_id>/inputs` (Configuration_v02, line 309).
@@ -89,7 +175,7 @@ is required iff `origin.kind: field`. `extras` is optional. Unknown keys are rej
   `.tasks`). `geometry.range` is required when `targets` is non-empty.
 - **`sensor`.** A `sensor-spec/1` reference; structure per `AV_MANIFOLD_Detector_v02` (section 4).
 - **`settings`.** Commanded per-entry values: exposure, frame rate, gain, black level, ROI, binning. One
-  member per `sensor.entries[]`; `entry_id` must resolve. Stays in the run spec, not the sensor file.
+  member per job (C-19), naming the `sensor.entries[]` entry the job models; `entry_id` must resolve. Stays in the run spec, not the sensor file.
 - **`fidelity`.** `modeled`, `approximated`, `absent` lists and free-text `valid_for`. Authored, not
   derived, not queryable.
 - **`extras`.** Namespaced `<origin>.<name>`; stored as `jsonb`; no query guarantees.
@@ -149,7 +235,7 @@ descriptor, not the authored one. `contract_version`, `_schemaURL`, `system_conf
 `noise_class` are set after the gate and are never authored. The extractor reads values back from the
 registered files and compares them with the descriptor (MD-13); a column with no extractor path is
 `unvalidated`. protoDIRSIG implements none of admission, extraction, or hashing. The loader is
-`yaml.safe_load`; `content_hash` values are placeholders; duplicate-key rejection is absent.
+`yaml.safe_load`; stamped `content_hash` values of sensor files and curves are verified by the loaders, `.scene` refs remain placeholders; duplicate-key rejection is absent.
 
 ## 4. `sensor-spec/1` `built`
 
@@ -222,9 +308,11 @@ config_repo/
   atmosphere/<name>                # proposed path; see section 10
 run_specs/                         # run-spec/1 documents
 sensors/                           # sensor library: sensor-spec/1 documents
-contracts/                         # schemas, vocabulary, validators (empty today)
+  spectral/<qe|optics|filter>/     # spectral-curve/1 CSVs
+contracts/                         # schemas, vocabulary, validators (sensor-spec-1.schema.json)
 external/                          # pinned dirfm, agent-docs, DIRSIG link; gitignored (pins.json tracked)
-src/protodirsig/  tests/  notebooks/  scripts/
+src/protodirsig/  tests/  notebooks/
+scripts/                           # bootstrap, stamp_hashes, import_curve, crosscheck_sgp4
 tests/fixtures/auror_ref/          # motion and tasks files; compared with generated files only
 outputs/<job>/                     # ephemeral job directories; gitignored
 ```
@@ -292,7 +380,8 @@ test fixture.
 | `scene_ref`, `platform_ref`, `scene_coverage`, `atmosphere_patches` | `dirfm` gap-fillers | `built` |
 | `orbit`, `sensors` | skyfield TEME→ECEF and trajectory; sensor helpers | `built` |
 
-Pending work is in `BACKLOG.md`.
+`scripts/stamp_hashes.py [--check]` stamps and verifies `content_hash` values; `scripts/import_curve.py` converts
+measured curves to `spectral-curve/1`. Pending work is in `BACKLOG.md`.
 
 ## 8. Notebooks
 
