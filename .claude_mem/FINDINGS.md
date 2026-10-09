@@ -1169,6 +1169,12 @@ for auror at 10 um pitch).
   Phase 4 `scene_ref.py` and `scene_coverage.py`), with `tests/test_orbit.py` and
   `tests/test_scene_coverage.py` pinning them to verified results.
 
+- `notebooks/stage_03_sensor_sweep.ipynb` — 2026-10-09 round two, executed end to end (DIRSIG via
+  `external/dirsig`, `DIRSIG_HOME` unset): library table, VIS entry blocks, three curves, composed responses
+  (integrals 0.1397, 0.1102, 0.2392 um incl. aperturethroughput), two derived run specs accepted, 32x32 renders
+  3 s each: medians 3.64e15 e/m2 (3.6e5 e/px) auror-nir, 7.70e15 e/m2 (2.3e5 e/px) VIS; GSD 17.98 vs 17.97 m,
+  15.19 vs 15.12 m.
+
 ## External reference
 
 `~/dev/agent-docs` (Rendered.ai's agent-context repo) documents a production dirfm

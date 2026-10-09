@@ -152,7 +152,8 @@ the errors or delete the file once its content is absorbed into the CONOPS.
 
 ### Notebooks and tests still assume sibling checkouts and `~/DIRSIG`
 Notebook first cells set `DIRSIG_HOME` and locate `dirfm` by home-relative paths. Switch them to
-`external/` (the `dirsig` link and `dirsig-file-maker`) so the bootstrap is the only setup step.
+`external/` (the `dirsig` link and `dirsig-file-maker`) so the bootstrap is the only setup step, as
+`stage_03_sensor_sweep` does. Tests still fall back to `~/DIRSIG/<version>`.
 
 ### Asset manifest for large scenes and databases
 `config_repo/` holds real files, so scenes and databases over about 50 MB cannot go in git. Add a manifest

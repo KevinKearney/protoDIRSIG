@@ -333,3 +333,15 @@ Kevin unavailable; prompt.md "Sensor model, round two". Decisions in order made:
   (deepscan, scratch only), 1.000011 (VIS curves). Test tolerance 1e-3 (16x the worst case; 4F^2 would fail at
   1.9 %). 8x8 windows, ~0.4 s per render. BACKLOG item deleted. Units established: hemisphereirradiance
   W/(cm2 um); image electrons/m2 of focal plane (header says so); per pixel multiply by element area.
+- **Step 4, notebook.** `stage_03_sensor_sweep.ipynb` written by a builder script (scratch), executed with
+  nbconvert, `DIRSIG_HOME` unset, so DIRSIG came from `external/dirsig`. Ran `bootstrap.py install --link
+  dirfm=~/dev/dirsig-file-maker --link agent-docs=~/dev/agent-docs` (both at the pins; links are gitignored)
+  instead of cloning. Kernel: no `protodirsig` kernelspec registered on this machine; executed on the env's
+  `python3` kernel, metadata kept as the sibling notebooks' "Python (protodirsig)".
+  - Sensors rendered: auror-nir (derived, tabulated) and synthetic VIS, both via derive_run_spec from
+    auror_ref.yaml with ROI 32x32. Reason for not keeping auror native: the sweep path is tabulated
+    (derive_run_spec drops native), and comparing a native 0.399-scaled image with a tabulated one would
+    mislead; the notebook explains native in prose.
+  - Renders ~3 s each. GSD ratios 1.0006, 1.0047 (asserted < 1 %).
+  - Corrected my own draft prose after reading outputs: VIS is 2x brighter per m2, darker per pixel (pixel
+    area), not "smaller aperture"; window widths 0.58/0.48 km; VisGaAs 0.79 at 0.85 um.
