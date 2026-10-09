@@ -1,4 +1,4 @@
-# Sensor files: correct `radiometric_reference` to the quantity the image carries
+# Correct `radiometric_reference`; prefix the repo-bound folders with `manifold_`
 
 ## CONTEXT
 
@@ -69,12 +69,51 @@ Commit: `Correct radiometric_reference to the electron image quantity`.
 
 Commit: `Document the electron quantity and add C-20`.
 
+## STEP 3 - folder prefix (one commit, after Steps 1 and 2 are committed and the suite passes)
+
+Four folders map to future MANIFOLD repositories and are renamed so the mapping shows in the tree:
+
+| Old | New |
+|---|---|
+| `config_repo/` | `manifold_config_repo/` |
+| `sensors/` | `manifold_sensors/` |
+| `run_specs/` | `manifold_run_specs/` |
+| `contracts/` | `manifold_contracts/` |
+
+`src`, `tests`, `notebooks`, `scripts`, `external`, `outputs` and `docs` keep their names.
+
+1. Record the baseline: full suite count, `scripts/stamp_hashes.py --check`, and the generated `.platform` and
+   `.ppd` XML for `auror_ref.yaml` and `synthetic_vis.yaml`.
+2. `git mv` each folder (history must follow). Do not copy and delete.
+3. Update every path reference. Find them with `git grep -n` for each old name, and review each hit; do not run a
+   blind global replace. Known locations: `.gitattributes`, `.gitignore`, `pyproject.toml` and `environment.yml`
+   (if they mention a folder), `scripts/stamp_hashes.py`, `scripts/import_curve.py`, `scripts/bootstrap.py`,
+   `src/protodirsig/` (path defaults, `ROOT / "sensors"`, docstrings), `tests/` (including `tests/fixtures`), all
+   notebooks (source and re-executed outputs), `README.md`, every folder README, `docs/`, `BACKLOG.md`,
+   `external/pins.json` if it names one. The CONOPS section 5 tree and its Overview folder table gain the new names.
+4. Do not rename identifiers. Python parameters and attributes `config_repo` and `sensor_library`, the module
+   `protodirsig.sensors`, the module `run_spec`, `engine.*` ref semantics, and the `run-spec/1` and `sensor-spec/1`
+   document names stay. Only filesystem paths change. Run-spec refs (`ref.name`) are relative to a library root and do
+   not change. Where code derives a default library from "the sibling of the folder holding the run spec"
+   (`run_spec.py`, `simulation.py`), confirm the sibling name is now `manifold_sensors` and the rule still holds.
+5. `.gitattributes` keeps its rules: LF for `manifold_sensors/**` and `manifold_run_specs/**`, `-text` for
+   `manifold_config_repo/**`. Confirm with `git check-attr` on one file in each.
+6. Verify: no hit for the old folder names as paths (`git grep` per name, each remaining hit explained in the
+   log); the suite count equals the baseline; `scripts/stamp_hashes.py --check` passes with no changes (hashes cover
+   file bytes and library-relative refs, so none should move; if one does, stop and log why); the generated
+   `.platform` and `.ppd` XML for both run specs are byte-identical to the baseline; stage notebooks 01 to 03
+   re-execute end to end.
+7. Commit the renames and path updates together: `Prefix repo-bound folders with manifold_`.
+
+The names `manifold_sensors` and `manifold_run_specs` are provisional until the MANIFOLD team names those
+repositories; the CONOPS folder table says so in one clause.
+
 ## CONSTRAINTS
 
 - Do not modify `dirfm`, `config_repo/`, `auror_ref.yaml`'s `channel_response: native`, the placement of `roi`, or
   the one-run-spec-per-sensor rule.
 - Never guess a sensor value; unknown is `null`.
-- Keep the project light: one BACKLOG, one CONOPS, no new tracking documents. Do not rename folders in this work.
+- Keep the project light: one BACKLOG, one CONOPS, no new tracking documents. Steps 1 and 2 do not rename folders; Step 3 does.
 - No 500 x 500 renders; use 16 x 16 windows. `/tmp` on this machine is a 5.5 GB tmpfs: delete scratch renders.
 - Every judgment call, with reasons, goes in `.claude_mem/ARCH_LOG.md`.
 - Run the full suite before each commit.
