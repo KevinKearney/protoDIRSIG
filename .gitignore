@@ -20,3 +20,6 @@ notebooks/dev/
 external/*
 !external/pins.json
 !external/README.md
+
+# Working prompt for Claude Code; not versioned
+/prompt.md

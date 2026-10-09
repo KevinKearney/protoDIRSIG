@@ -60,8 +60,7 @@ conda env update -f environment.yml --prune
 
 ## Layout
 
-- `prompt.md` — the current prompt handed to Claude Code. Overwritten per work package
-  (commit message `Update prompt.md (<topic>)`); the executed prompt is in git history.
+- `prompt.md` — the current prompt handed to Claude Code. Overwritten per work package; gitignored, not versioned.
 - `notebooks/` — Jupyter notebooks; the primary development and hand-off
   artifact for this project (see Architecture below — notebook-first is a
   deliberate convention, not a placeholder for "real" code). See
