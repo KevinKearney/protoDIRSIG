@@ -4,7 +4,7 @@ Stage 02 (eopticDocs `review/PLAN_2026-10-08_conformance-template-roadmap.md`, P
 What a notebook calls directly; no orchestration framework is imported here or below.
 
 The three checks, and nothing more (radiometric correctness and scientific utility are out of
-scope; the vehicle-not-appearing finding in FINDINGS.md passes all three):
+scope; the vehicle-not-appearing finding passes all three):
 
 1. **Schema**: the run spec parses, the required members of `run-spec/1` and the
    `dirsig-engine/1` body (AV_MANIFOLD_Configuration_v02 A.8) are present, and every enumerated

@@ -1,5 +1,5 @@
 """protodirsig.atmosphere_patches must make dirfm's NewAtmosphere plugin emit the jsim stanza
-DIRSIG expects (FINDINGS.md, 2026-10-06 — Phase 5). Writes only to pytest's tmp_path.
+DIRSIG expects. Writes only to pytest's tmp_path.
 """
 import pytest
 

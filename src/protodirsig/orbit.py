@@ -2,7 +2,7 @@
 
 Every function here is the code that notebook's Stage 1 built and verified inline (the
 notebook keeps its inline copies because they *are* the explanation). The derivations and the
-reasons for each check live there and in FINDINGS.md; this module only makes them reusable.
+reasons for each check live there; this module only makes them reusable.
 """
 import urllib.request
 from datetime import datetime, timezone

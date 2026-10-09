@@ -4,7 +4,7 @@ As shipped, every setter on `dirfm.atmosphere.NewAtmospherePlugin` and `ModtranT
 raises AttributeError: `_FrozenAttrs` forbids new attributes after `__init__`, and those
 `__init__`s never create the attributes the setters assign. `set_multiple_scattering` also
 validates against `["None", "Isacc", "Distort"]`, misspelling DIRSIG's `Isaac` and `Disort`
-(docs/atm_backends.html). See FINDINGS.md, "2026-10-06 — Phase 5".
+(docs/atm_backends.html).
 Upstream fix for dirfm: initialise these attributes to None in the two `__init__`s, and
 correct the two names.
 """

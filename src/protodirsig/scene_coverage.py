@@ -1,6 +1,6 @@
 """Spectral coverage of a pre-built DIRSIG scene's REAL material database.
 
-Why this exists (FINDINGS.md, Phase 3): when a scene is referenced through dirfm's
+Why this exists: when a scene is referenced through dirfm's
 `SCENE._fname` escape hatch, dirfm's own `_check_coverage()` runs against a placeholder
 `Dummy` material with no surface properties, so it passes for ANY band — even 5–50 µm. This
 module answers the question that check appears to answer: "do this scene's materials cover

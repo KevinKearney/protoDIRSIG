@@ -20,7 +20,7 @@ What it drives: `engine.scenes`, `platform`, `atmosphere`, `weather`, `ephemeris
 `run.seed` name existing library files that the `scene_ref`, `platform_ref` and
 `atmosphere_patches` helpers reference as-is. `engine.motion` and `engine.tasks` are generated,
 not resolved: `AurorRun` carries their values, and `motion_tasks` writes the `.ppd` and `.tasks`
-files from them (FINDINGS.md, "2026-10-08 — Stage 05"). Only `motion.kind: static` with a
+files from them. Only `motion.kind: static` with a
 scene-frame position and a `sceneenu` Euler orientation is generated; anything else is refused.
 
 Loading is a plain `yaml.safe_load`. `AV_MANIFOLD_Metadata_v02.md` §6.15 specifies a strict
@@ -40,7 +40,7 @@ from protodirsig.atmosphere_patches import PatchedModtranTapeBackend, PatchedNew
 from protodirsig.platform_ref import SpiceEphemerisPlugin
 
 # The received jsim's MODTRAN-tape recipe: what atm_builder would use to rebuild the database.
-# The render reads the existing HDF5 database, not this block (FINDINGS.md, Phase 5), and the run
+# The render reads the existing HDF5 database, not this block, and the run
 # spec has no field for it, so it is fixed here as part of the `new_atmosphere` special case.
 AUROR_ATMOSPHERE_BACKEND = {"profile": "New Profile", "atmospheric_model": "MidLatitudeSummer",
                             "boundary_aerosol_model": "RuralVis23Km", "multiple_scattering": "Isaac"}

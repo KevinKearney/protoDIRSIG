@@ -1,5 +1,5 @@
 """protodirsig.motion_tasks must generate, from run_specs/auror_ref.yaml, motion and tasks files that
-mean what the received AUROR_ref files meant (FINDINGS.md, 2026-10-08 — Stage 05).
+mean what the received AUROR_ref files meant.
 
 The comparison is semantic, not textual: dirfm formats numbers differently from the received
 files (`3.141593` vs `3.141592654`, `0.0` vs `0`), and the tasks reference is written in UTC

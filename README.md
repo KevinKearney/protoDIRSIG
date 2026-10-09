@@ -5,10 +5,8 @@ built on `dirfm` and developed notebook-first. Scope: MANIFOLD's DIRSIG
 automation workstream (see the MANIFOLD Drive project for the governing
 charter and requirements docs — not duplicated here).
 
-`docs/dirsig_batch_driver_plan.md` and `docs/dirsig_motion_temporal.md`
-are retained for history but are **not** the current plan — superseded by
-`prompt.md` (the standing spec driving notebook development) and the
-architecture below. Don't scope new work against them.
+`docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md` is the as-built description of the driver, the run-spec contract,
+and the interface to MANIFOLD. `BACKLOG.md` is the to-do list.
 
 ## Environment setup
 
@@ -72,7 +70,7 @@ conda env update -f environment.yml --prune
 - `tests/` — pytest suite for `src/protodirsig`. `tests/fixtures/auror_ref/`
   holds the received AUROR_ref motion and tasks files, kept only to compare
   generated files against.
-- `docs/` — historical planning documents; not current (see above).
+- `docs/` — the CONOPS and Guide, plus Kevin's DIRSIG motion notes.
 
 ## Architecture
 
@@ -121,7 +119,7 @@ reproducibility) and the `convergence`/`max_nodes` render-quality knobs
 DIRSIG's own bundled orbit-relevant demos with `dirfm` directly, starting
 with `StkImport1` (a real WorldView-2 LEO trajectory, imaging toward Earth —
 the only orbit-to-ground demo in DIRSIG's catalog; reconstructed from a TLE
-with skyfield/SGP4 rather than by STK-ephemeris import, see FINDINGS.md;
+with skyfield/SGP4 rather than by STK-ephemeris import;
 `Ssa1`–`Ssa3` are satellite-to-satellite). This phase is also where `dirfm`'s
 actual orbital-motion coverage gets tested empirically (STK ephemeris
 ingestion, ECI/ECEF handling) rather than assumed, surfacing concrete

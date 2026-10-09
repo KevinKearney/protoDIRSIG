@@ -1,4 +1,4 @@
-"""protodirsig.scene_coverage must reproduce the hand-checked Tacoma result (FINDINGS.md, Phase 3)
+"""protodirsig.scene_coverage must reproduce the hand-checked Tacoma result
 and fail closed on material kinds it does not understand.
 
 Reads the Tacoma bundle in the DIRSIG install and config_repo's tahoe scene READ-ONLY (each

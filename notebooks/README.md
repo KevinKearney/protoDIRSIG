@@ -17,7 +17,7 @@ behavior before the pattern was understood well enough to write cleanly. Kept as
 maintained going forward.
 
 **`sidebars/`** holds side investigations: exploratory like `dev/`, but tracked, because their
-results are cited in FINDINGS.md.
+results are cited in the CONOPS and Guide.
 
 ## Stage notebooks
 
@@ -56,8 +56,8 @@ any assets it adds in a folder of the same name beside it.
 - **`vehicle_point_source.ipynb`** — Distils the real AUROR vehicle mesh, given a reflective
   material, into a radiant intensity from a close-range DIRSIG render at the task's exact sun and
   view angles. Writes it as a `.int` point source, and renders the 500 km scene with it. Also
-  renders the received 1500 K emitter with thermal prediction forced. Findings in FINDINGS.md
-  (2026-10-09).
+  renders the received 1500 K emitter with thermal prediction forced. Results are summarised in
+  the CONOPS and Guide, section 9.
 
 ## `dev/`
 

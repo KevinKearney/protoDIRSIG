@@ -1,6 +1,6 @@
 """Reference a pre-built DIRSIG scene from a read-only location, and prove it stayed untouched.
 
-Factored out of tutorial_tacoma_scene.ipynb Stage 0/2. Why this shape (FINDINGS.md, Phase 3):
+Factored out of tutorial_tacoma_scene.ipynb Stage 0/2. Why this shape:
 `scene2hdf` writes `<scene>.hdf` + `asset_report.txt` beside the *resolved* `.scene` file and
 has no output-path option, so pointing dirfm's `SCENE._fname` at a read-only scene (or at a
 symlink to one) writes into that directory. Copying only the `.scene` XML next to symlinks of

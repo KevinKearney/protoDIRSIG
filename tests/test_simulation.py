@@ -1,5 +1,5 @@
 """protodirsig.simulation's three conformance checks must pass on the real AUROR_ref run spec and
-report a broken spec as a failed check, not an exception (FINDINGS.md, 2026-10-08 — Stage 02).
+report a broken spec as a failed check, not an exception.
 
 Reads run_specs/auror_ref.yaml and config_repo READ-ONLY; the execution check generates motion and
 tasks and runs a DIRSIG dry run (no render, about a second), writing only to pytest's tmp_path.

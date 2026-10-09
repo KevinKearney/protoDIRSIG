@@ -1,6 +1,6 @@
 """protodirsig.run_spec must resolve run_specs/auror_ref.yaml (engine assets against config_repo,
 the sensor ref beside the run spec), carry the motion/tasks values the generator needs, and refuse
-what it is not built for (FINDINGS.md, Stage 01; Stage 04 config_repo; Stage 05 generation).
+what it is not built for.
 
 Reads the run spec and config_repo READ-ONLY (tests needing config_repo skipped if absent);
 writes only to pytest's tmp_path.
@@ -128,7 +128,7 @@ def _ref(path, name):
 ], ids=["ephemeris-jpl", "ephemeris-absent", "scenes-0", "scenes-2", "weather-install", "weather-absent",
         "platform-missing", "atmosphere-db-missing", "weather-file-missing"])
 def test_rejects_engine_values_it_does_not_handle(edit, match):
-    """The remaining RunSpecError branches of resolve_auror_run (FINDINGS.md, post-Stage-05 audit)."""
+    """The remaining RunSpecError branches of resolve_auror_run."""
     spec = load_run_spec(SPEC)
     edit(spec["engine"])
     with pytest.raises(RunSpecError, match=match):

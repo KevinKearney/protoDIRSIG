@@ -5,7 +5,7 @@ Stage 05 they are the input that builds them, as MANIFOLD's executor materialize
 its run spec (AV_MANIFOLD_Configuration_v02 §2). These two functions are the only users of
 dirfm's `PlatformPosition` and `TASKS`.
 
-dirfm behaviour the output depends on (FINDINGS.md, "2026-10-08 — Stage 05"):
+dirfm behaviour the output depends on:
 - `PlatformPosition` always writes `rotationframe="sceneenu"` and `location type="scene"`, and
   formats positions to 3 decimals and angles to 6 (`3.141592654` becomes `3.141593`).
 - `TASKS.write` returns None, so the path is built here. It formats the reference offset as

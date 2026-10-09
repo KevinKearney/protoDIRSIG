@@ -8,7 +8,7 @@ paths are files.
 `PlatformSensorPlugin.prepare()` always regenerates those files, and `DIRSIG.write_files()`
 requires a `PlatformSensorPlugin` instance to be present. So `PlatformFilesPlugin` subclasses
 it with no attachments, which also means dirfm's coverage loop has nothing to iterate. Use
-`scene_coverage` for that. See FINDINGS.md, "2026-10-06 — Phase 5".
+`scene_coverage` for that.
 """
 from pathlib import Path
 
