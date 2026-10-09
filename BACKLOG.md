@@ -76,8 +76,8 @@ distortion, a mosaic `channel_layout` (DIRSIG `<channelpattern>`), a rolling shu
 `detectorarray@rollingreadout`, seconds per line, which the sensor-spec does not carry), a `timestamp_reference`
 other than `exposure_start`. Not written and not refused: `AdcBitDepth` (DIRSIG quantizes only in
 `<detectormodel>`, which also needs full well, read noise and dark current, none of them modeled), image flips
-(`x/yflipaxis`; no sensor-spec field), `DeviceVendorName`/`DeviceModelName` (no DIRSIG element; platform
-metadata is free text), and `radiometric_reference` (says spectral radiance; the image is electrons, A.9.1).
+(`x/yflipaxis`; no sensor-spec field), and `DeviceVendorName`/`DeviceModelName` (no DIRSIG element; platform
+metadata is free text).
 Instrument and focal plane names, truth collections, spatial response (PSF) and hypersampling stay as the
 template has them. `throughput_in_band` is checked against the optics curve only in the tests. Beam-split
 optical paths and `.platform` noise models are not generated.

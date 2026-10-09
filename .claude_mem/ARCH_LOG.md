@@ -393,3 +393,11 @@ Kevin unavailable; prompt.md "Sensor model, round two". Decisions in order made:
 - **Step 1, notebook.** stage_03's source dumps the YAML generically (no literal value), so the stale text was
   output only; added a sentence on radiometric_reference to the markdown before it and re-executed end to end
   (DIRSIG_HOME unset): 0 errors, no "spectral_radiance"/"W/(m2" anywhere in the file.
+- **Step 2, documents.** CONOPS §4 has no field table (the prompt assumed one): added a "Radiometric reference"
+  paragraph after the Units paragraph instead of inventing a table. §9 absolute-count bullet now says per
+  exposure, not a rate (with the doubling measurement), gain/bias apply on top, and names the field. C-20 added
+  after C-19 (`proposed`). No "TBD"/mislabelled statement remained elsewhere (git grep). BACKLOG Generator-scope:
+  only the radiometric_reference clause removed. DIRSIG_Platform_Decomposition.md: the Detector_v02 enumeration
+  (line 212) left as quoted; the two rows at 263 and 312 gained a pointer to C-20 in their note cells (kept the
+  tables valid rather than adding free lines inside them). sensors/README and contracts/README state nothing false;
+  unchanged. README.md line 17 ("electrons per m² of focal plane") already true.

@@ -260,7 +260,7 @@ Values from `platforms/AurorNIRDetector.platform` of the Auror / Tahoe tree.
 | `channel.center` | 0.85 µm | `channels[].band` | **Lookup** into `sensor_band` → `NIR` |
 | `channel.width`, `@shape=gaussian` | 0.0637 | `channels[].bandwidth` | Descriptor requires FWHM. If the DIRSIG width is σ, FWHM = 2.3548 σ |
 | `spectralresponse.bandpass` min/max | 0.41 / 2.0 µm | **none** | Integration range, not a filter edge. Not `cut_on` / `cut_off` |
-| `imagefile @fluxunits=electronspersecond` | | `radiometric_reference.quantity`, `unit` | Requires an electron-flux member of the quantity enum |
+| `imagefile @fluxunits=electronspersecond` | | `radiometric_reference.quantity`, `unit` | Requires an electron-flux member of the quantity enum; protoDIRSIG proposes `electron_exposure`, `e-/m2` (CONOPS and Guide, C-20) |
 | `channel @gain` / `@bias` | 1 / 0 | — (`descriptor.settings`) | Per-channel in DIRSIG, per-entry in `settings` |
 | `detectorarray.clock.rate` | 1000 Hz | — (`descriptor.settings` frame rate) | `readout.acquisition_frame_rate_max` is a device limit, not a setting |
 | `capturemethod.temporalintegration` | 0.005 s, 10 samples | — (`descriptor.settings`) | Integration time is a setting, not a device property |
@@ -309,7 +309,7 @@ So the descriptor is authored but not trusted. Fields with an extractor source a
 | Units of `aperturediameter` and `focallength` | f/# wrong by 10³; every derived GSD and Airy figure wrong |
 | Gaussian `width`: σ or FWHM | `bandwidth` wrong by 2.3548 on every Gaussian channel |
 | Scene axis convention | `reference_frame.axis_convention` unsupported by the file |
-| Electron-flux member of `radiometric_reference.quantity` | `@fluxunits=electronspersecond` unmappable |
+| Electron-flux member of `radiometric_reference.quantity` | `@fluxunits=electronspersecond` unmappable; proposed `electron_exposure` (CONOPS and Guide, C-20) |
 | Band and array-size columns for multi-entry, multi-channel systems | Common-core projection rule undefined |
 | Whether `eoptic_detectorConfig` is a copy of `descriptor.sensor`, extractor output, or separately authored | Determines whether §10's two-direction relation holds at execution as well as registration |
 

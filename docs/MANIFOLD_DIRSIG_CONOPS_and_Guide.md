@@ -283,6 +283,13 @@ Units: `aperture_diameter` and `focal_length` are millimetres; the generator wri
 in metres and `focallength` in millimetres. `fill_factor` is the linear element size over spacing. A generated
 channel is named by its `channel_id`, which becomes the ENVI band name.
 
+**Radiometric reference.** Each channel's `radiometric_reference` states what an image pixel holds:
+`quantity: electron_exposure`, `unit: "e-/m2"`, photo-electrons per m² of focal plane accumulated over the
+exposure (section 9). The schema closes `quantity` to Detector_v02's five members (`radiance`,
+`spectral_radiance`, `irradiance`, `brightness_temperature`, `digital_number`) plus `electron_exposure`, a
+proposed extension (C-20). `scale` and `offset` are optional and absent: the image is already in the stated unit.
+A library test ties the field to the `imagefile` the generator renders, so the two cannot disagree.
+
 Library entries: `auror-nir` (AUROR_ref; vendor, model, and full frame not recorded; no QE), `deepscan_850_306_nir_1280`
 (Eoptic DeepScan, Teledyne SCION 1280 x 1024 VisGaAs; synthetic QE until vendor data), and
 `synthetic_600_200_vis_1920` (an invented VIS camera: 50 mm, 200 mm, 1920 x 1080 at 5.5 um, synthetic silicon QE
@@ -474,8 +481,11 @@ documentation.
   G# = (1 + 4 F#²) / (τ π) (basicplatform_plugin.html; the textbook 4 F#² is 1.9 % off at f/3.6). Three cases:
   gaussian with scalar throughput, the same at 60° sun zenith, rectangle with QE and optics curves
   (`tests/test_absolute_radiometry.py`). Units: `hemisphereirradiance` is W cm⁻² µm⁻¹; the image (`areaunits="m2"`,
-  `fluxunits="electronspersecond"`, temporal integration) is electrons per m² of focal plane, so electrons per
-  pixel are the value × element area. The check covers the sensor chain only: under `new_atmosphere` the sun's
+  `fluxunits="electronspersecond"`, temporal integration) is electrons per m² of focal plane accumulated over
+  the exposure, not a rate: doubling the exposure time doubles every pixel (16 × 16, ratio 2.000006). Electrons
+  per pixel are the value × element area. Channel gain and bias (run-spec `settings`, 1 and 0 in every run
+  spec here) apply on top. `radiometric_reference` records this as `electron_exposure`, `e-/m2` (section 4).
+  The check covers the sensor chain only: under `new_atmosphere` the sun's
   irradiance comes from the database and is not checked.
 - `aperturediameter` is in metres and `focallength` in millimetres. Adjacent-pixel horizontal spacing on the
   ground equals pitch / focal length × range within 1 % (three sensors, nadir view). `xarrayoffset` and
@@ -521,3 +531,4 @@ One row per interface item. `Outcome` is filled after review with the MANIFOLD t
 | C-14 | Detector manufacturer and model | `focal_planes[].detector.DeviceVendorName` and `DeviceModelName` (SFNC names, Detector_v02 §6.3); placement in the focal plane rather than `identity` | `proposed` | |
 | C-15 | Full frame versus modeled window | `detector` is the Detector_v02 `array` block (SFNC `SensorWidth`, `SensorHeight`, pitch, `fill_factor`, `channel_layout`, all the full sensor) plus vendor and model, under a different block name. The window DIRSIG models is the commanded `roi` (SFNC `Width`, `Height`, `OffsetX`, `OffsetY`) in run-spec `settings`, as Detector_v02 treats a region of interest; the offset places the window in the field (DIRSIG array offset), so it is not decorative | `proposed` | |
 | C-19 | Entries per DIRSIG job | one sensor entry, one focal plane, one `settings` member; several channels per focal plane. A multi-entry or multi-focal-plane sensor-spec is refused, not partly rendered. Open: does MANIFOLD expect one run spec per entry, or one job per entry from one run spec? | `open` | |
+| C-20 | Electron member of `radiometric_reference.quantity` | the generated image is photo-electrons per m² of focal plane over the exposure (`imagefile` `fluxunits="electronspersecond"`, `areaunits="m2"`, temporal integration), which none of Detector_v02 A.9.1's five members describes. Proposed member `electron_exposure`, unit `e-/m2`. Question: does Detector_v02 add an electron member (exposure, or a rate with integration time stated separately), or does the `imagefile` electron output map to another field? | `proposed` | |
