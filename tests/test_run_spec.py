@@ -1,5 +1,5 @@
 """protodirsig.run_spec must resolve run_specs/auror_ref.yaml (engine assets against config_repo,
-the sensor ref beside the run spec), carry the motion/tasks values the generator needs, and refuse
+the sensor ref in the sensor library), carry the motion/tasks values the generator needs, and refuse
 what it is not built for.
 
 Reads the run spec and config_repo READ-ONLY (tests needing config_repo skipped if absent);
@@ -24,7 +24,7 @@ needs_config_repo = pytest.mark.skipif(not (CONFIG_REPO / "scenes" / "tahoe" / "
 
 def test_spec_values():
     spec = load_run_spec(SPEC)
-    assert spec["descriptor"]["sensor"]["ref"]["name"] == "sensors/auror-nir.yaml"
+    assert spec["descriptor"]["sensor"]["ref"]["name"] == "auror-nir.yaml"
     eng = spec["engine"]
     assert eng["run"]["seed"] == 42
     assert eng["scenes"][0]["ref"]["name"] == "scenes/tahoe/tahoe.scene"
@@ -52,7 +52,7 @@ def test_resolves_against_config_repo():
     assert (run.seed, run.ephemeris, run.split_channels, run.integration_samples) == (42, "spice", False, 10)
     assert run.output_prefix == "auror_nir_"
     assert check_library_files(spec, run) == []
-    # The sensor ref resolves beside the run spec (run_specs/sensors/), not in config_repo.
+    # The sensor ref resolves in the sensor library (sensors/), not in config_repo.
     assert run.sensor["meta"]["name"] == "auror-nir"
     assert run.sensor["sensor"]["sensor_system"]["system_id"] == "auror.nir-staring-01"
 
@@ -179,7 +179,7 @@ def test_rejects_non_run_spec(tmp_path):
 
 
 def test_load_sensor_spec():
-    doc = load_sensor_spec(SPEC, "sensors/auror-nir.yaml")
+    doc = load_sensor_spec(SPEC.parent.parent / "sensors", "auror-nir.yaml")
     assert doc["spec_version"] == "sensor-spec/1" and set(doc) == {"spec_version", "meta", "sensor"}
     entry = doc["sensor"]["entries"][0]
     assert entry["entry_id"] == "auror-nir" and entry["focal_planes"][0]["array"]["SensorWidth"] == 500
@@ -191,17 +191,16 @@ def test_load_sensor_spec():
     ("spec_version: [unclosed\n", "does not parse"),
 ])
 def test_load_sensor_spec_rejects(tmp_path, text, match):
-    (tmp_path / "sensors").mkdir()
-    (tmp_path / "sensors" / "bad.yaml").write_text(text)
+    (tmp_path / "bad.yaml").write_text(text)
     with pytest.raises(RunSpecError, match=match):
-        load_sensor_spec(tmp_path / "run.yaml", "sensors/bad.yaml")
+        load_sensor_spec(tmp_path, "bad.yaml")
 
 
 @needs_config_repo
 def test_missing_sensor_ref_is_specific(tmp_path):
     spec = load_run_spec(SPEC)
-    with pytest.raises(RunSpecError, match="not found beside the run spec"):
-        resolve_auror_run(spec, tmp_path / "run.yaml", CONFIG_REPO)              # no sensors/ beside this path
+    with pytest.raises(RunSpecError, match="not found in the sensor library"):
+        resolve_auror_run(spec, tmp_path / "run.yaml", CONFIG_REPO, tmp_path)    # empty sensor library
     spec["descriptor"]["sensor"] = {"sensor_system": {}}                     # the old inline shape
     with pytest.raises(RunSpecError, match="sensor-spec/1 ref"):
         resolve_auror_run(spec, SPEC, CONFIG_REPO)

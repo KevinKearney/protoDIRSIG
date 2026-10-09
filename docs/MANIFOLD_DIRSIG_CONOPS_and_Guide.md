@@ -87,10 +87,7 @@ is required iff `origin.kind: field`. `extras` is optional. Unknown keys are rej
 - **`collection`.** Observation conditions as governed terms and derived quantities, not engine parameters.
   `atmosphere.regime` is a vocabulary term, not a DIRSIG preset. `epoch` is phenomenon time (read from
   `.tasks`). `geometry.range` is required when `targets` is non-empty.
-- **`sensor`.** Full L3 structure, defined in `AV_MANIFOLD_Detector_v02`. `entry_id` joins to `settings`.
-  Fields with no DIRSIG source (`SensorShutterMode`, `AdcBitDepth`, `timestamp_reference`, `optical_path`,
-  `system_id`, `reference_frame`) are assigned in the library entry with `provenance: specified` or
-  `modeled`. Carried as a `sensor-spec/1` reference (section 4).
+- **`sensor`.** A `sensor-spec/1` reference; structure per `AV_MANIFOLD_Detector_v02` (section 4).
 - **`settings`.** Commanded per-entry values: exposure, frame rate, gain, black level, ROI, binning. One
   member per `sensor.entries[]`; `entry_id` must resolve. Stays in the run spec, not the sensor file.
 - **`fidelity`.** `modeled`, `approximated`, `absent` lists and free-text `valid_for`. Authored, not
@@ -101,6 +98,12 @@ is required iff `origin.kind: field`. `extras` is optional. Unknown keys are rej
   when `measured`. Fields fixed by design are plain scalars.
 
 ### 3.2 `engine` (`dirsig-engine/1`)
+
+The `engine` section is origin-specific: one schema per engine, selected by `descriptor.origin.engine`.
+DIRSIG (`dirsig-engine/1`) is the first engine implemented. Others (`satsim`, `usd`) will follow with their own
+`<engine>-engine/<major>` schemas; none of what follows constrains them. The `descriptor` is the
+engine-independent part of the contract and is shared across all engines. This document describes the DIRSIG
+engine only.
 
 Members (Configuration_v02 A.8.1): `generator`, `scenes`, `platform`, `motion`, `tasks`, `atmosphere`
 (required); `weather`, `ephemeris`, `run` (optional).
@@ -148,11 +151,17 @@ registered files and compares them with the descriptor (MD-13); a column with no
 
 A sensor system is reusable across runs. `sensor-spec/1` is the `descriptor.sensor` block as its own
 document: `spec_version: sensor-spec/1`, `meta` (`name`, `tags`, `description`), and `sensor` as in 3.1.
-A run spec carries `descriptor.sensor: {ref: {name: "sensors/<name>.yaml", content_hash: "sha256:<hash>"}}`.
+A run spec carries `descriptor.sensor: {ref: {name: "<name>.yaml", content_hash: "sha256:<hash>"}}`; the name resolves against the
+sensor library, `sensors/`.
 An inline `descriptor.sensor` is rejected by the schema and resolution checks. The first entry is
-`run_specs/sensors/auror-nir.yaml`.
+`sensors/auror-nir.yaml`.
 
 `content_hash` is authored and carried through; nothing computes or verifies it.
+
+Several required `sensor` fields have no DIRSIG source (`SensorShutterMode`, `AdcBitDepth`,
+`timestamp_reference`, `optical_path`, `system_id`, `reference_frame`). They are assigned in the library entry
+with `provenance: specified` or `modeled`, not read from any DIRSIG file. `entry_id` joins each sensor entry
+to its `settings` member in the run spec.
 
 ## 5. Repository layout and resolution roots `built`
 
@@ -163,7 +172,9 @@ config_repo/
   weather/<name>.wth
   atmosphere/<name>                # proposed path; see section 10
 run_specs/                         # run-spec/1 documents
-run_specs/sensors/                 # sensor-spec/1 documents
+sensors/                           # sensor library: sensor-spec/1 documents
+contracts/                         # schemas, vocabulary, validators (empty today)
+external/                          # pinned dirfm, agent-docs, DIRSIG link; gitignored (pins.json tracked)
 src/protodirsig/  tests/  notebooks/  scripts/
 tests/fixtures/auror_ref/          # motion and tasks files; compared with generated files only
 outputs/<job>/                     # ephemeral job directories; gitignored
@@ -174,11 +185,11 @@ Refs resolve by which side of the schema they sit on.
 | Ref | Resolves against |
 |---|---|
 | `engine.*` (`scenes[].ref`, `platform.ref`, `atmosphere.database.ref`, `weather.file`) | `config_repo/` |
-| `descriptor.*` (`sensor.ref`) | directory of the run spec |
+| `descriptor.*` (`sensor.ref`) | `sensors/` (the sensor library) |
 | `engine.motion`, `engine.tasks` | not resolved; generated into the job directory |
 
-Any `descriptor` ref added later resolves against the run spec's document store, regardless of where the
-engine-asset library lives. `config_repo/` is read-only at run time. A job directory holds a scene reference
+Each library folder is a resolution root and maps to a future MANIFOLD repository. Any `descriptor` ref
+added later resolves against its own library, regardless of where the engine-asset library lives. `config_repo/` is read-only at run time. A job directory holds a scene reference
 copy, byte-identical copies of resolved library files (geometry and materials symlinked back to the library),
 and the generated motion and tasks files.
 
@@ -309,7 +320,7 @@ One row per interface item. `Outcome` is filled after review with the MANIFOLD t
 
 | ID | Item | Our position | Status | Outcome |
 |---|---|---|---|---|
-| C-01 | `descriptor.sensor` refs resolve beside the run spec; `engine` refs resolve against `config_repo/` | resolve by schema side, not one tree; `sensors/` stays out of the asset library | `open` | |
+| C-01 | `descriptor.sensor` refs resolve against the sensor library; `engine` refs resolve against `config_repo/` | resolve by schema side, not one tree; `sensors/` is its own library, not part of the asset library | `open` | |
 | C-02 | `atmosphere/<name>` flat library path | modeled on `weather/<name>.wth`; ratify with C-03 | `proposed` | |
 | C-03 | `new_atmosphere` plugin value in A.8.7 (database role `dirsig:atmosphere_db`) | AUROR's atmosphere is `NewAtmosphere` reading a prebuilt HDF5 database; `four_curve` in the architecture-view instances is wrong for this tree. The recipe (MODTRAN tape, `Isaac`) has no run-spec field | `proposed` | |
 | C-04 | Where motion and tasks are generated | at `materialize`, from `engine.motion` and `engine.tasks`; or does MANIFOLD expect them pre-built upstream? | `open` | |
@@ -321,5 +332,4 @@ One row per interface item. `Outcome` is filled after review with the MANIFOLD t
 | C-10 | `engine.platform.output_prefix` | applying it renames outputs and breaks tree reproduction; it appears in no file of the tree | `open` | |
 | C-11 | Illustrative instances in Metadata_v02 §6.11 and Configuration_v02 A.8.10 | `meta.name: tacoma-nir-baseline` is stale (values are AUROR); `scenes/tahoe` path matches the nested layout, not the flat received tree; `four_curve` should be `new_atmosphere` | `open` | |
 | C-12 | Strict loader and hashing | duplicate and unknown key rejection, canonical-JSON hashing, `content_hash` verification belong on the registry side; not built here | `open` | |
-| C-13 | `fidelity.valid_for` in the vendored run spec | still states the vehicle's absence is unexplained; cause is known (C-09) | `open` | |
 | C-14 | Detector manufacturer and model | reuse `identity.DeviceVendorName`, `DeviceModelName` (Detector_v02 §6.3); placement and spelling open | `open` | |

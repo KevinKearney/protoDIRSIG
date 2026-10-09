@@ -1,6 +1,5 @@
-# Vendored copy. Authored at eopticDocs/projects/MANIFOLD/04-guides/sensors/auror-nir.yaml -- edit it there, not here.
 # sensor-spec/1 extraction of auror_ref_run_spec.yaml's descriptor.sensor block.
-# Companion to GD_DIRSIG_RunSpec_YAML_v01.md §7 (04-guides/).
+# Companion to the protoDIRSIG CONOPS and Guide §4 (docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md).
 #
 # Content unchanged from the inline block this replaces. Referenced by
 # auror_ref_run_spec.yaml as descriptor.sensor.ref. Trust model: by name, like every

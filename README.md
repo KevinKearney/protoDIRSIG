@@ -10,19 +10,24 @@ and the interface to MANIFOLD. `BACKLOG.md` is the to-do list.
 
 ## Environment setup
 
-Prerequisites: a working DIRSIG5 install with `bin/` locatable (this
-project assumes `~/DIRSIG/dirsig-2026.38.0.a020954-Linux-x86_64`, overridable
-via `DIRSIG_HOME`), and a `dirfm` checkout as a sibling directory
-(`~/dev/dirsig-file-maker`) — `dirfm` is not on PyPI or conda-forge.
+Prerequisites: a DIRSIG5 install (`~/DIRSIG/dirsig-2026.38.0.a020954-Linux-x86_64`, or
+anywhere via `DIRSIG_HOME`), git access to RIT's GitLab for `dirfm` (not on PyPI or
+conda-forge), and conda. `external/pins.json` fixes the exact `dirfm` and `agent-docs`
+commits and the DIRSIG version.
 
 ```bash
 cd ~/dev/protoDIRSIG
+python scripts/bootstrap.py install        # clone dirfm and agent-docs at the pins; link DIRSIG
+python scripts/bootstrap.py status         # check each against its pin
 conda env create -f environment.yml
 conda activate protodirsig
-pip install -e ~/dev/dirsig-file-maker
+pip install -e external/dirsig-file-maker
 pip install -e .
 python -m ipykernel install --user --name protodirsig --display-name "Python (protodirsig)"
 ```
+
+To reuse existing checkouts instead of cloning, add
+`--link dirfm=~/dev/dirsig-file-maker --link agent-docs=~/dev/agent-docs` to the `install` command.
 
 The last step registers a Jupyter kernel named `protodirsig` — select it when
 opening any notebook under `notebooks/`. DIRSIG's own `PATH`/`DIRSIG_HOME`
@@ -56,12 +61,14 @@ conda env update -f environment.yml --prune
   (`run_spec`), motion/tasks generation (`motion_tasks`), the conformance
   checks and render (`simulation`), the local submission stand-in
   (`registry`), and the dirfm workarounds and helpers the notebooks use.
-- `run_specs/` — MANIFOLD run-spec YAMLs (and `sensors/`, the
-  `sensor-spec/1` files they reference), vendored from eopticDocs
-  `projects/MANIFOLD/04-guides/`; edit them there, not here.
+- `run_specs/` — MANIFOLD run-spec YAMLs. The only copy; protoDIRSIG is the source of truth.
+- `sensors/` — the sensor library: `sensor-spec/1` files that run specs reference.
+- `contracts/` — schemas, vocabulary and validators (empty today; future `manifold-contracts`).
+- `external/` — pinned dirfm and agent-docs checkouts and a link to the DIRSIG install,
+  populated by `python scripts/bootstrap.py install`; gitignored except `pins.json`.
 - `config_repo/` — the engine-asset library the run specs' `engine` refs
   resolve against (scenes, platforms, weather, atmosphere databases), in
-  the layout of GD_DIRSIG_RunSpec_YAML_v01 §9. Read-only at run time.
+  the layout of the CONOPS and Guide §5. Read-only at run time.
 - `scripts/` — standalone CLI entry points, if/when notebook logic
   graduates out of prototyping.
 - `outputs/` — DIRSIG input/output roots written by notebooks and scripts.
@@ -83,13 +90,13 @@ dependency and never modified — this project reads its source as the
 API/behavior reference and treats its `demos/test_*.py` pytest suite as the
 canonical usage pattern to copy when adding anything new (per Rendered.ai's
 own internal convention for `dirfm`, confirmed via their `agent-docs`
-reference — see `~/dev/agent-docs` for the full documentation set).
+reference — see `external/agent-docs` for the full documentation set).
 
 **Rendered.ai's channel/node layer (`dirsig_pkg`, `anatools`) is explicitly
 not a dependency.** That layer is Rendered.ai's commercial Agent Studio
 platform surface — gated behind an API key, a hosted workspace, and their
 own `ana`/`anadeploy`/`anamount` tooling — not open source code that can be
-vendored into this project. `~/dev/agent-docs` is read as a *design-pattern*
+vendored into this project. `external/agent-docs` is read as a *design-pattern*
 reference only (node `exec()` conventions, `ctx.seed`/`ctx.random`
 determinism discipline, truth-band-to-annotation conversion) to inform how
 `src/protodirsig` gets built, not as a library this project imports from or

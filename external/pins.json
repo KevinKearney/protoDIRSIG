@@ -1,0 +1,20 @@
+{
+  "dirfm": {
+    "kind": "git",
+    "url": "https://dirsig-gitlab.cis.rit.edu/dirsig_public/dirsig-file-maker.git",
+    "commit": "93195cee1ccc4f31a214e114d94c493a1d4cc22f",
+    "note": "RIT. Read-only dependency; never modified here. pip install -e external/dirsig-file-maker"
+  },
+  "agent-docs": {
+    "kind": "git",
+    "url": "https://github.com/renderedai/agent-docs.git",
+    "commit": "b8c0c735d403307755c96ac0fa75fc8c71742e25",
+    "note": "Rendered.ai agent-context repo. Design-pattern reference only; nothing imports from it."
+  },
+  "dirsig": {
+    "kind": "install",
+    "version": "dirsig-2026.38.0.a020954-Linux-x86_64",
+    "search": ["$DIRSIG_HOME", "~/DIRSIG/{version}"],
+    "note": "Licensed binary install (about 4 GB); linked, never copied or committed."
+  }
+}

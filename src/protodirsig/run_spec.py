@@ -1,20 +1,20 @@
 """Read the AUROR_ref job's references from a MANIFOLD run-spec YAML.
 
-Narrow and tree-specific by design: this resolves `run_specs/auror_ref.yaml` (vendored from
-eopticDocs `04-guides/auror_ref_run_spec.yaml`) for the stage notebooks
+Narrow and tree-specific by design: this resolves `run_specs/auror_ref.yaml` for the stage notebooks
 (`notebooks/stage_NN_*.ipynb`). It is not a `dirsig-engine/1` interpreter.
 
 Two resolution roots, one per kind of thing referenced:
-- `config_repo`: the engine-asset library (GD_DIRSIG_RunSpec_YAML_v01 §9; Configuration_v02 A.8)
+- `config_repo`: the engine-asset library (CONOPS and Guide §5; Configuration_v02 A.8)
   for `engine.scenes`, `platform`, `atmosphere.database` and `weather.file`. Each ref name is a path
   under it, with no fallback search.
-- the run spec's own directory, for the `descriptor.sensor` ref (see below).
+- `sensor_library`: the sensor library (`sensors/`), for the `descriptor.sensor` ref (see below).
 Nothing resolves against a received run tree. MANIFOLD has none: the executor materializes a fresh
 run tree from the run spec for every run (Configuration_v02 §2).
 
-`descriptor.sensor` is a `sensor-spec/1` ref (GD_DIRSIG_RunSpec_YAML_v01 §7). Unlike every
-`engine` ref, it resolves against the run spec's own directory (`run_specs/sensors/...`), not
-`config_repo`. It is loaded and checked here, and nothing in the DIRSIG job consumes it.
+`descriptor.sensor` is a `sensor-spec/1` ref (CONOPS and Guide §4). Unlike every
+`engine` ref, it resolves against `sensor_library`, not `config_repo`. The ref name is a path under
+the library (`auror-nir.yaml`). The default library is `sensors/`, a sibling of the folder holding the
+run spec. It is loaded and checked here, and nothing in the DIRSIG job consumes it.
 
 What it drives: `engine.scenes`, `platform`, `atmosphere`, `weather`, `ephemeris` and
 `run.seed` name existing library files that the `scene_ref`, `platform_ref` and
@@ -59,13 +59,12 @@ def load_run_spec(path):
     return spec
 
 
-def load_sensor_spec(run_spec_path, sensor_ref_name):
-    """Load the `sensor-spec/1` document `sensor_ref_name` names, resolved against the run spec's
-    directory. Returns the whole document, as `load_run_spec` does. Raises `RunSpecError` if the
+def load_sensor_spec(sensor_library, sensor_ref_name):
+    """Load the `sensor-spec/1` document `sensor_ref_name` names, resolved against `sensor_library`. Returns the whole document, as `load_run_spec` does. Raises `RunSpecError` if the
     file is missing, does not parse, is not `sensor-spec/1`, or has no `sensor` mapping."""
-    path = Path(run_spec_path).parent / sensor_ref_name
+    path = Path(sensor_library) / sensor_ref_name
     if not path.is_file():
-        raise RunSpecError(f"sensor {sensor_ref_name!r} not found beside the run spec ({path})")
+        raise RunSpecError(f"sensor {sensor_ref_name!r} not found in the sensor library ({path})")
     try:
         doc = yaml.safe_load(path.read_text())
     except yaml.YAMLError as e:
@@ -129,11 +128,18 @@ def _scene_file(config_repo, ref_name):
     return _root_file(config_repo, ref_name, "scene")
 
 
-def resolve_auror_run(spec, run_spec_path, config_repo):
+def default_sensor_library(run_spec_path):
+    """`sensors/`, the sibling of the folder that holds the run spec."""
+    return Path(run_spec_path).resolve().parent.parent / "sensors"
+
+
+def resolve_auror_run(spec, run_spec_path, config_repo, sensor_library=None):
     """Resolve a loaded run spec: engine assets against `config_repo`, the sensor ref against
-    `run_spec_path`'s directory, and the motion/tasks values the generator needs. Returns an
-    `AurorRun`."""
+    `sensor_library` (default: `default_sensor_library(run_spec_path)`), and the motion/tasks
+    values the generator needs. Returns an `AurorRun`."""
     config_repo = Path(config_repo)
+    if sensor_library is None:
+        sensor_library = default_sensor_library(run_spec_path)
     eng = spec["engine"]
     atm = eng["atmosphere"]
     if atm.get("plugin") != "new_atmosphere":
@@ -181,7 +187,7 @@ def resolve_auror_run(spec, run_spec_path, config_repo):
     ref = sensor.get("ref") if isinstance(sensor, dict) else None
     sensor_name = ref.get("name") if isinstance(ref, dict) else None
     if not isinstance(sensor_name, str):
-        raise RunSpecError("descriptor.sensor must be a sensor-spec/1 ref ({ref: {name: sensors/<name>.yaml}}), "
+        raise RunSpecError("descriptor.sensor must be a sensor-spec/1 ref ({ref: {name: <name>.yaml}}), "
                            f"got {sensor!r:.80}")
     return AurorRun(
         name=desc["meta"]["name"],
@@ -201,7 +207,7 @@ def resolve_auror_run(spec, run_spec_path, config_repo):
         weather=_root_file(config_repo, weather["file"]["name"], "weather file"),
         ephemeris=ephemeris,
         seed=int(eng["run"]["seed"]),
-        sensor=load_sensor_spec(run_spec_path, sensor_name),
+        sensor=load_sensor_spec(sensor_library, sensor_name),
     )
 
 

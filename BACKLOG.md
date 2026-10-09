@@ -19,16 +19,12 @@ Reuse `AV_MANIFOLD_Detector_v02.md` §6.3, `identity.DeviceVendorName` and `iden
 Open: placement in the focal-plane block; SFNC spelling or snake_case; the `auror-nir` value, which has no
 DIRSIG source and needs a provenance tag. Scope: `sensors/*.yaml`, the `sensor-spec/1` section of the CONOPS.
 
-### Update `fidelity.valid_for` in the run spec
-It still calls the vehicle's absence unexplained. The cause is known (emission not evaluated by default).
-The text lives in the eopticDocs run spec.
-
 ### `engine.platform.output_prefix: auror_nir_` is not applied
 Applying it renames the outputs and breaks reproduction of the tree. It appears in no file in the tree, so it
 looks like an authoring choice in the YAML. Settle with MANIFOLD.
 
 ### Three resolution roots, one rule
-Engine assets resolve against `config_repo/`, the sensor ref against the run spec's directory, motion and
+Engine assets resolve against `config_repo/`, the sensor ref against `sensors/`, motion and
 tasks are generated. Still open: whether inline `descriptor.sensor` stays disallowed (the code rejects it).
 
 ### Strict loader and content hashing (MANIFOLD registry side)
@@ -44,11 +40,6 @@ Do not use it as the provenance record of plugins.
 
 ### `--threads` in `engine.run`
 Not exposed. Add before MANIFOLD schedules concurrent DIRSIG jobs on shared hardware.
-
-### Vendored run spec and sensor spec drift
-`run_specs/auror_ref.yaml` and `run_specs/sensors/auror-nir.yaml` are copies of eopticDocs files with no sync
-check. A comment in the vendored run spec says `config_repo/scenes/tahoe/` holds `maps/`; it does not.
-Decide the single source of truth.
 
 ### Generalize `resolve_auror_run`
 It accepts only `new_atmosphere`, ephemeris `spice`, weather `library`, one scene, and `static` motion.
@@ -118,6 +109,20 @@ the errors or delete the file once its content is absorbed into the CONOPS.
 
 ## Tests and environment
 
+### Notebooks and tests still assume sibling checkouts and `~/DIRSIG`
+Notebook first cells set `DIRSIG_HOME` and locate `dirfm` by home-relative paths. Switch them to
+`external/` (the `dirsig` link and `dirsig-file-maker`) so the bootstrap is the only setup step.
+
+### CI job
+Run `scripts/bootstrap.py status`, then the test suite, on a clean clone. Needs a runner with a DIRSIG
+install or a container image that has one.
+
+### Dangling citations in the MANIFOLD documents
+`AD_MANIFOLD_Architecture_Description_v02` and `AV_MANIFOLD_Configuration_v02` cite deleted documents
+(`review/TRIAL_2026-10-06_dirsig-container.md`, `ROLE_PROPOSAL_2026-10-05.md`,
+`MANIFOLD_Gap_Analysis_and_Project_Plan`, and the folded A&T analyses). Recoverable from eopticDocs git history;
+the MANIFOLD team decides whether to reword the citations.
+
 ### pytest is not installed in the `protodirsig` env
 Every stage ran it from a scratch `--target` install. Declare the `dev` extra in `environment.yml`.
 
@@ -178,6 +183,6 @@ surfaces and are not drawn.
 ## Housekeeping
 
 ### Notebook text cites FINDINGS.md
-Markdown cells and printed output in the stage 01/02, `tutorial_auror_scene`, `tutorial_tacoma_scene`, and
+Markdown cells and printed output in the stage 01/02 (stage 01 also cites the retired run-spec guide), `tutorial_auror_scene`, `tutorial_tacoma_scene`, and
 `vehicle_point_source` notebooks cite `FINDINGS.md`, which no longer exists at the repo root. Reword the cells
 on each notebook's next re-execution; the code strings in the sidebar also print "FINDINGS".

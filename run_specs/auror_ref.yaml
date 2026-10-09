@@ -1,6 +1,5 @@
-# Vendored copy. Authored at eopticDocs/projects/MANIFOLD/04-guides/auror_ref_run_spec.yaml -- edit it there, not here.
 # Prototype run spec for the real AUROR_ref tree.
-# Companion to GD_DIRSIG_RunSpec_YAML_v01.md (04-guides/).
+# Companion to the protoDIRSIG CONOPS and Guide (docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md).
 #
 # Built against:
 #   - descriptor schema:  AV_MANIFOLD_Metadata_v02.md §6 (run-spec/1)
@@ -18,11 +17,11 @@
 #   3. run.seed is set and confirmed (FINDINGS.md, Stage 02): dirfm passes it as
 #      --random_seed to both scene2hdf and dirsig5, and it reproduces a render byte for byte.
 #
-# descriptor.sensor is a sensor-spec/1 ref (GD_DIRSIG_RunSpec_YAML_v01.md §7), not an inline
-# block -- see sensors/auror-nir.yaml in this folder.
+# descriptor.sensor is a sensor-spec/1 ref (CONOPS and Guide §4), not an inline
+# block -- see sensors/auror-nir.yaml (the sensor library, beside this folder).
 #
 # engine.scenes / platform / atmosphere.database / weather.file are config_repo library paths
-# (GD_DIRSIG_RunSpec_YAML_v01.md §9), not paths into the received AUROR_ref tree. The
+# (CONOPS and Guide §5), not paths into the received AUROR_ref tree. The
 # config-repo layout mismatch flagged in §6 for the architecture-view illustrative instances is
 # resolved for this prototype's own run spec as of Stage 04 (FINDINGS.md): a real config_repo/
 # holds these assets, copied once from AUROR_ref, in the library layout A.8 specifies.
@@ -67,9 +66,9 @@ descriptor:
       - class: vehicle_air               # hypersonic bundle target (hypersonic.glist / hypersonic.mat)
 
   sensor:
-    ref: {name: sensors/auror-nir.yaml, content_hash: "sha256:<hash>"}
-    # (sensor-spec/1 extraction, GD_DIRSIG_RunSpec_YAML_v01.md §7) -- content identical to the
-    # formerly-inline block; see sensors/auror-nir.yaml in this folder.
+    ref: {name: auror-nir.yaml, content_hash: "sha256:<hash>"}
+    # (sensor-spec/1 extraction, CONOPS and Guide §4) -- content identical to the
+    # formerly-inline block; see sensors/auror-nir.yaml (the sensor library).
 
   settings:
     - entry_id: auror-nir
@@ -84,12 +83,12 @@ descriptor:
     absent: [platform jitter]
     valid_for: >
       Scene-radiometry and sensor-chain studies at the modeled band, geometry and atmosphere.
-      Not yet valid for target-visibility studies: the embedded vehicle target does not appear
-      in the rendered output at the expected brightness (see FINDINGS.md, 2026-10-06 entry);
-      the cause is not yet established.
+      Not valid for target-visibility studies: the vehicle's material has zero reflectance and its
+      1500 K emission is not evaluated in a 0.41-2.0 um job unless temperature prediction is
+      forced, so the vehicle renders black.
 
   extras:
-    dirsig.atmosphere_db: jsims/AurorNewAtmosphere   # NewAtmosphere's HDF5 database, role dirsig:atmosphere_db (ROLE_PROPOSAL R-6)
+    dirsig.atmosphere_db: jsims/AurorNewAtmosphere   # NewAtmosphere's HDF5 database, role dirsig:atmosphere_db (role R-6)
     dirsig.weather_file: saw.wth
 
 engine:
@@ -99,7 +98,7 @@ engine:
     - ref: {name: scenes/tahoe/tahoe.scene, content_hash: "sha256:<hash>"}
       # Config-repo layout (scenes/<scene>/<scene>.scene, A.8.3), resolved in full as of Stage 04:
       # config_repo/scenes/tahoe/ holds tahoe.scene plus geometry/ and materials/ as descendants
-      # (this scene has no maps/; the convention allows one, per guide §9), copied once from the
+      # (this scene has no maps/; the convention allows one, per CONOPS and Guide §5), copied once from the
       # received AUROR_ref tree where they sat as siblings at the tree root (FINDINGS.md, Stage 04;
       # guide §9). No longer a flat/nested mismatch.
       offset: [0, 0, 0]
@@ -126,7 +125,7 @@ engine:
   atmosphere:
     # (2) PROPOSED EXTENSION -- "new_atmosphere" is not an adopted dirsig-engine/1 plugin
     # value (A.8.7 defines only four_curve and basic). This block matches the real tree
-    # (ROLE_PROPOSAL R-6) and is not yet schema-conformant.
+    # (role R-6) and is not yet schema-conformant.
     plugin: new_atmosphere
     database:
       ref: {name: atmosphere/AurorNewAtmosphere, content_hash: "sha256:<hash>"}

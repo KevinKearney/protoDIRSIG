@@ -17,6 +17,7 @@ from protodirsig.simulation import Simulation, schema_errors
 
 PROJECT = Path(__file__).resolve().parents[1]
 SPEC = PROJECT / "run_specs" / "auror_ref.yaml"
+SENSORS = PROJECT / "sensors"
 CONFIG_REPO = PROJECT / "config_repo"
 DIRSIG_HOME = Path(os.environ.get("DIRSIG_HOME", Path.home() / "DIRSIG" / "dirsig-2026.38.0.a020954-Linux-x86_64"))
 
@@ -34,14 +35,12 @@ needs_dirsig = pytest.mark.skipif(
 
 
 def broken_spec(tmp_path, edit):
-    """A copy of the real run spec with `edit` applied, written to tmp_path beside a symlink to
-    run_specs/sensors/, since the sensor ref resolves against the run spec's own directory."""
+    """A copy of the real run spec with `edit` applied, written to tmp_path. The sensor ref resolves
+    against the real `sensors/` library, which `Simulation` is given explicitly."""
     spec = yaml.safe_load(SPEC.read_text())
     edit(spec)
     path = tmp_path / "broken.yaml"
     path.write_text(yaml.safe_dump(spec, sort_keys=False))
-    if not (tmp_path / "sensors").exists():
-        (tmp_path / "sensors").symlink_to(SPEC.parent / "sensors", target_is_directory=True)
     return path
 
 
@@ -60,7 +59,7 @@ def test_real_spec_passes_all_three(tmp_path):
 @needs_dirsig
 def test_missing_scene_fails_resolution_only(tmp_path):
     path = broken_spec(tmp_path, lambda s: s["engine"]["scenes"][0]["ref"].update(name="scenes/no_such_scene"))
-    c = Simulation.from_run_spec(path, CONFIG_REPO, tmp_path / "work").validate()
+    c = Simulation.from_run_spec(path, CONFIG_REPO, tmp_path / "work", SENSORS).validate()
     assert c.schema_ok and not c.resolution_ok and not c.passed
     assert "no_such_scene" in c.resolution_mismatches[0]
     assert not c.execution_ok and c.execution_error.startswith("not attempted")
@@ -71,7 +70,7 @@ def test_bad_enum_fails_schema(tmp_path):
     # generator.tool is read by nothing that builds the job, so only the schema check can fail.
     # (A bad motion.kind would now also fail resolution, which refuses motion it can't generate.)
     path = broken_spec(tmp_path, lambda s: s["engine"]["generator"].update(tool="make"))
-    c = Simulation.from_run_spec(path, CONFIG_REPO, tmp_path / "work").validate()
+    c = Simulation.from_run_spec(path, CONFIG_REPO, tmp_path / "work", SENSORS).validate()
     assert not c.schema_ok and "engine.generator.tool" in c.schema_error
     assert c.resolution_ok and c.execution_ok         # each check is independent evidence
 
@@ -93,7 +92,7 @@ def test_corrupt_atmosphere_fails_execution(tmp_path):
 def test_unparseable_spec_is_a_result(tmp_path):
     path = tmp_path / "bad.yaml"
     path.write_text("spec_version: [unclosed\n")
-    c = Simulation.from_run_spec(path, CONFIG_REPO, tmp_path / "work").validate()
+    c = Simulation.from_run_spec(path, CONFIG_REPO, tmp_path / "work", SENSORS).validate()
     assert not (c.schema_ok or c.resolution_ok or c.execution_ok) and "did not load" in c.schema_error
 
 
@@ -137,6 +136,6 @@ def test_sensor_ref_schema():
 @needs_dirsig
 def test_missing_sensor_file_fails_resolution_only(tmp_path):
     path = broken_spec(tmp_path, lambda s: s["descriptor"]["sensor"]["ref"].update(name="sensors/no_such_sensor.yaml"))
-    c = Simulation.from_run_spec(path, CONFIG_REPO, tmp_path / "work").validate()
+    c = Simulation.from_run_spec(path, CONFIG_REPO, tmp_path / "work", SENSORS).validate()
     assert c.schema_ok and not c.resolution_ok
     assert "no_such_sensor.yaml" in c.resolution_mismatches[0]

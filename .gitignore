@@ -15,3 +15,8 @@ outputs/*
 
 # Discovery log + its private data copy (self-contained, local only; last tracked in 6f2688b)
 notebooks/dev/
+
+# Third-party code and installs: only the pins and README are tracked
+external/*
+!external/pins.json
+!external/README.md

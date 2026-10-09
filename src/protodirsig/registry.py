@@ -1,6 +1,6 @@
 """`LocalRegistry`: a local stand-in for MANIFOLD's submission endpoint, which does not exist yet.
 
-Stage 02 (eopticDocs `review/PLAN_2026-10-08_conformance-template-roadmap.md`, Phase 4). A
+Stage 02. A
 notebook calls `LocalRegistry().submit(...)` instead of `Simulation.validate()` directly, so the
 real submission path, when it exists, replaces this one call. `SubmissionResult` is
 deliberately not `ConformanceResult`: MANIFOLD's admission response is not defined, and only the
@@ -24,8 +24,8 @@ class SubmissionResult:
 
 
 class LocalRegistry:
-    def submit(self, run_spec_path, config_repo, work_dir=None):
-        sim = Simulation.from_run_spec(run_spec_path, config_repo, work_dir)
+    def submit(self, run_spec_path, config_repo, work_dir=None, sensor_library=None):
+        sim = Simulation.from_run_spec(run_spec_path, config_repo, work_dir, sensor_library)
         c = sim.validate()
         reasons = []
         if not c.schema_ok:

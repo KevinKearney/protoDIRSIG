@@ -1,6 +1,6 @@
 """`Simulation`: the AUROR_ref job behind a constructor, three conformance checks and `run()`.
 
-Stage 02 (eopticDocs `review/PLAN_2026-10-08_conformance-template-roadmap.md`, Phases 2-3).
+Stage 02.
 What a notebook calls directly; no orchestration framework is imported here or below.
 
 The three checks, and nothing more (radiometric correctness and scientific utility are out of
@@ -13,7 +13,7 @@ scope; the vehicle-not-appearing finding passes all three):
    `descriptor.sensor` must be a `sensor-spec/1` ref with a string `ref.name`. The file itself is
    not opened here.
 2. **Resolution**: `run_spec.resolve_auror_run` finds every engine asset in `config_repo`, loads
-   the sensor ref beside the run spec as `sensor-spec/1`, and accepts the motion as one this
+   the sensor ref in the sensor library as `sensor-spec/1`, and accepts the motion as one this
    loader can generate (static, scene frame, `sceneenu` Euler) and an epoch with a UTC offset.
    `run_spec.check_library_files`
    finds the library platform file agrees with the spec's `integration_samples`.
@@ -45,7 +45,7 @@ from protodirsig.scene_ref import copy_input, reference_scene
 DESCRIPTOR_REQUIRED = ("meta", "origin", "collection", "sensor", "settings", "fidelity")
 ENGINE_REQUIRED = ("generator", "scenes", "platform", "motion", "tasks", "atmosphere")
 # Enumerated engine fields (A.8.2-A.8.7). `new_atmosphere` is the documented, non-adopted
-# extension (GD_DIRSIG_RunSpec_YAML_v01 §6); A.8.7 adopts only `four_curve` and `basic`.
+# extension (CONOPS and Guide §10); A.8.7 adopts only `four_curve` and `basic`.
 ENGINE_ENUMS = {
     ("generator", "tool"): {"dirfm"},
     ("generator", "spec_schema"): {"dirsig-engine/1"},
@@ -103,7 +103,7 @@ def schema_errors(spec):
         errs += [f"descriptor.{k} is missing" for k in DESCRIPTOR_REQUIRED if k not in desc]
         if "sensor" in desc and not isinstance(_get(desc, ("sensor", "ref", "name")), str):
             errs.append("descriptor.sensor.ref.name is missing: descriptor.sensor must be a sensor-spec/1 ref "
-                        "(GD_DIRSIG_RunSpec_YAML_v01 §7), not an inline block")
+                        "(CONOPS and Guide §4), not an inline block")
     if not isinstance(eng, dict):
         return errs + ["engine is missing (required for a DIRSIG run)"]
     errs += [f"engine.{k} is missing" for k in ENGINE_REQUIRED if k not in eng]
@@ -177,13 +177,15 @@ class Simulation:
     """One AUROR_ref-type job from a run spec. Construct with `Simulation.from_run_spec`.
 
     `config_repo` is the engine-asset library (scene, platform, atmosphere database, weather),
-    read-only. `work_dir` holds everything written: the job inputs (scene reference, input
+    read-only. `sensor_library` holds the `sensor-spec/1` documents (default `sensors/`, beside
+    the run spec's folder). `work_dir` holds everything written: the job inputs (scene reference, input
     copies, generated motion and tasks, jsim), the dry-run scratch logs and the render output.
     Defaults to a fresh temporary directory.
     """
 
-    def __init__(self, run_spec_path, config_repo, work_dir=None):
+    def __init__(self, run_spec_path, config_repo, work_dir=None, sensor_library=None):
         self.run_spec_path, self.config_repo = Path(run_spec_path), Path(config_repo)
+        self.sensor_library = Path(sensor_library) if sensor_library is not None else None
         self.work_dir = Path(work_dir) if work_dir is not None else Path(tempfile.mkdtemp(prefix="protodirsig_"))
         self.spec = self.auror_run = None
         self.load_error = self.resolve_error = None
@@ -193,13 +195,13 @@ class Simulation:
             self.load_error = f"{type(e).__name__}: {e}"
         if self.spec is not None:
             try:
-                self.auror_run = resolve_auror_run(self.spec, self.run_spec_path, self.config_repo)
+                self.auror_run = resolve_auror_run(self.spec, self.run_spec_path, self.config_repo, self.sensor_library)
             except (RunSpecError, KeyError, TypeError) as e:
                 self.resolve_error = f"{type(e).__name__}: {e}"
 
     @classmethod
-    def from_run_spec(cls, run_spec_path, config_repo, work_dir=None):
-        return cls(run_spec_path, config_repo, work_dir)
+    def from_run_spec(cls, run_spec_path, config_repo, work_dir=None, sensor_library=None):
+        return cls(run_spec_path, config_repo, work_dir, sensor_library)
 
     def _assemble(self, in_dir, out_dir):
         """The Stage 01 job: scene reference, byte-identical library copies, generated motion and
