@@ -58,5 +58,5 @@ sensor:
               qe_reference: {name: spectral/qe/synthetic_silicon.csv, content_hash: "sha256:37bf797fdc0376db6bbad16b6c15dbb90bc0dd5e6e6de197f227b89fbca4c049"}
               qe_peak: {value: 0.9, provenance: derived}
               radiometric_reference:
-                quantity: spectral_radiance
-                unit: "W/(m2.sr.um)"                # enum for electron flux TBD (A.9.1)
+                quantity: electron_exposure       # e- per m2 of focal plane over the exposure; proposed Detector_v02 A.9.1 member (CONOPS C-20)
+                unit: "e-/m2"

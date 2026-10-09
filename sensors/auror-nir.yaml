@@ -57,5 +57,5 @@ sensor:
               bandwidth: 0.15                      # FWHM, um; equals srf_model.fwhm
               srf_model: {kind: gaussian, center: 0.85, fwhm: 0.15}   # DIRSIG channel width = fwhm / 2.3548 (sigma, assumed; checked in tests/test_platform_render.py)
               radiometric_reference:
-                quantity: spectral_radiance
-                unit: "W/(m2.sr.um)"                # imagefile at_fluxunits=electronspersecond; enum for electron flux TBD (A.9.1)
+                quantity: electron_exposure       # e- per m2 of focal plane over the exposure; proposed Detector_v02 A.9.1 member (CONOPS C-20)
+                unit: "e-/m2"

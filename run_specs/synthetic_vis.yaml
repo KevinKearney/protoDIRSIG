@@ -41,7 +41,7 @@ descriptor:
       - class: vehicle_air               # hypersonic bundle target (hypersonic.glist / hypersonic.mat)
 
   sensor:
-    ref: {name: synthetic_600_200_vis_1920.yaml, content_hash: "sha256:5a6f2023530f6f287fdd97bf7bf1f521c5b44cb00eb0767c2d384459e1cc26d2"}
+    ref: {name: synthetic_600_200_vis_1920.yaml, content_hash: "sha256:6b24ff96baa3da0362693a1cb414e5d2f3f3a9ea7ea17f7c61f090d443c31d35"}
     # (sensor-spec/1 extraction, CONOPS and Guide §4) -- content identical to the
     # formerly-inline block; see sensors/auror-nir.yaml (the sensor library).
 

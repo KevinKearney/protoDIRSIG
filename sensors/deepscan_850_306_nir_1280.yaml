@@ -60,5 +60,5 @@ sensor:
               qe_reference: {name: spectral/qe/synthetic_visgaas.csv, content_hash: "sha256:03f086de4625c3acf0bbf1275323db6b90f026c8a48df652a195155726fc082d"}
               qe_peak: {value: 0.8, provenance: derived}   # maximum of qe_reference; synthetic placeholder until vendor data
               radiometric_reference:
-                quantity: spectral_radiance
-                unit: "W/(m2.sr.um)"                # enum for electron flux TBD (A.9.1)
+                quantity: electron_exposure       # e- per m2 of focal plane over the exposure; proposed Detector_v02 A.9.1 member (CONOPS C-20)
+                unit: "e-/m2"

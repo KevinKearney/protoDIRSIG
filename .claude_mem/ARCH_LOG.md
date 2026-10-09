@@ -370,3 +370,26 @@ Kevin unavailable; prompt.md "Sensor model, round two". Decisions in order made:
   56 `{"type": "object"}`, also in channel `required`), tests/test_sensor_render.py B2, stage_03 notebook source
   (cell printing channels[0]), BACKLOG:80, docs/DIRSIG_Platform_Decomposition.md 205/212/263/312, prompt.md,
   ARCH_LOG. No other code reads it (platform_gen does not).
+- **Step 1, what a pixel is.** basicplatform_plugin.html (the only docs file naming fluxunits):
+  `electronspersecond` "assumes response is quantum efficiency"; with an aperture the at-aperture radiance becomes
+  focal-plane irradiance (E = L/G#); temporal integration "integrates the seconds" (Electrons/second ->
+  Electrons); areaunits m2. Header: `data units = electrons/(m^2)`, `integration time = 0.005`. 16x16 render at
+  10 ms vs 5 ms (auror-nir, tabulated, seed 42): ratio mean 2.000006, per-pixel 1.9990-2.0026 (temporal sample
+  noise). So the value is photo-electrons per m2 of focal plane accumulated over the exposure, not a rate;
+  test_absolute_radiometry already multiplies by t and matches to 1e-4. Channel gain/bias apply on top
+  (settings 1/0 in all run specs), so strictly the image is gain x electrons + bias; with non-unit gain the
+  quantity would not hold. Not encoded (gain is a run-spec setting, not sensor-spec); noted for C-20.
+- **Step 1, representation.** Prompt default `electron_exposure`, `e-/m2` kept: none of the five Detector_v02
+  members fits (irradiance is W/m2, a power; digital_number needs the detector model, which is not generated).
+  `scale`/`offset` omitted rather than null: not unknown values but not applicable (the image is already in the
+  stated unit); schema allows number|null for both. Comment is one line on `quantity`.
+- **Step 1, schema** `$defs/radiometricReference`: required quantity+unit, optional scale/offset, closed,
+  enum = 5 Detector_v02 members + electron_exposure. Tests: enum violation, missing unit, unknown member;
+  library-wide consistency test maps the rendered imagefile (fluxunits/areaunits/temporal integration/aperture)
+  to (quantity, unit) and fails on any unmapped combination. B2 updated.
+- **Step 1, invariance.** Generated platforms for auror-nir (native, tabulated), deepscan, VIS byte-identical
+  before/after (cmp). stamp_hashes restamped the sensor ref in auror_ref.yaml and synthetic_vis.yaml (sensor
+  bytes changed); channel_response native untouched.
+- **Step 1, notebook.** stage_03's source dumps the YAML generically (no literal value), so the stale text was
+  output only; added a sentence on radiometric_reference to the markdown before it and re-executed end to end
+  (DIRSIG_HOME unset): 0 errors, no "spectral_radiance"/"W/(m2" anywhere in the file.

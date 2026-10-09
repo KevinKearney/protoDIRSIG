@@ -31,6 +31,17 @@
       "properties": {"name": {"type": "string", "pattern": "^spectral/(qe|optics|filter)/[^/]+\\.csv$"},
                      "content_hash": {"type": "string", "pattern": "^sha256:([0-9a-f]{64}|<hash>)$"}}
     },
+    "radiometricReference": {
+      "description": "What an image pixel holds (Detector_v02 A.9.1). The first five members are Detector_v02's; electron_exposure (photo-electrons per m2 of focal plane over the exposure, DIRSIG imagefile fluxunits=electronspersecond with temporal integration) is a proposed extension, CONOPS C-20.",
+      "type": "object", "additionalProperties": false, "required": ["quantity", "unit"],
+      "properties": {
+        "quantity": {"enum": ["radiance", "spectral_radiance", "irradiance", "brightness_temperature", "digital_number",
+                              "electron_exposure"]},
+        "unit": {"type": "string", "minLength": 1},
+        "scale": {"type": ["number", "null"]},
+        "offset": {"type": ["number", "null"]}
+      }
+    },
     "srfModel": {
       "oneOf": [
         {"type": "object", "additionalProperties": false, "required": ["kind", "center", "fwhm"],
@@ -53,7 +64,7 @@
         "srf_reference": {"$ref": "#/$defs/curveRef"},
         "qe_reference": {"$ref": "#/$defs/curveRef"},
         "qe_peak": {"$ref": "#/$defs/quantity"},
-        "radiometric_reference": {"type": "object"}
+        "radiometric_reference": {"$ref": "#/$defs/radiometricReference"}
       },
       "oneOf": [{"required": ["srf_model"]}, {"required": ["srf_reference"]}]
     },

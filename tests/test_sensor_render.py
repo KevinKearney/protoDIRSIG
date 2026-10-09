@@ -198,7 +198,7 @@ def test_native_rectangular_is_unit_peak_with_half_weight_edges(tmp_path):
 
 B2 = {"channel_id": "nir-b2", "band": "SWIR", "band_center": 1.25, "bandwidth": 0.1,
       "srf_model": {"kind": "gaussian", "center": 1.25, "fwhm": 0.1},
-      "radiometric_reference": {"quantity": "spectral_radiance", "unit": "W/(m2.sr.um)"}}
+      "radiometric_reference": {"quantity": "electron_exposure", "unit": "e-/m2"}}
 
 
 @needs_dirsig
