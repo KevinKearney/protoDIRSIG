@@ -40,6 +40,10 @@ from protodirsig.spectral import channel_response as compose_response
 
 CLIP_LIMIT = 1e-3       # response fraction allowed outside the template bandpass
 X_OFFSET_SIGN = Y_OFFSET_SIGN = 1     # SFNC OffsetX/Y (from the full frame's first column/row) to DIRSIG array offset
+# What the image of a generated platform holds, from the template's imagefile (fluxunits="electronspersecond",
+# areaunits="m2") and the temporal integration: photo-electrons per m2 of focal plane accumulated over the exposure,
+# at channel gain 1 and bias 0 (CONOPS and Guide section 9). A property of the engine, not of the sensor-spec.
+IMAGE_QUANTITY = {"quantity": "electron_exposure", "unit": "e-/m2"}
 
 
 class PlatformGenError(ValueError):

@@ -486,10 +486,14 @@ documentation.
   (`tests/test_absolute_radiometry.py`). Units: `hemisphereirradiance` is W cm⁻² µm⁻¹; the image (`areaunits="m2"`,
   `fluxunits="electronspersecond"`, temporal integration) is electrons per m² of focal plane accumulated over
   the exposure, not a rate: doubling the exposure time doubles every pixel (16 × 16, ratio 2.000006). Electrons
-  per pixel are the value × element area. Channel gain and bias (run-spec `settings`, 1 and 0 in every run
-  spec here) apply on top. `radiometric_reference` records this as `electron_exposure`, `e-/m2` (section 4).
-  The check covers the sensor chain only: under `new_atmosphere` the sun's
-  irradiance comes from the database and is not checked.
+  per pixel are the value × element area. The check covers the sensor chain only: under `new_atmosphere` the
+  sun's irradiance comes from the database and is not checked.
+- **The image quantity is the engine's, and holds at gain 1 and bias 0.** `platform_gen.IMAGE_QUANTITY` states
+  it, `electron_exposure` in `e-/m2`, and a library test ties it to the `imagefile` the generator renders for
+  every library sensor. It is not a sensor field: the sensor's `radiometric_reference` is its own calibration
+  (section 4). The generator writes `settings.gain` and `settings.black_level` as the channel's `gain` and
+  `bias`. Gain multiplies the image exactly. Bias is added before the focal-plane conversion, so the image moves
+  by bias / G#, not by bias (16 × 16, `tests/test_sensor_render.py`). Every run spec here has gain 1 and bias 0.
 - `aperturediameter` is in metres and `focallength` in millimetres. Adjacent-pixel horizontal spacing on the
   ground equals pitch / focal length × range within 1 % (three sensors, nadir view). `xarrayoffset` and
   `yarrayoffset` are in µm and positive toward increasing column and row: a 16 × 16 window offset by +8 pixels

@@ -198,7 +198,7 @@ def test_native_rectangular_is_unit_peak_with_half_weight_edges(tmp_path):
 
 B2 = {"channel_id": "nir-b2", "band": "SWIR", "band_center": 1.25, "bandwidth": 0.1,
       "srf_model": {"kind": "gaussian", "center": 1.25, "fwhm": 0.1},
-      "radiometric_reference": {"quantity": "electron_exposure", "unit": "e-/m2"}}
+      "radiometric_reference": {"quantity": None, "unit": None}}
 
 
 @needs_dirsig
@@ -215,6 +215,23 @@ def test_two_channel_entry_renders_two_bands(tmp_path, baseline):
     img = np.fromfile(out.image, dtype="<f8").reshape(16, 16, 2)             # BIP
     np.testing.assert_array_equal(img[..., 0].ravel(), baseline)
     np.testing.assert_array_equal(img[..., 1].ravel(), render(tmp_path, only_b2, tag="b2only"))
+
+
+@needs_dirsig
+def test_channel_gain_scales_the_image_and_bias_is_not_in_image_units(tmp_path, baseline):
+    """`settings.gain` and `black_level` are written as the channel's gain and bias. Gain multiplies the image
+    exactly. Bias is added before the focal-plane conversion: the image moves by bias / G#, with DIRSIG's
+    G# = (1 + 4 F#^2) / (tau pi), not by bias, so the image is electron exposure only at gain 1 and bias 0."""
+    def settings(gain, bias):
+        def edit(spec):
+            st = spec["descriptor"]["settings"][0]
+            st["gain"]["value"], st["black_level"]["value"] = gain, bias
+        return edit
+    gained = np.fromfile(simulation(tmp_path, LIB, "auror-nir.yaml", tag="g2", edit=settings(2, 0)).run().image, "<f8")
+    np.testing.assert_allclose(gained, 2 * baseline, rtol=1e-12)
+    biased = np.fromfile(simulation(tmp_path, LIB, "auror-nir.yaml", tag="b", edit=settings(1, 1e15)).run().image, "<f8")
+    g_number = (1 + 4 * (306.0 / 85.0) ** 2) / (0.875 * np.pi)
+    np.testing.assert_allclose(biased - baseline, 1e15 / g_number, rtol=1e-4)
 
 
 @needs_dirsig

@@ -433,3 +433,54 @@ Kevin unavailable; prompt.md "Sensor model, round two". Decisions in order made:
   errors, no old path in any output. Remaining `<old>/` hits, all explained: stored outputs of
   tutorial_auror_scene (12) and vehicle_point_source (22), sources clean, not re-executed (500x500 renders, not
   stage notebooks); tests/test_simulation.py:153, a library-relative ref.name, unchanged by rule.
+
+## 2026-10-09 (round four) — sensor-file leak audit, run-spec composition (prompt.md, unattended)
+
+- **Step 0.** Env: ~/anaconda3/envs/protodirsig (Python 3.11.16, jsonschema 4.26, pytest 9.1); bare `python` is
+  not on PATH. 155 passed; stamp --check 0. Baseline (scratch, deleted at the end): .platform/.ppd/.tasks for
+  auror_ref and synthetic_vis with settings.roi forced to 16x16 (resolve_auror_run + render_platform +
+  generate_motion/generate_tasks), and a 16x16 .platform per library entry (tabulated; native for auror-nir).
+  Detector_v02: ~/dev/eopticDocs/projects/MANIFOLD/02-design/AV_MANIFOLD_Detector_v02.md §6.8.
+- **Step 1, audit** (field: verdict). A leak = exists because DIRSIG/platform_gen needs it, or states engine
+  output.
+  - `radiometric_reference` {electron_exposure, e-/m2}: LEAK, states DIRSIG's image. Moved (below).
+  - `srf_model`: program extension (C-16), not in Detector_v02 (which has srf_reference). Sensor property (the
+    shape); restates band_center/bandwidth, which Detector_v02 makes the passband authority. Agreement already
+    tested (test_restated_fields_agree). Kept. Its comment "DIRSIG channel width = fwhm / 2.3548" is engine
+    knowledge in a sensor file; it is also in platform_gen and the test; left (comment only, provenance).
+  - `band_center`, `bandwidth`: Detector_v02 required (card 1). Sensor. Not used by platform_gen.
+  - `fill_factor`: Detector_v02 array.fill_factor (0..1). Sensor. Used for element size.
+  - `qe_peak`: Detector_v02 scalar summary. Sensor. Not used by the generator; tested against the curve.
+  - `f_number`: Detector_v02 required; not written (DIRSIG derives G# from aperture and focal length). Sensor.
+  - `throughput_in_band`, `throughput_reference`, `qe_reference`, `aperture_diameter`, `focal_length`, pitch,
+    SensorWidth/Height: Detector_v02 sensor properties that the template substitution happens to consume. None
+    exists only for the substitution.
+  - `AdcBitDepth`, `SensorShutterMode`, `timestamp_reference`, `optical_path`, reference_frame: Detector_v02
+    required; library-asserted values, not DIRSIG-derived. Sensor (unsourced, not engine-shaped).
+  - `detector` block name and Device{Vendor,Model}Name placement: naming deviation from Detector_v02 (array /
+    identity), already C-14/C-15. Not a leak.
+  - Comments citing DIRSIG elements (`detectorarray.xelementspacing` etc.) record where the auror-nir values came
+    from (the received platform). Provenance, kept.
+  Only radiometric_reference is engine-shaped.
+- **Step 1, the move.** Detector_v02 §6.8: radiometric_reference.quantity and .unit are card 1, so the field
+  stays, with explicit `quantity: null`, `unit: null` (no calibration known for any library sensor). scale and
+  offset omitted (0..1; never invented). Schema: enum = 5 Detector_v02 members + null; unit string|null;
+  `electron_exposure` removed; still required. The engine's quantity is `platform_gen.IMAGE_QUANTITY` (a module
+  constant, not a dirsig-engine/1 key: adding an engine key would leave A.8). The library test now asserts the
+  rendered imagefile maps to IMAGE_QUANTITY. B2 updated.
+- **Step 1, gain/bias.** Written: channel `gain`/`bias` attributes (the prompt's `at_gain`/`at_bias`). So the
+  CONOPS-documentation branch applies, not the refusal; no run-spec rule added (Step 2's "gain rule" is a
+  no-op). Measured, 16x16 auror-nir: gain 2 gives 2.0x exactly; bias 1e15 adds a constant 5.2023e13 =
+  1e15 / G# (G# = (1+4*3.6^2)/(0.875 pi) = 19.222), not 1e15. So bias is in at-aperture units ahead of the
+  focal-plane conversion, not image units. New render test asserts both. CONOPS §9 bullet added.
+- **Step 1, invariance.** All four per-entry platforms and both run specs' .platform/.ppd/.tasks byte-identical
+  to baseline (cmp). stamp_hashes restamped the two sensor refs; --check 0. stage_03 markdown cell 5 rewritten;
+  re-executed (needs `--ExecutePreprocessor.kernel_name=python3`: the notebook's `protodirsig` kernelspec is not
+  registered; metadata unchanged); 0 errors; no electron_exposure/C-20 left in it.
+- **Step 1.5, fields a non-DIRSIG engine (SatSim-like) would need, null or unmodeled today** (Detector_v02
+  names): PSF or MTF (`mtf_at_nyquist_row/column`; a PSF kernel ref, sampled function, has no field yet);
+  `read_noise`; `dark_current` (with detector temperature in conditions); `full_well`; `conversion_gain`
+  (e-/DN; `settings.gain` is commanded and unitless); `noise_figure`; `linearity_error`; `defect_fraction` /
+  `defect_map_reference`; `radiometric_reference` scale/offset (null; required for digital_number output);
+  `readout.rolling_line_period` (Global only today); `exposure_time_min/max`; `array.offset`; `focus_distance`;
+  jitter (absent, platform side). AdcBitDepth exists but is library-asserted.

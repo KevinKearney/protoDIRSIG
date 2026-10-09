@@ -59,6 +59,6 @@ sensor:
               srf_model: {kind: gaussian, center: 0.85, fwhm: 0.15}   # DIRSIG channel width = fwhm / 2.3548 (sigma, assumed; checked in tests/test_platform_render.py)
               qe_reference: {name: spectral/qe/synthetic_visgaas.csv, content_hash: "sha256:03f086de4625c3acf0bbf1275323db6b90f026c8a48df652a195155726fc082d"}
               qe_peak: {value: 0.8, provenance: derived}   # maximum of qe_reference; synthetic placeholder until vendor data
-              radiometric_reference:
-                quantity: electron_exposure       # e- per m2 of focal plane over the exposure; proposed Detector_v02 A.9.1 member (CONOPS C-20)
-                unit: "e-/m2"
+              radiometric_reference:              # the sensor's own calibration (Detector_v02 6.8, required); none known
+                quantity: null
+                unit: null

@@ -57,6 +57,6 @@ sensor:
               srf_model: {kind: rectangular, center: 0.60, width: 0.30}
               qe_reference: {name: spectral/qe/synthetic_silicon.csv, content_hash: "sha256:37bf797fdc0376db6bbad16b6c15dbb90bc0dd5e6e6de197f227b89fbca4c049"}
               qe_peak: {value: 0.9, provenance: derived}
-              radiometric_reference:
-                quantity: electron_exposure       # e- per m2 of focal plane over the exposure; proposed Detector_v02 A.9.1 member (CONOPS C-20)
-                unit: "e-/m2"
+              radiometric_reference:              # the sensor's own calibration (Detector_v02 6.8, required); none known
+                quantity: null
+                unit: null

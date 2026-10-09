@@ -66,19 +66,19 @@ def _with_reference(ref):
 
 
 @pytest.mark.parametrize("ref, match", [
-    ({"quantity": "electron_flux", "unit": "e-/s"}, "is not one of"),             # outside the enum
-    ({"quantity": "electron_exposure"}, "'unit' is a required property"),
+    ({"quantity": "electron_exposure", "unit": "e-/m2"}, "is not one of"),   # the engine's output, not a sensor value
+    ({"quantity": None}, "'unit' is a required property"),
     ({"quantity": "spectral_radiance", "unit": "W/(m2.sr.um)", "gain": 2}, "Additional properties"),
-], ids=["quantity-outside-enum", "unit-missing", "unknown-member"])
+], ids=["engine-quantity", "unit-missing", "unknown-member"])
 def test_schema_rejects_a_bad_radiometric_reference(ref, match):
     errors = _with_reference(ref)
     assert any(match in e for e in errors), errors
 
 
-def test_schema_accepts_detector_v02_members_and_the_electron_member():
-    for q in ("radiance", "spectral_radiance", "irradiance", "brightness_temperature", "digital_number",
-              "electron_exposure"):
+def test_schema_accepts_detector_v02_members_and_an_unknown_calibration():
+    for q in ("radiance", "spectral_radiance", "irradiance", "brightness_temperature", "digital_number"):
         assert _with_reference({"quantity": q, "unit": "x", "scale": None, "offset": 0.0}) == []
+    assert _with_reference({"quantity": None, "unit": None}) == []
 
 
 def _rendered_quantity(root):
@@ -90,17 +90,18 @@ def _rendered_quantity(root):
     aperture = root.findtext(".//instrument/properties/aperturediameter") is not None
     if flux == "electronspersecond" and integrated and aperture:      # focal-plane electrons over the exposure
         return "electron_exposure", f"e-/{area}"
-    raise AssertionError(f"no radiometric_reference mapping for fluxunits={flux} areaunits={area} "
+    raise AssertionError(f"no image-quantity mapping for fluxunits={flux} areaunits={area} "
                          f"integrated={integrated} aperture={aperture}")
 
 
 @pytest.mark.parametrize("path", FILES, ids=lambda p: p.name)
-def test_radiometric_reference_matches_the_generated_image(tmp_path, path):
-    """Every channel's radiometric_reference states what the generated .platform makes DIRSIG write, so the field
-    cannot drift from the generator again (it said spectral radiance while the image was electrons)."""
+def test_engine_image_quantity_matches_the_generated_image(tmp_path, path):
+    """`platform_gen.IMAGE_QUANTITY`, the engine's statement of what its image holds, is what the generated
+    .platform makes DIRSIG write for every library sensor, so it cannot drift from the generator. The sensor's
+    radiometric_reference is its own calibration and is not compared."""
     import lxml.etree as et
 
-    from protodirsig.platform_gen import render_platform
+    from protodirsig.platform_gen import IMAGE_QUANTITY, render_platform
     from protodirsig.run_spec import load_run_spec, load_sensor_spec
     template = ROOT / "manifold_config_repo" / "platforms" / "AurorNIRDetector" / "AurorNIRDetector.platform"
     settings = load_run_spec(ROOT / "manifold_run_specs" / "auror_ref.yaml")["descriptor"]["settings"][0]
@@ -109,6 +110,4 @@ def test_radiometric_reference_matches_the_generated_image(tmp_path, path):
         out = render_platform(template, doc, entry["entry_id"], [{**settings, "entry_id": entry["entry_id"]}], 10,
                               SENSORS, tmp_path / f"{entry['entry_id']}.platform")
         quantity, unit = _rendered_quantity(et.parse(str(out.path)).getroot())
-        for fp in entry["focal_planes"]:
-            for ch in fp["channels"]:
-                assert (ch["radiometric_reference"]["quantity"], ch["radiometric_reference"]["unit"]) == (quantity, unit)
+        assert (IMAGE_QUANTITY["quantity"], IMAGE_QUANTITY["unit"]) == (quantity, unit)
