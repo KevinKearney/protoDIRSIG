@@ -862,6 +862,109 @@ skip, and where:
 pytest is still not installed in the `protodirsig` env. It was run from a scratch `--target`
 install, as in every stage.
 
+## 2026-10-09 — Making the vehicle appear: why it was invisible, and a tutorial disk
+
+The Phase 5 entry left the missing vehicle unexplained, with three candidates: its kinematics,
+its sub-pixel size, and its material. Each was checked before changing anything. The vehicle is
+in frame at the task time and is sampled. **It is invisible because DIRSIG never evaluates its
+1500 K emission in a 0.41–2.0 µm job, and its reflectance is zero**, so it renders black. This
+entry covers the diagnosis and Step 1, a visibility disk in the stage 02 notebook. Step 2, the
+point-source distillation, is the next entry.
+
+**Re-derived numbers** (from the files, not the stage prompt):
+- *Pixel footprint at the vehicle.* 10 µm pitch ÷ 306 mm focal length (`AurorNIRDetector.platform`)
+  = 32.68 µrad. The range is 550 000 m (run spec sensor z) − 50 000 m (vehicle start z in
+  `lists/hypersonic.glist`) = 500 km, which gives **16.34 m**.
+- *Mesh.* `hypersonic.obj` has 9227 vertices and 9224 faces (triangles and quads) and measures
+  2.00 × 0.99 × 0.29 m. Its long axis is the model's x, not DIRSIG's forward +y.
+- *Silhouette from above.* Rasterizing every face on a 2 mm grid gives **0.827 m²**, which is
+  **0.31 %** of a pixel. Phase 5 said 0.63 m² and 0.24 %. The close-range render's abundance truth
+  confirms the new value independently (0.828 m², Step 2).
+- *`ref.txt`.* It has seven rows (0.4, 0.8, 1.0, 1.5, 2.0, 2.5, 3.0 µm), all 0.00, with CRLF line
+  endings. The prompt said six.
+
+**Where the files resolve, and who reads them.** A generated AUROR run reads
+`config_repo/scenes/tahoe/` only. `scene_ref` copies `tahoe.scene` and symlinks `geometry/` and
+`materials/` back to it. `notebooks/dev/AUROR_ref/geometry/bundles/hypersonic/` holds
+byte-identical copies (`cmp`), but they are not a test fixture: they are the discovery log's
+gitignored private copy, and no job reads them. `tests/fixtures/auror_ref/` holds only motion
+and tasks. Grep for `ref.txt|hypersonic.(obj|mat|glist)|Gidder_mat` across the repo, generated
+`outputs/` included, and the DIRSIG install:
+- the `config_repo` bundle itself and `tahoe.scene`;
+- `tests/test_scene_coverage.py`, which pins `Gidder_mat`'s `ref.txt` span (0.4–3.0 µm);
+- the run spec's `targets` comment;
+- the three AUROR notebooks (stage 01, stage 02, `tutorial_auror_scene`), whose jobs all render
+  this bundle;
+- the private `notebooks/dev` copy.
+
+`outputs/` job directories reach the bundle only through `geometry` symlinks. Nothing outside
+AUROR uses `Gidder_mat`.
+
+**Kinematics: ruled out.** `flex_motion.html` defines the `straight` engine's `<start>` as the
+location "at the start of simulation", and the task window is [0, 0.005] s. One render of the
+unchanged job, with two truth collectors added in a library mirror, settles it: an `Abundance`
+collector for `Gidder_mat` and a `samplecount` collector. `Gidder_mat` fills 0.0010 of pixel
+(249, 249) and 0.0025 of (250, 249), 0.0035 in all against the 0.0031 the silhouette predicts.
+So the vehicle is on the boresight at task time 0.
+
+**Sub-pixel sampling: ruled out, and the prompt's premise is wrong.** DIRSIG does have a targeted
+oversampling control, and the received configuration already uses it. An instance whose name
+starts with `::IMPORTANT::` triggers *hypersampling* (central sample strategy,
+`<hypersamplingmultiplier>`; `basicplatform_plugin.html#Hypersampling`, demo `SubPixelObject1`).
+The vehicle's `<dynamicinstance>` is named `::IMPORTANT::`, and `AurorNIRDetector.platform` sets
+the multiplier to 100. The sample-count truth shows it working: the five pixels around the vehicle
+got 2000 samples, against a frame median of 22. Phase 5's statement that sub-pixel geometry "can
+be missed regardless of sample count", and the prompt's statement that DIRSIG "has no general
+oversample this region control", both overlooked this.
+
+**The cause: emission is never evaluated, so `Gidder_mat` is black.** The two vehicle pixels in
+that render are 0.94 and 0.93 × the frame median: noise, with no +50 % from a 1500 K emitter. A
+close-range render (sensor 1 km above the vehicle; Step 2 has the setup) shows:
+
+| Close render of the received `Gidder_mat` | Temperature truth, mesh / terrain | Mesh radiance, 0.84 µm |
+|---|---|---|
+| default flags (as every AUROR job has run) | −1 / −1 (not computed) | **0.0** W m⁻² sr⁻¹ µm⁻¹ |
+| `dirsig5 --force_temperature_prediction` | 1500 K / 261 K | 3131 (the 1500 K blackbody is 3130 there) |
+
+`dirsig5 --help` describes the flag as "Force temperature prediction, even if the simulation
+does not cover the thermal spectrum". So by default a 0.41–2.0 µm simulation predicts no
+temperatures, and the `DataDriven` 1500 K is never turned into emission. With reflectance 0,
+nothing else is left, and the mesh renders at exactly zero. The renderer samples it heavily and
+correctly blocks the 0.31 % of terrain behind it. That accounts for Phase 5's slightly negative
+excess. The scene's `features` attribute only sets the compiled spectral grid (`scene2hdf.html`),
+so it is not the gate. **Not fixed here.** Whether AUROR jobs should pass
+`--force_temperature_prediction` (through `engine.run` in the run spec, or a `Simulation`
+option) is a run-spec decision for Kevin. Both steps below leave the flag as it is.
+
+**Step 1: a visibility disk in `stage_02_conformance_template.ipynb`.** A flat Lambertian disk
+rides on a copy of the vehicle's own `<dynamicinstance>`, so its placement depends on exactly the
+kinematics just checked. Details:
+- *Size.* **8 pixels across.** Diameter = 8 × (pitch ÷ focal) × (sensor z − vehicle z), read from
+  the platform file, the run spec and `lists/hypersonic.glist` in a cell, which gives
+  **130.7 m**. The prompt's "5–10 pixels" left the choice open; 8 gives a fully covered core
+  (32 px) for the check.
+- *Material.* **Albedo 0.8**, as `WardBRDF` `DS_WEIGHTS = 0.8 0.0` (the manual's Lambertian
+  recipe, no file needed), with the vehicle material's `Generic` radiometry solver. DIRSIG
+  refuses surface properties without one, which the conformance dry run caught on the first try.
+  `DataDriven` 270 K, which has no effect in this band.
+- *Placement.* Normal +Z, 50 km up.
+
+`config_repo/` is not modified. The notebook mirrors it into `outputs/stage_02_library/` (real
+directories, every file a symlink to its original) and adds three real files:
+- a copy of `tahoe.scene` with one more `<geometrylistinclude>`;
+- `lists/visibility_disk.glist`;
+- `lists/visibility_disk.mat`.
+
+`LocalRegistry.submit` runs against the mirror. **Result** (seed 42, executed top to bottom):
+- accepted (schema, resolution and execution pass);
+- `config_repo` fingerprint unchanged (36 paths);
+- the disk core is **10.9 ×** the frame median, against a terrain ring of 0.98 × (σ 0.042);
+- all 60 pixels brighter than 2 × the median are within 4.3 px of the centre (disk radius 4 px;
+  the terrain's maximum is 1.29 × the median).
+
+The disk is a sandbox device, two orders of magnitude larger than the airframe. It says nothing
+about how bright the real vehicle would be.
+
 ## Notebooks (status)
 
 - `notebooks/dirfm_tutorials/tutorial_dirfm_basics.ipynb` — Phase 1, complete. 8 stages, executed end to end.
@@ -883,6 +986,8 @@ install, as in every stage.
   submitted through `LocalRegistry` (schema, resolution and execution checks), and rendered
   through `Simulation.run()` only if accepted, with DIRSIG's JSON run/info logs. Executed end to
   end.
+  Since 2026-10-09 it adds an oversized Lambertian visibility disk on the vehicle's motion,
+  through a library mirror under `outputs/`, so the target shows up.
 - `notebooks/dev/auror_scene_buildup.ipynb` — Phase 5 discovery log (not a tutorial): how the
   dirfm gaps were found and bridged, and the comparison against the shipped 2025.51 render with
   a same-version repeat as the baseline. Kept as executed; it predates the `src/` helpers.

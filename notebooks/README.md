@@ -26,7 +26,9 @@ maintained going forward.
 - **`stage_02_conformance_template.ipynb`** — Submits the same job through `LocalRegistry`
   (schema, resolution and execution checks) and renders it with `Simulation.run()` only if
   accepted, capturing DIRSIG's JSON run/info logs alongside the render. This is the current
-  conformance-template notebook.
+  conformance-template notebook. As received, the vehicle target never appears, so the notebook
+  adds an oversized (8-pixel) Lambertian disk that flies with it. The disk goes into a mirror of
+  `config_repo/` under `outputs/`; `config_repo/` itself is unchanged.
 
 ## `dirfm_tutorials/`
 
