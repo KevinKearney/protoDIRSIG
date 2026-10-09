@@ -231,7 +231,6 @@ surfaces and are not drawn.
 
 ## Housekeeping
 
-### Notebook text cites FINDINGS.md
-Markdown cells and printed output in the stage 01/02 (stage 01 also cites the retired run-spec guide), `tutorial_auror_scene`, `tutorial_tacoma_scene`, and
-`vehicle_point_source` notebooks cite `FINDINGS.md`, which no longer exists at the repo root. Reword the cells
-on each notebook's next re-execution; the code strings in the sidebar also print "FINDINGS".
+### `vehicle_point_source` stored output still prints "FINDINGS"
+Cell sources no longer cite `FINDINGS.md`. Two printed lines in the sidebar's saved output still end with
+"FINDINGS … expected +0.49"; they go away when the notebook is next re-executed.

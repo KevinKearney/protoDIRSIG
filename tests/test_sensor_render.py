@@ -14,7 +14,6 @@
 """
 import os
 import shutil
-import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -106,9 +105,9 @@ def render(tmp_path, lib, ref="variant.yaml", entry_id="auror-nir", roi=None, ta
 
 
 @pytest.fixture(scope="module")
-def baseline():
-    tmp = Path(tempfile.mkdtemp(prefix="protodirsig_base_"))
-    return render(tmp, LIB, "auror-nir.yaml", tag="base")
+def baseline(tmp_path_factory):
+    # pytest's own temp root (kept for the last three sessions), not a mkdtemp that nothing removes
+    return render(tmp_path_factory.mktemp("base"), LIB, "auror-nir.yaml", tag="base")
 
 
 @needs_dirsig

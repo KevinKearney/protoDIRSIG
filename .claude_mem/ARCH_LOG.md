@@ -345,3 +345,17 @@ Kevin unavailable; prompt.md "Sensor model, round two". Decisions in order made:
   - Renders ~3 s each. GSD ratios 1.0006, 1.0047 (asserted < 1 %).
   - Corrected my own draft prose after reading outputs: VIS is 2x brighter per m2, darker per pixel (pixel
     area), not "smaller aperture"; window widths 0.58/0.48 km; VisGaAs 0.79 at 0.85 um.
+- **Step 5, FINDINGS citations.** 19 cell-source citations in five tracked notebooks (the prompt's ~27 counted JSON
+  lines incl. outputs and the gitignored dev/ notebook, 7, left alone as local and unmaintained). JSON written with
+  json.dumps(indent=1, ensure_ascii=False, sort_keys=True), verified byte-identical on a no-op round trip; all
+  notebooks pass nbformat.validate; edited code cells parse. Mapped to CONOPS §2 (motion/tasks generation), §6
+  (dirfm gaps, existing scenes, _check_coverage), §9 (vehicle zero reflectance + emission gate, TEME, Tacoma water).
+  Deleted, CONOPS does not hold them: the "+49 %" expectation (markdown and two print strings), the reasons for not
+  editing ref.txt, the reasons for placing the point source beside the mesh, and the "recorded in FINDINGS"
+  clause of the scene2hdf-symlink sentence (the sentence's claim kept). Not re-executed (text-only), so two stored
+  output lines in vehicle_point_source still say FINDINGS: BACKLOG item narrowed to that residue rather than
+  deleted, so it is not silently left.
+- **Step 5, /tmp quota.** First suite run after the notebook edits: 9 failed, all "Disk quota exceeded" (tmpfs
+  /tmp 5.5 G). Causes: 1.9 G of my scratch renders, and `baseline` in test_sensor_render leaking a 33 MB
+  mkdtemp per session (12 today). Deleted my scratch render dirs and the leaked dirs; fixture now uses
+  tmp_path_factory (pytest prunes to three sessions). Suite 148 passed after.
