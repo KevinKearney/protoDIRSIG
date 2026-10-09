@@ -58,9 +58,11 @@ decision.
 ## Sensor model
 
 ### Real QE and optics data
-Replace `synthetic_visgaas` with the Teledyne SCION curve (vendor typical or measured) under a new name, with
-`provenance` set; state whether the quoted QE includes the die window or microlens. Likewise
-`synthetic_silicon` and `synthetic_vis_lens` if a real VIS sensor replaces the invented one.
+Import the Teledyne SCION curve with `scripts/import_curve.py` (`--provenance vendor_typical` or `measured`,
+`--pad-zero-to 0.150,14.000`; its ~0.3-1.7 um range does not cover the job's 0.41-2.0 um bandpass), point
+`deepscan_850_306_nir_1280.yaml`'s `qe_reference` at it, update `qe_peak`, and restamp. State in `--source`
+whether the quoted QE includes the die window or microlens. Likewise `synthetic_silicon` and
+`synthetic_vis_lens` if a real VIS sensor replaces the invented one.
 
 ### Absolute radiometric check
 The render tests establish shape, linearity, additivity and geometry (`tests/test_sensor_render.py`) but not the
@@ -78,7 +80,7 @@ not driven by the sensor-spec. `throughput_in_band` is checked against the optic
 Multi-band channels, beam-split optical paths, and `.platform` noise models are not generated.
 
 ### Spectral grid
-Curves are 1 nm over 0.150-14.000 µm. Channels are tabulated on the template's 0.41-2.0 µm bandpass; a sensor
+Synthetic curves are 1 nm over 0.150-14.000 µm; imported curves keep their source grid. Channels are tabulated on the template's 0.41-2.0 µm bandpass; a sensor
 needing the UV or LWIR needs a template with that bandpass and scene and atmosphere data to match.
 
 ## SDK and run-spec engine

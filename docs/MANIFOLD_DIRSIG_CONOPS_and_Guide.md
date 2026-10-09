@@ -176,6 +176,10 @@ detector's full frame.
 (`srf_reference`, a curve, or the program-minted `srf_model`: `gaussian` with `center` and `fwhm`, or
 `rectangular` with `center` and `width`, peak 1), and `qe_reference` (absolute QE). References are
 `{name, content_hash}` to `spectral-curve/1` files under `sensors/spectral/<kind>/` (`sensors/spectral/README.md`).
+Vendor and measured curves enter through `scripts/import_curve.py`, which keeps the source grid, converts nm and
+percent, refuses out-of-range values, and records `source`, `acquired` and the measured range. A curve is never
+extrapolated: zero response outside the measured range is written only on request (`--pad-zero-to`) and
+recorded in the file's `padding` line.
 `optics.throughput_in_band` is the band mean of the optics curve, or, with no curve, the grey scalar written as
 DIRSIG's `aperturethroughput`; with a curve the generator writes `aperturethroughput` 1 and folds the curve into
 the channel, so the factors are applied once. A channel with no `qe_reference` has unit QE. The generator

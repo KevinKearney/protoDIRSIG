@@ -268,3 +268,29 @@ Kevin: run Phases 0-4, choose VIS for the second sensor, decide and log. Decisio
   restated-field consistency tests (f/#, band_center/bandwidth vs srf_model, qe_peak vs curve max) stay in pytest.
 - **Not done:** run-spec JSON Schema (schema_errors still hand-written), multi-channel/multi-focal-plane, PSF,
   absolute radiometry, real QE, notebook updates.
+
+## 2026-10-09 (round two) — real-data intake, generator coverage, absolute radiometry, sweep notebook (unattended)
+
+Kevin unavailable; prompt.md "Sensor model, round two". Decisions in order made:
+
+- **Env repaired, not the repo.** The `protodirsig` conda env (3.11.16) had neither pytest nor protodirsig
+  installed (BACKLOG item "pytest is not installed"). `pip install -e ".[dev]"` into the env; then 109 passed,
+  `stamp_hashes --check` 0. `external/` is empty (bootstrap `status`: all three missing); dirfm imports from the
+  sibling `~/dev/dirsig-file-maker` at the pinned commit 93195ce, DIRSIG at `~/DIRSIG/<version>`.
+- **Step 1, importer.** `scripts/import_curve.py`, stdlib + numpy.
+  - Descending input is sorted (a vendor table in either order is unambiguous). An exactly repeated row is
+    dropped; a wavelength with two different values is refused: no rule picks the right one.
+  - Range tolerance 1e-3 in output units (0.1 percentage point): a value within it is set to the bound, beyond
+    it refused. A forgotten `--percent` is caught by this (80 > 1.001).
+  - `--provenance` accepts only `vendor_typical | measured`: synthetic curves are authored, not imported.
+  - Never overwrites (README: a new curve gets a new name). `--library` for temp-library tests.
+  - Padding writes zero rows 1 nm beyond each measured end and at LO/HI. Reason: zero rows only at LO/HI would
+    let linear interpolation invent response between the last measured point (SCION ~0.09 at 1.7 um) and HI,
+    contradicting the header's "zero above Y". The 1 nm step is the smallest that keeps rows strictly ascending
+    on a 1 nm-printed grid. Skipped where the measured end is already 0.
+  - Header adds `source`, `acquired`, `measured_range_um` and (only if padded) `padding`. None added to
+    `spectral.REQUIRED`: the three synthetic files have no `source`/`acquired` and must stay valid, and a
+    required `source` on synthetic files would be noise. The importer enforces them for imported files.
+  - Recommended default `--pad-zero-to 0.150,14.000` (library range), not the template's 0.41-2.0: a curve is a
+    detector property and must not be tied to one template's bandpass; the clip check then sees the whole
+    response. Stated in sensors/spectral/README.md. No implicit padding anywhere (Curve.at unchanged).

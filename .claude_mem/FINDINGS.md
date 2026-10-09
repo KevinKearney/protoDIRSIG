@@ -1102,6 +1102,15 @@ alone would not make it detectable in this geometry; its emission at 1500 K woul
 - The vendored run spec's `fidelity.valid_for` still says the vehicle's absence is unexplained.
   That text lives in eopticDocs.
 
+## 2026-10-09 (round two) — sensor model: real-data intake, coverage, absolute radiometry
+
+**Real curve intake.** A vendor-style QE table (nm, percent, 0.3-1.7 um, non-uniform) imported without padding
+is refused by the generator for the AUROR template: `Curve.at` raises "extrapolation: none" for 1.7-2.0 um, and
+`platform_gen` reports it as a `PlatformGenError` (`tests/test_import_curve.py`). Padded to 0.150-14.000 um it
+composes into a tabulated channel. Scratch demo on a fabricated SCION-like table: 20 rows in, 24 out (LO, 0.299,
+1.701, HI added), header records `padding: zero below 0.300 um and above 1.700 um; not measured`; the same file
+without `--percent` is refused ("value 4.8 at 0.3 um is outside [0, 1]").
+
 ## Notebooks (status)
 
 - `notebooks/dirfm_tutorials/tutorial_dirfm_basics.ipynb` — Phase 1, complete. 8 stages, executed end to end.
