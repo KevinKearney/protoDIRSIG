@@ -824,6 +824,44 @@ test: schema failing while resolution and execution pass. `test_no_flat_scene_fa
 the old `scenes/tahoe` ref against `config_repo`, where the removed nested guess would have
 succeeded. That is a stronger test than checking against the trimmed fixture.
 
+## 2026-10-09 — Post-Stage-05 audit: docs, branch coverage, and the suite in a clean shell
+
+**Docs** (`8dd8e29`). These still described pre-Stage-05 behaviour and were corrected:
+- the `platform_ref` and `scene_ref.copy_input` docstrings (received motion/tasks);
+- the `simulation` Resolution text (missing the epoch refusal);
+- `README.md` (`src/` "empty scaffold"; no `config_repo/`, `run_specs/` or `tests/fixtures/`
+  in Layout; Phase 2 "STK-ephemeris-driven");
+- two markdown cells in each of stage 01 and `tutorial_auror_scene`;
+- two Stage 05 statements here, overtaken by `5d32d3f` and `3f18eeb`;
+- the run spec's epoch comment.
+
+In eopticDocs (working tree, **not committed there**): two sentences in
+GD_DIRSIG_RunSpec_YAML_v01 §9 still said `AUROR_ref/` "remains" the received tree and that its
+motion/tasks "stay where they are", and `auror_ref_run_spec.yaml`'s epoch comment had the
+direction reversed. Both were corrected, and the run spec was re-vendored.
+
+**Coverage** (`534a63a`). Every `RunSpecError` branch of `resolve_auror_run` and every
+`ENGINE_ENUMS` entry now has a rejecting test. Before this, untested were: ephemeris other than
+`spice` or absent; `scenes` count other than 1; weather absent or `install`; not-found
+platform, atmosphere database and weather file refs; and the schema enums
+`generator.spec_schema`, `motion.kind`, `motion.orientation.kind`, `atmosphere.plugin` and
+`weather.source`. 14 cases were added.
+
+**Suite.** Run with `env -i HOME PATH=/usr/bin:/bin`, from a directory outside the repo:
+**59 passed, 0 failed, 0 skipped.** Every guard resolves its paths from `__file__`, not the
+working directory, and `test_simulation` puts DIRSIG's `bin/` on `PATH` itself. What would
+skip, and where:
+
+| Guard | Needs | Fresh clone of this repo |
+|---|---|---|
+| `needs_config_repo`, `test_motion_tasks`, AUROR scene-coverage test | `config_repo/`, `tests/fixtures/auror_ref/` | present (tracked) |
+| `needs_dirsig` (simulation, registry: dry runs) | `dirsig5`/`scene2hdf` under `$DIRSIG_HOME` or `~/DIRSIG/dirsig-2026.38.0.a020954-Linux-x86_64` | skips without that install |
+| Tacoma scene-coverage test | the Tacoma bundle in that DIRSIG install | skips without it |
+| `test_orbit` (whole module) | `outputs/_orbit_data/tle_35946.txt`, `de421.bsp` | **skips**: `outputs/` is gitignored, so this data exists only where `tutorial_orbit_to_ground` has run |
+
+pytest is still not installed in the `protodirsig` env. It was run from a scratch `--target`
+install, as in every stage.
+
 ## Notebooks (status)
 
 - `notebooks/dirfm_tutorials/tutorial_dirfm_basics.ipynb` — Phase 1, complete. 8 stages, executed end to end.
