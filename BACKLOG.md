@@ -64,11 +64,6 @@ Import the Teledyne SCION curve with `scripts/import_curve.py` (`--provenance ve
 whether the quoted QE includes the die window or microlens. Likewise `synthetic_silicon` and
 `synthetic_vis_lens` if a real VIS sensor replaces the invented one.
 
-### Absolute radiometric check
-The render tests establish shape, linearity, additivity and geometry (`tests/test_sensor_render.py`) but not the
-absolute electron count. That needs a scene with a known radiance (uniform source or a known-reflectance target
-under a known irradiance) and the analytic integral of L(λ)·τ·QE(λ)·A·Ω·t·λ/hc over the response.
-
 ### Received AUROR_ref radiometry carries a 0.399 factor
 Its native gaussian channel peaks at 1/√(2π) (CONOPS section 9). Decide whether `auror_ref.yaml` stays `native`
 (reproduces the tree) or moves to `tabulated` (unit peak) and its reference renders are regenerated.

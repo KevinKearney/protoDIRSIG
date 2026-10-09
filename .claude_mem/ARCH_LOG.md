@@ -321,3 +321,15 @@ Kevin unavailable; prompt.md "Sensor model, round two". Decisions in order made:
   radiometric_reference listed in BACKLOG "Generator scope", not refused (they do not change the electrons image).
   timestamp: DIRSIG log `relative_time_window` [0, 0.005] -> integration starts at the task time.
 - **Step 2, CONOPS C-19** (open): one entry per job is a MANIFOLD-facing limit.
+- **Step 3, reference.** UniformAtm (BasicAtmosphere `uniformradiativetransfer`, skyfraction 0) + FixedEphemeris
+  instead of "DIRSIG's own solar data": the irradiance is then a stated job input, so neither a remembered solar
+  constant nor an install file is involved, and DIRSIG documents the mode for closed-form tests. Searched
+  `lib/data`: no stand-alone solar spectrum; in ClassicAtm/NewAtmosphere the sun comes from the MODTRAN database,
+  so a "solar file" reference would not separate from the render. Scene built with dirfm in the test (ground plane,
+  ClassicEmissivity specularity 0, rho = 1 - emissivity; scene properties vis,nir,swir — "vis" alone gives
+  0.35-0.80 um and DIRSIG refuses the 0.41-2.0 bandpass). Expected value computed from the sensor-spec YAML and
+  curve CSVs with numpy (not spectral.py, not the generated platform), scipy.constants h, c.
+- **Step 3, result: pass.** Ratios render/analytic 1.000000 (auror gaussian), 1.000064 (60 deg), 1.000000
+  (deepscan, scratch only), 1.000011 (VIS curves). Test tolerance 1e-3 (16x the worst case; 4F^2 would fail at
+  1.9 %). 8x8 windows, ~0.4 s per render. BACKLOG item deleted. Units established: hemisphereirradiance
+  W/(cm2 um); image electrons/m2 of focal plane (header says so); per pixel multiply by element area.

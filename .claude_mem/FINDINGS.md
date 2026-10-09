@@ -1125,6 +1125,14 @@ channel and with the native channel.
 **ROI offset.** DeepScan 1280x1024, 32x32 centred (OffsetX 624, OffsetY 496) vs four 16x16 quadrants: each
 quadrant's GeoLocation matches its block, mean ECEF difference <= 0.21 m, median per-pixel 1.9-2.1 m (GSD 16.3 m).
 
+**Absolute radiometry: pass.** Lambertian plane, UniformAtm skyfraction 0, FixedEphemeris, 8x8 nadir from 1 km,
+platform generated from the library entry. Render / analytic: auror-nir E=1 W/(cm2 um), rho 0.5, zenith 0:
+2.828466e17 / 2.828466e17 (1.000000); auror-nir E=0.2, rho 0.3, zenith 60: 1.000064; deepscan E=0.15, rho 0.4:
+1.000000; synthetic VIS (lens and silicon curves, rect 0.45-0.75): 1.000011. Images uniform to 4e-16. Factors
+confirmed: G# = (1+4F^2)/(tau pi) (not 4F^2: 1.9 % at f/3.6), hemisphereirradiance in W/(cm2 um) (1e4 vs per m2),
+cos(zenith) on the scalar sun irradiance, image units electrons/m2 of focal plane (x 1e-10 m2 = 2.83e7 e-/pixel
+for auror at 10 um pitch).
+
 ## Notebooks (status)
 
 - `notebooks/dirfm_tutorials/tutorial_dirfm_basics.ipynb` — Phase 1, complete. 8 stages, executed end to end.

@@ -378,6 +378,15 @@ documentation.
   response as quantum efficiency. The image scales linearly with it, two complementary QE windows sum to the
   full-band image, and `aperturethroughput` 1 with the optics curve folded into the channel equals the scalar
   `aperturethroughput`.
+- **Absolute electron count.** A generated platform's image equals, to 1e-4, the analytic
+  Q = t ∫ (L / G#) R(λ) λ / (hc) dλ, with L = ρ E cos θ / π for a Lambertian plane under UniformAtm (sky
+  fraction 0, sun scalar irradiance E), R the unit-peak shape × QE × optics curve, and DIRSIG's
+  G# = (1 + 4 F#²) / (τ π) (basicplatform_plugin.html; the textbook 4 F#² is 1.9 % off at f/3.6). Three cases:
+  gaussian with scalar throughput, the same at 60° sun zenith, rectangle with QE and optics curves
+  (`tests/test_absolute_radiometry.py`). Units: `hemisphereirradiance` is W cm⁻² µm⁻¹; the image (`areaunits="m2"`,
+  `fluxunits="electronspersecond"`, temporal integration) is electrons per m² of focal plane, so electrons per
+  pixel are the value × element area. The check covers the sensor chain only: under `new_atmosphere` the sun's
+  irradiance comes from the database and is not checked.
 - `aperturediameter` is in metres and `focallength` in millimetres. Adjacent-pixel horizontal spacing on the
   ground equals pitch / focal length × range within 1 % (three sensors, nadir view). `xarrayoffset` and
   `yarrayoffset` are in µm and positive toward increasing column and row: a 16 × 16 window offset by +8 pixels
