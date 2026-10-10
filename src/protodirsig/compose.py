@@ -33,6 +33,9 @@ The `roi` check of `run_spec` applies to each composed spec, and for a DIRSIG ru
 added to the descriptor outside what the layers hold; layer provenance (file and hash per member) and the sweep id
 are returned beside the specs, never written into them. Errors name the layer file and the field in it, never a
 path in the composed document.
+
+Imports: the standard library, `yaml`, `protodirsig.run_spec` and `protodirsig.spectral`, none of which loads an
+engine package, so composing needs no `dirfm`, skyfield or DIRSIG (tests/test_import_boundary.py).
 """
 import copy
 import hashlib

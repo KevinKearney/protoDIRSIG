@@ -28,6 +28,11 @@ pointed by a LookAt at a scene ENU point with the along-track `up` (a FlexMotion
 refused. The orbit form's TLE and Earth-orientation tables are library files under `config_repo` (`orbit/`),
 hash-verified like every other engine ref.
 
+Imports: the standard library, `yaml`, `lxml` and `protodirsig.spectral` only. The `dirfm`-bound plugin classes
+(`atmosphere_patches`, `platform_ref`) are imported inside `AurorRun.atmosphere_plugin` and `ephemeris_plugin`, the
+only places a job's plugins are built, so loading, resolving, checking and composing a run spec load no engine
+package (tests/test_import_boundary.py).
+
 Loading is a plain `yaml.safe_load`. `AV_MANIFOLD_Metadata_v02.md` §6.15 specifies a strict
 loader (duplicate-key rejection, canonical-JSON hashing, unknown-key rejection). That belongs to
 MANIFOLD's registry side, which is not built yet, so it is not built here: a duplicated key in the
@@ -43,9 +48,20 @@ from pathlib import Path
 import lxml.etree as et
 import yaml
 
-from protodirsig.atmosphere_patches import PatchedModtranTapeBackend, PatchedNewAtmospherePlugin
-from protodirsig.platform_ref import SpiceEphemerisPlugin
 from protodirsig.spectral import PLACEHOLDER, sha256_file
+
+# dirfm-bound names, imported only when a job is built (AurorRun.atmosphere_plugin, ephemeris_plugin), so loading,
+# resolving and composing a run spec needs no engine package. `from protodirsig.run_spec import <name>` still works.
+_ENGINE_BOUND = {"PatchedModtranTapeBackend": "protodirsig.atmosphere_patches",
+                 "PatchedNewAtmospherePlugin": "protodirsig.atmosphere_patches",
+                 "SpiceEphemerisPlugin": "protodirsig.platform_ref"}
+
+
+def __getattr__(name):                         # PEP 562: the engine-bound names, loaded on first use
+    if name in _ENGINE_BOUND:
+        import importlib
+        return getattr(importlib.import_module(_ENGINE_BOUND[name]), name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 # The received jsim's MODTRAN-tape recipe: what atm_builder would use to rebuild the database.
 # The render reads the existing HDF5 database, not this block, and the run
@@ -117,6 +133,7 @@ class AurorRun:
     def atmosphere_plugin(self, db=None):
         """`NewAtmosphere` over `db`, or over the resolved library database if not given. Pass the job's
         copy of the database so the jsim references it rather than the read-only original."""
+        from protodirsig.atmosphere_patches import PatchedModtranTapeBackend, PatchedNewAtmospherePlugin
         b = AUROR_ATMOSPHERE_BACKEND
         backend = (PatchedModtranTapeBackend().set_profile(b["profile"])
                    .set_atmospheric_model(b["atmospheric_model"])
@@ -126,6 +143,7 @@ class AurorRun:
                 .set_backend(backend).set_info("", "", "", ""))
 
     def ephemeris_plugin(self):
+        from protodirsig.platform_ref import SpiceEphemerisPlugin
         return SpiceEphemerisPlugin()
 
 

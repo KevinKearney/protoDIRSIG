@@ -1,19 +1,22 @@
-"""The import boundary: the composer, registry and loader do not load the propagator, and `orbit` loads no engine
-package at import. Each check runs in a fresh interpreter, so modules imported by other tests do not count.
+"""The import boundary: composing, loading and resolving a run spec loads no engine package; `orbit` loads none at
+import. Each check runs in a fresh interpreter, so modules imported by other tests do not count.
 
-`dirfm` is not yet outside the boundary of `compose`, `registry` and `run_spec`: `run_spec` imports
-`atmosphere_patches` and `platform_ref` (both `dirfm` subclasses) at module level, and `compose` and `registry`
-import `run_spec`. Those three are the engine-bound set; the dirfm check is asserted only for modules that pass it.
+`registry` and `simulation` remain engine-bound: `simulation` assembles and runs the DIRSIG job through dirfm, and
+`registry` imports `Simulation`. Phase 2b separates the local backend from the engine; until then they are the
+recorded bound set, and a guard test fails when one of them stops loading dirfm, so the list shrinks deliberately.
 """
 import json
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
+ROOT = Path(__file__).resolve().parents[1]
 PROPAGATOR = ("skyfield", "sgp4")
 ENGINE = ("dirfm",)
-DIRFM_BOUND = {"protodirsig.compose", "protodirsig.registry", "protodirsig.run_spec"}   # known; not refactored yet
+PURE = ["protodirsig.compose", "protodirsig.run_spec", "protodirsig.orbit"]
+DIRFM_BOUND = {"protodirsig.registry", "protodirsig.simulation"}     # known; phase 2b separates LocalBackend
 
 
 def _loaded(module):
@@ -23,17 +26,46 @@ def _loaded(module):
     return set(json.loads(out))
 
 
-@pytest.mark.parametrize("module", ["protodirsig.compose", "protodirsig.registry", "protodirsig.run_spec",
-                                    "protodirsig.orbit"])
+@pytest.mark.parametrize("module", PURE + sorted(DIRFM_BOUND))
 def test_module_does_not_load_the_propagator(module):
     assert _loaded(module).isdisjoint(PROPAGATOR)
 
 
-@pytest.mark.parametrize("module", ["protodirsig.orbit"])
+@pytest.mark.parametrize("module", PURE)
 def test_module_does_not_load_the_engine_package(module):
     assert _loaded(module).isdisjoint(ENGINE)
 
 
 def test_the_engine_bound_set_is_as_recorded():
-    """If one of these stops loading dirfm, move it to the test above and shrink DIRFM_BOUND."""
+    """If one of these stops loading dirfm, move it to PURE and shrink DIRFM_BOUND."""
     assert {m for m in DIRFM_BOUND if "dirfm" in _loaded(m)} == DIRFM_BOUND
+
+
+BLOCKED = """
+import sys
+class Block:
+    def find_spec(self, name, path=None, target=None):
+        if name.split(".")[0] in ("dirfm", "skyfield", "sgp4"):
+            raise ImportError(f"blocked: {name}")
+sys.meta_path.insert(0, Block())
+"""
+
+
+def test_compose_runs_with_the_engine_packages_unimportable():
+    """Composition needs no engine package: dirfm, skyfield and sgp4 raise on import, and compose still completes."""
+    recipe = ROOT / "manifold_run_specs" / "recipes" / "auror_ref.yaml"
+    code = BLOCKED + f"""
+import json
+try:
+    import dirfm
+    raise SystemExit("dirfm imported despite the block")
+except ImportError:
+    pass
+from protodirsig.compose import compose
+from protodirsig.run_spec import load_sensor_spec, RunSpecError
+spec = compose({str(recipe)!r})
+print(json.dumps({{"name": spec["descriptor"]["meta"]["name"], "engine": "dirfm" in sys.modules}}))
+"""
+    res = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    assert res.returncode == 0, res.stderr
+    assert json.loads(res.stdout) == {"name": "auror-ref-static-pose", "engine": False}
