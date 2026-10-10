@@ -106,7 +106,7 @@ Layers, bottom to top:
 
 A recipe is composed into a run spec (`compose`, section 3.5); a composition error names the layer file and field. A run spec then becomes a run in three steps, each independently testable (hash verification and `.platform` rendering sit in steps 2 and 3):
 
-1. **Schema check** (`simulation.schema_errors`): required members and enumerated values of `run-spec/1` and `dirsig-engine/1`.
+1. **Schema check** (`simulation.schema_errors`, the executable checker): required members and enumerated values of `run-spec/1` and `dirsig-engine/1`, whose contract is `manifold_contracts/run-spec-1.schema.json` and `dirsig-engine-1.schema.json` (section 3).
 2. **Resolution** (`run_spec.resolve_auror_run`): `engine.*` becomes `dirfm` objects and file paths.
 3. **Execution check** (`Simulation.validate`): the job is assembled in a scratch directory and run with `dirsig5 --dry_run --log_info_filename`.
 
@@ -133,6 +133,8 @@ A run spec is one YAML document with three keys (Metadata_v02 §6.3).
 
 `descriptor` is registered, searched, and hashed into the provenance record. `engine` is what the generator and executor consume.
 
+**Schemas** `proposed`. `manifold_contracts/run-spec-1.schema.json` (the whole run spec; the engine block selected by `descriptor.origin.engine`) and `manifold_contracts/dirsig-engine-1.schema.json` (the DIRSIG engine block, including the `new_atmosphere` and `orbit` forms) state this section as JSON Schema 2020-12. They are the SDK's reading of the MANIFOLD documents, not offered to MANIFOLD (the status-marker note in Part II). `simulation.schema_errors` remains the executable checker the SDK runs; `tests/test_run_spec_schema.py` validates every composed run spec against the schemas, rejects a corpus of mutations, and holds the schemas and the checker in agreement. The checker is narrower in four named places, all enforced by the schemas: unknown keys, the `origin` axes, quantity provenance and `conditions`, and `geometry.range` with targets. What JSON Schema cannot express (content hashes, `entry_id` resolution, black level 0, the orbit window rules, placeholders) is enforced at admission; `manifold_contracts/README.md` lists it. Members neither this document nor any run defines are left open in the schemas: `collection.platform`, `field`, `settings[].binning`, and in the engine block `motion` kind `waypoints`, the `four_curve` and `basic` atmospheres and `weather.source: install`.
+
 ### 3.1 `descriptor`
 
 Required blocks for `run-spec/1`: `meta`, `origin`, `collection`, `sensor`, `settings`, `fidelity`. `field` is required iff `origin.kind: field`. `extras` is optional. Unknown keys are rejected everywhere except `extras`.
@@ -149,7 +151,7 @@ Required blocks for `run-spec/1`: `meta`, `origin`, `collection`, `sensor`, `set
 
 The `engine` section is origin-specific: one schema per engine, selected by `descriptor.origin.engine`. DIRSIG (`dirsig-engine/1`) is the first engine implemented. Others (`satsim`, `usd`) will follow with their own `<engine>-engine/<major>` schemas; none of what follows constrains them. The `descriptor` is the engine-independent part of the contract and is shared across all engines. This document describes the DIRSIG engine only.
 
-Members (Configuration_v02 A.8.1): `generator`, `scenes`, `platform`, `motion`, `tasks`, `atmosphere` (required); `weather`, `ephemeris`, `run` (optional).
+Members (Configuration_v02 A.8.1): `generator`, `scenes`, `platform`, `motion`, `tasks`, `atmosphere` (required); `weather`, `ephemeris`, `run` (optional). The schema is `manifold_contracts/dirsig-engine-1.schema.json` (`proposed`).
 
 - **Division with `descriptor`.** Epoch, exposure, frame rate, gain, and black level are stated once, in `descriptor`; the generator writes them into `.tasks` and `.platform`. Platform position at epoch is emitted by the generator and may be omitted from an authored spec.
 - **`scenes[]`.** Library scene references with optional `[x,y,z]` offsets. `scene2hdf` compiles the HDF at run time beside the `.scene` file; the HDF is derived, outside the manifest, never pre-compiled in the library.
@@ -305,7 +307,7 @@ A top-level folder exists here only if it has a MANIFOLD analog. `AUROR_ref/` ha
 | `platform_gen` | `.platform` rendered from the library template, `sensor-spec/1` and `settings` | `built` (one focal plane per entry) |
 | `spectral` | `spectral-curve/1` reader, channel shapes, response composition | `built` |
 | `motion_tasks` | motion and `.tasks` generation from `engine.motion`, `engine.tasks`: a `.ppd` for `static`, a FlexMotion `.motion` of ECEF waypoints for `orbit` (`orbit_waypoints`) | `built, partial` (static, orbit) |
-| `simulation` | schema, resolution, execution checks; render; every capture as `RunResult.frames` | `built` |
+| `simulation` | schema check (`schema_errors`, the executable checker of the `manifold_contracts/` schemas), resolution and execution checks; render; every capture as `RunResult.frames` | `built` |
 | `registry` | `LocalRegistry`: local stand-in for submission | `built` |
 | `scene_ref`, `platform_ref`, `scene_coverage`, `atmosphere_patches` | `dirfm` gap-fillers | `built` |
 | `orbit`, `sensors` | the propagator seam (`propagate` returns a plain `Trajectory`; `find_passes`, `choose_pass`, `propagator_provenance`; no skyfield type in a signature), TEME→ITRS checks and a second sgp4 + GMST-1982 path, LookAt waypoint motion, `recover_position` from truth; sensor helpers | `built` |

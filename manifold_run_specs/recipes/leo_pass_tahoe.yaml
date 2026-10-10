@@ -1,6 +1,7 @@
 # Recipe (compose/1): the tahoe_leo_pass scenario imaged by auror-nir from WORLDVIEW-2's orbit: three frames 10 s
 # apart, centred on culmination. scripts/compose.py composes it into manifold_run_specs/leo_pass_tahoe.yaml.
 # The sensor is the one the Tahoe sweep's first run uses (manifold_sensors/auror-nir.yaml); only settings differ.
+# A geometry validation, not a radiometric image: the 10 us exposure serves the truth-based platform-position fit.
 
 compose: compose/1
 
