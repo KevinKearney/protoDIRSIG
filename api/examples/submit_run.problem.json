@@ -1,0 +1,40 @@
+{
+  "summary": "A submission that fails admission: the engine profile sets `engine.motion.kind` to `bogus`.",
+  "description": "Produced from the `auror_ref` recipe after editing `engine_profiles/tahoe_static_pose.yaml` in a temporary copy of the library (the repository's files are not edited): its `engine.motion.kind` is set to `bogus`, a value `dirsig-engine/1` does not allow. The composed spec is checked against the contract schemas and the violation is located by the composer's provenance, so the problem names the engine profile file and the field in it. No run is created.",
+  "source": {
+    "recipe": "auror_ref",
+    "edited_layer": "engine_profiles/tahoe_static_pose.yaml",
+    "edit": "engine.motion.kind: bogus"
+  },
+  "request": {
+    "method": "POST",
+    "path": "/runs",
+    "body": {
+      "recipe_name": "auror_ref"
+    },
+    "schema": "schemas/submit_run_request.schema.json"
+  },
+  "response": {
+    "status": 422,
+    "media_type": "application/problem+json",
+    "body": {
+      "type": "urn:protodirsig:problem:admission",
+      "title": "The submission failed admission",
+      "status": 422,
+      "detail": "Run auror-ref-static-pose is not valid run-spec/1: engine_profiles/tahoe_static_pose.yaml: engine.motion.kind: 'bogus' is not one of ['static', 'waypoints', 'orbit']",
+      "instance": "/runs",
+      "layer": "engine_profiles/tahoe_static_pose.yaml",
+      "field": "engine.motion.kind",
+      "errors": [
+        {
+          "run": "auror-ref-static-pose",
+          "detail": "engine_profiles/tahoe_static_pose.yaml: engine.motion.kind: 'bogus' is not one of ['static', 'waypoints', 'orbit']",
+          "layer": "engine_profiles/tahoe_static_pose.yaml",
+          "field": "engine.motion.kind"
+        }
+      ]
+    },
+    "schema": "schemas/problem.schema.json"
+  },
+  "operation": "submit_run"
+}

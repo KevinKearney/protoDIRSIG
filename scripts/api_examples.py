@@ -5,7 +5,9 @@
     python scripts/api_examples.py --check   exit 1 if an example differs from what the library gives now
 
 One file per operation, plus `compose.problem.json`, the problem produced by actually composing the
-`member_in_two_layers` conformance vector, and `list_artifacts.pass.json`, a multi-frame run. Library names,
+`member_in_two_layers` conformance vector; `submit_run.problem.json`, the admission problem for a schema violation in
+an engine profile (edited in a temporary copy of the library, never in place), named by layer file and field with
+`protodirsig.problems`; and `list_artifacts.pass.json`, a multi-frame run. Library names,
 content hashes, documents, composed specs, provenance and validation outcomes are real; run ids and sweep ids are
 computed from the composed specs (`protodirsig.identity`), and the hash of `run_spec.json` is its run id (the
 artifact is the canonical JSON of the resolved spec). Hashes of rendered files (images, headers, truth, logs) are
@@ -14,7 +16,9 @@ says so.
 """
 import hashlib
 import json
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 import yaml
@@ -22,7 +26,9 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
+from protodirsig import problems                                        # noqa: E402
 from protodirsig.compose import ComposeError, compose, compose_sweep   # noqa: E402
+from protodirsig.contract import schema_violations                       # noqa: E402
 from protodirsig.identity import run_id as compute_run_id                  # noqa: E402
 from protodirsig.run_spec import check_library_files, load_run_spec, resolve_auror_run   # noqa: E402
 from protodirsig.simulation import schema_errors   # noqa: E402
@@ -46,6 +52,31 @@ _COMPOSED = {r: compose_sweep(LAYERS / "recipes" / f"{r}.yaml") for r in (SWEEP,
 RUN_IDS = {n: i for c in _COMPOSED.values() for n, i in c.run_ids.items()}     # computed: identity.run_id
 SWEEP_ID = _COMPOSED[SWEEP].sweep_id                                           # computed: identity.sweep_id_from_runs
 RUN_DIR = "file:///tmp/protodirsig/runs"
+
+
+BOGUS_KIND = "bogus"
+MUTATED = ("engine_profiles/tahoe_static_pose.yaml", "    kind: static\n", f"    kind: {BOGUS_KIND}\n")
+
+
+def mutated_problem():
+    """The admission problem for the `SINGLE` recipe composed from a temporary copy of the library in which the
+    engine profile's `engine.motion.kind` is not an allowed value."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp) / "manifold_run_specs"
+        for d in ("recipes", "scenarios", "engine_profiles"):
+            shutil.copytree(LAYERS / d, root / d)
+        shutil.copytree(SENSORS, Path(tmp) / "manifold_sensors")
+        rel, old, new = MUTATED
+        text = (root / rel).read_text()
+        if text.count(old) != 1:
+            raise SystemExit(f"{rel}: expected one {old.strip()!r} to edit")
+        (root / rel).write_text(text.replace(old, new))
+        recipe = root / "recipes" / f"{SINGLE}.yaml"
+        sweep = compose_sweep(recipe)
+        (name,) = sweep.runs
+        violations = schema_violations(sweep.runs[name])
+        return problems.from_schema_violations(sweep.runs[name], sweep.sources[name], violations, "/runs",
+                                               recipe=recipe)
 
 
 def sha(path):
@@ -139,8 +170,7 @@ def examples():
         compose_sweep(next((VECTOR / "recipes").glob("*.yaml")))
         raise SystemExit(f"{VECTOR.name} composed; it should raise ComposeError")
     except ComposeError as e:
-        problem = {"type": "urn:protodirsig:problem:compose", "title": "The recipe does not compose", "status": 422,
-                   "detail": str(e), "instance": "/compose", "layer": e.layer, "field": e.field}
+        problem = problems.from_compose_error(e, "/compose")
     ex["compose.problem"] = {
         "summary": "A recipe that does not compose: two layers both hold `fidelity`.",
         "description": ("Produced by composing the conformance vector `manifold_contracts/vectors/compose/"
@@ -150,6 +180,17 @@ def examples():
         "request": post("/compose", {"recipe_name": next((VECTOR / "recipes").glob("*.yaml")).stem},
                         "schemas/compose_request.schema.json"),
         "response": ok(problem, "schemas/problem.schema.json", 422, "application/problem+json")}
+
+    ex["submit_run.problem"] = {
+        "summary": f"A submission that fails admission: the engine profile sets `engine.motion.kind` to `{BOGUS_KIND}`.",
+        "description": (f"Produced from the `{SINGLE}` recipe after editing `{MUTATED[0]}` in a temporary copy of the "
+                        f"library (the repository's files are not edited): its `engine.motion.kind` is set to "
+                        f"`{BOGUS_KIND}`, a value `dirsig-engine/1` does not allow. The composed spec is checked "
+                        "against the contract schemas and the violation is located by the composer's provenance, so "
+                        "the problem names the engine profile file and the field in it. No run is created."),
+        "source": {"recipe": SINGLE, "edited_layer": MUTATED[0], "edit": f"engine.motion.kind: {BOGUS_KIND}"},
+        "request": post("/runs", {"recipe_name": SINGLE}, "schemas/submit_run_request.schema.json"),
+        "response": ok(mutated_problem(), "schemas/problem.schema.json", 422, "application/problem+json")}
 
     spec_path = LAYERS / f"{SINGLE}.yaml"
     spec = load_run_spec(spec_path)

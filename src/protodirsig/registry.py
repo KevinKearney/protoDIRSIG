@@ -19,8 +19,9 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from protodirsig import identity
-from protodirsig.compose import MAX_RUNS, ComposeError, compose, compose_sweep, default_sensor_library, dump, sweep_id  # noqa: F401
+from protodirsig import identity, problems
+from protodirsig.compose import (MAX_RUNS, ComposeError, compose, compose_sweep, default_sensor_library, dump,  # noqa: F401
+                                 explain, sweep_id)
 from protodirsig.run_spec import RunSpecError
 from protodirsig.run_spec import default_sensor_library as run_spec_default_library
 from protodirsig.simulation import Simulation
@@ -33,10 +34,19 @@ class SubmissionResult:
     checks: dict[str, bool] = field(default_factory=dict)   # {"schema", "resolution", "execution", "stamped"} -> bool
     simulation: Simulation | None = None           # the validated job; call .run() on it if accepted
     run_id: str | None = None                      # identity.run_id of the submitted spec; None if it cannot be computed
+    sources: dict | None = None                    # composer provenance, when the SDK composed the spec (submit_recipe, submit_sweep)
+    recipe: Path | None = None                     # the recipe file, likewise
+    compose_error: ComposeError | None = None      # why submit_recipe's recipe did not compose
 
     @property
     def accepted(self):
         return self.verdict == "accepted"
+
+    @property
+    def problem(self):
+        """The rejection as one problem details dict (`problems.from_submission`, naming the layer file and field when
+        the SDK composed the spec), or None if accepted."""
+        return problems.from_submission(self)
 
 
 @dataclass
@@ -89,6 +99,7 @@ class LocalRegistry:
                 result.runs[name] = RunStatus(name, "rejected", [f"{type(e).__name__}: {e}"], path,
                                               run_id=sweep.run_ids[name])
                 continue
+            sub.sources, sub.recipe = sweep.sources[name], recipe_path
             result.runs[name] = RunStatus(name, sub.verdict, list(sub.reasons), path, sub, run_id=sweep.run_ids[name])
         return result
 
@@ -117,7 +128,7 @@ class LocalRegistry:
         try:
             spec = compose(recipe_path, sensor_library=library)
         except ComposeError as e:
-            return SubmissionResult(verdict="rejected", reasons=[f"Composition failed: {e}"],
+            return SubmissionResult(verdict="rejected", reasons=[f"Composition failed: {e}"], compose_error=e,
                                     checks={"compose": False, "schema": False, "resolution": False, "execution": False,
                                             "stamped": False})
         work_dir = Path(work_dir) if work_dir is not None else Path(tempfile.mkdtemp(prefix="protodirsig_"))
@@ -126,6 +137,7 @@ class LocalRegistry:
         path.write_text(dump(spec, recipe_path.relative_to(recipe_path.parent.parent).as_posix()))
         result = self.submit(path, config_repo, work_dir, library)
         result.checks = {"compose": True, **result.checks}
+        result.sources, result.recipe = explain(recipe_path, sensor_library=library), recipe_path
         return result
 
     def submit(self, run_spec_path, config_repo, work_dir=None, sensor_library=None):

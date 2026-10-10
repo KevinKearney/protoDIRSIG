@@ -1,8 +1,8 @@
 """The published contract schemas, applied: `run-spec/1`, `dirsig-engine/1` and `sensor-spec/1` from `manifold_contracts/`.
 
 `schema_violations(spec)` validates a parsed run spec against `manifold_contracts/run-spec-1.schema.json` (which
-references the engine and sensor-spec schemas) and returns every violation as `{path, message}`, `path` an RFC 6901
-JSON Pointer into the spec. `simulation.schema_errors` formats these as its schema-check messages, so admission
+references the engine and sensor-spec schemas) and returns every violation as `{path, message, at}`, `path` and `at`
+RFC 6901 JSON Pointers into the spec. `simulation.schema_errors` formats these as its schema-check messages, so admission
 enforces the schemas.
 
 The schemas are read from the repository's `manifold_contracts/` folder, the sibling of `src/` (as
@@ -63,15 +63,31 @@ def pointer(path):
     return "".join("/" + str(p).replace("~", "~0").replace("/", "~1") for p in path)
 
 
+def _closest(error):
+    """For a oneOf/anyOf violation: the first error of the alternative with the fewest errors, else None."""
+    if error.validator not in ("oneOf", "anyOf") or not error.context:
+        return None
+    branches = {}
+    for sub in error.context:                           # group the alternatives' errors by alternative
+        branches.setdefault(sub.relative_schema_path[0], []).append(sub)
+    return min(branches.values(), key=lambda errs: (len(errs), -max(len(e.relative_path) for e in errs)))[0]
+
+
+def _at(error):
+    """The path (keys and indices) of the deepest location a violation's message names: the closest alternative's,
+    followed down through nested combinators."""
+    path, inner = list(error.absolute_path), _closest(error)
+    while inner is not None:
+        path += list(inner.relative_path)
+        inner = _closest(inner)
+    return path
+
+
 def _message(error):
     """The violation's message, without the whole instance that combinators (oneOf, anyOf, not) quote."""
     msg = error.message
-    if error.validator in ("oneOf", "anyOf") and error.context:
-        branches = {}
-        for sub in error.context:                       # group the alternatives' errors by alternative
-            branches.setdefault(sub.relative_schema_path[0], []).append(sub)
-        closest = min(branches.values(), key=lambda errs: (len(errs), -max(len(e.relative_path) for e in errs)))
-        inner = closest[0]
+    inner = _closest(error)
+    if inner is not None:
         where = pointer(inner.relative_path)
         return (f"matches none of the allowed forms; closest: {where + ': ' if where else ''}"
                 f"{_message(inner)[:MAX_MESSAGE]}")
@@ -85,9 +101,12 @@ def _message(error):
 
 def schema_violations(spec):
     """Every violation of run-spec/1 (and, through it, dirsig-engine/1 and sensor-spec/1) in a parsed spec, as
-    `[{"path": <JSON Pointer>, "message": <text>}]`, sorted by path then message. Empty means the spec conforms."""
-    found = {(pointer(e.absolute_path), _message(e)) for e in validator().iter_errors(spec)}
-    return [{"path": p, "message": m} for p, m in sorted(found)]
+    `[{"path": <JSON Pointer>, "message": <text>, "at": <JSON Pointer>}]`, sorted by path then message. Empty means
+    the spec conforms. `path` is where the validator reports the violation; `at` is the deepest location its message
+    names (the same, except under a oneOf/anyOf, where it is the closest alternative's location), the pointer
+    `problems.locate` attributes to a layer file and field."""
+    found = {(pointer(e.absolute_path), _message(e), pointer(_at(e))) for e in validator().iter_errors(spec)}
+    return [{"path": p, "message": m, "at": a} for p, m, a in sorted(found)]
 
 
 def conforms(spec):

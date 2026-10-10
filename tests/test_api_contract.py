@@ -229,6 +229,21 @@ def test_problem_example_names_the_layer_and_field_of_the_triggering_compose_err
     assert body["detail"] == str(e.value) and body["status"] == 422
 
 
+def test_admission_problem_example_names_the_edited_engine_profile_field():
+    """submit_run.problem.json is what protodirsig.problems gives for the mutation it describes, made in a temporary
+    copy of the library: the edited layer file and the field in it, with each violation in `errors`."""
+    ex = _load(API / "examples" / "submit_run.problem.json")
+    body = ex["response"]["body"]
+    assert (body["type"], body["status"]) == ("urn:protodirsig:problem:admission", 422)
+    assert (body["layer"], body["field"]) == (ex["source"]["edited_layer"], "engine.motion.kind")
+    assert [(e["layer"], e["field"]) for e in body["errors"]] == [(body["layer"], body["field"])]
+    assert "temporary copy" in ex["description"]
+    spec = importlib.util.spec_from_file_location("api_examples", ROOT / "scripts" / "api_examples.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    assert mod.mutated_problem() == body
+
+
 def _symbol(dotted):
     """Resolve `module.name`, `Class.method`, `Class.field` (a dataclass field) or `module.Class` against protodirsig's
     modules."""
