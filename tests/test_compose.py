@@ -292,7 +292,8 @@ def test_inline_and_ref_sensor_render_the_same_platform(tmp_path, recipe):
 def test_submit_recipe_accepts_and_rejects(tmp_path):
     from protodirsig.registry import LocalRegistry
     r = LocalRegistry().submit_recipe(RUN_SPECS / "recipes" / "synthetic_vis.yaml", CONFIG_REPO, tmp_path / "ok")
-    assert r.accepted and r.checks == {"compose": True, "schema": True, "resolution": True, "execution": True}
+    assert r.accepted and r.checks == {"compose": True, "schema": True, "resolution": True, "execution": True,
+                                       "stamped": True}
     assert (tmp_path / "ok" / "synthetic_vis.yaml").read_text() == (RUN_SPECS / "synthetic_vis.yaml").read_text()
     bad = _recipe(VECTORS / "unresolved_entry_id")
     r = LocalRegistry().submit_recipe(bad, CONFIG_REPO, tmp_path / "bad")

@@ -39,7 +39,8 @@ from protodirsig.contract import schema_violations
 from protodirsig.platform_gen import render_platform
 from protodirsig.platform_ref import PlatformFilesPlugin
 from protodirsig.motion_tasks import generate_motion, generate_tasks
-from protodirsig.run_spec import RunSpecError, check_library_files, is_inline_sensor, load_run_spec, resolve_auror_run
+from protodirsig.run_spec import (RunSpecError, check_library_files, is_inline_sensor, load_run_spec, resolve_auror_run,
+                                 unstamped_refs)
 from protodirsig.scene_ref import copy_input, reference_scene
 
 # Required members and enumerations as the schemas in manifold_contracts/ state them (Metadata_v02 §6, Configuration_v02
@@ -72,6 +73,7 @@ class ConformanceResult:
     execution_ok: bool
     execution_log: dict | None
     execution_error: str | None
+    unstamped: list = field(default_factory=list)   # pointers of refs with the sha256:<hash> placeholder (run_spec.unstamped_refs)
 
     @property
     def passed(self):
@@ -249,7 +251,9 @@ class Simulation:
         return problems
 
     def validate(self):
-        """Run all three checks, each reported independently; never raises for a bad spec."""
+        """Run all three checks, each reported independently; never raises for a bad spec. `unstamped` lists the
+        references that carry the `sha256:<hash>` placeholder; it is reported, not a failed check (`passed` ignores
+        it), and `LocalRegistry.submit` refuses such a spec."""
         if self.spec is None:
             return ConformanceResult(False, f"run spec did not load: {self.load_error}",
                                      False, ["not checked: run spec did not load"],
@@ -287,7 +291,8 @@ class Simulation:
         return ConformanceResult(
             schema_ok=not schema, schema_error="; ".join(schema) or None,
             resolution_ok=not mismatches, resolution_mismatches=mismatches,
-            execution_ok=exec_err is None, execution_log=exec_log, execution_error=exec_err)
+            execution_ok=exec_err is None, execution_log=exec_log, execution_error=exec_err,
+            unstamped=unstamped_refs(self.spec))
 
     def run(self, out_dir=None):
         """Assemble and render (Stage 01's job), with --run_info_filename and --log_info_filename

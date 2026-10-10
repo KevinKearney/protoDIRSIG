@@ -198,6 +198,34 @@ def _scene_origin(scene_path):
     return float(loc.findtext("latitude")), float(loc.findtext("longitude"))
 
 
+def _pointer(path):
+    return "".join("/" + str(p).replace("~", "~0").replace("/", "~1") for p in path) or "/"
+
+
+def unstamped_refs(spec):
+    """The RFC 6901 JSON Pointers of every content reference `{name, content_hash}` in a parsed run spec whose hash is
+    the `sha256:<hash>` placeholder, in document order: the sensor reference (and a curve reference inside an inline
+    sensor block) and every library ref under `engine` (`scenes[]`, `platform`, `atmosphere.database`,
+    `weather.file`, `motion.orbit.tle`, `motion.orbit.earth_orientation`). `engine.generator.revision` is not a
+    content reference and is not reported. Pure: reads no file. Admission refuses a spec for which this is not empty
+    (`LocalRegistry.submit`); `Simulation.validate` reports it (`ConformanceResult.unstamped`)."""
+    found = []
+
+    def walk(node, path):
+        if isinstance(node, dict):
+            want = node.get("content_hash")
+            if isinstance(node.get("name"), str) and isinstance(want, str) and PLACEHOLDER in want:
+                found.append(_pointer(path))
+            for k, v in node.items():
+                walk(v, (*path, k))
+        elif isinstance(node, list):
+            for i, v in enumerate(node):
+                walk(v, (*path, i))
+    if isinstance(spec, dict):
+        walk(spec, ())
+    return found
+
+
 def is_inline_sensor(sensor):
     """`descriptor.sensor` given in place: a sensor-spec `sensor` block (`sensor_system` and an `entries` list)."""
     return isinstance(sensor, dict) and "ref" not in sensor and isinstance(sensor.get("sensor_system"), dict) \

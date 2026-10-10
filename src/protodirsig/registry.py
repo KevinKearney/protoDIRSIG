@@ -10,6 +10,10 @@ verdict, the reasons and the per-check outcomes are likely to carry over.
 a MANIFOLD input constructor would accept (CONOPS and Guide, C-21). `submit_sweep` does the same for every run of a
 sweep recipe and `run_sweep` renders the accepted ones. Each run has its own state; a rejected or failed run never
 stops the others.
+
+Admission refuses a run spec with an unstamped reference (`run_spec.unstamped_refs`: a `content_hash` that is the
+`sha256:<hash>` placeholder), with a reason naming each one; `checks["stamped"]` records it. `Simulation.validate`
+reports such references without failing, since the placeholder is the authoring state.
 """
 import tempfile
 from dataclasses import dataclass, field
@@ -26,7 +30,7 @@ from protodirsig.simulation import Simulation
 class SubmissionResult:
     verdict: str                                   # "accepted" or "rejected"
     reasons: list[str]                             # plain-language, one per failed check
-    checks: dict[str, bool] = field(default_factory=dict)   # {"schema": ..., "resolution": ..., "execution": ...}
+    checks: dict[str, bool] = field(default_factory=dict)   # {"schema", "resolution", "execution", "stamped"} -> bool
     simulation: Simulation | None = None           # the validated job; call .run() on it if accepted
     run_id: str | None = None                      # identity.run_id of the submitted spec; None if it cannot be computed
 
@@ -114,7 +118,8 @@ class LocalRegistry:
             spec = compose(recipe_path, sensor_library=library)
         except ComposeError as e:
             return SubmissionResult(verdict="rejected", reasons=[f"Composition failed: {e}"],
-                                    checks={"compose": False, "schema": False, "resolution": False, "execution": False})
+                                    checks={"compose": False, "schema": False, "resolution": False, "execution": False,
+                                            "stamped": False})
         work_dir = Path(work_dir) if work_dir is not None else Path(tempfile.mkdtemp(prefix="protodirsig_"))
         work_dir.mkdir(parents=True, exist_ok=True)
         path = work_dir / f"{recipe_path.stem}.yaml"
@@ -136,9 +141,15 @@ class LocalRegistry:
         if not c.execution_ok:
             reasons.append(f"Execution check failed: DIRSIG did not accept the assembled job in a dry run. "
                            f"{c.execution_error}")
-        return SubmissionResult(verdict="accepted" if c.passed else "rejected", reasons=reasons,
+        if c.unstamped:
+            reasons.append(f"Stamp check failed: {len(c.unstamped)} reference(s) carry the sha256:<hash> placeholder "
+                           f"instead of a content hash, so the run id would not identify the inputs: "
+                           f"{', '.join(c.unstamped)}. Run scripts/stamp_hashes.py (and scripts/compose.py for a "
+                           "composed spec), then submit again.")
+        stamped = not c.unstamped
+        return SubmissionResult(verdict="accepted" if c.passed and stamped else "rejected", reasons=reasons,
                                 checks={"schema": c.schema_ok, "resolution": c.resolution_ok,
-                                        "execution": c.execution_ok},
+                                        "execution": c.execution_ok, "stamped": stamped},
                                 simulation=sim, run_id=_run_id(sim, run_spec_path))
 
 
