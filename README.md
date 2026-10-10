@@ -52,7 +52,7 @@ conda env update -f environment.yml --prune
 - `scripts/` — CLI entry points: `bootstrap.py` (pinned dependencies), `compose.py` (run specs from layers), `stamp_hashes.py` (content hashes), `import_curve.py` (measured curve intake), `crosscheck_sgp4.py`.
 - `outputs/` — DIRSIG input/output roots written by notebooks and scripts. Gitignored except for a placeholder; nothing here is source, and nothing here is ever written into `dirfm`'s own checkout.
 - `tests/` — pytest suite for `src/protodirsig`. `tests/fixtures/auror_ref/` holds the received AUROR_ref motion and tasks files, kept only to compare generated files against.
-- `docs/` — the CONOPS and Guide, and the DIRSIG platform decomposition notes.
+- `docs/` — the CONOPS and Guide, the DIRSIG platform decomposition notes, and `diagrams/`: the controlled drawings (Mermaid source, rendered SVG and PNG; `python scripts/render_diagrams.py`).
 
 ## Architecture
 
