@@ -136,8 +136,26 @@ Kevin's DIRSIG motion notes. Contains errors (direct point-source viewing; targe
 ### Notebooks and tests still assume sibling checkouts and `~/DIRSIG`
 Notebook first cells set `DIRSIG_HOME` and locate `dirfm` by home-relative paths. Switch them to `external/` (the `dirsig` link and `dirsig-file-maker`) so the bootstrap is the only setup step, as `stage_03_sensor_sweep` does. Tests still fall back to `~/DIRSIG/<version>`.
 
-### Asset manifest for large scenes and databases
-`manifold_config_repo/` holds real files, so scenes and databases over about 50 MB cannot go in git. Add a manifest (name, sha256, size, source) and a `bootstrap.py assets` step that copies each asset from its source (the DIRSIG install for shipped demo scenes such as Tacoma and HarvardForest, an artifact store for acquired ones) into a gitignored `manifold_config_repo/` path and verifies the hash. Decide LFS versus a content-addressed store first. Each new scene also needs a matched atmosphere database, weather file, and platform.
+### Library assets: what remains after the manifest
+`manifold_config_repo/assets.json` and `scripts/bootstrap.py assets` place and verify assets from zip members of the linked DIRSIG install (the demos). Remaining: decide LFS versus a content-addressed store for assets that are not demos (acquired scenes and databases over about 50 MB); source kinds beyond `zip` (a directory in the install, such as the Tacoma and HarvardForest scenes, and an artifact store URL for acquired assets); a gitignored layer overlay for demo values that cannot be committed (sensor, pose, epoch: see the coverage document's first-demo findings). Each new scene also needs a matched atmosphere database, weather file and platform.
+
+### Loader: BasicAtmosphere `.atm` with uniform radiative transfer (unlocks 31 demos)
+Accept `engine.atmosphere.plugin: basic` naming a library `.atm` file (uniform weather inside it) whose radiative transfer is `uniformradiativetransfer`, with a schema form for `basic`. The most common single gap in the demo survey (`docs/DIRSIG_demo_coverage.md`): 31 `near` demos need only this, 50 demos need it.
+
+### Loader: BasicAtmosphere `.atm` with simple radiative transfer (unlocks 26 demos)
+The same loader feature for `simpleradiativetransfer`: 26 `near` demos need only this, 78 need it (the most needed feature overall).
+
+### Loader: BasicAtmosphere `.atm` with classic radiative transfer (unlocks 5 demos)
+The same for `classicradiativetransfer`: 5 `near` demos, 11 in all. The three radiative-transfer kinds are best built as one feature with three forms.
+
+### Loader: `FourCurveAtmosphere` (unlocks 3 demos)
+Accept `engine.atmosphere.plugin: four_curve` (the adopted A.8.7 plugin) with its database and conditions inputs: 3 `near` demos, 5 in all.
+
+### Loader: uniform weather without a ThermWeather file (unlocks 2 demos)
+A `new_atmosphere` run whose weather is not a library ThermWeather file (today `engine.weather` must be one): 2 `near` demos (including `Brdf1`, the second recommendation), 5 in all; the `.atm` features above need the same weather form.
+
+### Regenerate the recommended three demos and compare to their references
+Regenerate `PointCollectors2`, `Brdf1` and `NormalMap1` through the SDK once their features land, and compare with DIRSIG's own run of the demo: the pass criterion is byte equality at the same seed, region of interest and DIRSIG version, or a stated pixel tolerance where the SDK's generated files legitimately differ; the reference run is made once at full size and cached outside git (licensed output).
 
 ### CI job
 Run `scripts/bootstrap.py status`, then the test suite, on a clean clone. Needs a runner with a DIRSIG install or a container image that has one.

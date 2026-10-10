@@ -282,6 +282,10 @@ Library assets are real files. The MANIFOLD hashing procedure rejects symlinks (
 
 A top-level folder exists here only if it has a MANIFOLD analog. `AUROR_ref/` had none and is retired to the test fixture.
 
+### 5.1 Library assets that are not committed `built`
+
+Library assets are real files named under `manifold_config_repo/` and identified by a hash stamped in the layer file that references them. Assets that cannot be committed (a DIRSIG demo's files are licensed, and a scene object can be 50 MB) are described in `manifold_config_repo/assets.json` (`assets/1`, `manifold_contracts/assets-1.schema.json`: place, kind, digest, size, source archive and members) and materialized by `scripts/bootstrap.py assets` into gitignored paths (`manifold_config_repo/demos/`), each verified against its digest. Scenes are hashed as directories (`dirhash/1`), files by the sha256 of their bytes. Data that ships with the DIRSIG installation stays referenced by name and is covered by the installation hash (section 3.3). `docs/DIRSIG_demo_coverage.md` surveys DIRSIG's shipped demos against what the SDK covers and records what placing the first one took.
+
 ## 6. Using `dirfm`
 
 - **Read-only.** `dirfm` is never modified. Its `demos/test_*.py` suite is the usage reference. Install editable from a sibling checkout; do not run `pip install -e` from inside the checkout (it writes `egg-info`); use `sys.path.insert` if needed outside the conda workflow.
@@ -326,7 +330,7 @@ A top-level folder exists here only if it has a MANIFOLD analog. `AUROR_ref/` ha
 | `scene_ref`, `platform_ref`, `scene_coverage`, `atmosphere_patches` | `dirfm` gap-fillers | `built` |
 | `orbit`, `sensors` | the propagator seam (`propagate` returns a plain `Trajectory`; `find_passes`, `choose_pass`, `propagator_provenance`; no skyfield type in a signature), TEME→ITRS checks and a second sgp4 + GMST-1982 path, LookAt waypoint motion, `recover_position` from truth; sensor helpers | `built` |
 
-`scripts/compose.py [--check]` writes the generated run specs; `scripts/stamp_hashes.py [--check]` stamps `content_hash` values in sensor and layer files (a `.scene` ref with its directory's `dirhash/1` digest) and verifies them in generated run specs; `scripts/import_curve.py` converts measured curves to `spectral-curve/1`. Pending work is in `BACKLOG.md`.
+`scripts/compose.py [--check]` writes the generated run specs; `scripts/stamp_hashes.py [--check]` stamps `content_hash` values in sensor and layer files (a `.scene` ref with its directory's `dirhash/1` digest) and verifies them in generated run specs; `scripts/import_curve.py` converts measured curves to `spectral-curve/1`; `scripts/gen_models.py [--check]` writes `src/protodirsig/models.py` from `api/schemas/`; `scripts/survey_demos.py --out docs/DIRSIG_demo_coverage.md` surveys DIRSIG's shipped demos (read in place) into the coverage table; `scripts/bootstrap.py assets [--only PREFIX] [--status]` materializes and verifies the entries of `manifold_config_repo/assets.json`. Pending work is in `BACKLOG.md`.
 
 ### 7.1 SDK API `proposed`
 
