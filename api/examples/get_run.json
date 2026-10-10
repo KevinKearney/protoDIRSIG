@@ -3,22 +3,22 @@
   "description": "The `auror_ref` run while DIRSIG renders it; only the resolved run spec exists so far. Run ids and sweep ids are computed from the composed specs; the hash of `run_spec.json` is the run id. Everything else is real library data.",
   "request": {
     "method": "GET",
-    "path": "/runs/3acc34f4ee764dd26bb1685002b2a50d3123dc8407367e4f86a4136fa9ee9841"
+    "path": "/runs/489824e0a63e5b108ab8d47f2b1eec4a6536925c1976984c884bdef08449a7a0"
   },
   "response": {
     "status": 200,
     "media_type": "application/json",
     "body": {
-      "run_id": "3acc34f4ee764dd26bb1685002b2a50d3123dc8407367e4f86a4136fa9ee9841",
+      "run_id": "489824e0a63e5b108ab8d47f2b1eec4a6536925c1976984c884bdef08449a7a0",
       "name": "auror-ref-static-pose",
       "state": "running",
       "errors": [],
       "artifacts": [
         {
           "name": "run_spec.json",
-          "sha256": "3acc34f4ee764dd26bb1685002b2a50d3123dc8407367e4f86a4136fa9ee9841",
+          "sha256": "489824e0a63e5b108ab8d47f2b1eec4a6536925c1976984c884bdef08449a7a0",
           "media_type": "application/json",
-          "uri": "file:///tmp/protodirsig/runs/3acc34f4ee764dd26bb1685002b2a50d3123dc8407367e4f86a4136fa9ee9841/run_spec.json"
+          "uri": "file:///tmp/protodirsig/runs/489824e0a63e5b108ab8d47f2b1eec4a6536925c1976984c884bdef08449a7a0/run_spec.json"
         }
       ]
     },

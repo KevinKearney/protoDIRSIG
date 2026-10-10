@@ -27,7 +27,7 @@ extras:
   dirsig.weather_file: saw.wth
 
 engine:
-  generator: {tool: dirfm, revision: "<git-sha>", spec_schema: dirsig-engine/1}
+  generator: {tool: dirfm, revision: "93195cee1ccc4f31a214e114d94c493a1d4cc22f", spec_schema: dirsig-engine/1}
 
   scenes:
     - ref: {name: scenes/tahoe/tahoe.scene, content_hash: "sha256:b5ddce9fe2b99141d35af5943ad310d3876d3b7b0b37833cd4142f37421cfbf6"}

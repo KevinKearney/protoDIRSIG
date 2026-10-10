@@ -3,57 +3,57 @@
   "description": "Each run reports its own state, in the recipe's sensor order. Run ids and sweep ids are computed from the composed specs; the hash of `run_spec.json` is the run id. Everything else is real library data.",
   "request": {
     "method": "GET",
-    "path": "/sweeps/672dd733161ae3c605a8ec36a1f3b75ae2845338e9cb9d23f4e49ed601335cd0"
+    "path": "/sweeps/41d0e2649402a88d35b06dcb8bac99ae6c53300e2d1d3bbd05c05f29cd768da4"
   },
   "response": {
     "status": 200,
     "media_type": "application/json",
     "body": {
-      "sweep_id": "672dd733161ae3c605a8ec36a1f3b75ae2845338e9cb9d23f4e49ed601335cd0",
+      "sweep_id": "41d0e2649402a88d35b06dcb8bac99ae6c53300e2d1d3bbd05c05f29cd768da4",
       "recipe": {
         "name": "sensor_sweep_tahoe",
         "sha256": "802a0f18b3e7034ed03cef0cae5b4bc957e242ee60c8b97d65e5f670707cc0ed"
       },
       "runs": [
         {
-          "run_id": "1e2a5afc7efc68a24fc56548876a10a4261dd92006eff718fd49ded0900a87e3",
+          "run_id": "24878693c8764443db4df620dd95fcf1e8c31e491b55a4f384083008d24b0e35",
           "name": "sensor-sweep-tahoe--auror-nir",
           "state": "running",
           "errors": [],
           "artifacts": [
             {
               "name": "run_spec.json",
-              "sha256": "1e2a5afc7efc68a24fc56548876a10a4261dd92006eff718fd49ded0900a87e3",
+              "sha256": "24878693c8764443db4df620dd95fcf1e8c31e491b55a4f384083008d24b0e35",
               "media_type": "application/json",
-              "uri": "file:///tmp/protodirsig/runs/1e2a5afc7efc68a24fc56548876a10a4261dd92006eff718fd49ded0900a87e3/run_spec.json"
+              "uri": "file:///tmp/protodirsig/runs/24878693c8764443db4df620dd95fcf1e8c31e491b55a4f384083008d24b0e35/run_spec.json"
             }
           ]
         },
         {
-          "run_id": "d1895546aad9e7c6149ab084a4b6a54d13fc811785131bec3bb62f4980b5c4b4",
+          "run_id": "d194086c470dc2a272db8f17b37c07d638af143d37d7bda36f4823e06067ed0e",
           "name": "sensor-sweep-tahoe--deepscan_850_306_nir_1280",
           "state": "accepted",
           "errors": [],
           "artifacts": [
             {
               "name": "run_spec.json",
-              "sha256": "d1895546aad9e7c6149ab084a4b6a54d13fc811785131bec3bb62f4980b5c4b4",
+              "sha256": "d194086c470dc2a272db8f17b37c07d638af143d37d7bda36f4823e06067ed0e",
               "media_type": "application/json",
-              "uri": "file:///tmp/protodirsig/runs/d1895546aad9e7c6149ab084a4b6a54d13fc811785131bec3bb62f4980b5c4b4/run_spec.json"
+              "uri": "file:///tmp/protodirsig/runs/d194086c470dc2a272db8f17b37c07d638af143d37d7bda36f4823e06067ed0e/run_spec.json"
             }
           ]
         },
         {
-          "run_id": "5a98e98e09142190d1db9dc6380f613cce2277842d5c080e60a69a6f811de918",
+          "run_id": "37ee7518568b19baab7b25d75f072f8edaebfe1e399770f9b85f6bd48e65c95a",
           "name": "sensor-sweep-tahoe--synthetic_600_200_vis_1920",
           "state": "accepted",
           "errors": [],
           "artifacts": [
             {
               "name": "run_spec.json",
-              "sha256": "5a98e98e09142190d1db9dc6380f613cce2277842d5c080e60a69a6f811de918",
+              "sha256": "37ee7518568b19baab7b25d75f072f8edaebfe1e399770f9b85f6bd48e65c95a",
               "media_type": "application/json",
-              "uri": "file:///tmp/protodirsig/runs/5a98e98e09142190d1db9dc6380f613cce2277842d5c080e60a69a6f811de918/run_spec.json"
+              "uri": "file:///tmp/protodirsig/runs/37ee7518568b19baab7b25d75f072f8edaebfe1e399770f9b85f6bd48e65c95a/run_spec.json"
             }
           ]
         }

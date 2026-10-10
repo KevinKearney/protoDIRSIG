@@ -69,6 +69,7 @@ def test_submissions_carry_their_run_ids(tmp_path):
 
 
 LEO = SPEC.parent / "leo_pass_tahoe.yaml"
+PINNED_DIRFM = __import__("json").loads((SPEC.parents[1] / "external" / "pins.json").read_text())["dirfm"]["commit"]
 REF_CATEGORIES = [                          # (spec, path to the {name, content_hash} object, its JSON Pointer)
     ("sensor", SPEC, ("descriptor", "sensor", "ref"), "/descriptor/sensor/ref"),
     ("scene", SPEC, ("engine", "scenes", 0, "ref"), "/engine/scenes/0/ref"),
@@ -77,6 +78,7 @@ REF_CATEGORIES = [                          # (spec, path to the {name, content_
     ("weather_file", SPEC, ("engine", "weather", "file"), "/engine/weather/file"),
     ("tle", LEO, ("engine", "motion", "orbit", "tle"), "/engine/motion/orbit/tle"),
     ("earth_orientation", LEO, ("engine", "motion", "orbit", "earth_orientation"), "/engine/motion/orbit/earth_orientation"),
+    ("generator_revision", SPEC, ("engine", "generator"), "/engine/generator/revision"),
 ]
 
 
@@ -86,8 +88,9 @@ def _unstamp(spec_path, keys, tmp_path):
     node = spec
     for k in keys:
         node = node[k]
-    assert "<" not in node["content_hash"], "the repository spec should be stamped"
-    node["content_hash"] = "sha256:<hash>"
+    key = "revision" if keys[-1] == "generator" else "content_hash"
+    assert "<" not in node[key], "the repository spec should be stamped"
+    node[key] = "<git-sha>" if key == "revision" else "sha256:<hash>"
     path = tmp_path / "unstamped.yaml"
     path.write_text(yaml.safe_dump(spec, sort_keys=False))
     return path
@@ -100,7 +103,7 @@ def test_unstamped_refs_of_the_generated_specs_are_empty():
     for path in sorted(SPEC.parent.glob("*.yaml")):
         spec = yaml.safe_load(path.read_text())
         assert unstamped_refs(spec) == [], path.name
-        assert spec["engine"]["generator"]["revision"] == "<git-sha>"     # not a content ref; not counted
+        assert spec["engine"]["generator"]["revision"] == PINNED_DIRFM      # stamped by scripts/stamp_hashes.py
 
 
 @pytest.mark.parametrize("name, spec_path, keys, pointer", REF_CATEGORIES, ids=[c[0] for c in REF_CATEGORIES])

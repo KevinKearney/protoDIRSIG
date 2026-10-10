@@ -203,11 +203,12 @@ def _pointer(path):
 
 
 def unstamped_refs(spec):
-    """The RFC 6901 JSON Pointers of every content reference `{name, content_hash}` in a parsed run spec whose hash is
-    the `sha256:<hash>` placeholder, in document order: the sensor reference (and a curve reference inside an inline
-    sensor block) and every library ref under `engine` (`scenes[]`, `platform`, `atmosphere.database`,
-    `weather.file`, `motion.orbit.tle`, `motion.orbit.earth_orientation`). `engine.generator.revision` is not a
-    content reference and is not reported. Pure: reads no file. Admission refuses a spec for which this is not empty
+    """The RFC 6901 JSON Pointers of every member of a parsed run spec that still carries a placeholder, in document
+    order: each content reference `{name, content_hash}` whose hash is the `sha256:<hash>` placeholder (the sensor
+    reference, a curve reference inside an inline sensor block, and every library ref under `engine`: `scenes[]`,
+    `platform`, `atmosphere.database`, `weather.file`, `motion.orbit.tle`, `motion.orbit.earth_orientation`), and
+    `engine.generator.revision` when it is the `<git-sha>` placeholder (`scripts/stamp_hashes.py` stamps the pinned
+    `dirfm` commit). Pure: reads no file. Admission refuses a spec for which this is not empty
     (`LocalRegistry.submit`); `Simulation.validate` reports it (`ConformanceResult.unstamped`)."""
     found = []
 
@@ -216,6 +217,9 @@ def unstamped_refs(spec):
             want = node.get("content_hash")
             if isinstance(node.get("name"), str) and isinstance(want, str) and PLACEHOLDER in want:
                 found.append(_pointer(path))
+            if path == ("engine", "generator") and isinstance(node.get("revision"), str) \
+                    and PLACEHOLDER in node["revision"]:
+                found.append(_pointer((*path, "revision")))
             for k, v in node.items():
                 walk(v, (*path, k))
         elif isinstance(node, list):

@@ -3,7 +3,7 @@
   "description": "The bytes are the canonical JSON serialization (RFC 8785) of the resolved run spec, the spec with its sensor block in place, so they hash to the run id; they are shown here as a parsed document, complete. Run ids and sweep ids are computed from the composed specs; the hash of `run_spec.json` is the run id. Everything else is real library data.",
   "request": {
     "method": "GET",
-    "path": "/runs/3acc34f4ee764dd26bb1685002b2a50d3123dc8407367e4f86a4136fa9ee9841/artifacts/run_spec.json"
+    "path": "/runs/489824e0a63e5b108ab8d47f2b1eec4a6536925c1976984c884bdef08449a7a0/artifacts/run_spec.json"
   },
   "response": {
     "status": 200,
@@ -206,7 +206,7 @@
       "engine": {
         "generator": {
           "tool": "dirfm",
-          "revision": "<git-sha>",
+          "revision": "93195cee1ccc4f31a214e114d94c493a1d4cc22f",
           "spec_schema": "dirsig-engine/1"
         },
         "scenes": [

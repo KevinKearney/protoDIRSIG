@@ -88,3 +88,26 @@ def test_check_reports_a_stale_scene_digest(tmp_path, monkeypatch, capsys):
     assert "stale  manifold_run_specs/engine_profiles/p.yaml: scenes/s/s.scene" in out
     assert "manifold_run_specs/g.yaml: scenes/s/s.scene (regenerate" in out
     assert stamp.main([]) == 0 and stamp.dirhash.directory_digest(scene) in layer.read_text()
+
+
+def test_engine_profiles_carry_the_pinned_dirfm_revision():
+    for path in sorted((ROOT / "manifold_run_specs" / "engine_profiles").glob("*.yaml")):
+        assert f'revision: "{stamp.pinned_revision()}"' in path.read_text(), path.name
+
+
+def test_check_reports_and_stamps_a_placeholder_generator_revision(tmp_path, monkeypatch, capsys):
+    (tmp_path / "external").mkdir()
+    shutil.copy2(ROOT / "external" / "pins.json", tmp_path / "external" / "pins.json")
+    layer = tmp_path / "manifold_run_specs" / "engine_profiles" / "p.yaml"
+    layer.parent.mkdir(parents=True)
+    layer.write_text('engine:\n  generator: {tool: dirfm, revision: "<git-sha>", spec_schema: dirsig-engine/1}\n')
+    generated = tmp_path / "manifold_run_specs" / "g.yaml"
+    generated.write_text(f"{stamp.GENERATED} from recipes/r.yaml - do not edit\n\nengine:\n  generator:\n    tool: dirfm\n"
+                         "    revision: 0123abc\n    spec_schema: dirsig-engine/1\n")
+    monkeypatch.setattr(stamp, "ROOT", tmp_path)
+    assert stamp.main(["--check"]) == 1
+    out = capsys.readouterr().out
+    assert "p.yaml: engine.generator.revision <git-sha>" in out
+    assert "g.yaml: engine.generator.revision 0123abc (regenerate" in out
+    stamp.main([])
+    assert f'revision: "{stamp.pinned_revision()}"' in layer.read_text()

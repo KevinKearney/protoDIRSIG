@@ -154,8 +154,8 @@ class LocalRegistry:
             reasons.append(f"Execution check failed: DIRSIG did not accept the assembled job in a dry run. "
                            f"{c.execution_error}")
         if c.unstamped:
-            reasons.append(f"Stamp check failed: {len(c.unstamped)} reference(s) carry the sha256:<hash> placeholder "
-                           f"instead of a content hash, so the run id would not identify the inputs: "
+            reasons.append(f"Stamp check failed: {len(c.unstamped)} member(s) carry a placeholder (sha256:<hash> or "
+                           f"<git-sha>) instead of a stamped value, so the run id would not identify the inputs: "
                            f"{', '.join(c.unstamped)}. Run scripts/stamp_hashes.py (and scripts/compose.py for a "
                            "composed spec), then submit again.")
         stamped = not c.unstamped

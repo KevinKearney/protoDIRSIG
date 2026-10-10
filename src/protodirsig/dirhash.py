@@ -4,11 +4,12 @@ The digest of a directory is the sha256 of a manifest. The manifest lists every 
 recursively, one line per file, `<64 lowercase hex sha256 of the file's bytes>` + two spaces + `<path relative to the
 directory, POSIX separators>` + newline, sorted by the UTF-8 bytes of the path. Symbolic links, any other non-regular
 file, and file names containing a backslash or a newline are an error (the library holds real files only). Empty
-directories are not listed. A directory-valued ref is a `{name, content_hash}` whose `name` ends in `.scene`, the
+directories are not listed, and a directory with no regular file under it has the empty manifest (its digest is the
+sha256 of zero bytes). A directory-valued ref is a `{name, content_hash}` whose `name` ends in `.scene`, the
 directory is the parent directory of that file (the layout `scenes/<scene>/<scene>.scene`), and `content_hash` is
 `sha256:` + the manifest digest. An independent check is the shell pipeline
 
-    (cd DIR && LC_ALL=C find . -type f -printf '%P\\0' | LC_ALL=C sort -z | xargs -0 sha256sum) | sha256sum
+    (cd DIR && LC_ALL=C find . -type f -printf '%P\\0' | LC_ALL=C sort -z | xargs -0 -r sha256sum) | sha256sum
 
 Conformance vector: manifold_contracts/vectors/identity/dirhash/.
 

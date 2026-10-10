@@ -13,7 +13,7 @@
     "status": 200,
     "media_type": "application/json",
     "body": {
-      "sweep_id": "672dd733161ae3c605a8ec36a1f3b75ae2845338e9cb9d23f4e49ed601335cd0",
+      "sweep_id": "41d0e2649402a88d35b06dcb8bac99ae6c53300e2d1d3bbd05c05f29cd768da4",
       "recipe": {
         "name": "sensor_sweep_tahoe",
         "sha256": "802a0f18b3e7034ed03cef0cae5b4bc957e242ee60c8b97d65e5f670707cc0ed"
@@ -21,7 +21,7 @@
       "is_sweep": true,
       "runs": [
         {
-          "run_id": "1e2a5afc7efc68a24fc56548876a10a4261dd92006eff718fd49ded0900a87e3",
+          "run_id": "24878693c8764443db4df620dd95fcf1e8c31e491b55a4f384083008d24b0e35",
           "name": "sensor-sweep-tahoe--auror-nir",
           "sensor": "auror-nir.yaml",
           "run_spec": {
@@ -116,7 +116,7 @@
             },
             "descriptor.origin": {
               "layer": "engine_profiles/tahoe_static_pose.yaml",
-              "content_hash": "sha256:01d2999149ee54a88bbe63651994e4dbbd75e28375149580f4fc3bd937717ec4"
+              "content_hash": "sha256:0ca416bdf09557249329c3e29ae9a64657dd743c185540d015e9f84433d2e564"
             },
             "descriptor.collection": {
               "layer": "scenarios/tahoe_static_pose.yaml",
@@ -136,16 +136,16 @@
             },
             "descriptor.extras": {
               "layer": "engine_profiles/tahoe_static_pose.yaml",
-              "content_hash": "sha256:01d2999149ee54a88bbe63651994e4dbbd75e28375149580f4fc3bd937717ec4"
+              "content_hash": "sha256:0ca416bdf09557249329c3e29ae9a64657dd743c185540d015e9f84433d2e564"
             },
             "engine": {
               "layer": "engine_profiles/tahoe_static_pose.yaml",
-              "content_hash": "sha256:01d2999149ee54a88bbe63651994e4dbbd75e28375149580f4fc3bd937717ec4"
+              "content_hash": "sha256:0ca416bdf09557249329c3e29ae9a64657dd743c185540d015e9f84433d2e564"
             }
           }
         },
         {
-          "run_id": "d1895546aad9e7c6149ab084a4b6a54d13fc811785131bec3bb62f4980b5c4b4",
+          "run_id": "d194086c470dc2a272db8f17b37c07d638af143d37d7bda36f4823e06067ed0e",
           "name": "sensor-sweep-tahoe--deepscan_850_306_nir_1280",
           "sensor": "deepscan_850_306_nir_1280.yaml",
           "run_spec": {
@@ -240,7 +240,7 @@
             },
             "descriptor.origin": {
               "layer": "engine_profiles/tahoe_static_pose.yaml",
-              "content_hash": "sha256:01d2999149ee54a88bbe63651994e4dbbd75e28375149580f4fc3bd937717ec4"
+              "content_hash": "sha256:0ca416bdf09557249329c3e29ae9a64657dd743c185540d015e9f84433d2e564"
             },
             "descriptor.collection": {
               "layer": "scenarios/tahoe_static_pose.yaml",
@@ -260,16 +260,16 @@
             },
             "descriptor.extras": {
               "layer": "engine_profiles/tahoe_static_pose.yaml",
-              "content_hash": "sha256:01d2999149ee54a88bbe63651994e4dbbd75e28375149580f4fc3bd937717ec4"
+              "content_hash": "sha256:0ca416bdf09557249329c3e29ae9a64657dd743c185540d015e9f84433d2e564"
             },
             "engine": {
               "layer": "engine_profiles/tahoe_static_pose.yaml",
-              "content_hash": "sha256:01d2999149ee54a88bbe63651994e4dbbd75e28375149580f4fc3bd937717ec4"
+              "content_hash": "sha256:0ca416bdf09557249329c3e29ae9a64657dd743c185540d015e9f84433d2e564"
             }
           }
         },
         {
-          "run_id": "5a98e98e09142190d1db9dc6380f613cce2277842d5c080e60a69a6f811de918",
+          "run_id": "37ee7518568b19baab7b25d75f072f8edaebfe1e399770f9b85f6bd48e65c95a",
           "name": "sensor-sweep-tahoe--synthetic_600_200_vis_1920",
           "sensor": "synthetic_600_200_vis_1920.yaml",
           "run_spec": {
@@ -364,7 +364,7 @@
             },
             "descriptor.origin": {
               "layer": "engine_profiles/tahoe_static_pose.yaml",
-              "content_hash": "sha256:01d2999149ee54a88bbe63651994e4dbbd75e28375149580f4fc3bd937717ec4"
+              "content_hash": "sha256:0ca416bdf09557249329c3e29ae9a64657dd743c185540d015e9f84433d2e564"
             },
             "descriptor.collection": {
               "layer": "scenarios/tahoe_static_pose.yaml",
@@ -384,11 +384,11 @@
             },
             "descriptor.extras": {
               "layer": "engine_profiles/tahoe_static_pose.yaml",
-              "content_hash": "sha256:01d2999149ee54a88bbe63651994e4dbbd75e28375149580f4fc3bd937717ec4"
+              "content_hash": "sha256:0ca416bdf09557249329c3e29ae9a64657dd743c185540d015e9f84433d2e564"
             },
             "engine": {
               "layer": "engine_profiles/tahoe_static_pose.yaml",
-              "content_hash": "sha256:01d2999149ee54a88bbe63651994e4dbbd75e28375149580f4fc3bd937717ec4"
+              "content_hash": "sha256:0ca416bdf09557249329c3e29ae9a64657dd743c185540d015e9f84433d2e564"
             }
           }
         }

@@ -240,7 +240,8 @@ def from_submission(result, sources=None, instance=None, *, recipe=None):
     layer = field = None
     if isinstance(spec, dict) and sources:
         doc = _load_recipe(recipe)
-        pointers = [v["at"] for v in schema_violations(spec)] or [p + "/content_hash" for p in unstamped_refs(spec)]
+        pointers = [v["at"] for v in schema_violations(spec)] or \
+            [p if p.endswith("/revision") else p + "/content_hash" for p in unstamped_refs(spec)]
         if pointers:
             layer, field = locate(pointers[0], sources, spec=spec, recipe=doc)
     detail = " ".join(result.reasons) or f"The submission was {result.verdict}."

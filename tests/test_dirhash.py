@@ -21,7 +21,7 @@ PROJECT = Path(__file__).resolve().parents[1]
 VECTOR = PROJECT / "manifold_contracts" / "vectors" / "identity" / "dirhash"
 EXPECTED = json.loads((VECTOR / "expected.json").read_text())
 TREE = VECTOR / EXPECTED["directory"]
-SHELL = "LC_ALL=C find . -type f -printf '%P\\0' | LC_ALL=C sort -z | xargs -0 sha256sum"
+SHELL = "LC_ALL=C find . -type f -printf '%P\\0' | LC_ALL=C sort -z | xargs -0 -r sha256sum"
 FILES = {"a.txt": b"one\n", "B.txt": b"two\n", "a/b.txt": b"three\n", "a/c/d.dat": b"\x00\x01", "é.txt": b"four\n"}
 
 
@@ -53,6 +53,18 @@ def test_shell_pipeline_agrees(which):
     assert out == directory_manifest(root)
     assert "sha256:" + subprocess.run("sha256sum", input=out, capture_output=True, check=True).stdout.split()[0].decode() \
         == directory_digest(root)
+
+
+def test_an_empty_directory_has_the_empty_manifest(tmp_path):
+    (tmp_path / "only" / "empty" / "subdirectories").mkdir(parents=True)
+    want = EXPECTED["empty_directory"]
+    assert directory_manifest(tmp_path).decode() == want["manifest"] == ""
+    assert directory_digest(tmp_path) == want["digest"]
+    if all(shutil.which(t) for t in ("find", "sort", "xargs", "sha256sum")):
+        out = subprocess.run(SHELL, shell=True, cwd=tmp_path, capture_output=True, check=True).stdout
+        assert out == b""                                            # xargs -r: no sha256sum run on empty input
+        assert "sha256:" + subprocess.run("sha256sum", input=out, capture_output=True, check=True).stdout.split()[0] \
+            .decode() == want["digest"]
 
 
 def test_a_symlink_raises(tmp_path):
