@@ -1,4 +1,4 @@
-"""Compose one `run-spec/1` document from layer files (rules version `compose/1`).
+"""Compose `run-spec/1` documents from layer files (rules version `compose/1`): one run, or a sweep of runs.
 
 A run is authored as layers and composed into the single run spec MANIFOLD receives. This is the reference for
 a MANIFOLD input constructor: what composes here, and passes the run-spec checks, is what that constructor
@@ -7,24 +7,36 @@ should accept. The conformance vectors in `manifold_contracts/vectors/compose/` 
 Layers, under one root (`manifold_run_specs/`), each owning disjoint members of the composed spec:
 
   recipes/<name>.yaml          compose, meta, settings, fidelity, and the names of the other layers:
-                               sensor (a sensor-library file), scenario, engine_profile; optionally
-                               engine_overrides (values for the paths in ENGINE_OVERRIDES)
+                               sensor (a sensor-library file) or sensors (a list: a sweep), scenario,
+                               engine_profile; optionally engine_overrides (values for the paths in
+                               ENGINE_OVERRIDES) and fidelity_by_sensor
   scenarios/<name>.yaml        collection                  -> descriptor.collection
   engine_profiles/<name>.yaml  origin, extras, engine      -> descriptor.origin, descriptor.extras, engine
   <sensor library>/<file>      the sensor-spec/1 document  -> descriptor.sensor (a ref, or inline)
 
 The sensor library defaults to `manifold_sensors/`, the sibling of the root (as `run_spec.default_sensor_library`).
 
-Rules: a member present in two layers is an error, not a merge, unless it is in `OVERRIDABLE` (empty). A
-`settings` member whose `entry_id` names no entry of the sensor is an error (it is dropped only when a recipe
-names several sensors, which `compose/1` does not yet allow). The composed settings follow the sensor's entry
-order. `engine_overrides` maps a dotted path under `engine` to a value; only paths in `ENGINE_OVERRIDES` are
-allowed, and the path's parent must be a mapping the engine profile holds (the leaf itself may be absent). The
-`roi` check of `run_spec` applies to the composed spec, and for a DIRSIG run the black-level check. No key is added to the descriptor outside
-what the layers hold; layer provenance (file and hash per member) is returned by `explain`, never written into
-the spec. Errors name the layer file and the field in it, never a path in the composed document.
+Rules: a member present in two layers is an error, not a merge, unless it is in `OVERRIDABLE` (empty).
+`engine_overrides` maps a dotted path under `engine` to a value; only paths in `ENGINE_OVERRIDES` are allowed, and
+the path's parent must be a mapping the engine profile holds (the leaf itself may be absent).
+
+A recipe names `sensor` (one run) or `sensors` (a sweep: one run per listed sensor), never both. The only axis is
+the sensor: no cross product. `settings` is keyed by `entry_id` across the listed sensors; each run takes the
+members of its sensor's entries, in the sensor's entry order. A member whose `entry_id` belongs to no listed
+sensor, a second member for one entry, a listed sensor with no member, and an `entry_id` shared by two listed
+sensors are errors. A sweep run's `meta.name` is `<meta.name>--<sensor file stem>`; tags and description are
+shared. `fidelity` is shared; `fidelity_by_sensor: {<sensor file>: {...}}` replaces it for that sensor, and
+`fidelity` may be omitted when every listed sensor has one. A sweep has at most `MAX_RUNS` runs, checked before
+anything else is loaded. Its `sweep_id` is the first 12 hex digits of the sha256 of the recipe's bytes.
+
+The `roi` check of `run_spec` applies to each composed spec, and for a DIRSIG run the black-level check. No key is
+added to the descriptor outside what the layers hold; layer provenance (file and hash per member) and the sweep id
+are returned beside the specs, never written into them. Errors name the layer file and the field in it, never a
+path in the composed document.
 """
 import copy
+import hashlib
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
@@ -34,12 +46,14 @@ from protodirsig.spectral import sha256_file
 
 RULES = "compose/1"
 SPEC_VERSION = "run-spec/1"
+MAX_RUNS = 32                                                      # runs per sweep; compose_sweep(max_runs=...)
 # Composed member -> the layer that owns it. `descriptor.<m>` unless noted.
 OWNER = {"meta": "recipe", "settings": "recipe", "fidelity": "recipe", "sensor": "recipe",
          "collection": "scenario", "origin": "engine_profile", "extras": "engine_profile", "engine": "engine_profile"}
 REQUIRED = {"recipe": ("compose", "meta", "sensor", "scenario", "engine_profile", "settings", "fidelity"),
             "scenario": ("collection",), "engine_profile": ("origin", "engine")}
-CONTROL = {"recipe": ("compose", "scenario", "engine_profile", "engine_overrides")}   # recipe keys, not members
+# Recipe keys that are not composed members (`sensors` and `fidelity_by_sensor` are resolved per run first).
+CONTROL = {"recipe": ("compose", "scenario", "engine_profile", "engine_overrides", "sensors", "fidelity_by_sensor")}
 OVERRIDABLE = frozenset()                                          # members two layers may both hold; none yet
 ENGINE_OVERRIDES = ("platform.channel_response",)                  # engine paths a recipe may set (engine_overrides)
 DESCRIPTOR_ORDER = ("meta", "origin", "collection", "sensor", "settings", "fidelity", "extras")
@@ -55,6 +69,19 @@ class ComposeError(RunSpecError):
         super().__init__(f"{self.layer}: {field}: {message}" if field else f"{self.layer}: {message}")
 
 
+@dataclass
+class ComposedSweep:
+    """What `compose_sweep` returns. `runs` maps each run's `meta.name` to its spec, in sensor-list order; `files`
+    maps it to the generated file's stem, `sensors` to its sensor file, `sources` to its `explain` record."""
+    sweep_id: str
+    recipe: str                                                    # root-relative recipe file
+    is_sweep: bool                                                 # the recipe names `sensors`
+    runs: dict = field(default_factory=dict)
+    files: dict = field(default_factory=dict)
+    sensors: dict = field(default_factory=dict)
+    sources: dict = field(default_factory=dict)
+
+
 def _load_layer(path, rel):
     if not path.is_file():
         raise ComposeError(rel, None, "not found")
@@ -68,10 +95,10 @@ def _load_layer(path, rel):
 
 
 def merge(layers, sensor_ref, sensor_doc=None, inline_sensor=False):
-    """The composition: `layers` maps `recipe`, `scenario`, `engine_profile` to `(name, doc)`; `sensor_ref` is the
-    `{name, content_hash}` the recipe's sensor resolves to, `sensor_doc` the loaded sensor-spec (None skips the
-    entry checks, for `run_spec.derive_run_spec`). Returns `(spec, sources)`, `sources` mapping each composed
-    member to the layer name it came from."""
+    """One run's composition: `layers` maps `recipe`, `scenario`, `engine_profile` to `(name, doc)`, the recipe
+    naming one `sensor`; `sensor_ref` is the `{name, content_hash}` it resolves to, `sensor_doc` the loaded
+    sensor-spec (None skips the entry checks, for `run_spec.derive_run_spec`). Returns `(spec, sources)`, `sources`
+    mapping each composed member to the layer name it came from."""
     held = {}                                                      # member -> [layer kinds holding it]
     for kind, (name, doc) in layers.items():
         for key in doc:
@@ -126,11 +153,6 @@ def merge(layers, sensor_ref, sensor_doc=None, inline_sensor=False):
 
     _, scenario = layers["scenario"]
     profile_name, profile = layers["engine_profile"]
-    if (profile.get("origin") or {}).get("engine") == "dirsig":
-        for i, s in enumerate(recipe["settings"]):
-            problem = black_level_problem(s)
-            if problem:
-                raise ComposeError(recipe_name, f"settings[{i}].black_level", problem)
     engine = copy.deepcopy(profile["engine"])
     overrides = recipe.get("engine_overrides") or {}
     if not isinstance(overrides, dict):
@@ -167,49 +189,144 @@ def default_sensor_library(recipe_path):
     return Path(recipe_path).resolve().parent.parent.parent / "manifold_sensors"
 
 
-def _compose(recipe_path, inline_sensor=False, sensor_library=None):
+def sweep_id(recipe_path):
+    """The first 12 hex digits of the sha256 of the recipe file's bytes."""
+    return hashlib.sha256(Path(recipe_path).read_bytes()).hexdigest()[:12]
+
+
+def _sensor_list(recipe, rel, max_runs):
+    """(sensor files, is_sweep), checked before any other layer is read."""
+    if "sensor" in recipe and "sensors" in recipe:
+        raise ComposeError(rel, "sensors", "a recipe names either sensor (one run) or sensors (a sweep), not both")
+    if "sensors" not in recipe:
+        if not isinstance(recipe.get("sensor"), str):
+            raise ComposeError(rel, "sensor", "missing or not a sensor-library file name (or sensors, for a sweep)")
+        return [recipe["sensor"]], False
+    sensors = recipe["sensors"]
+    if not isinstance(sensors, list) or not sensors or not all(isinstance(s, str) for s in sensors):
+        raise ComposeError(rel, "sensors", "must be a non-empty list of sensor-library file names")
+    if len(sensors) > max_runs:
+        raise ComposeError(rel, "sensors", f"{len(sensors)} runs exceed the cap of {max_runs} runs per sweep")
+    for j, s in enumerate(sensors):
+        if sensors.index(s) != j:
+            raise ComposeError(rel, f"sensors[{j}]", f"{s} is listed twice")
+    return sensors, True
+
+
+def _settings_by_sensor(recipe, rel, sensors, docs):
+    """Each listed sensor's settings members, in its entry order (see the module rules)."""
+    owner, key = {}, ("sensors" if "sensors" in recipe else "sensor")
+    for j, s in enumerate(sensors):
+        for e in docs[s]["sensor"]["entries"]:
+            if e["entry_id"] in owner:
+                raise ComposeError(rel, f"{key}[{j}]" if key == "sensors" else key,
+                                   f"entry {e['entry_id']!r} of {s} is also an entry of {owner[e['entry_id']]}; "
+                                   "entry_ids must be unique across a sweep's sensors")
+            owner[e["entry_id"]] = s
+    settings = recipe.get("settings")
+    if not isinstance(settings, list) or not all(isinstance(m, dict) for m in settings):
+        raise ComposeError(rel, "settings", "must be a list of mappings keyed by entry_id")
+    by_entry = {}
+    for i, m in enumerate(settings):
+        eid = m.get("entry_id")
+        if eid not in owner:
+            raise ComposeError(rel, f"settings[{i}].entry_id",
+                               f"{eid!r} names no entry of the listed sensors ({sorted(owner)})")
+        if eid in by_entry:
+            raise ComposeError(rel, f"settings[{i}].entry_id", f"{eid!r} has two settings members")
+        by_entry[eid] = i
+    out = {}
+    for j, s in enumerate(sensors):
+        entries = [e["entry_id"] for e in docs[s]["sensor"]["entries"]]
+        out[s] = [settings[by_entry[e]] for e in entries if e in by_entry]
+        if not out[s]:
+            raise ComposeError(rel, f"{key}[{j}]" if key == "sensors" else key,
+                               f"{s} has no settings member (its entries: {entries})")
+    return out, by_entry
+
+
+def compose_sweep(recipe_path, *, inline_sensor=False, sensor_library=None, max_runs=MAX_RUNS):
+    """Every run the recipe composes to: one for a `sensor` recipe, one per listed sensor for a `sensors` recipe.
+    Returns a `ComposedSweep` (runs in sensor-list order, the sweep id, file stems, provenance)."""
     recipe_path = Path(recipe_path).resolve()
     root = recipe_path.parent.parent
     library = Path(sensor_library).resolve() if sensor_library is not None else default_sensor_library(recipe_path)
     rel = lambda p: p.relative_to(root).as_posix()                  # noqa: E731
+    recipe_rel = rel(recipe_path)
+    recipe = _load_layer(recipe_path, recipe_rel)
+    sensors, is_sweep = _sensor_list(recipe, recipe_rel, max_runs)
     files = {"recipe": recipe_path}
-    recipe = _load_layer(recipe_path, rel(recipe_path))
-    layers = {"recipe": (rel(recipe_path), recipe)}
+    layers = {}
     for kind in ("scenario", "engine_profile"):
         name = recipe.get(kind)
         if not isinstance(name, str):
-            raise ComposeError(rel(recipe_path), kind, "missing or not a layer name")
+            raise ComposeError(recipe_rel, kind, "missing or not a layer name")
         path = root / LAYER_DIR[kind] / f"{name}.yaml"
         files[kind] = path
         layers[kind] = (rel(path), _load_layer(path, rel(path)))
-    sensor_name = recipe.get("sensor")
-    if not isinstance(sensor_name, str):
-        raise ComposeError(rel(recipe_path), "sensor", "missing or not a sensor-library file name")
-    try:
-        sensor_doc = load_sensor_spec(library, sensor_name)
-    except RunSpecError as e:
-        raise ComposeError(rel(recipe_path), "sensor", str(e)) from e
-    sensor_path = library / sensor_name
-    ref = {"name": sensor_name, "content_hash": sha256_file(sensor_path)}
-    spec, sources = merge(layers, ref, sensor_doc, inline_sensor)
-    label = f"{library.name}/{sensor_name}"
-    paths = {**{layers[k][0]: p for k, p in files.items()}, sensor_name: sensor_path}
-    explained = {member: {"layer": label if src == sensor_name else src,
-                          "content_hash": sha256_file(paths[src]) if src in paths else None}
-                 for member, src in sources.items()}
-    return spec, explained
+    docs, key = {}, ("sensors" if is_sweep else "sensor")
+    for j, s in enumerate(sensors):
+        try:
+            docs[s] = load_sensor_spec(library, s)
+        except RunSpecError as e:
+            raise ComposeError(recipe_rel, f"{key}[{j}]" if is_sweep else key, str(e)) from e
+    by_sensor, by_entry = _settings_by_sensor(recipe, recipe_rel, sensors, docs)
+    if (layers["engine_profile"][1].get("origin") or {}).get("engine") == "dirsig":
+        for i, m in enumerate(recipe["settings"]):
+            problem = black_level_problem(m)
+            if problem:
+                raise ComposeError(recipe_rel, f"settings[{i}].black_level", problem)
+    per_sensor = recipe.get("fidelity_by_sensor") or {}
+    if not isinstance(per_sensor, dict):
+        raise ComposeError(recipe_rel, "fidelity_by_sensor", "must map sensor files to fidelity blocks")
+    for s in per_sensor:
+        if s not in sensors:
+            raise ComposeError(recipe_rel, f"fidelity_by_sensor.{s}", f"names a sensor the recipe does not list ({sensors})")
+    if "fidelity" not in recipe and not all(s in per_sensor for s in sensors):
+        raise ComposeError(recipe_rel, "fidelity", "missing (fidelity_by_sensor does not cover every listed sensor)")
+
+    out = ComposedSweep(sweep_id(recipe_path), recipe_rel, is_sweep)
+    base = {k: v for k, v in recipe.items() if k not in ("sensor", "sensors", "fidelity_by_sensor", "fidelity")}
+    for s in sensors:
+        stem = Path(s).stem
+        run = copy.deepcopy(base)
+        run["sensor"], run["settings"] = s, copy.deepcopy(by_sensor[s])
+        run["fidelity"] = copy.deepcopy(per_sensor.get(s, recipe.get("fidelity")))
+        if is_sweep and isinstance(run.get("meta"), dict) and isinstance(run["meta"].get("name"), str):
+            run["meta"]["name"] = f"{run['meta']['name']}--{stem}"
+        ref = {"name": s, "content_hash": sha256_file(library / s)}
+        spec, sources = merge({"recipe": (recipe_rel, run), **layers}, ref, docs[s], inline_sensor)
+        name = spec["descriptor"]["meta"]["name"]
+        paths = {recipe_rel: recipe_path, **{layers[k][0]: files[k] for k in layers}, s: library / s}
+        label = f"{library.name}/{s}"
+        out.runs[name] = spec
+        out.files[name] = f"{recipe_path.stem}--{stem}" if is_sweep else recipe_path.stem
+        out.sensors[name] = s
+        out.sources[name] = {member: {"layer": label if src == s else src,
+                                      "content_hash": sha256_file(paths[src]) if src in paths else None}
+                             for member, src in sources.items()}
+    return out
+
+
+def _single(recipe_path, inline_sensor, sensor_library):
+    sweep = compose_sweep(recipe_path, inline_sensor=inline_sensor, sensor_library=sensor_library)
+    if sweep.is_sweep:
+        raise ComposeError(sweep.recipe, "sensors", "a sweep recipe composes several runs; use compose_sweep")
+    (name,) = sweep.runs
+    return sweep.runs[name], sweep.sources[name]
 
 
 def compose(recipe_path, *, inline_sensor=False, sensor_library=None):
-    """The `run-spec/1` dict the recipe composes to. `descriptor.sensor` is `{ref: {name, content_hash}}` (the hash
-    of the sensor file's bytes), or the sensor-spec's `sensor` block in place with `inline_sensor`."""
-    return _compose(recipe_path, inline_sensor, sensor_library)[0]
+    """The `run-spec/1` dict a one-run recipe composes to. `descriptor.sensor` is `{ref: {name, content_hash}}` (the
+    hash of the sensor file's bytes), or the sensor-spec's `sensor` block in place with `inline_sensor`. A sweep
+    recipe (`sensors`) raises; use `compose_sweep`."""
+    return _single(recipe_path, inline_sensor, sensor_library)[0]
 
 
 def explain(recipe_path, *, sensor_library=None):
-    """Each member of the composed spec with the layer file it came from and that file's sha256:
-    `{member: {"layer": <root-relative file>, "content_hash": ...}}`. Provenance stays here, not in the spec."""
-    return _compose(recipe_path, False, sensor_library)[1]
+    """Each member of a one-run recipe's spec with the layer file it came from and that file's sha256:
+    `{member: {"layer": <root-relative file>, "content_hash": ...}}`. For a sweep, `compose_sweep(...).sources`."""
+    return _single(recipe_path, False, sensor_library)[1]
 
 
 def dump(spec, recipe_rel):

@@ -580,3 +580,46 @@ Kevin unavailable; prompt.md "Sensor model, round two". Decisions in order made:
 - **Commit note (index.lock).** At Step 1's commit the lock was still there (~15 min, 0 bytes, no git process).
   Every step must commit and git's own message says to remove a stale lock, so I removed that one empty file and
   touched nothing else under .git. Reported.
+- **Step 2, structure.** `merge` stays the one-run composition (also used by derive_run_spec). New
+  `compose_sweep(recipe, *, inline_sensor, sensor_library, max_runs=MAX_RUNS)` reads the recipe, checks
+  sensor/sensors and the cap, loads scenario/profile once, loads each sensor, partitions settings, runs the
+  black-level check on the recipe's own indices (moved out of merge so a sweep's messages index the recipe, not a
+  per-run subset), then calls merge once per sensor with a per-run recipe. compose()/explain() are the one-run
+  case of it and raise on a `sensors` recipe ("use compose_sweep").
+- **Step 2, return type.** `ComposedSweep` dataclass (sweep_id, recipe, is_sweep, runs {name: spec} in list order,
+  files {name: file stem}, sensors, sources) rather than a bare tuple: the CLI and registry need file stems and
+  provenance beside the specs.
+- **Step 2, names.** Run meta.name for a sweep `<meta.name>--<sensor stem>`; a `sensor:` recipe keeps its name.
+  Generated file: `<recipe stem>.yaml` for a one-run recipe (unchanged, so auror_ref.yaml/synthetic_vis.yaml keep
+  every reader), `<recipe stem>--<sensor stem>.yaml` per sweep run. The prompt says "<run name>.yaml"; taken
+  literally it would rename the two existing files to their meta.name (auror-ref-static-pose.yaml) and break every
+  reader, which nothing asks for. Logged as the interpretation.
+- **Step 2, rules chosen.** Only the sensor axis; `sensors` zips with `settings` by entry_id; no grid (deferred).
+  A listed sensor without a member is an error for one-run recipes too (previously settings [] passed compose and
+  failed at resolution). Duplicate entry_id across sensors -> error at `sensors[j]` (the later one). A sensor listed
+  twice -> error. `fidelity` may be omitted only when fidelity_by_sensor covers every listed sensor (the example
+  gives each sensor its own, and an unused shared default would be dead text). fidelity_by_sensor is allowed on a
+  one-run recipe too (key must be its sensor). Cap check happens after reading only the recipe (the over-cap
+  vector names 33 sensors that do not exist and still gets the cap error).
+- **Step 2, sweep id** = sha256(recipe bytes)[:12]; on ComposedSweep, SweepResult, and the first line of --explain;
+  never in a spec (tested). A comment-only edit of the recipe changes the id but not the specs (tested): the id
+  identifies the authored recipe, not the composed content.
+- **Step 2, registry.** `submit_sweep(recipe, config_repo, work_dir=None, max_runs)` -> SweepResult(sweep_id, recipe,
+  runs {name: RunStatus(state, errors, spec_path, submission, result)}, errors). Recipe that does not compose: no
+  runs, one recipe-level error. Each run's spec is written to work_dir/<file>.yaml and submitted with its own job
+  directory work_dir/<file>/; any exception becomes that run's `rejected`. `run_sweep(sweep_or_recipe, ...)` renders
+  accepted runs -> `rendered` / `failed`; rejected stay. Seed: carried in each composed spec unchanged (tested via
+  auror_run.seed == 42 per run).
+- **Step 2, CLI.** Writes every run of every recipe; --check also flags orphaned GENERATED files in
+  manifold_run_specs/ (no recipe produces them) and a write pass removes them. --explain: `sweep_id ...` line, then
+  per run `run <name> -> <file>` and its members.
+- **Step 2, example + vectors.** recipes/sensor_sweep_tahoe.yaml (3 sensors, tabulated profile, 32x32 roi each,
+  fidelity_by_sensor for all three). Vectors: sweep_three_sensors (expected/<run file>.yaml + expected_sweep.yaml
+  {sweep_id, runs}), sweep_member_for_no_sensor, sweep_sensor_without_settings, sweep_duplicate_entry_id (uses
+  two_entry.yaml, which also holds `auror-nir`), sweep_sensor_and_sensors, sweep_over_cap,
+  sweep_fidelity_for_absent_sensor. deepscan copied into the vectors' sensor library (byte-equal; the drift test
+  covers it). Error vectors now run through compose_sweep (same errors as compose for one-run recipes).
+- **Step 2, tests.** +18 (vector runner handles sweeps; names/fidelity/settings/seed per run; determinism vs tracked
+  files; sweep id; cap; compose refuses a sweep; every run of every recipe passes schema_errors (ref and inline);
+  submit/run with deepscan rejected (QE curve removed from a tmp library) and VIS failing at render (monkeypatched
+  run) while auror-nir renders at 16x16; a non-composing recipe). Suite 213.

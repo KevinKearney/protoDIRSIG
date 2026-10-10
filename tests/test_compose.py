@@ -11,14 +11,16 @@ from pathlib import Path
 import pytest
 import yaml
 
-from protodirsig.compose import OVERRIDABLE, ComposeError, compose, dump, explain
+from protodirsig.compose import MAX_RUNS, OVERRIDABLE, ComposeError, compose, compose_sweep, dump, explain, sweep_id
 from protodirsig.run_spec import check_library_files, load_run_spec, resolve_auror_run
 from protodirsig.simulation import schema_errors
 from test_simulation import needs_dirsig
 
 ROOT = Path(__file__).resolve().parents[1]
 RUN_SPECS = ROOT / "manifold_run_specs"
-RECIPES = sorted((RUN_SPECS / "recipes").glob("*.yaml"))
+ALL_RECIPES = sorted((RUN_SPECS / "recipes").glob("*.yaml"))
+RECIPES = [r for r in ALL_RECIPES if "sensors" not in yaml.safe_load(r.read_text())]     # one-run recipes
+SWEEP = RUN_SPECS / "recipes" / "sensor_sweep_tahoe.yaml"
 VECTORS = ROOT / "manifold_contracts" / "vectors" / "compose"
 CASES = sorted(p for p in VECTORS.iterdir() if p.is_dir() and p.name != "manifold_sensors")
 CONFIG_REPO = ROOT / "manifold_config_repo"
@@ -50,9 +52,18 @@ def test_vector(case):
     if (case / "expected_error.yaml").is_file():
         want = yaml.safe_load((case / "expected_error.yaml").read_text())
         with pytest.raises(ComposeError) as e:
-            compose(recipe)
+            compose_sweep(recipe)
         assert (e.value.layer, e.value.field) == (want["layer"], want["field"])
         assert str(e.value).startswith(f"{want['layer']}: {want['field']}: ")
+        return
+    if (case / "expected_sweep.yaml").is_file():               # a sweep: expected/<run file>.yaml per run, in order
+        want = yaml.safe_load((case / "expected_sweep.yaml").read_text())
+        sweep = compose_sweep(recipe)
+        assert (sweep.sweep_id, list(sweep.runs)) == (want["sweep_id"], want["runs"])
+        assert sorted(p.stem for p in (case / "expected").glob("*.yaml")) == sorted(sweep.files.values())
+        for name, spec in sweep.runs.items():
+            assert spec == yaml.safe_load((case / "expected" / f"{sweep.files[name]}.yaml").read_text())
+            assert schema_errors(spec) == []
         return
     for name, inline in (("expected.yaml", False), ("expected_inline.yaml", True)):
         if (case / name).is_file():
@@ -127,10 +138,82 @@ def test_explain_names_the_layer_of_every_member():
 
 
 def test_explain_cli_prints_every_member(capsys):
-    assert _script("compose").main(["--explain", str(RUN_SPECS / "recipes" / "synthetic_vis.yaml")]) == 0
-    out = capsys.readouterr().out
-    assert "descriptor.collection    scenarios/tahoe_static_pose.yaml" in out
-    assert "manifold_sensors/synthetic_600_200_vis_1920.yaml" in out and len(out.splitlines()) == 9
+    recipe = RUN_SPECS / "recipes" / "synthetic_vis.yaml"
+    assert _script("compose").main(["--explain", str(recipe)]) == 0
+    out = capsys.readouterr().out.splitlines()
+    assert out[0].startswith(f"sweep_id {sweep_id(recipe)}") and out[1].startswith("run synthetic-vis-static-pose")
+    assert any(ln.split()[:2] == ["descriptor.collection", "scenarios/tahoe_static_pose.yaml"] for ln in out)
+    assert any("manifold_sensors/synthetic_600_200_vis_1920.yaml" in ln for ln in out) and len(out) == 11
+
+
+def test_explain_cli_prints_the_sweep_id_and_every_run(capsys):
+    assert _script("compose").main(["--explain", str(SWEEP)]) == 0
+    out = capsys.readouterr().out.splitlines()
+    assert out[0].startswith(f"sweep_id {sweep_id(SWEEP)}  (recipes/sensor_sweep_tahoe.yaml, 3 runs)")
+    assert [ln.split()[1] for ln in out if ln.startswith("run ")] == [
+        "sensor-sweep-tahoe--auror-nir", "sensor-sweep-tahoe--deepscan_850_306_nir_1280",
+        "sensor-sweep-tahoe--synthetic_600_200_vis_1920"]
+
+
+def test_sweep_runs_one_spec_per_sensor():
+    sweep = compose_sweep(SWEEP)
+    doc = yaml.safe_load(SWEEP.read_text())
+    assert sweep.is_sweep and list(sweep.sensors.values()) == doc["sensors"]
+    for name, spec in sweep.runs.items():
+        d, s = spec["descriptor"], sweep.sensors[name]
+        assert name == d["meta"]["name"] == f"{doc['meta']['name']}--{Path(s).stem}"
+        assert (d["meta"]["tags"], d["meta"]["description"]) == (doc["meta"]["tags"], doc["meta"]["description"])
+        assert d["sensor"]["ref"]["name"] == s and d["fidelity"] == doc["fidelity_by_sensor"][s]
+        entries = [e["entry_id"] for e in yaml.safe_load((ROOT / "manifold_sensors" / s).read_text())["sensor"]["entries"]]
+        assert [m["entry_id"] for m in d["settings"]] == entries
+        assert spec["engine"]["run"] == {"seed": 42}                   # the shared seed, unchanged
+        assert schema_errors(spec) == []
+        assert sweep.files[name] == f"sensor_sweep_tahoe--{Path(s).stem}"
+
+
+def test_sweep_composition_is_deterministic():
+    a, b = compose_sweep(SWEEP), compose_sweep(SWEEP)
+    for name in a.runs:
+        text = dump(a.runs[name], a.recipe)
+        assert text == dump(b.runs[name], b.recipe) == (RUN_SPECS / f"{a.files[name]}.yaml").read_text()
+        assert text.startswith("# GENERATED by scripts/compose.py from recipes/sensor_sweep_tahoe.yaml - do not edit\n")
+
+
+def test_sweep_id_is_the_recipe_hash_and_stays_out_of_the_specs(tmp_path):
+    import hashlib
+    sweep = compose_sweep(SWEEP)
+    assert sweep.sweep_id == hashlib.sha256(SWEEP.read_bytes()).hexdigest()[:12] == sweep_id(SWEEP)
+    assert all(sweep.sweep_id not in yaml.safe_dump(s) for s in sweep.runs.values())
+    root = _layers(tmp_path)
+    copy = root / "recipes" / SWEEP.name
+    copy.write_text(SWEEP.read_text() + "# edited\n")
+    edited = compose_sweep(copy, sensor_library=tmp_path / "manifold_sensors")
+    assert edited.sweep_id != sweep.sweep_id and edited.runs == sweep.runs
+
+
+def test_sweep_cap_is_checked_first_and_overridable():
+    assert MAX_RUNS == 32
+    with pytest.raises(ComposeError, match="3 runs exceed the cap of 2") as e:
+        compose_sweep(SWEEP, max_runs=2)
+    assert (e.value.layer, e.value.field) == ("recipes/sensor_sweep_tahoe.yaml", "sensors")
+    assert len(compose_sweep(SWEEP, max_runs=3).runs) == 3
+
+
+def test_compose_refuses_a_sweep_and_a_one_run_recipe_works_through_both():
+    with pytest.raises(ComposeError, match="use compose_sweep") as e:
+        compose(SWEEP)
+    assert e.value.field == "sensors"
+    for recipe in RECIPES:
+        sweep = compose_sweep(recipe)
+        spec = compose(recipe)
+        assert not sweep.is_sweep and sweep.runs == {spec["descriptor"]["meta"]["name"]: spec}
+        assert list(sweep.files.values()) == [recipe.stem]
+
+
+@pytest.mark.parametrize("recipe", ALL_RECIPES, ids=lambda p: p.stem)
+def test_every_composed_run_passes_the_run_spec_checks(recipe):
+    for inline in (False, True):
+        assert all(schema_errors(s) == [] for s in compose_sweep(recipe, inline_sensor=inline).runs.values())
 
 
 def _layers(tmp_path):
@@ -211,3 +294,38 @@ def test_submit_recipe_accepts_and_rejects(tmp_path):
     r = LocalRegistry().submit_recipe(bad, CONFIG_REPO, tmp_path / "bad")
     assert not r.accepted and r.checks["compose"] is False
     assert r.reasons[0].startswith("Composition failed: recipes/synthetic_vis.yaml: settings[0].entry_id:")
+
+
+@needs_dirsig
+def test_submit_and_run_sweep_keep_each_run_independent(tmp_path, monkeypatch):
+    """One run rejected at submission (its QE curve is missing) and one failing at render: the third still
+    renders, and each run reports its own state. 16 x 16 windows."""
+    from protodirsig.registry import LocalRegistry
+    root = _layers(tmp_path)
+    recipe = root / "recipes" / SWEEP.name
+    recipe.write_text(SWEEP.read_text().replace("Width: 32, Height: 32", "Width: 16, Height: 16"))
+    (tmp_path / "manifold_sensors" / "spectral" / "qe" / "synthetic_visgaas.csv").unlink()    # DeepScan's QE
+    reg = LocalRegistry()
+    sub = reg.submit_sweep(recipe, CONFIG_REPO, tmp_path / "work")
+    nir, deep, vis = (f"sensor-sweep-tahoe--{s}" for s in ("auror-nir", "deepscan_850_306_nir_1280",
+                                                           "synthetic_600_200_vis_1920"))
+    assert sub.sweep_id == sweep_id(recipe) and sub.errors == []
+    assert sub.states == {nir: "accepted", deep: "rejected", vis: "accepted"}
+    assert any("synthetic_visgaas.csv" in e for e in sub.runs[deep].errors)
+    assert all(r.submission.simulation.auror_run.seed == 42 for r in sub.runs.values() if r.state == "accepted")
+
+    def boom(*a, **k):
+        raise RuntimeError("render failed on purpose")
+    monkeypatch.setattr(sub.runs[vis].submission.simulation, "run", boom)
+    out = reg.run_sweep(sub)
+    assert out is sub and out.states == {nir: "rendered", deep: "rejected", vis: "failed"}
+    assert out.runs[vis].errors == ["RuntimeError: render failed on purpose"]
+    assert out.runs[nir].result.image.is_file()
+
+
+def test_submit_sweep_reports_a_recipe_that_does_not_compose(tmp_path):
+    from protodirsig.registry import LocalRegistry
+    bad = _recipe(VECTORS / "sweep_sensor_without_settings")
+    sub = LocalRegistry().submit_sweep(bad, CONFIG_REPO, tmp_path)
+    assert sub.runs == {} and sub.sweep_id == sweep_id(bad)
+    assert sub.errors[0].startswith("Composition failed: recipes/sensor_sweep_tahoe.yaml: sensors[1]:")
