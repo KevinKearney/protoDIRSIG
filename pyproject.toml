@@ -30,4 +30,5 @@ protodirsig = ["_contracts/*.json"]   # copied from manifold_contracts/ at build
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]       # external/ holds dirfm's own demos/test_*.py; they are not this suite
-tmp_path_retention_policy = "failed"   # a passing test's tmp_path (job inputs, renders) is deleted at its teardown
+tmp_path_retention_policy = "failed"
+filterwarnings = ["ignore:LocalRegistry is deprecated:DeprecationWarning"]   # the notebook-era tests still use it   # a passing test's tmp_path (job inputs, renders) is deleted at its teardown

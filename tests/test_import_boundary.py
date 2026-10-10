@@ -18,7 +18,7 @@ ENGINE = ("dirfm",)
 PURE = ["protodirsig.compose", "protodirsig.run_spec", "protodirsig.orbit", "protodirsig.contract", "protodirsig.identity",
         "protodirsig.dirhash", "protodirsig.problems", "protodirsig.errors", "protodirsig.admission",
         "protodirsig.store", "protodirsig.backend", "protodirsig.library",
-        "protodirsig.models"]
+        "protodirsig.models", "protodirsig.workspace"]
 DIRFM_BOUND = {"protodirsig.registry", "protodirsig.simulation", "protodirsig.worker"}   # worker: the engine side of LocalBackend
 
 
@@ -97,3 +97,15 @@ print(json.dumps({{"runs": out, "engine": sorted(m for m in ("dirfm", "skyfield"
     assert got["engine"] == [] and len(got["runs"]) == len(specs) == 6
     for name, (valid, checked, unstamped, same_id, errors) in got["runs"].items():
         assert (valid, checked, unstamped, same_id) == (True, False, [], True), (name, errors)
+
+
+def test_importing_the_package_loads_no_engine_package():
+    """`import protodirsig` and its `Workspace` load none of dirfm, skyfield, sgp4."""
+    code = ("import json, sys, protodirsig\n"
+            "light = sorted({m.split('.')[0] for m in sys.modules})\n"
+            "protodirsig.Workspace\n"
+            "print(json.dumps([light, sorted({m.split('.')[0] for m in sys.modules})]))")
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout
+    light, with_workspace = (set(x) for x in json.loads(out))
+    assert light.isdisjoint(ENGINE + PROPAGATOR) and with_workspace.isdisjoint(ENGINE + PROPAGATOR)
+    assert "lxml" not in light and "numpy" not in light                  # the package import itself is light

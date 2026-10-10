@@ -317,6 +317,7 @@ A top-level folder exists here only if it has a MANIFOLD analog. `AUROR_ref/` ha
 | `backend` | the `Backend` protocol of `sdk-api/1` (`compose`, `validate`, `submit_run`, `submit_sweep`, `get_run`, `get_sweep`, `cancel_run`, `list_artifacts`, `get_artifact`; wire-form dicts) and `LocalBackend` (run store, a worker process per run, `max_parallel` slots, cancel by process group); no engine package at import | `built` |
 | `library` | `LibraryReader`: list and read the four resource kinds (sensors by file name; scenarios, engine profiles, recipes by stem), each checked to be of its kind; no engine package | `built` |
 | `models` | typed models of the API payloads, generated from `api/schemas/` by `scripts/gen_models.py` (frozen dataclasses with `from_dict` and `to_dict`); standard library only | `built` |
+| `workspace` | `Workspace`, the user-facing facade over any `Backend` (`Workspace.local`, `Workspace.remote` in phase 3): the operations of `api/operations.md`, returning `models`; `wait` and `save_artifact` helpers; `protodirsig.Workspace`; no engine package at import | `built` |
 | `platform_gen` | `.platform` rendered from the library template, `sensor-spec/1` and `settings` | `built` (one focal plane per entry) |
 | `spectral` | `spectral-curve/1` reader, channel shapes, response composition | `built` |
 | `motion_tasks` | motion and `.tasks` generation from `engine.motion`, `engine.tasks`: a `.ppd` for `static`, a FlexMotion `.motion` of ECEF waypoints for `orbit` (`orbit_waypoints`) | `built, partial` (static, orbit) |

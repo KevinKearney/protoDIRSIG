@@ -16,6 +16,7 @@ Admission refuses a run spec with an unstamped reference (`run_spec.unstamped_re
 reports such references without failing, since the placeholder is the authoring state.
 """
 import tempfile
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -75,6 +76,12 @@ class SweepResult:
 
 
 class LocalRegistry:
+    """Deprecated: use `protodirsig.Workspace` (kept for the notebooks; removed in phase 3)."""
+
+    def __init__(self):
+        warnings.warn("LocalRegistry is deprecated; use protodirsig.Workspace (Workspace.local(...))",
+                      DeprecationWarning, stacklevel=2)
+
     def submit_sweep(self, recipe_path, config_repo, work_dir=None, max_runs=MAX_RUNS):
         """Compose every run of the recipe and `submit` each. The specs and each run's work directory go under
         `work_dir` (default: a fresh temporary directory). A recipe that does not compose gives no runs and one
