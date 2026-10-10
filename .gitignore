@@ -5,6 +5,9 @@ __MACOSX/
 __pycache__/
 *.pyc
 *.egg-info/
+# Build products: setuptools' build directory and the contract schemas copied into the package (setup.py)
+/build/
+/src/protodirsig/_contracts/
 .ipynb_checkpoints/
 .pytest_cache/
 .ruff_cache/

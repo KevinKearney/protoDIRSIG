@@ -5,9 +5,11 @@ references the engine and sensor-spec schemas) and returns every violation as `{
 RFC 6901 JSON Pointers into the spec. `simulation.schema_errors` formats these as its schema-check messages, so admission
 enforces the schemas.
 
-The schemas are read from the repository's `manifold_contracts/` folder, the sibling of `src/` (as
-`run_spec.default_sensor_library` locates `manifold_sensors/`); the environment variable `PROTODIRSIG_CONTRACTS`
-overrides the folder. Each schema's `$id` is an absolute URI under https://schemas.manifold.example/contracts/, a base
+The schemas are read from the first of: the folder named by the environment variable `PROTODIRSIG_CONTRACTS`; the
+copy packaged with the library, `protodirsig/_contracts/` (found with `importlib.resources`; the build copies the three
+files there from `manifold_contracts/`, see `setup.py`, and a checkout or editable install has none); the repository's
+`manifold_contracts/` folder, the sibling of `src/` (as `run_spec.default_sensor_library` locates
+`manifold_sensors/`). `manifold_contracts/` is the one tracked copy. Each schema's `$id` is an absolute URI under https://schemas.manifold.example/contracts/, a base
 that does not resolve on the network; references between the three schemas are sibling file names resolved against it,
 and a `referencing` registry holds each file under its `$id` (and retrieves by file name), so everything resolves offline.
 
@@ -16,6 +18,7 @@ Imports: the standard library, `jsonschema` and `referencing` only; no engine pa
 import json
 import os
 from functools import lru_cache
+from importlib import resources
 from pathlib import Path
 
 from jsonschema import Draft202012Validator
@@ -28,10 +31,25 @@ ROOT_SCHEMA = "run-spec-1.schema.json"
 MAX_MESSAGE = 200
 
 
+def packaged_contracts_dir():
+    """The schemas packaged with the library (`protodirsig/_contracts/`, copied there by the build), or None in a
+    checkout or editable install, which has no packaged copy."""
+    folder = resources.files("protodirsig") / "_contracts"
+    try:
+        if folder.joinpath(ROOT_SCHEMA).is_file():
+            return Path(str(folder))
+    except (FileNotFoundError, NotADirectoryError):
+        pass
+    return None
+
+
 def contracts_dir():
-    """The folder holding the contract schemas: `$PROTODIRSIG_CONTRACTS`, or the repository's `manifold_contracts/`."""
+    """The folder holding the contract schemas, in this order: `$PROTODIRSIG_CONTRACTS`; the packaged copy
+    (`packaged_contracts_dir`); the repository's `manifold_contracts/`."""
     env = os.environ.get("PROTODIRSIG_CONTRACTS")
-    return Path(env) if env else Path(__file__).resolve().parents[2] / "manifold_contracts"
+    if env:
+        return Path(env)
+    return packaged_contracts_dir() or Path(__file__).resolve().parents[2] / "manifold_contracts"
 
 
 @lru_cache(maxsize=4)

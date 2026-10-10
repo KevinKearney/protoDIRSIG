@@ -25,5 +25,8 @@ dev = ["pytest", "ruff", "jupyter", "openapi-spec-validator"]
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+protodirsig = ["_contracts/*.json"]   # copied from manifold_contracts/ at build time (setup.py); not tracked
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]       # external/ holds dirfm's own demos/test_*.py; they are not this suite
