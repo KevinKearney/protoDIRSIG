@@ -7,7 +7,7 @@ periodically against the MANIFOLD implementation team. Section 10 records each d
 **Authority:** this document is the single description of what is built. When code and document disagree,
 the code is right until the document is corrected in the same commit.
 
-## Overview
+## Part I. Overview
 
 protoDIRSIG is the DIRSIG-side driver of the MANIFOLD synthetic-data path, built without the MANIFOLD
 registry, executor or orchestrator. A run spec states a collection and a sensor; it is composed from layer files
@@ -16,49 +16,105 @@ DIRSIG input files that the spec determines, executes `dirsig5`, and returns ima
 `LocalRegistry` stands in for the registry and executor so the interface to MANIFOLD can be exercised before
 they exist.
 
-### System workflow
+### How a run is built
+
+Each node is a function, in italics its location in the repository; each edge label states what the flow does.
+`<name>` is a file stem, `<run>` a composed run name, `<job>` a job directory under `outputs/`.
 
 ```mermaid
-flowchart LR
-  subgraph AUTH["Authored inputs"]
-    LY["layers<br/>manifold_run_specs/ : recipes, scenarios, engine_profiles"]
-    SL["sensor library<br/>manifold_sensors/ : sensor-spec + spectral curves"]
-    CR["engine-asset library<br/>manifold_config_repo/ : scenes, platform template,<br/>weather, atmosphere database"]
+flowchart TB
+  subgraph AUTH["USER INPUT - authored YAML, one file per concern"]
+    RC["<b>Recipe</b><br/>names the layers; run name, tags, settings<br/>(exposure, ROI, gain), fidelity, engine overrides<br/><i>manifold_run_specs/recipes/&lt;name&gt;.yaml</i>"]
+    SC["<b>Scenario</b><br/>the observation: epoch, platform position,<br/>geometry, atmosphere regime, targets<br/><i>manifold_run_specs/scenarios/&lt;name&gt;.yaml</i>"]
+    EP["<b>Engine profile</b><br/>how DIRSIG is driven: scene, motion, tasks,<br/>atmosphere, generator, run seed<br/><i>manifold_run_specs/engine_profiles/&lt;name&gt;.yaml</i>"]
   end
-  CP["0. compose<br/>protodirsig.compose (reference for a<br/>MANIFOLD input constructor)"]
-  RS["run spec<br/>manifold_run_specs/*.yaml (generated)"]
-  LY --> CP
-  SL --> CP
-  CP --> RS
-  subgraph DRV["protodirsig driver (stand-in for MANIFOLD registry + executor)"]
-    direction TB
-    A["1. schema check"] --> B["2. resolve refs,<br/>verify content hashes"]
-    B --> C["3. generate .platform, .ppd, .tasks"]
-    C --> D["4. dry-run: dirsig5 --dry_run"]
-    D --> E["5. render"]
+
+  subgraph LIB["LIBRARIES - reused across runs, never copied into a recipe"]
+    SL["<b>Sensor</b><br/>engine-independent sensor-spec:<br/>optics, focal plane, channels<br/><i>manifold_sensors/&lt;sensor&gt;.yaml</i>"]
+    CV["<b>Spectral curves</b><br/>QE, optics, filter transmission<br/><i>manifold_sensors/spectral/{qe,optics,filter}/*.csv</i>"]
+    CR["<b>Engine assets</b><br/>scenes, platform template, weather,<br/>atmosphere database<br/><i>manifold_config_repo/</i>"]
+    CT["<b>Contracts</b><br/>sensor-spec schema; compose<br/>conformance vectors<br/><i>manifold_contracts/</i>"]
   end
-  RS --> A
-  SL --> B
-  CR --> B
-  E -->|"dirfm.DIRSIG.run"| DS["scene2hdf + dirsig5"]
-  DS --> OUT["job directory<br/>ENVI imagery, truth, logs"]
-  NB["notebooks / scripts"] -.->|"submit"| A
+
+  COMP["<b>Composer</b> (input constructor)<br/><i>src/protodirsig/compose.py, scripts/compose.py</i>"]
+  RS["<b>Composed run spec</b> run-spec/1<br/>the single document handed to MANIFOLD;<br/>generated, never edited<br/><i>manifold_run_specs/&lt;run&gt;.yaml</i>"]
+  ADM["<b>Admission</b><br/>schema check, reference resolution against the<br/>libraries, hash verification, library-file check,<br/>DIRSIG dry-run<br/><i>LocalRegistry.submit; run_spec.py, simulation.py</i>"]
+  ASM["<b>Assembler</b><br/>builds the run tree from the accepted run<br/><i>Simulation._assemble</i>"]
+  PG["<b>Platform generator</b><br/><i>platform_gen.render_platform</i>"]
+  MT["<b>Motion and tasks generator</b><br/><i>motion_tasks.generate_motion, generate_tasks</i>"]
+
+  subgraph INTREE["RUN TREE: input/   (outputs/&lt;job&gt;/input/)"]
+    direction LR
+    I1["scene reference<br/>(geometry, materials linked)"]
+    I2["weather file<br/>(byte copy)"]
+    I3["atmosphere database<br/>(byte copy)"]
+    I4["generated .platform"]
+    I5["generated .ppd, .tasks"]
+  end
+
+  EX["<b>Executor</b><br/>compiles the scene, then renders;<br/>seeded by engine.run.seed<br/><i>dirfm DIRSIG.run: scene2hdf + dirsig5</i>"]
+
+  subgraph OUTTREE["RUN TREE: output/   (outputs/&lt;job&gt;/output/)"]
+    direction LR
+    O1["imagery<br/>e- per m2 of focal plane (ENVI)"]
+    O2["truth bands"]
+    O3["run log<br/>(log_info.json)"]
+  end
+
+  MAN["<b>Manifest / execution record</b> - NOT BUILT<br/>stand-in: per-run state in LocalRegistry<br/>MANIFOLD: materialize into &lt;work&gt;/&lt;run_id&gt;/inputs<br/>plus an execution record (C-21, C-22)"]
+
+  RC -->|"names scenario, engine profile<br/>and sensor by file name"| COMP
+  SC -->|"descriptor.collection"| COMP
+  EP -->|"origin, engine block, engine extras;<br/>recipe may override one allowed path"| COMP
+  SL -->|"referenced by name + sha256 of bytes<br/>(or block inlined); settings entries and<br/>ROI checked against the sensor"| COMP
+  CT -.->|"vectors test the composer"| COMP
+  COMP -->|"layers own disjoint members; overlap is an error.<br/>A sweep recipe (sensors: list)<br/>yields one run spec per sensor"| RS
+  RS -->|"submitted as one document"| ADM
+  ADM -->|"accepted runs only"| ASM
+
+  CR -->|"scene copied by reference;<br/>weather and atmosphere database<br/>copied byte-identical"| ASM
+  ASM -->|"settings: exposure, ROI, gain,<br/>black level (must be 0)"| PG
+  ASM -->|"epoch, motion kind, task windows<br/>-> static pose and capture times"| MT
+  CR -->|"library .platform is a TEMPLATE: keeps names,<br/>mount, truth collections, spatial<br/>response, hypersampling"| PG
+  SL -->|"sensor values substituted<br/>into the template"| PG
+  CV -->|"optics x channel shape x QE tabulated<br/>into each channel response (0.41-2.0 um)"| PG
+
+  ASM --> I1
+  ASM --> I2
+  ASM --> I3
+  PG --> I4
+  MT --> I5
+  INTREE -->|"inputs consumed"| EX
+  EX --> OUTTREE
+  ASM -.->|"records state"| MAN
+  EX -.->|"records state"| MAN
 ```
 
-1. **Author and compose.** A run is authored as layers: a recipe (meta, settings, fidelity, and the names of the
-   other layers), a scenario (the collection), an engine profile (origin, extras, the engine block) and a
-   library sensor, never copied. `compose` merges them into one run spec, or, for a sweep recipe listing several
-   sensors, one run spec per sensor (section 3.5). A run spec splits into
-   `descriptor` (what was observed: engine-independent, registered, hashed) and `engine` (how DIRSIG is driven:
-   origin-specific, not indexed). The sensor is a reference into the sensor library; scenes, platform
-   template, weather and atmosphere are references into the engine-asset library.
-2. **Admit.** Schema check, reference resolution with content-hash verification, and a DIRSIG dry-run. An
-   admitted run has resolvable inputs and a command line `dirsig5` accepts.
-3. **Assemble.** A job directory is built under `outputs/`: library files copied or linked, and the files the
-   spec determines generated into it (`.platform` from the sensor, `.ppd` from the motion block, `.tasks`
-   from the collection epoch and windows).
-4. **Execute.** `dirfm` invokes `scene2hdf` and `dirsig5`. A seeded render is byte-reproducible.
-5. **Return.** Imagery in electrons per m² of focal plane, truth bands, and logs in the job directory.
+1. **Author.** Three YAML files state a run. The recipe gives the run's identity, settings, fidelity and its
+   choice of the other layers; the scenario gives the observation (epoch, platform position, geometry,
+   atmosphere regime, targets); the engine profile gives how DIRSIG is driven (scene, motion, tasks,
+   atmosphere, seed). The sensor is not authored per run: the recipe names a file in the sensor library.
+2. **Compose.** The composer merges the layers into one `run-spec/1`, the single document MANIFOLD receives. A
+   sweep recipe with a `sensors:` list yields one run spec per sensor.
+3. **Admit.** Schema check, reference resolution against the libraries, content-hash verification, and a DIRSIG
+   dry-run. An admitted run has resolvable inputs and a command line `dirsig5` accepts.
+4. **Assemble.** The assembler builds the input tree: library files copied or linked, the `.platform` rendered
+   from the library template, the sensor and the settings, and the `.ppd` and `.tasks` generated from the motion
+   block, the epoch and the task windows.
+5. **Execute.** `dirfm` invokes `scene2hdf` and `dirsig5`. A seeded render is byte-reproducible.
+6. **Return.** Imagery in electrons per m² of focal plane, truth bands, and the run log in the output tree.
+
+Three rules explain the diagram.
+
+- **Libraries are referenced, not copied.** The sensor, the spectral curves, the engine assets and the contracts
+  are read-only. The composed run spec carries a sensor's name and the sha256 of its bytes (or the block inline).
+  The library `.platform` is a template: the generator keeps what the specs do not model (names, mount, truth
+  collections, spatial response, hypersampling) and substitutes what they do.
+- **Authored layers own disjoint members.** A member in two layers is an error. The composed run spec is never
+  edited by hand.
+- **The run tree is derived.** Nothing in `outputs/<job>/` is source. The manifest and execution record are not
+  built: `LocalRegistry` holds per-run state in memory, and MANIFOLD's materialization and execution record take
+  its place (C-21, C-22).
 
 ### Sensor path
 
@@ -102,8 +158,26 @@ A `manifold_` prefix marks a folder that maps to a future MANIFOLD repository (`
 | `src/protodirsig/` | driver and SDK | SDK |
 | `external/`, `scripts/`, `notebooks/`, `tests/`, `outputs/` | tooling | none |
 
-The sections below are the detailed description. Section 10 records the points where this description and the
-MANIFOLD documents disagree.
+### Where to start
+
+| Diagram stage | Exercised in |
+|---|---|
+| Composer, composed run spec | `stage_03_sensor_sweep`: the recipe `sensor_sweep_tahoe` through `compose_sweep`. Stages 01 and 02 start from the generated `auror_ref.yaml` and do not compose. |
+| Admission | `stage_02_conformance_template` (`LocalRegistry.submit`); `stage_03_sensor_sweep` (`submit_sweep`) |
+| Assembler, motion and tasks generator, input tree | `stage_01_auror_from_runspec`: assets resolve in `manifold_config_repo/`, motion and tasks are generated from the spec |
+| Platform generator | `stage_03_sensor_sweep`: the curves and the channel response written into each `.platform` |
+| Executor, output tree | `stage_01` (render); `stage_02` (render and DIRSIG logs); `stage_03` (three sensors at 32 × 32, GSD from the truth) |
+| DIRSIG and `dirfm` without the driver | `dirfm_tutorials/` |
+| Manifest | none |
+
+A new user reads `dirfm_tutorials/tutorial_dirfm_basics`, then the stage notebooks in order. Stage 01 shows a run
+tree built from a run spec, stage 02 shows admission and the logs, and stage 03 shows how a change of sensor reaches
+the run tree.
+
+Part II is the reference: the contract, the sensor specification, the repository layout, the SDK, the DIRSIG
+behaviors that matter, and the points of disagreement with the MANIFOLD documents (section 10).
+
+## Part II. Reference
 
 Status markers used in section headings and tables:
 
