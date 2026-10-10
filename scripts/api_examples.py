@@ -101,7 +101,7 @@ def examples():
             "description": "Real library data.",
             "request": get(path),
             "response": ok({"items": [{"name": n, "sha256": sha(p)} for n, p in lib.items()]},
-                           "openapi.yaml#/components/schemas/LibraryList")}
+                           "schemas/library_list.schema.json")}
         name = picks[kind]
         doc = yaml.safe_load(lib[name].read_text())
         big = kind == "engine_profiles"
@@ -112,8 +112,8 @@ def examples():
             "response": ok({"name": name, "sha256": sha(lib[name]),
                             "document": {k: cut(v) if isinstance(v, dict) else v for k, v in doc.items()} if big
                             else doc},
-                           "openapi.yaml#/components/schemas/"
-                           + ("SensorDocument" if kind == "sensors" else "LibraryDocument"))}
+                           "schemas/" + ("sensor_document" if kind == "sensors" else "library_document")
+                           + ".schema.json")}
 
     sweep = compose_sweep(LAYERS / "recipes" / f"{SWEEP}.yaml")
     ex["compose"] = {
@@ -168,13 +168,13 @@ def examples():
     ex["submit_run"] = {
         "summary": f"Submit the `{SINGLE}` recipe as one run.",
         "description": f"A new run: admitted and executing, so 202 in state `accepted`. {PLACEHOLDER}",
-        "request": post("/runs", {"recipe_name": SINGLE}, "openapi.yaml#/components/schemas/SubmitRunRequest"),
+        "request": post("/runs", {"recipe_name": SINGLE}, "schemas/submit_run_request.schema.json"),
         "response": ok(status(name, "accepted"), "schemas/run_status.schema.json", 202)}
     recipe_ref = {"name": SWEEP, "sha256": sha(LAYERS / "recipes" / f"{SWEEP}.yaml")}
     ex["submit_sweep"] = {
         "summary": f"Submit the `{SWEEP}` recipe as a sweep.",
         "description": f"A new sweep of three runs, admitted as a whole: 202, each run `accepted`. {PLACEHOLDER}",
-        "request": post("/sweeps", {"recipe_name": SWEEP}, "openapi.yaml#/components/schemas/SubmitSweepRequest"),
+        "request": post("/sweeps", {"recipe_name": SWEEP}, "schemas/submit_sweep_request.schema.json"),
         "response": ok({"sweep_id": SWEEP_ID, "recipe": recipe_ref,
                         "runs": [status(n, "accepted") for n in sweep.runs]},
                        "schemas/sweep_status.schema.json", 202)}
@@ -202,7 +202,7 @@ def examples():
                         f"and the truth images are listed as they are written. {PLACEHOLDER}"),
         "request": get(f"/runs/{RUN_IDS[name]}/artifacts"),
         "response": ok({"run_id": RUN_IDS[name], "artifacts": [spec_artifact(RUN_IDS[name])]},
-                       "openapi.yaml#/components/schemas/ArtifactList")}
+                       "schemas/artifact_list.schema.json")}
     ex["get_artifact"] = {
         "summary": "Read the resolved run spec of a run.",
         "description": ("The bytes are the canonical JSON serialization (RFC 8785) of the resolved run spec, the "
@@ -210,7 +210,7 @@ def examples():
                         f"parsed document. {PLACEHOLDER} {ABBREVIATED}"),
         "request": get(f"/runs/{RUN_IDS[name]}/artifacts/run_spec.json"),
         "response": ok(short_spec(compose(LAYERS / "recipes" / f"{SINGLE}.yaml", inline_sensor=True)),
-                       "openapi.yaml#/components/schemas/RunSpecDocument")}
+                       "schemas/run_spec_document.schema.json")}
     for k, v in ex.items():
         v["operation"] = k.split(".")[0]
     return ex

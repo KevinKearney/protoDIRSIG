@@ -8,8 +8,8 @@ This folder is the contract of the protoDIRSIG SDK: the operations it offers, th
 
 1. `requirements.md`: what the SDK must do (R-01 onward), why, the test that verifies each requirement today, and its status.
 2. `operations.md`: the operation set (library reads, compose, validate, submit, status, cancel, artifacts), with inputs, outputs, errors, mode, idempotency, the requirements each serves and the existing code it would be built on; the run states; the rules for run and sweep ids; and the list of places where today's code departs from the contract.
-3. `schemas/`: JSON Schema (2020-12) for the payloads: `artifact_ref`, `run_status`, `sweep_status`, `compose_request`, `compose_response`, `validate_request`, `validate_response` and `problem`. A sensor document is referenced from `manifold_contracts/sensor-spec-1.schema.json`, not copied.
-4. `openapi.yaml`: the REST form of the operations (OpenAPI 3.1, `info.version: sdk-api/1`). Its request and response bodies reference the schemas.
+3. `schemas/`: JSON Schema (2020-12) for every request and response body: `artifact_ref`, `artifact_list`, `run_status`, `sweep_status`, `compose_request`, `compose_response`, `validate_request`, `validate_response`, `submit_run_request`, `submit_sweep_request`, `library_list`, `library_document`, `sensor_document`, `run_spec_document` and `problem`. A sensor document is referenced from `manifold_contracts/sensor-spec-1.schema.json`, not copied.
+4. `openapi.yaml`: the REST form of the operations (OpenAPI 3.1, `info.version: sdk-api/1`). Every request and response body is a `$ref` to a file in `schemas/`; the document defines no body inline.
 5. `examples/`: one request and one response per operation, plus `compose.problem.json`, the problem a recipe that does not compose produces. They are generated from the real library; each description says what is real, what is a placeholder and what is abbreviated.
 
 Two controlled drawings illustrate the contract: `docs/diagrams/sdk_api.png` (the layers, from the user to the engine tools) and `docs/diagrams/sdk_api_sequence.png` (submit, poll status, list and fetch artifacts).

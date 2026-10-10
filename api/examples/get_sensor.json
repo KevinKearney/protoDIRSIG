@@ -112,7 +112,7 @@
         }
       }
     },
-    "schema": "openapi.yaml#/components/schemas/SensorDocument"
+    "schema": "schemas/sensor_document.schema.json"
   },
   "operation": "get_sensor"
 }

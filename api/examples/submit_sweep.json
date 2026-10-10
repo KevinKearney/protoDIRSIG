@@ -7,7 +7,7 @@
     "body": {
       "recipe_name": "sensor_sweep_tahoe"
     },
-    "schema": "openapi.yaml#/components/schemas/SubmitSweepRequest"
+    "schema": "schemas/submit_sweep_request.schema.json"
   },
   "response": {
     "status": 202,

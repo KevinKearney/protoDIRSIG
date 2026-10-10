@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Library list",
+  "description": "The resources of one kind in the library.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "items"
+  ],
+  "properties": {
+    "items": {
+      "description": "One entry per resource, sorted by name.",
+      "type": "array",
+      "items": {
+        "description": "One library resource.",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "sha256"
+        ],
+        "properties": {
+          "name": {
+            "description": "The name a recipe uses for the resource.",
+            "type": "string"
+          },
+          "sha256": {
+            "description": "The sha256 of the resource file's bytes, 64 lowercase hex digits.",
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    }
+  }
+}

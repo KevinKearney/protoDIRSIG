@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Submit-run request",
+  "description": "A run to submit: exactly one of a run spec, a recipe name or a recipe document; a recipe must name one sensor.",
+  "type": "object",
+  "additionalProperties": false,
+  "oneOf": [
+    {
+      "required": [
+        "run_spec"
+      ]
+    },
+    {
+      "required": [
+        "recipe_name"
+      ]
+    },
+    {
+      "required": [
+        "recipe"
+      ]
+    }
+  ],
+  "properties": {
+    "run_spec": {
+      "$ref": "run_spec_document.schema.json"
+    },
+    "recipe_name": {
+      "description": "The name of a recipe in the library (its file stem).",
+      "type": "string"
+    },
+    "recipe": {
+      "description": "A recipe document (`compose: compose/1`), composed against the library.",
+      "type": "object",
+      "required": [
+        "compose"
+      ]
+    }
+  }
+}

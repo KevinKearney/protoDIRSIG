@@ -35,7 +35,7 @@ paths:
           description: The sensors.
           content:
             application/json:
-              schema: {$ref: "#/components/schemas/LibraryList"}
+              schema: {$ref: "schemas/library_list.schema.json"}
   /sensors/{name}:
     get:
       operationId: get_sensor
@@ -49,7 +49,7 @@ paths:
           description: The sensor.
           content:
             application/json:
-              schema: {$ref: "#/components/schemas/SensorDocument"}
+              schema: {$ref: "schemas/sensor_document.schema.json"}
         "404": {$ref: "#/components/responses/NotFound"}
         "422": {$ref: "#/components/responses/Unprocessable"}
   /scenarios:
@@ -63,7 +63,7 @@ paths:
           description: The scenarios.
           content:
             application/json:
-              schema: {$ref: "#/components/schemas/LibraryList"}
+              schema: {$ref: "schemas/library_list.schema.json"}
   /scenarios/{name}:
     get:
       operationId: get_scenario
@@ -77,7 +77,7 @@ paths:
           description: The scenario.
           content:
             application/json:
-              schema: {$ref: "#/components/schemas/LibraryDocument"}
+              schema: {$ref: "schemas/library_document.schema.json"}
         "404": {$ref: "#/components/responses/NotFound"}
         "422": {$ref: "#/components/responses/Unprocessable"}
   /engine-profiles:
@@ -91,7 +91,7 @@ paths:
           description: The engine profiles.
           content:
             application/json:
-              schema: {$ref: "#/components/schemas/LibraryList"}
+              schema: {$ref: "schemas/library_list.schema.json"}
   /engine-profiles/{name}:
     get:
       operationId: get_engine_profile
@@ -105,7 +105,7 @@ paths:
           description: The engine profile.
           content:
             application/json:
-              schema: {$ref: "#/components/schemas/LibraryDocument"}
+              schema: {$ref: "schemas/library_document.schema.json"}
         "404": {$ref: "#/components/responses/NotFound"}
         "422": {$ref: "#/components/responses/Unprocessable"}
   /recipes:
@@ -119,7 +119,7 @@ paths:
           description: The recipes.
           content:
             application/json:
-              schema: {$ref: "#/components/schemas/LibraryList"}
+              schema: {$ref: "schemas/library_list.schema.json"}
   /recipes/{name}:
     get:
       operationId: get_recipe
@@ -133,7 +133,7 @@ paths:
           description: The recipe.
           content:
             application/json:
-              schema: {$ref: "#/components/schemas/LibraryDocument"}
+              schema: {$ref: "schemas/library_document.schema.json"}
         "404": {$ref: "#/components/responses/NotFound"}
         "422": {$ref: "#/components/responses/Unprocessable"}
 
@@ -186,7 +186,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: {$ref: "#/components/schemas/SubmitRunRequest"}
+            schema: {$ref: "schemas/submit_run_request.schema.json"}
       responses:
         "200":
           description: The run already existed; its current status.
@@ -247,7 +247,7 @@ paths:
           description: The artifact references.
           content:
             application/json:
-              schema: {$ref: "#/components/schemas/ArtifactList"}
+              schema: {$ref: "schemas/artifact_list.schema.json"}
         "404": {$ref: "#/components/responses/NotFound"}
   /runs/{run_id}/artifacts/{name}:
     get:
@@ -267,7 +267,7 @@ paths:
           description: The artifact's bytes.
           content:
             application/json:
-              schema: {$ref: "#/components/schemas/RunSpecDocument"}
+              schema: {$ref: "schemas/run_spec_document.schema.json"}
             application/octet-stream:
               schema: {type: string, contentMediaType: application/octet-stream}
             text/plain:
@@ -284,7 +284,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: {$ref: "#/components/schemas/SubmitSweepRequest"}
+            schema: {$ref: "schemas/submit_sweep_request.schema.json"}
       responses:
         "200":
           description: The sweep already existed; its current status.
@@ -347,82 +347,3 @@ components:
       content:
         application/problem+json:
           schema: {$ref: "schemas/problem.schema.json"}
-  schemas:
-    LibraryList:
-      description: The resources of one kind in the library.
-      type: object
-      additionalProperties: false
-      required: [items]
-      properties:
-        items:
-          description: One entry per resource, sorted by name.
-          type: array
-          items: {$ref: "#/components/schemas/LibraryEntry"}
-    LibraryEntry:
-      description: One library resource.
-      type: object
-      additionalProperties: false
-      required: [name, sha256]
-      properties:
-        name: {description: "The name a recipe uses for the resource.", type: string}
-        sha256: {description: "The sha256 of the resource file's bytes, 64 lowercase hex digits.", type: string, pattern: "^[0-9a-f]{64}$"}
-    LibraryDocument:
-      description: One library resource as authored.
-      type: object
-      additionalProperties: false
-      required: [name, sha256, document]
-      properties:
-        name: {description: "The name a recipe uses for the resource.", type: string}
-        sha256: {description: "The sha256 of the resource file's bytes, 64 lowercase hex digits.", type: string, pattern: "^[0-9a-f]{64}$"}
-        document: {description: "The parsed YAML document.", type: object}
-    SensorDocument:
-      description: One library sensor as authored.
-      type: object
-      additionalProperties: false
-      required: [name, sha256, document]
-      properties:
-        name: {description: "The sensor file's name, as a recipe names it.", type: string}
-        sha256: {description: "The sha256 of the sensor file's bytes, 64 lowercase hex digits.", type: string, pattern: "^[0-9a-f]{64}$"}
-        document: {$ref: "../manifold_contracts/sensor-spec-1.schema.json"}
-    SubmitRunRequest:
-      description: "A run to submit: exactly one of a run spec, a recipe name or a recipe document; a recipe must name one sensor."
-      type: object
-      additionalProperties: false
-      oneOf:
-        - required: [run_spec]
-        - required: [recipe_name]
-        - required: [recipe]
-      properties:
-        run_spec: {$ref: "#/components/schemas/RunSpecDocument"}
-        recipe_name: {description: "The name of a recipe in the library (its file stem).", type: string}
-        recipe: {description: "A recipe document (`compose: compose/1`), composed against the library.", type: object, required: [compose]}
-    SubmitSweepRequest:
-      description: "A sweep to submit: exactly one of a recipe name or a recipe document."
-      type: object
-      additionalProperties: false
-      oneOf:
-        - required: [recipe_name]
-        - required: [recipe]
-      properties:
-        recipe_name: {description: "The name of a recipe in the library (its file stem).", type: string}
-        recipe: {description: "A recipe document (`compose: compose/1`), composed against the library.", type: object, required: [compose]}
-        max_runs: {description: "The most runs the recipe may compose to; at most 32.", type: integer, minimum: 1, maximum: 32, default: 32}
-    RunSpecDocument:
-      description: A `run-spec/1` document.
-      type: object
-      required: [spec_version, descriptor, engine]
-      properties:
-        spec_version: {description: "The run-spec version.", const: run-spec/1}
-        descriptor: {description: "What is observed and by which sensor.", type: object}
-        engine: {description: "How the engine is driven.", type: object}
-    ArtifactList:
-      description: A run's artifact references.
-      type: object
-      additionalProperties: false
-      required: [run_id, artifacts]
-      properties:
-        run_id: {description: "The run id.", type: string, pattern: "^[0-9a-f]{64}$"}
-        artifacts:
-          description: The artifacts produced so far.
-          type: array
-          items: {$ref: "schemas/artifact_ref.schema.json"}

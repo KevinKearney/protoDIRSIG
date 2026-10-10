@@ -19,7 +19,7 @@
         }
       ]
     },
-    "schema": "openapi.yaml#/components/schemas/ArtifactList"
+    "schema": "schemas/artifact_list.schema.json"
   },
   "operation": "list_artifacts"
 }

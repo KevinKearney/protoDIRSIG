@@ -88,7 +88,39 @@ def test_schema_is_valid_and_describes_every_property(path):
 def test_the_schemas_the_contract_names_exist():
     assert {p.name.removesuffix(".schema.json") for p in SCHEMAS} == {
         "artifact_ref", "run_status", "sweep_status", "compose_request", "compose_response", "validate_request",
-        "validate_response", "problem"}
+        "validate_response", "problem", "library_list", "library_document", "sensor_document", "submit_run_request",
+        "submit_sweep_request", "artifact_list", "run_spec_document"}
+
+
+def _refs(node):
+    if isinstance(node, dict):
+        if isinstance(node.get("$ref"), str):
+            yield node["$ref"]
+        for v in node.values():
+            yield from _refs(v)
+    elif isinstance(node, list):
+        for v in node:
+            yield from _refs(v)
+
+
+def _pointer(doc, frag):
+    for part in [p for p in frag.split("/") if p]:
+        doc = doc[part]
+    return doc
+
+
+@pytest.mark.parametrize("path", [API / "openapi.yaml", *SCHEMAS], ids=lambda p: p.name)
+def test_every_ref_resolves_to_an_existing_file(path):
+    """Every `$ref` names an existing file (or this file), and its JSON-pointer fragment, if any, exists in it."""
+    for ref in _refs(_load(path)):
+        file, _, frag = ref.partition("#")
+        target = (path.parent / file).resolve() if file else path
+        assert target.is_file(), f"{path.name}: $ref {ref} names a missing file"
+        assert _pointer(_load(target), frag) is not None, f"{path.name}: $ref {ref} names a missing location"
+
+
+def test_openapi_defines_no_inline_component_schemas():
+    assert "schemas" not in OPENAPI.get("components", {}), "bodies belong in api/schemas/"
 
 
 def test_openapi_document_validates():

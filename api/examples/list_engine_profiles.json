@@ -16,7 +16,7 @@
         }
       ]
     },
-    "schema": "openapi.yaml#/components/schemas/LibraryList"
+    "schema": "schemas/library_list.schema.json"
   },
   "operation": "list_engine_profiles"
 }

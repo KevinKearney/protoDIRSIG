@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sensor document",
+  "description": "One library sensor as authored.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "sha256",
+    "document"
+  ],
+  "properties": {
+    "name": {
+      "description": "The sensor file's name, as a recipe names it.",
+      "type": "string"
+    },
+    "sha256": {
+      "description": "The sha256 of the sensor file's bytes, 64 lowercase hex digits.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "document": {
+      "$ref": "../../manifold_contracts/sensor-spec-1.schema.json"
+    }
+  }
+}

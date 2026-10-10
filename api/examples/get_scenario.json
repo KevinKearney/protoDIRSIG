@@ -58,7 +58,7 @@
         }
       }
     },
-    "schema": "openapi.yaml#/components/schemas/LibraryDocument"
+    "schema": "schemas/library_document.schema.json"
   },
   "operation": "get_scenario"
 }

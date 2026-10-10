@@ -88,7 +88,7 @@ Status markers used in section headings and tables:
 |---|---|
 | `built` | Implemented and covered by a test or an executed notebook. |
 | `built, partial` | Implemented for the AUROR job only; the limits are stated. |
-| `proposed` | Offered to MANIFOLD. Not adopted in their schema or architecture documents. |
+| `proposed` | Offered to MANIFOLD. Not adopted in their schema or architecture documents. In `api/` and section 7.1 the marker means a proposed SDK-side contract, which is not offered to MANIFOLD. |
 | `open` | Question for MANIFOLD; no position taken. |
 
 ## 1. Purpose

@@ -7,7 +7,7 @@
     "body": {
       "recipe_name": "auror_ref"
     },
-    "schema": "openapi.yaml#/components/schemas/SubmitRunRequest"
+    "schema": "schemas/submit_run_request.schema.json"
   },
   "response": {
     "status": 202,

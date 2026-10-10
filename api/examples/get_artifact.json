@@ -172,7 +172,7 @@
         "run": "(abbreviated)"
       }
     },
-    "schema": "openapi.yaml#/components/schemas/RunSpecDocument"
+    "schema": "schemas/run_spec_document.schema.json"
   },
   "operation": "get_artifact"
 }
