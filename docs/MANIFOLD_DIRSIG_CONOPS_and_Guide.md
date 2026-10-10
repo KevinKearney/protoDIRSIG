@@ -47,6 +47,7 @@ The sensor description is the single source for modeled sensor values. The libra
 | Sweep execution | `LocalRegistry.run_sweep`: per-run state under a sweep id | MANIFOLD orchestration; how a sweep id is recorded is C-22 |
 | Registry and admission | `LocalRegistry`, `simulation.schema_errors` | MANIFOLD registry (hashing, extraction, catalog) |
 | Executor | `Simulation.run` | MANIFOLD executor; mounts the DIRSIG runtime |
+| SDK API | none built; the contract is `api/` (`sdk-api/1`, `proposed`, section 7.1), over `compose`, `LocalRegistry` and `Simulation` | SDK facade over a `Backend` protocol (`LocalBackend`, `RemoteBackend`); a REST server for users, not for the MANIFOLD executor |
 | Generator | `run_spec`, `platform_gen`, `motion_tasks` | SDK (`src/protodirsig`) |
 | Orchestration | notebooks | Dagster (out of scope here) |
 
@@ -299,6 +300,24 @@ A top-level folder exists here only if it has a MANIFOLD analog. `AUROR_ref/` ha
 | `orbit`, `sensors` | skyfield TEME→ECEF and trajectory; sensor helpers | `built` |
 
 `scripts/compose.py [--check]` writes the generated run specs; `scripts/stamp_hashes.py [--check]` stamps `content_hash` values in sensor and layer files and verifies them in generated run specs; `scripts/import_curve.py` converts measured curves to `spectral-curve/1`. Pending work is in `BACKLOG.md`.
+
+### 7.1 SDK API `proposed`
+
+`api/` is the contract (`sdk-api/1`) that the SDK's public class and a REST wrapper are to be built and tested against; it adds no behavior. Read `api/README.md` first. The class is a hand-written facade over a `Backend` protocol with two implementations: `LocalBackend` wraps `compose`, `LocalRegistry` and `Simulation` and needs no server; `RemoteBackend` is a REST client generated from `api/openapi.yaml`, talking to a REST server that runs a `LocalBackend`. The REST API serves users who do not run Python locally; it is not a MANIFOLD executor interface.
+
+![SDK API layers](diagrams/sdk_api.png)
+
+Source: `docs/diagrams/sdk_api.mmd`; the submit, poll and fetch sequence is `docs/diagrams/sdk_api_sequence.png`.
+
+Operations (`api/operations.md`): `list_*` and `get_*` for sensors, scenarios, engine profiles and recipes; `compose`; `validate`; `submit_run` and `submit_sweep`; `get_run` and `get_sweep`; `cancel_run`; `list_artifacts` and `get_artifact`. Each has a Python form and a REST form with the same inputs, outputs and errors. The rules:
+
+- `compose` and `validate` are pure and offline. `validate` has two levels: `engine_check: none` (schema, reference resolution, content-hash verification, library files; no engine) and `dry_run` (adds the DIRSIG dry run, which needs a local install); the response says whether the engine was checked.
+- Admission is synchronous inside `submit_run` and `submit_sweep` and runs the `none` level; a failed admission is a 422 problem and creates no run. A sweep is admitted as a whole. Execution is asynchronous, with states `accepted`, `running`, `rendered`, `failed` and `cancelled`; a dry-run failure is `failed` at the start of execution.
+- A run id is the sha256 of the canonical JSON serialization (RFC 8785) of the resolved run spec (sensor block materialized, header and composition provenance excluded), so a sensor inline or by reference gives the same id; a sweep id is derived from the sorted run ids. Resubmission returns the existing run. When built, this replaces the recipe-bytes sweep id of section 3.5.
+- Results are artifact references `{name, sha256, media_type, uri}`, never paths. Errors are problem details (RFC 9457) with `layer` and `field`, mapped from `ComposeError` and `RunSpecError`.
+- Authentication, tenancy and quotas are out of scope.
+
+What the code lacks is listed under "Where the code departs from the contract today" in `api/operations.md`, and planned in `BACKLOG.md`. `tests/test_api_contract.py` keeps the requirements, operations, schemas, OpenAPI document and examples consistent. No convergence row is added: the contract needs no MANIFOLD decision. C-22 describes today's recipe-bytes sweep id and stays as it is until the new id is built.
 
 ## 8. Notebooks
 

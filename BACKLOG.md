@@ -67,6 +67,12 @@ A test asserting that every module in `src/protodirsig` appears in the CONOPS mo
 ### Sweeps and layers: what remains after the sensor axis
 Sweeps exist over the sensor axis only (CONOPS §3.5). Remaining: a grid over other axes (exposure, epoch, geometry), with grid versus zip decided per axis and the run cap applied to the product; a compiled-scene cache keyed by scene hash, so the runs of a sweep that share a scene compile it once (with compile-once); and splitting scene-specific from engine-general engine-profile content, now that the AUROR and VIS profiles are one file with a recipe override.
 
+### SDK API: build the contract (`api/`, phases 2 and 3)
+`api/` states the SDK API (`sdk-api/1`, proposed); the code departs from it where `api/operations.md` lists. Phase 2 builds `LocalBackend` and the facade class: library `list_*`/`get_*` for all four kinds; artifact references `{name, sha256, media_type, uri}` instead of paths; run ids (sha256 of the RFC 8785 serialization of the resolved run spec) and sweep ids from the sorted run ids, replacing the 12-digit recipe-bytes `sweep_id`; a run store so `get_run`, `get_sweep` and `list_artifacts` work by id; background execution and `cancel_run`; `validate` split into the engine-free level and `dry_run`, with admission running only the engine-free level and the dry run moved to the start of execution; sweeps admitted as a whole, with no `rejected` run state; errors as problem details with `layer` and `field` (also for `RunSpecError`); recipes accepted as documents as well as paths; idempotent resubmission; and a published `run-spec/1` JSON Schema for the run-spec bodies the contract types loosely. Phase 3 builds the REST server over `LocalBackend` and `RemoteBackend` from `api/openapi.yaml`. Re-execution of an identical spec stays out of `sdk-api/1`. When the examples' ids become computable, `scripts/api_examples.py` replaces its placeholders with real ids.
+
+### Documentation site
+A readthedocs-style site generated from `api/` (the operation table, schemas, OpenAPI document) and the SDK's docstrings (R-11 in `api/requirements.md`). The generator is chosen in phase 2, with the facade class whose docstrings it renders.
+
 ### Multi-focal-plane generation
 `platform_gen` renders one focal plane per run (C-19). A rig whose entries image the same instant needs one `.platform` with several focal planes and one run with several `settings` members. Build it when a run needs a co-boresight rig, and after MANIFOLD answers C-19.
 
