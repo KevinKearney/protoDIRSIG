@@ -8,6 +8,8 @@ Machine-readable contracts: JSON Schemas for `run-spec/1`, `sensor-spec/1`, and 
 
 The `auror_ref` and `synthetic_vis` cases are copies of the repository's own layers, and `vectors/compose/manifold_sensors/` holds copies of the library sensors they name; `tests/test_compose.py` fails when they drift. `python scripts/compose.py --refresh-vectors` rewrites those two cases (layers and `expected.yaml`) and the sensor copies from the repository; it is idempotent. The other cases are written by hand.
 
+`vectors/identity/` holds conformance vectors for run ids and sweep ids: the RFC 8785 number and key-order vectors, and the run id of every composed document under `vectors/compose/`; its README states the definition and the invariances `tests/test_identity.py` proves. Admission enforces the three schemas (`protodirsig.contract`, through `simulation.schema_errors`).
+
 `vectors/orbit/` is a golden vector for the propagator of a moving-platform run: a pinned TLE and the SGP4 positions (ITRS and TEME) it must give at 121 stated times, with a tolerance; its README states what a replacement propagator must reproduce. `tests/test_orbit_vector.py` runs it.
 
 Future MANIFOLD home: the `manifold-contracts` repository, versioned by immutable git tag. Where a schema file and a field table disagree, the schema wins.
