@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Compose response",
+  "description": "The run specs a recipe composes to, one per sensor, each with its run id and the provenance of each of its members. A recipe naming one sensor gives one run.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["sweep_id", "recipe", "is_sweep", "runs"],
+  "properties": {
+    "sweep_id": {
+      "description": "The sweep id the runs would be submitted under: the sha256 of the canonical JSON serialization (RFC 8785) of their sorted run ids. Present for a one-run recipe too. It is not written into any run spec.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "recipe": {
+      "description": "The recipe that was composed.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "sha256"],
+      "properties": {
+        "name": {"description": "The recipe's name in the library, or null if it was given as a document.", "type": ["string", "null"]},
+        "sha256": {"description": "The sha256 of the recipe's bytes, as 64 lowercase hex digits.", "type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "is_sweep": {
+      "description": "True if the recipe names a list of sensors (`sensors`), false if it names one (`sensor`).",
+      "type": "boolean"
+    },
+    "runs": {
+      "description": "One entry per run, in the order of the recipe's sensor list.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["run_id", "name", "sensor", "run_spec", "provenance"],
+        "properties": {
+          "run_id": {"description": "The run id the run spec would be submitted under (see `run_status`).", "type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "name": {"description": "The run's name, its `descriptor.meta.name`.", "type": "string"},
+          "sensor": {"description": "The sensor file the run uses, as named in the recipe, for example `auror-nir.yaml`.", "type": "string"},
+          "run_spec": {
+            "description": "The composed `run-spec/1` document. Its `descriptor.sensor` is either a reference `{ref: {name, content_hash}}` or, with `inline_sensor`, the `sensor` block of a `sensor-spec/1` document. Every composed run spec passes the `run-spec/1` checks.",
+            "type": "object",
+            "required": ["spec_version", "descriptor", "engine"],
+            "properties": {
+              "spec_version": {"description": "The run-spec version.", "const": "run-spec/1"},
+              "descriptor": {
+                "description": "What is observed and by which sensor: meta, origin, collection, sensor, settings, fidelity and extras.",
+                "type": "object",
+                "properties": {
+                  "sensor": {
+                    "description": "The sensor: a reference to a library sensor file, or the sensor block in place.",
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["ref"],
+                        "properties": {
+                          "ref": {
+                            "description": "The library sensor file by name and the sha256 of its bytes.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": ["name", "content_hash"],
+                            "properties": {
+                              "name": {"description": "The sensor file's name in the library.", "type": "string"},
+                              "content_hash": {"description": "`sha256:` followed by 64 lowercase hex digits.", "type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+                            }
+                          }
+                        }
+                      },
+                      {"$ref": "../../manifold_contracts/sensor-spec-1.schema.json#/properties/sensor"}
+                    ]
+                  }
+                }
+              },
+              "engine": {"description": "How the engine is driven: scene, platform, motion, tasks, atmosphere and seed.", "type": "object"}
+            }
+          },
+          "provenance": {
+            "description": "For each member of the run spec (for example `descriptor.collection` or `engine`), the authored file it came from and that file's content hash. Provenance is returned beside the run spec, never inside it, and is not part of the run id.",
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["layer", "content_hash"],
+              "properties": {
+                "layer": {"description": "The authored file, relative to the library root, or `rules compose/1` for a member the composition rules supply.", "type": "string"},
+                "content_hash": {"description": "`sha256:` followed by the file's 64-hex-digit hash, or null for a member the rules supply.", "type": ["string", "null"]}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

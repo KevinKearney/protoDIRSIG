@@ -1,0 +1,78 @@
+{
+  "summary": "Read the recipe `auror_ref`.",
+  "description": "Real library data.",
+  "request": {
+    "method": "GET",
+    "path": "/recipes/auror_ref"
+  },
+  "response": {
+    "status": 200,
+    "media_type": "application/json",
+    "body": {
+      "name": "auror_ref",
+      "sha256": "308393983b5b5a3871b232dcad387803123c3dc6bc8ed56ad17b486801cb3cb1",
+      "document": {
+        "compose": "compose/1",
+        "meta": {
+          "name": "auror-ref-static-pose",
+          "tags": [
+            "auror",
+            "nir",
+            "static-pose",
+            "hypersonic-target"
+          ],
+          "description": "Received static-pose detection scene: a NIR staring sensor at a fixed LEO-altitude position over the Tahoe scene, with an embedded hypersonic target track.\n"
+        },
+        "sensor": "auror-nir.yaml",
+        "scenario": "tahoe_static_pose",
+        "engine_profile": "tahoe_static_pose",
+        "engine_overrides": {
+          "platform.channel_response": "native"
+        },
+        "settings": [
+          {
+            "entry_id": "auror-nir",
+            "exposure_time": {
+              "value": 0.005,
+              "provenance": "specified"
+            },
+            "frame_rate": {
+              "value": 1000,
+              "provenance": "specified"
+            },
+            "gain": {
+              "value": 1,
+              "provenance": "specified"
+            },
+            "black_level": {
+              "value": 0,
+              "provenance": "specified"
+            },
+            "roi": {
+              "Width": 500,
+              "Height": 500,
+              "OffsetX": null,
+              "OffsetY": null
+            }
+          }
+        ],
+        "fidelity": {
+          "modeled": [
+            "reflective and emissive radiance",
+            "atmospheric transmission and path radiance"
+          ],
+          "approximated": [
+            "detector noise",
+            "optics blur"
+          ],
+          "absent": [
+            "platform jitter"
+          ],
+          "valid_for": "Scene-radiometry and sensor-chain studies at the modeled band, geometry and atmosphere. Not valid for target-visibility studies: the vehicle's material has zero reflectance and its 1500 K emission is not evaluated in a 0.41-2.0 um job unless temperature prediction is forced, so the vehicle renders black.\n"
+        }
+      }
+    },
+    "schema": "openapi.yaml#/components/schemas/LibraryDocument"
+  },
+  "operation": "get_recipe"
+}

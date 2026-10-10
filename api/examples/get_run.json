@@ -1,0 +1,28 @@
+{
+  "summary": "Read the status of a run that is executing.",
+  "description": "The `auror_ref` run while DIRSIG renders it; only the resolved run spec exists so far. Run ids, sweep ids and the hash of `run_spec.json` are placeholders of the contract's form; the SDK does not compute them yet. Everything else is real library data.",
+  "request": {
+    "method": "GET",
+    "path": "/runs/4444444444444444444444444444444444444444444444444444444444444444"
+  },
+  "response": {
+    "status": 200,
+    "media_type": "application/json",
+    "body": {
+      "run_id": "4444444444444444444444444444444444444444444444444444444444444444",
+      "name": "auror-ref-static-pose",
+      "state": "running",
+      "errors": [],
+      "artifacts": [
+        {
+          "name": "run_spec.json",
+          "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+          "media_type": "application/json",
+          "uri": "file:///tmp/protodirsig/runs/4444444444444444444444444444444444444444444444444444444444444444/run_spec.json"
+        }
+      ]
+    },
+    "schema": "schemas/run_status.schema.json"
+  },
+  "operation": "get_run"
+}

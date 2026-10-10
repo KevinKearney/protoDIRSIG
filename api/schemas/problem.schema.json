@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Problem",
+  "description": "The one error model of the SDK: a problem details object (RFC 9457), served over REST with media type `application/problem+json` and raised in Python as an exception that carries the same members. An error caused by an authored file names that file (`layer`) and the field in it (`field`), so the user is pointed at the YAML they wrote, not at the composed document.",
+  "type": "object",
+  "required": ["type", "title", "status"],
+  "properties": {
+    "type": {
+      "description": "A URI reference identifying the kind of problem. This contract defines `urn:protodirsig:problem:compose` (a recipe does not compose), `urn:protodirsig:problem:admission` (a submission failed admission), `urn:protodirsig:problem:not-found` (an unknown id or name) and `urn:protodirsig:problem:invalid-request` (a request body that does not match its schema).",
+      "type": "string",
+      "format": "uri-reference"
+    },
+    "title": {
+      "description": "A short, human-readable summary of the kind of problem. It is the same for every occurrence of a `type`.",
+      "type": "string"
+    },
+    "status": {
+      "description": "The HTTP status code of the response: 422 for composition, validation and admission errors, 404 for an unknown id or name.",
+      "type": "integer",
+      "minimum": 400,
+      "maximum": 599
+    },
+    "detail": {
+      "description": "A human-readable explanation of this occurrence, written for the user who has to fix it.",
+      "type": "string"
+    },
+    "instance": {
+      "description": "A URI reference identifying this occurrence, for example the request path.",
+      "type": "string",
+      "format": "uri-reference"
+    },
+    "layer": {
+      "description": "The authored file at fault, relative to the library root, for example `scenarios/tahoe_static_pose.yaml` or `manifold_sensors/auror-nir.yaml`. Null when no single file is at fault.",
+      "type": ["string", "null"]
+    },
+    "field": {
+      "description": "The field at fault within `layer`, as a dotted path with list indices in brackets, for example `fidelity` or `sensors[1]`. Null when the whole file is at fault (for example, it does not parse) or no field can be named.",
+      "type": ["string", "null"]
+    },
+    "errors": {
+      "description": "For a sweep that failed admission: one entry per run that failed, each naming the run and the authored file and field at fault. A sweep is admitted as a whole, so every failing run is reported at once.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["run", "detail"],
+        "properties": {
+          "run": {"description": "The run's name (its `meta.name`).", "type": "string"},
+          "detail": {"description": "Why the run failed admission.", "type": "string"},
+          "layer": {"description": "The authored file at fault, relative to the library root, or null.", "type": ["string", "null"]},
+          "field": {"description": "The field at fault within `layer`, or null.", "type": ["string", "null"]}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "summary": "List the engine profiles in the library.",
+  "description": "Real library data.",
+  "request": {
+    "method": "GET",
+    "path": "/engine-profiles"
+  },
+  "response": {
+    "status": 200,
+    "media_type": "application/json",
+    "body": {
+      "items": [
+        {
+          "name": "tahoe_static_pose",
+          "sha256": "ef0ef3a1a0c49963ac36b7da6305febd082608cc681381f55cb80678a5b81e9f"
+        }
+      ]
+    },
+    "schema": "openapi.yaml#/components/schemas/LibraryList"
+  },
+  "operation": "list_engine_profiles"
+}

@@ -1,0 +1,40 @@
+%% Controlled drawing: sdk_api_sequence
+%% Title: Submit, poll, fetch artifacts
+%% Describes: protoDIRSIG SDK API, contract sdk-api/1, proposed (api/operations.md)
+%% Source of truth: this file. Rendered to sdk_api_sequence.svg and sdk_api_sequence.png by scripts/render_diagrams.py; docs reference the PNG.
+%% Change this file and re-render in the same commit as the code or document change it follows.
+sequenceDiagram
+  autonumber
+  actor U as User or notebook
+  participant F as SDK facade
+  participant B as Backend (local or remote)
+  participant E as Engine (DIRSIG)
+
+  U->>F: submit_sweep(recipe)
+  F->>B: submit_sweep
+  B->>B: compose, then admit every run (the engine-free checks of validate)
+  alt any run fails admission
+    B-->>F: 422 problem: every failing run, with layer and field
+    F-->>U: raises the problem, and no run is created
+  else all runs admitted
+    B-->>F: 202: sweep id, run ids, each run accepted
+    F-->>U: sweep status
+    B-)E: execute each run (asynchronous): dry run, then render
+  end
+
+  loop until every run is final
+    U->>F: get_sweep(sweep_id)
+    F->>B: get_sweep
+    B-->>F: each run: accepted, running, rendered, failed or cancelled
+    F-->>U: sweep status
+  end
+  E--)B: run rendered: image, header, truth, logs written
+
+  U->>F: list_artifacts(run_id)
+  F->>B: list_artifacts
+  B-->>F: references {name, sha256, media_type, uri}
+  F-->>U: artifact references
+  U->>F: get_artifact(run_id, name)
+  F->>B: get_artifact
+  B-->>F: bytes and media type
+  F-->>U: bytes, whose sha256 equals the reference's

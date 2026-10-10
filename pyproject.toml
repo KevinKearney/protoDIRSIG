@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "ruff", "jupyter", "jsonschema"]
+dev = ["pytest", "ruff", "jupyter", "jsonschema", "openapi-spec-validator"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

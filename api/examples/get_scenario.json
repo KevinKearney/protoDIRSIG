@@ -1,0 +1,64 @@
+{
+  "summary": "Read the scenario `tahoe_static_pose`.",
+  "description": "Real library data.",
+  "request": {
+    "method": "GET",
+    "path": "/scenarios/tahoe_static_pose"
+  },
+  "response": {
+    "status": 200,
+    "media_type": "application/json",
+    "body": {
+      "name": "tahoe_static_pose",
+      "sha256": "e6172b88f55591d167cfbc1db9685a9c42b5048282e9020ee3a5adf039ae50c0",
+      "document": {
+        "collection": {
+          "epoch": "2009-07-27T19:29:32Z",
+          "platform": {
+            "class": "satellite",
+            "position": {
+              "frame": "geodetic",
+              "datum": "WGS84",
+              "latitude": {
+                "value": 39.0036,
+                "provenance": "specified"
+              },
+              "longitude": {
+                "value": -120.0046,
+                "provenance": "specified"
+              },
+              "altitude": {
+                "value": 550000,
+                "provenance": "specified"
+              },
+              "altitude_reference": "ellipsoid"
+            }
+          },
+          "geometry": {
+            "regime": "orbital_nadir",
+            "range": {
+              "value": 500000,
+              "provenance": "modeled"
+            }
+          },
+          "illumination": {
+            "regime": "daylight"
+          },
+          "atmosphere": {
+            "regime": "mid_latitude_summer"
+          },
+          "background": {
+            "regime": "rural"
+          },
+          "targets": [
+            {
+              "class": "vehicle_air"
+            }
+          ]
+        }
+      }
+    },
+    "schema": "openapi.yaml#/components/schemas/LibraryDocument"
+  },
+  "operation": "get_scenario"
+}

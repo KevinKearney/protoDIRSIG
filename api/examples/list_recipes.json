@@ -1,0 +1,30 @@
+{
+  "summary": "List the recipes in the library.",
+  "description": "Real library data.",
+  "request": {
+    "method": "GET",
+    "path": "/recipes"
+  },
+  "response": {
+    "status": 200,
+    "media_type": "application/json",
+    "body": {
+      "items": [
+        {
+          "name": "auror_ref",
+          "sha256": "308393983b5b5a3871b232dcad387803123c3dc6bc8ed56ad17b486801cb3cb1"
+        },
+        {
+          "name": "sensor_sweep_tahoe",
+          "sha256": "802a0f18b3e7034ed03cef0cae5b4bc957e242ee60c8b97d65e5f670707cc0ed"
+        },
+        {
+          "name": "synthetic_vis",
+          "sha256": "d37b9561a49f3aa1933bc3606625ba93c3c2b5247d6abe97a6559902b68455eb"
+        }
+      ]
+    },
+    "schema": "openapi.yaml#/components/schemas/LibraryList"
+  },
+  "operation": "list_recipes"
+}

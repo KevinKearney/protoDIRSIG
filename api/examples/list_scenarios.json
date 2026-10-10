@@ -1,0 +1,22 @@
+{
+  "summary": "List the scenarios in the library.",
+  "description": "Real library data.",
+  "request": {
+    "method": "GET",
+    "path": "/scenarios"
+  },
+  "response": {
+    "status": 200,
+    "media_type": "application/json",
+    "body": {
+      "items": [
+        {
+          "name": "tahoe_static_pose",
+          "sha256": "e6172b88f55591d167cfbc1db9685a9c42b5048282e9020ee3a5adf039ae50c0"
+        }
+      ]
+    },
+    "schema": "openapi.yaml#/components/schemas/LibraryList"
+  },
+  "operation": "list_scenarios"
+}

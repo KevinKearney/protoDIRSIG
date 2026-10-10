@@ -1,0 +1,39 @@
+{
+  "summary": "Read the engine profile `tahoe_static_pose`.",
+  "description": "Real library data. Members shown as `(abbreviated)` are cut from this example; the real body carries them in full.",
+  "request": {
+    "method": "GET",
+    "path": "/engine-profiles/tahoe_static_pose"
+  },
+  "response": {
+    "status": 200,
+    "media_type": "application/json",
+    "body": {
+      "name": "tahoe_static_pose",
+      "sha256": "ef0ef3a1a0c49963ac36b7da6305febd082608cc681381f55cb80678a5b81e9f",
+      "document": {
+        "origin": {
+          "kind": "(abbreviated)",
+          "engine": "(abbreviated)"
+        },
+        "extras": {
+          "dirsig.atmosphere_db": "(abbreviated)",
+          "dirsig.weather_file": "(abbreviated)"
+        },
+        "engine": {
+          "generator": "(abbreviated)",
+          "scenes": "(abbreviated)",
+          "platform": "(abbreviated)",
+          "motion": "(abbreviated)",
+          "tasks": "(abbreviated)",
+          "atmosphere": "(abbreviated)",
+          "weather": "(abbreviated)",
+          "ephemeris": "(abbreviated)",
+          "run": "(abbreviated)"
+        }
+      }
+    },
+    "schema": "openapi.yaml#/components/schemas/LibraryDocument"
+  },
+  "operation": "get_engine_profile"
+}

@@ -1,0 +1,30 @@
+{
+  "summary": "A recipe that does not compose: two layers both hold `fidelity`.",
+  "description": "Produced by composing the conformance vector `manifold_contracts/vectors/compose/member_in_two_layers`, whose scenario also holds `fidelity`, a member the recipe owns. The problem names the scenario file and the field.",
+  "source": {
+    "conformance_vector": "member_in_two_layers"
+  },
+  "request": {
+    "method": "POST",
+    "path": "/compose",
+    "body": {
+      "recipe_name": "synthetic_vis"
+    },
+    "schema": "schemas/compose_request.schema.json"
+  },
+  "response": {
+    "status": 422,
+    "media_type": "application/problem+json",
+    "body": {
+      "type": "urn:protodirsig:problem:compose",
+      "title": "The recipe does not compose",
+      "status": 422,
+      "detail": "scenarios/tahoe_static_pose.yaml: fidelity: also in recipes/synthetic_vis.yaml; layers own disjoint members (this one belongs to the recipe)",
+      "instance": "/compose",
+      "layer": "scenarios/tahoe_static_pose.yaml",
+      "field": "fidelity"
+    },
+    "schema": "schemas/problem.schema.json"
+  },
+  "operation": "compose"
+}

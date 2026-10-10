@@ -1,0 +1,30 @@
+{
+  "summary": "List the sensors in the library.",
+  "description": "Real library data.",
+  "request": {
+    "method": "GET",
+    "path": "/sensors"
+  },
+  "response": {
+    "status": 200,
+    "media_type": "application/json",
+    "body": {
+      "items": [
+        {
+          "name": "auror-nir.yaml",
+          "sha256": "0f8c20403e1d94e65d2c3e1cbe930411dbabe045158a0eec68c04feacd977a41"
+        },
+        {
+          "name": "deepscan_850_306_nir_1280.yaml",
+          "sha256": "0552f317e34546c256fbaa4a56a8133ad0a78ff424df8f95191f548e44bfc684"
+        },
+        {
+          "name": "synthetic_600_200_vis_1920.yaml",
+          "sha256": "8c01a20c151723fbadf6f46aacc7d97050b7ae5eef732c3111e34ae44fa6aed4"
+        }
+      ]
+    },
+    "schema": "openapi.yaml#/components/schemas/LibraryList"
+  },
+  "operation": "list_sensors"
+}

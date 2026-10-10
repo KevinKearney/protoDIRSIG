@@ -1,0 +1,428 @@
+openapi: 3.1.0
+info:
+  title: protoDIRSIG SDK API
+  version: sdk-api/1
+  summary: Compose, validate, submit and inspect DIRSIG runs from layered YAML.
+  description: >-
+    Status: proposed. This document is the REST form of the protoDIRSIG SDK's operation set; the Python facade
+    exposes the same operations, with the same inputs, outputs and errors, over a local backend that needs no
+    server. Composition and validation are pure. Submission is admitted synchronously and executed asynchronously:
+    a submission that passes admission returns a run or sweep id at once, and its state is then read by id. Run
+    and sweep ids are derived from content (see `run_status` and `sweep_status`), so resubmitting the same work
+    returns the existing run. Run results are artifact references with a content hash, never bare paths. Every
+    error is a problem details object (RFC 9457); an error caused by an authored file names the file (`layer`) and
+    the field in it (`field`). Authentication, tenancy and quotas are not part of this contract.
+servers:
+  - url: http://localhost:8000
+    description: A local server wrapping the SDK's local backend (illustrative).
+tags:
+  - name: library
+    description: The authored layers runs are composed from. Sensors are named by file name (as recipes name them, for example `auror-nir.yaml`); scenarios, engine profiles and recipes by file stem.
+  - name: compose
+    description: Pure operations on recipes and run specs.
+  - name: runs
+    description: Submission, state, cancellation and artifacts.
+
+paths:
+  /sensors:
+    get:
+      operationId: list_sensors
+      tags: [library]
+      summary: List the library's sensors.
+      description: Every sensor file in the sensor library, with the sha256 of its bytes. A recipe names a sensor by the `name` given here.
+      responses:
+        "200":
+          description: The sensors.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/LibraryList"}
+  /sensors/{name}:
+    get:
+      operationId: get_sensor
+      tags: [library]
+      summary: Read one sensor.
+      description: The sensor file as authored, a `sensor-spec/1` document, with its name and the sha256 of its bytes. The content hash is verified on read.
+      parameters:
+        - $ref: "#/components/parameters/ResourceName"
+      responses:
+        "200":
+          description: The sensor.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/SensorDocument"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "422": {$ref: "#/components/responses/Unprocessable"}
+  /scenarios:
+    get:
+      operationId: list_scenarios
+      tags: [library]
+      summary: List the library's scenarios.
+      description: Every scenario layer (the observation, its epoch, position, geometry and atmosphere regime), with the sha256 of its bytes.
+      responses:
+        "200":
+          description: The scenarios.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/LibraryList"}
+  /scenarios/{name}:
+    get:
+      operationId: get_scenario
+      tags: [library]
+      summary: Read one scenario.
+      description: The scenario layer as authored, with its name and the sha256 of its bytes.
+      parameters:
+        - $ref: "#/components/parameters/ResourceName"
+      responses:
+        "200":
+          description: The scenario.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/LibraryDocument"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "422": {$ref: "#/components/responses/Unprocessable"}
+  /engine-profiles:
+    get:
+      operationId: list_engine_profiles
+      tags: [library]
+      summary: List the library's engine profiles.
+      description: "Every engine profile (how DIRSIG is driven: scene, motion, tasks, atmosphere, seed), with the sha256 of its bytes."
+      responses:
+        "200":
+          description: The engine profiles.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/LibraryList"}
+  /engine-profiles/{name}:
+    get:
+      operationId: get_engine_profile
+      tags: [library]
+      summary: Read one engine profile.
+      description: The engine profile as authored, with its name and the sha256 of its bytes.
+      parameters:
+        - $ref: "#/components/parameters/ResourceName"
+      responses:
+        "200":
+          description: The engine profile.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/LibraryDocument"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "422": {$ref: "#/components/responses/Unprocessable"}
+  /recipes:
+    get:
+      operationId: list_recipes
+      tags: [library]
+      summary: List the library's recipes.
+      description: Every recipe (`compose/1`), with the sha256 of its bytes.
+      responses:
+        "200":
+          description: The recipes.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/LibraryList"}
+  /recipes/{name}:
+    get:
+      operationId: get_recipe
+      tags: [library]
+      summary: Read one recipe.
+      description: The recipe as authored, with its name and the sha256 of its bytes.
+      parameters:
+        - $ref: "#/components/parameters/ResourceName"
+      responses:
+        "200":
+          description: The recipe.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/LibraryDocument"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "422": {$ref: "#/components/responses/Unprocessable"}
+
+  /compose:
+    post:
+      operationId: compose
+      tags: [compose]
+      summary: Compose a recipe into run specs.
+      description: "Composes a recipe with the layers it names into one `run-spec/1` document per sensor, and returns each with its run id and the layer file each member came from. Pure: it creates nothing, and the same request always gives the same response."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "schemas/compose_request.schema.json"}
+      responses:
+        "200":
+          description: The composed runs.
+          content:
+            application/json:
+              schema: {$ref: "schemas/compose_response.schema.json"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "422": {$ref: "#/components/responses/Unprocessable"}
+  /validate:
+    post:
+      operationId: validate
+      tags: [compose]
+      summary: Check whether runs would be admitted.
+      description: "Runs the admission checks on a run spec, or on each run of a recipe, without submitting anything. At `engine_check: none` (the default) it is pure and needs no engine; at `dry_run` it also runs a DIRSIG dry run of each assembled job, which needs a local DIRSIG installation. A run that fails a check is reported in the response, not as an error; only a recipe that does not compose is an error."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "schemas/validate_request.schema.json"}
+      responses:
+        "200":
+          description: The verdict for each run.
+          content:
+            application/json:
+              schema: {$ref: "schemas/validate_response.schema.json"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "422": {$ref: "#/components/responses/Unprocessable"}
+
+  /runs:
+    post:
+      operationId: submit_run
+      tags: [runs]
+      summary: Submit one run.
+      description: Admits a run spec, or a recipe naming one sensor, and starts executing it. Admission (the engine-free checks of `validate`) runs before the call returns; a submission that fails it is answered with a 422 problem and creates no run. A new run is answered 202 in state `accepted`. A run spec already submitted (the same run id) is answered 200 with the existing run and its current state; it is not executed again.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/SubmitRunRequest"}
+      responses:
+        "200":
+          description: The run already existed; its current status.
+          content:
+            application/json:
+              schema: {$ref: "schemas/run_status.schema.json"}
+        "202":
+          description: The run was admitted and is executing in the background.
+          headers:
+            Location:
+              description: The run's path, `/runs/{run_id}`.
+              schema: {type: string}
+          content:
+            application/json:
+              schema: {$ref: "schemas/run_status.schema.json"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "422": {$ref: "#/components/responses/Unprocessable"}
+  /runs/{run_id}:
+    get:
+      operationId: get_run
+      tags: [runs]
+      summary: Read a run's status.
+      description: The run's state, its errors if it failed, and references to the artifacts it has produced so far.
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "200":
+          description: The run's status.
+          content:
+            application/json:
+              schema: {$ref: "schemas/run_status.schema.json"}
+        "404": {$ref: "#/components/responses/NotFound"}
+  /runs/{run_id}/cancel:
+    post:
+      operationId: cancel_run
+      tags: [runs]
+      summary: Cancel a run.
+      description: Cancels a run that is `accepted` or `running` and returns its status, now `cancelled`. Cancelling a run that is already in a final state (`rendered`, `failed` or `cancelled`) changes nothing and returns its status as it is.
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "200":
+          description: The run's status after the call.
+          content:
+            application/json:
+              schema: {$ref: "schemas/run_status.schema.json"}
+        "404": {$ref: "#/components/responses/NotFound"}
+  /runs/{run_id}/artifacts:
+    get:
+      operationId: list_artifacts
+      tags: [runs]
+      summary: List a run's artifacts.
+      description: "References to the artifacts the run has produced so far: the resolved run spec from acceptance, the engine's logs once written, and the image, its header and the truth images once the run has rendered. Each reference carries the sha256 of the artifact's bytes."
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "200":
+          description: The artifact references.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ArtifactList"}
+        "404": {$ref: "#/components/responses/NotFound"}
+  /runs/{run_id}/artifacts/{name}:
+    get:
+      operationId: get_artifact
+      tags: [runs]
+      summary: Read one artifact.
+      description: The artifact's bytes, with its media type. The bytes hash to the `sha256` of the artifact's reference. A name the run has not produced (or not yet) is a 404.
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+        - name: name
+          in: path
+          required: true
+          description: The artifact's name, as its reference gives it.
+          schema: {type: string, pattern: "^[A-Za-z0-9][A-Za-z0-9._-]*$"}
+      responses:
+        "200":
+          description: The artifact's bytes.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/RunSpecDocument"}
+            application/octet-stream:
+              schema: {type: string, contentMediaType: application/octet-stream}
+            text/plain:
+              schema: {type: string}
+        "404": {$ref: "#/components/responses/NotFound"}
+
+  /sweeps:
+    post:
+      operationId: submit_sweep
+      tags: [runs]
+      summary: Submit a sweep.
+      description: Composes a recipe into one run per sensor, admits the sweep as a whole and starts executing its runs. If any run fails admission the call is answered with one 422 problem listing every failing run, and no run is created. A new sweep is answered 202. A sweep whose runs already exist (the same sweep id) is answered 200 with the existing sweep and the current state of its runs.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/SubmitSweepRequest"}
+      responses:
+        "200":
+          description: The sweep already existed; its current status.
+          content:
+            application/json:
+              schema: {$ref: "schemas/sweep_status.schema.json"}
+        "202":
+          description: The sweep was admitted and its runs are executing in the background.
+          headers:
+            Location:
+              description: The sweep's path, `/sweeps/{sweep_id}`.
+              schema: {type: string}
+          content:
+            application/json:
+              schema: {$ref: "schemas/sweep_status.schema.json"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "422": {$ref: "#/components/responses/Unprocessable"}
+  /sweeps/{sweep_id}:
+    get:
+      operationId: get_sweep
+      tags: [runs]
+      summary: Read a sweep's status.
+      description: The status of each of the sweep's runs, in the order of the recipe's sensor list. A sweep has no state of its own.
+      parameters:
+        - name: sweep_id
+          in: path
+          required: true
+          description: The sweep id, 64 lowercase hex digits.
+          schema: {type: string, pattern: "^[0-9a-f]{64}$"}
+      responses:
+        "200":
+          description: The sweep's status.
+          content:
+            application/json:
+              schema: {$ref: "schemas/sweep_status.schema.json"}
+        "404": {$ref: "#/components/responses/NotFound"}
+
+components:
+  parameters:
+    ResourceName:
+      name: name
+      in: path
+      required: true
+      description: The resource's name, as the list operation of its kind returns it.
+      schema: {type: string, pattern: "^[A-Za-z0-9][A-Za-z0-9._-]*$"}
+    RunId:
+      name: run_id
+      in: path
+      required: true
+      description: The run id, 64 lowercase hex digits.
+      schema: {type: string, pattern: "^[0-9a-f]{64}$"}
+  responses:
+    NotFound:
+      description: An unknown id, or no library resource of that name.
+      content:
+        application/problem+json:
+          schema: {$ref: "schemas/problem.schema.json"}
+    Unprocessable:
+      description: A recipe that does not compose, a submission that fails admission, or a request body that does not match its schema. Where an authored file is at fault the problem names it (`layer`) and the field in it (`field`).
+      content:
+        application/problem+json:
+          schema: {$ref: "schemas/problem.schema.json"}
+  schemas:
+    LibraryList:
+      description: The resources of one kind in the library.
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          description: One entry per resource, sorted by name.
+          type: array
+          items: {$ref: "#/components/schemas/LibraryEntry"}
+    LibraryEntry:
+      description: One library resource.
+      type: object
+      additionalProperties: false
+      required: [name, sha256]
+      properties:
+        name: {description: "The name a recipe uses for the resource.", type: string}
+        sha256: {description: "The sha256 of the resource file's bytes, 64 lowercase hex digits.", type: string, pattern: "^[0-9a-f]{64}$"}
+    LibraryDocument:
+      description: One library resource as authored.
+      type: object
+      additionalProperties: false
+      required: [name, sha256, document]
+      properties:
+        name: {description: "The name a recipe uses for the resource.", type: string}
+        sha256: {description: "The sha256 of the resource file's bytes, 64 lowercase hex digits.", type: string, pattern: "^[0-9a-f]{64}$"}
+        document: {description: "The parsed YAML document.", type: object}
+    SensorDocument:
+      description: One library sensor as authored.
+      type: object
+      additionalProperties: false
+      required: [name, sha256, document]
+      properties:
+        name: {description: "The sensor file's name, as a recipe names it.", type: string}
+        sha256: {description: "The sha256 of the sensor file's bytes, 64 lowercase hex digits.", type: string, pattern: "^[0-9a-f]{64}$"}
+        document: {$ref: "../manifold_contracts/sensor-spec-1.schema.json"}
+    SubmitRunRequest:
+      description: "A run to submit: exactly one of a run spec, a recipe name or a recipe document; a recipe must name one sensor."
+      type: object
+      additionalProperties: false
+      oneOf:
+        - required: [run_spec]
+        - required: [recipe_name]
+        - required: [recipe]
+      properties:
+        run_spec: {$ref: "#/components/schemas/RunSpecDocument"}
+        recipe_name: {description: "The name of a recipe in the library (its file stem).", type: string}
+        recipe: {description: "A recipe document (`compose: compose/1`), composed against the library.", type: object, required: [compose]}
+    SubmitSweepRequest:
+      description: "A sweep to submit: exactly one of a recipe name or a recipe document."
+      type: object
+      additionalProperties: false
+      oneOf:
+        - required: [recipe_name]
+        - required: [recipe]
+      properties:
+        recipe_name: {description: "The name of a recipe in the library (its file stem).", type: string}
+        recipe: {description: "A recipe document (`compose: compose/1`), composed against the library.", type: object, required: [compose]}
+        max_runs: {description: "The most runs the recipe may compose to; at most 32.", type: integer, minimum: 1, maximum: 32, default: 32}
+    RunSpecDocument:
+      description: A `run-spec/1` document.
+      type: object
+      required: [spec_version, descriptor, engine]
+      properties:
+        spec_version: {description: "The run-spec version.", const: run-spec/1}
+        descriptor: {description: "What is observed and by which sensor.", type: object}
+        engine: {description: "How the engine is driven.", type: object}
+    ArtifactList:
+      description: A run's artifact references.
+      type: object
+      additionalProperties: false
+      required: [run_id, artifacts]
+      properties:
+        run_id: {description: "The run id.", type: string, pattern: "^[0-9a-f]{64}$"}
+        artifacts:
+          description: The artifacts produced so far.
+          type: array
+          items: {$ref: "schemas/artifact_ref.schema.json"}

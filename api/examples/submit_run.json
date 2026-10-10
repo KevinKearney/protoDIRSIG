@@ -1,0 +1,32 @@
+{
+  "summary": "Submit the `auror_ref` recipe as one run.",
+  "description": "A new run: admitted and executing, so 202 in state `accepted`. Run ids, sweep ids and the hash of `run_spec.json` are placeholders of the contract's form; the SDK does not compute them yet. Everything else is real library data.",
+  "request": {
+    "method": "POST",
+    "path": "/runs",
+    "body": {
+      "recipe_name": "auror_ref"
+    },
+    "schema": "openapi.yaml#/components/schemas/SubmitRunRequest"
+  },
+  "response": {
+    "status": 202,
+    "media_type": "application/json",
+    "body": {
+      "run_id": "4444444444444444444444444444444444444444444444444444444444444444",
+      "name": "auror-ref-static-pose",
+      "state": "accepted",
+      "errors": [],
+      "artifacts": [
+        {
+          "name": "run_spec.json",
+          "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+          "media_type": "application/json",
+          "uri": "file:///tmp/protodirsig/runs/4444444444444444444444444444444444444444444444444444444444444444/run_spec.json"
+        }
+      ]
+    },
+    "schema": "schemas/run_status.schema.json"
+  },
+  "operation": "submit_run"
+}

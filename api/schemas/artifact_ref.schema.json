@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Artifact reference",
+  "description": "A reference to one file a run produced. The SDK returns references, never bare file paths: a reference carries the file's content hash and type, so it stays meaningful away from the machine that wrote it and its bytes can be verified after download.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "sha256", "media_type", "uri"],
+  "properties": {
+    "name": {
+      "description": "The artifact's name, unique within its run, for example `run_spec.json`, `image.img`, `image.hdr`, `truth.img`, `run_log.json` or `info_log.json`. It is the last segment of the `get_artifact` path.",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    },
+    "sha256": {
+      "description": "The sha256 of the artifact's bytes, as 64 lowercase hex digits. The bytes returned by `get_artifact`, or read from `uri`, must hash to this value.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "media_type": {
+      "description": "The media type of the bytes, for example `application/json` for a run spec or a log, `application/octet-stream` for an ENVI image and `text/plain` for its header.",
+      "type": "string",
+      "pattern": "^[a-z]+/[A-Za-z0-9.+-]+$"
+    },
+    "uri": {
+      "description": "Where the bytes can be read: a `file://` URI when the run was executed locally, or a download URL when it was executed by a server.",
+      "type": "string",
+      "format": "uri"
+    }
+  }
+}

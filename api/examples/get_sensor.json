@@ -1,0 +1,118 @@
+{
+  "summary": "Read the sensor `auror-nir.yaml`.",
+  "description": "Real library data.",
+  "request": {
+    "method": "GET",
+    "path": "/sensors/auror-nir.yaml"
+  },
+  "response": {
+    "status": 200,
+    "media_type": "application/json",
+    "body": {
+      "name": "auror-nir.yaml",
+      "sha256": "0f8c20403e1d94e65d2c3e1cbe930411dbabe045158a0eec68c04feacd977a41",
+      "document": {
+        "spec_version": "sensor-spec/1",
+        "meta": {
+          "name": "auror-nir",
+          "tags": [
+            "auror",
+            "nir",
+            "staring-array"
+          ],
+          "description": "NIR staring-array sensor system used in the AUROR_ref tree: a fixed-mount instrument, 85 mm aperture, 306 mm focal length, single NIR channel centered at 0.85 µm.\n"
+        },
+        "sensor": {
+          "sensor_system": {
+            "system_id": "auror.nir-staring-01",
+            "reference_frame": {
+              "name": "rig_body_enu",
+              "origin": "aperture stop centre of the primary instrument",
+              "handedness": "right",
+              "axis_convention": "x_boresight_y_right_z_down"
+            },
+            "frame_association": {
+              "policy": "none"
+            }
+          },
+          "entries": [
+            {
+              "entry_id": "auror-nir",
+              "identity": {
+                "instrument_id": "instr.auror.nir.staring.01",
+                "sensor_class": "staring_array"
+              },
+              "mount": {
+                "kind": "fixed",
+                "translation": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation": [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              },
+              "optics": {
+                "aperture_diameter": 85.0,
+                "focal_length": 306.0,
+                "f_number": 3.6,
+                "throughput_in_band": {
+                  "value": 0.875,
+                  "provenance": "specified"
+                },
+                "distortion": {
+                  "model": "none"
+                }
+              },
+              "focal_planes": [
+                {
+                  "optical_path": {
+                    "split": "none"
+                  },
+                  "detector": {
+                    "DeviceVendorName": null,
+                    "DeviceModelName": null,
+                    "SensorWidth": null,
+                    "SensorHeight": null,
+                    "SensorPixelWidth": 10.0,
+                    "SensorPixelHeight": 10.0,
+                    "fill_factor": 1.0,
+                    "channel_layout": "single"
+                  },
+                  "readout": {
+                    "timestamp_reference": "exposure_start",
+                    "SensorShutterMode": "Global",
+                    "AdcBitDepth": 14
+                  },
+                  "channels": [
+                    {
+                      "channel_id": "nir-b1",
+                      "band": "NIR",
+                      "band_center": 0.85,
+                      "bandwidth": 0.15,
+                      "srf_model": {
+                        "kind": "gaussian",
+                        "center": 0.85,
+                        "fwhm": 0.15
+                      },
+                      "radiometric_reference": {
+                        "quantity": null,
+                        "unit": null
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "schema": "openapi.yaml#/components/schemas/SensorDocument"
+  },
+  "operation": "get_sensor"
+}

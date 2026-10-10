@@ -1,0 +1,400 @@
+{
+  "summary": "Compose the `sensor_sweep_tahoe` recipe: one run per sensor.",
+  "description": "Three runs, one per sensor named by the recipe. Run ids, sweep ids and the hash of `run_spec.json` are placeholders of the contract's form; the SDK does not compute them yet. Everything else is real library data. Members shown as `(abbreviated)` are cut from this example; the real body carries them in full.",
+  "request": {
+    "method": "POST",
+    "path": "/compose",
+    "body": {
+      "recipe_name": "sensor_sweep_tahoe"
+    },
+    "schema": "schemas/compose_request.schema.json"
+  },
+  "response": {
+    "status": 200,
+    "media_type": "application/json",
+    "body": {
+      "sweep_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recipe": {
+        "name": "sensor_sweep_tahoe",
+        "sha256": "802a0f18b3e7034ed03cef0cae5b4bc957e242ee60c8b97d65e5f670707cc0ed"
+      },
+      "is_sweep": true,
+      "runs": [
+        {
+          "run_id": "1111111111111111111111111111111111111111111111111111111111111111",
+          "name": "sensor-sweep-tahoe--auror-nir",
+          "sensor": "auror-nir.yaml",
+          "run_spec": {
+            "spec_version": "run-spec/1",
+            "descriptor": {
+              "meta": {
+                "name": "sensor-sweep-tahoe--auror-nir",
+                "tags": [
+                  "sweep",
+                  "static-pose",
+                  "hypersonic-target"
+                ],
+                "description": "The auror_ref scene, geometry and atmosphere imaged by each library sensor from the same fixed LEO-altitude position over the Tahoe scene, in a centred 32 x 32 window.\n"
+              },
+              "origin": {
+                "kind": "(abbreviated)",
+                "engine": "(abbreviated)"
+              },
+              "collection": {
+                "epoch": "(abbreviated)",
+                "platform": "(abbreviated)",
+                "geometry": "(abbreviated)",
+                "illumination": "(abbreviated)",
+                "atmosphere": "(abbreviated)",
+                "background": "(abbreviated)",
+                "targets": "(abbreviated)"
+              },
+              "sensor": {
+                "ref": {
+                  "name": "auror-nir.yaml",
+                  "content_hash": "sha256:0f8c20403e1d94e65d2c3e1cbe930411dbabe045158a0eec68c04feacd977a41"
+                }
+              },
+              "settings": [
+                {
+                  "entry_id": "auror-nir",
+                  "exposure_time": {
+                    "value": 0.005,
+                    "provenance": "specified"
+                  },
+                  "frame_rate": {
+                    "value": 1000,
+                    "provenance": "specified"
+                  },
+                  "gain": {
+                    "value": 1,
+                    "provenance": "specified"
+                  },
+                  "black_level": {
+                    "value": 0,
+                    "provenance": "specified"
+                  },
+                  "roi": {
+                    "Width": 32,
+                    "Height": 32,
+                    "OffsetX": null,
+                    "OffsetY": null
+                  }
+                }
+              ],
+              "fidelity": {
+                "modeled": "(abbreviated)",
+                "approximated": "(abbreviated)",
+                "absent": "(abbreviated)",
+                "valid_for": "(abbreviated)"
+              },
+              "extras": {
+                "dirsig.atmosphere_db": "(abbreviated)",
+                "dirsig.weather_file": "(abbreviated)"
+              }
+            },
+            "engine": {
+              "generator": "(abbreviated)",
+              "scenes": "(abbreviated)",
+              "platform": "(abbreviated)",
+              "motion": "(abbreviated)",
+              "tasks": "(abbreviated)",
+              "atmosphere": "(abbreviated)",
+              "weather": "(abbreviated)",
+              "ephemeris": "(abbreviated)",
+              "run": "(abbreviated)"
+            }
+          },
+          "provenance": {
+            "spec_version": {
+              "layer": "rules compose/1",
+              "content_hash": null
+            },
+            "descriptor.meta": {
+              "layer": "recipes/sensor_sweep_tahoe.yaml",
+              "content_hash": "sha256:802a0f18b3e7034ed03cef0cae5b4bc957e242ee60c8b97d65e5f670707cc0ed"
+            },
+            "descriptor.origin": {
+              "layer": "engine_profiles/tahoe_static_pose.yaml",
+              "content_hash": "sha256:ef0ef3a1a0c49963ac36b7da6305febd082608cc681381f55cb80678a5b81e9f"
+            },
+            "descriptor.collection": {
+              "layer": "scenarios/tahoe_static_pose.yaml",
+              "content_hash": "sha256:e6172b88f55591d167cfbc1db9685a9c42b5048282e9020ee3a5adf039ae50c0"
+            },
+            "descriptor.sensor": {
+              "layer": "manifold_sensors/auror-nir.yaml",
+              "content_hash": "sha256:0f8c20403e1d94e65d2c3e1cbe930411dbabe045158a0eec68c04feacd977a41"
+            },
+            "descriptor.settings": {
+              "layer": "recipes/sensor_sweep_tahoe.yaml",
+              "content_hash": "sha256:802a0f18b3e7034ed03cef0cae5b4bc957e242ee60c8b97d65e5f670707cc0ed"
+            },
+            "descriptor.fidelity": {
+              "layer": "recipes/sensor_sweep_tahoe.yaml",
+              "content_hash": "sha256:802a0f18b3e7034ed03cef0cae5b4bc957e242ee60c8b97d65e5f670707cc0ed"
+            },
+            "descriptor.extras": {
+              "layer": "engine_profiles/tahoe_static_pose.yaml",
+              "content_hash": "sha256:ef0ef3a1a0c49963ac36b7da6305febd082608cc681381f55cb80678a5b81e9f"
+            },
+            "engine": {
+              "layer": "engine_profiles/tahoe_static_pose.yaml",
+              "content_hash": "sha256:ef0ef3a1a0c49963ac36b7da6305febd082608cc681381f55cb80678a5b81e9f"
+            }
+          }
+        },
+        {
+          "run_id": "2222222222222222222222222222222222222222222222222222222222222222",
+          "name": "sensor-sweep-tahoe--deepscan_850_306_nir_1280",
+          "sensor": "deepscan_850_306_nir_1280.yaml",
+          "run_spec": {
+            "spec_version": "run-spec/1",
+            "descriptor": {
+              "meta": {
+                "name": "sensor-sweep-tahoe--deepscan_850_306_nir_1280",
+                "tags": [
+                  "sweep",
+                  "static-pose",
+                  "hypersonic-target"
+                ],
+                "description": "The auror_ref scene, geometry and atmosphere imaged by each library sensor from the same fixed LEO-altitude position over the Tahoe scene, in a centred 32 x 32 window.\n"
+              },
+              "origin": {
+                "kind": "(abbreviated)",
+                "engine": "(abbreviated)"
+              },
+              "collection": {
+                "epoch": "(abbreviated)",
+                "platform": "(abbreviated)",
+                "geometry": "(abbreviated)",
+                "illumination": "(abbreviated)",
+                "atmosphere": "(abbreviated)",
+                "background": "(abbreviated)",
+                "targets": "(abbreviated)"
+              },
+              "sensor": {
+                "ref": {
+                  "name": "deepscan_850_306_nir_1280.yaml",
+                  "content_hash": "sha256:0552f317e34546c256fbaa4a56a8133ad0a78ff424df8f95191f548e44bfc684"
+                }
+              },
+              "settings": [
+                {
+                  "entry_id": "deepscan-850-306-nir-1280",
+                  "exposure_time": {
+                    "value": 0.005,
+                    "provenance": "specified"
+                  },
+                  "frame_rate": {
+                    "value": 1000,
+                    "provenance": "specified"
+                  },
+                  "gain": {
+                    "value": 1,
+                    "provenance": "specified"
+                  },
+                  "black_level": {
+                    "value": 0,
+                    "provenance": "specified"
+                  },
+                  "roi": {
+                    "Width": 32,
+                    "Height": 32,
+                    "OffsetX": null,
+                    "OffsetY": null
+                  }
+                }
+              ],
+              "fidelity": {
+                "modeled": "(abbreviated)",
+                "approximated": "(abbreviated)",
+                "absent": "(abbreviated)",
+                "valid_for": "(abbreviated)"
+              },
+              "extras": {
+                "dirsig.atmosphere_db": "(abbreviated)",
+                "dirsig.weather_file": "(abbreviated)"
+              }
+            },
+            "engine": {
+              "generator": "(abbreviated)",
+              "scenes": "(abbreviated)",
+              "platform": "(abbreviated)",
+              "motion": "(abbreviated)",
+              "tasks": "(abbreviated)",
+              "atmosphere": "(abbreviated)",
+              "weather": "(abbreviated)",
+              "ephemeris": "(abbreviated)",
+              "run": "(abbreviated)"
+            }
+          },
+          "provenance": {
+            "spec_version": {
+              "layer": "rules compose/1",
+              "content_hash": null
+            },
+            "descriptor.meta": {
+              "layer": "recipes/sensor_sweep_tahoe.yaml",
+              "content_hash": "sha256:802a0f18b3e7034ed03cef0cae5b4bc957e242ee60c8b97d65e5f670707cc0ed"
+            },
+            "descriptor.origin": {
+              "layer": "engine_profiles/tahoe_static_pose.yaml",
+              "content_hash": "sha256:ef0ef3a1a0c49963ac36b7da6305febd082608cc681381f55cb80678a5b81e9f"
+            },
+            "descriptor.collection": {
+              "layer": "scenarios/tahoe_static_pose.yaml",
+              "content_hash": "sha256:e6172b88f55591d167cfbc1db9685a9c42b5048282e9020ee3a5adf039ae50c0"
+            },
+            "descriptor.sensor": {
+              "layer": "manifold_sensors/deepscan_850_306_nir_1280.yaml",
+              "content_hash": "sha256:0552f317e34546c256fbaa4a56a8133ad0a78ff424df8f95191f548e44bfc684"
+            },
+            "descriptor.settings": {
+              "layer": "recipes/sensor_sweep_tahoe.yaml",
+              "content_hash": "sha256:802a0f18b3e7034ed03cef0cae5b4bc957e242ee60c8b97d65e5f670707cc0ed"
+            },
+            "descriptor.fidelity": {
+              "layer": "recipes/sensor_sweep_tahoe.yaml",
+              "content_hash": "sha256:802a0f18b3e7034ed03cef0cae5b4bc957e242ee60c8b97d65e5f670707cc0ed"
+            },
+            "descriptor.extras": {
+              "layer": "engine_profiles/tahoe_static_pose.yaml",
+              "content_hash": "sha256:ef0ef3a1a0c49963ac36b7da6305febd082608cc681381f55cb80678a5b81e9f"
+            },
+            "engine": {
+              "layer": "engine_profiles/tahoe_static_pose.yaml",
+              "content_hash": "sha256:ef0ef3a1a0c49963ac36b7da6305febd082608cc681381f55cb80678a5b81e9f"
+            }
+          }
+        },
+        {
+          "run_id": "3333333333333333333333333333333333333333333333333333333333333333",
+          "name": "sensor-sweep-tahoe--synthetic_600_200_vis_1920",
+          "sensor": "synthetic_600_200_vis_1920.yaml",
+          "run_spec": {
+            "spec_version": "run-spec/1",
+            "descriptor": {
+              "meta": {
+                "name": "sensor-sweep-tahoe--synthetic_600_200_vis_1920",
+                "tags": [
+                  "sweep",
+                  "static-pose",
+                  "hypersonic-target"
+                ],
+                "description": "The auror_ref scene, geometry and atmosphere imaged by each library sensor from the same fixed LEO-altitude position over the Tahoe scene, in a centred 32 x 32 window.\n"
+              },
+              "origin": {
+                "kind": "(abbreviated)",
+                "engine": "(abbreviated)"
+              },
+              "collection": {
+                "epoch": "(abbreviated)",
+                "platform": "(abbreviated)",
+                "geometry": "(abbreviated)",
+                "illumination": "(abbreviated)",
+                "atmosphere": "(abbreviated)",
+                "background": "(abbreviated)",
+                "targets": "(abbreviated)"
+              },
+              "sensor": {
+                "ref": {
+                  "name": "synthetic_600_200_vis_1920.yaml",
+                  "content_hash": "sha256:8c01a20c151723fbadf6f46aacc7d97050b7ae5eef732c3111e34ae44fa6aed4"
+                }
+              },
+              "settings": [
+                {
+                  "entry_id": "synthetic-600-200-vis-1920",
+                  "exposure_time": {
+                    "value": 0.005,
+                    "provenance": "specified"
+                  },
+                  "frame_rate": {
+                    "value": 1000,
+                    "provenance": "specified"
+                  },
+                  "gain": {
+                    "value": 1,
+                    "provenance": "specified"
+                  },
+                  "black_level": {
+                    "value": 0,
+                    "provenance": "specified"
+                  },
+                  "roi": {
+                    "Width": 32,
+                    "Height": 32,
+                    "OffsetX": null,
+                    "OffsetY": null
+                  }
+                }
+              ],
+              "fidelity": {
+                "modeled": "(abbreviated)",
+                "approximated": "(abbreviated)",
+                "absent": "(abbreviated)",
+                "valid_for": "(abbreviated)"
+              },
+              "extras": {
+                "dirsig.atmosphere_db": "(abbreviated)",
+                "dirsig.weather_file": "(abbreviated)"
+              }
+            },
+            "engine": {
+              "generator": "(abbreviated)",
+              "scenes": "(abbreviated)",
+              "platform": "(abbreviated)",
+              "motion": "(abbreviated)",
+              "tasks": "(abbreviated)",
+              "atmosphere": "(abbreviated)",
+              "weather": "(abbreviated)",
+              "ephemeris": "(abbreviated)",
+              "run": "(abbreviated)"
+            }
+          },
+          "provenance": {
+            "spec_version": {
+              "layer": "rules compose/1",
+              "content_hash": null
+            },
+            "descriptor.meta": {
+              "layer": "recipes/sensor_sweep_tahoe.yaml",
+              "content_hash": "sha256:802a0f18b3e7034ed03cef0cae5b4bc957e242ee60c8b97d65e5f670707cc0ed"
+            },
+            "descriptor.origin": {
+              "layer": "engine_profiles/tahoe_static_pose.yaml",
+              "content_hash": "sha256:ef0ef3a1a0c49963ac36b7da6305febd082608cc681381f55cb80678a5b81e9f"
+            },
+            "descriptor.collection": {
+              "layer": "scenarios/tahoe_static_pose.yaml",
+              "content_hash": "sha256:e6172b88f55591d167cfbc1db9685a9c42b5048282e9020ee3a5adf039ae50c0"
+            },
+            "descriptor.sensor": {
+              "layer": "manifold_sensors/synthetic_600_200_vis_1920.yaml",
+              "content_hash": "sha256:8c01a20c151723fbadf6f46aacc7d97050b7ae5eef732c3111e34ae44fa6aed4"
+            },
+            "descriptor.settings": {
+              "layer": "recipes/sensor_sweep_tahoe.yaml",
+              "content_hash": "sha256:802a0f18b3e7034ed03cef0cae5b4bc957e242ee60c8b97d65e5f670707cc0ed"
+            },
+            "descriptor.fidelity": {
+              "layer": "recipes/sensor_sweep_tahoe.yaml",
+              "content_hash": "sha256:802a0f18b3e7034ed03cef0cae5b4bc957e242ee60c8b97d65e5f670707cc0ed"
+            },
+            "descriptor.extras": {
+              "layer": "engine_profiles/tahoe_static_pose.yaml",
+              "content_hash": "sha256:ef0ef3a1a0c49963ac36b7da6305febd082608cc681381f55cb80678a5b81e9f"
+            },
+            "engine": {
+              "layer": "engine_profiles/tahoe_static_pose.yaml",
+              "content_hash": "sha256:ef0ef3a1a0c49963ac36b7da6305febd082608cc681381f55cb80678a5b81e9f"
+            }
+          }
+        }
+      ]
+    },
+    "schema": "schemas/compose_response.schema.json"
+  },
+  "operation": "compose"
+}

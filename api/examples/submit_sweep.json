@@ -1,0 +1,69 @@
+{
+  "summary": "Submit the `sensor_sweep_tahoe` recipe as a sweep.",
+  "description": "A new sweep of three runs, admitted as a whole: 202, each run `accepted`. Run ids, sweep ids and the hash of `run_spec.json` are placeholders of the contract's form; the SDK does not compute them yet. Everything else is real library data.",
+  "request": {
+    "method": "POST",
+    "path": "/sweeps",
+    "body": {
+      "recipe_name": "sensor_sweep_tahoe"
+    },
+    "schema": "openapi.yaml#/components/schemas/SubmitSweepRequest"
+  },
+  "response": {
+    "status": 202,
+    "media_type": "application/json",
+    "body": {
+      "sweep_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recipe": {
+        "name": "sensor_sweep_tahoe",
+        "sha256": "802a0f18b3e7034ed03cef0cae5b4bc957e242ee60c8b97d65e5f670707cc0ed"
+      },
+      "runs": [
+        {
+          "run_id": "1111111111111111111111111111111111111111111111111111111111111111",
+          "name": "sensor-sweep-tahoe--auror-nir",
+          "state": "accepted",
+          "errors": [],
+          "artifacts": [
+            {
+              "name": "run_spec.json",
+              "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+              "media_type": "application/json",
+              "uri": "file:///tmp/protodirsig/runs/1111111111111111111111111111111111111111111111111111111111111111/run_spec.json"
+            }
+          ]
+        },
+        {
+          "run_id": "2222222222222222222222222222222222222222222222222222222222222222",
+          "name": "sensor-sweep-tahoe--deepscan_850_306_nir_1280",
+          "state": "accepted",
+          "errors": [],
+          "artifacts": [
+            {
+              "name": "run_spec.json",
+              "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+              "media_type": "application/json",
+              "uri": "file:///tmp/protodirsig/runs/2222222222222222222222222222222222222222222222222222222222222222/run_spec.json"
+            }
+          ]
+        },
+        {
+          "run_id": "3333333333333333333333333333333333333333333333333333333333333333",
+          "name": "sensor-sweep-tahoe--synthetic_600_200_vis_1920",
+          "state": "accepted",
+          "errors": [],
+          "artifacts": [
+            {
+              "name": "run_spec.json",
+              "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+              "media_type": "application/json",
+              "uri": "file:///tmp/protodirsig/runs/3333333333333333333333333333333333333333333333333333333333333333/run_spec.json"
+            }
+          ]
+        }
+      ]
+    },
+    "schema": "schemas/sweep_status.schema.json"
+  },
+  "operation": "submit_sweep"
+}

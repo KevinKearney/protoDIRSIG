@@ -1,0 +1,28 @@
+{
+  "summary": "Cancel a run that is executing.",
+  "description": "The `auror_ref` run, cancelled while `running`. Run ids, sweep ids and the hash of `run_spec.json` are placeholders of the contract's form; the SDK does not compute them yet. Everything else is real library data.",
+  "request": {
+    "method": "POST",
+    "path": "/runs/4444444444444444444444444444444444444444444444444444444444444444/cancel"
+  },
+  "response": {
+    "status": 200,
+    "media_type": "application/json",
+    "body": {
+      "run_id": "4444444444444444444444444444444444444444444444444444444444444444",
+      "name": "auror-ref-static-pose",
+      "state": "cancelled",
+      "errors": [],
+      "artifacts": [
+        {
+          "name": "run_spec.json",
+          "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+          "media_type": "application/json",
+          "uri": "file:///tmp/protodirsig/runs/4444444444444444444444444444444444444444444444444444444444444444/run_spec.json"
+        }
+      ]
+    },
+    "schema": "schemas/run_status.schema.json"
+  },
+  "operation": "cancel_run"
+}

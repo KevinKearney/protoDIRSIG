@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Run status",
+  "description": "The state of one run, as returned by `submit_run`, `get_run` and `cancel_run`, and for each run of a sweep by `submit_sweep` and `get_sweep`. A run exists only once it has been admitted, so a status is never `rejected`: a submission that fails admission is answered with a problem instead.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["run_id", "name", "state", "errors", "artifacts"],
+  "properties": {
+    "run_id": {
+      "description": "The run id: the sha256, as 64 lowercase hex digits, of the canonical JSON serialization (RFC 8785) of the resolved run spec, that is, the run spec with its sensor block materialized. The same run spec, with its sensor inline or by reference, always has the same run id.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "name": {
+      "description": "The run's name, the `descriptor.meta.name` of its run spec. For a run of a sweep it is `<recipe name>--<sensor file stem>`.",
+      "type": "string"
+    },
+    "state": {
+      "description": "`accepted`: admitted and waiting to execute. `running`: executing (the engine dry run of the assembled job, then the render). `rendered`: finished; all artifacts are available. `failed`: execution stopped with an error, given in `errors`. `cancelled`: cancelled before it finished. `rendered`, `failed` and `cancelled` are final.",
+      "enum": ["accepted", "running", "rendered", "failed", "cancelled"]
+    },
+    "errors": {
+      "description": "For a `failed` run, the problems that stopped it; empty otherwise.",
+      "type": "array",
+      "items": {"$ref": "problem.schema.json"}
+    },
+    "artifacts": {
+      "description": "References to the artifacts the run has produced so far: the resolved run spec from acceptance, the engine's logs once written, and the image, its header and the truth images once the run has `rendered`. The same list `list_artifacts` returns.",
+      "type": "array",
+      "items": {"$ref": "artifact_ref.schema.json"}
+    }
+  }
+}

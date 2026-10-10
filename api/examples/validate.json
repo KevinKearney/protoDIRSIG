@@ -1,0 +1,52 @@
+{
+  "summary": "Validate the `auror_ref` recipe without the engine.",
+  "description": "The engine-free level: the checks admission runs. The outcomes are real; resolution and content-hash verification are one step today and are reported as two. Run ids, sweep ids and the hash of `run_spec.json` are placeholders of the contract's form; the SDK does not compute them yet. Everything else is real library data.",
+  "request": {
+    "method": "POST",
+    "path": "/validate",
+    "body": {
+      "recipe_name": "auror_ref",
+      "engine_check": "none"
+    },
+    "schema": "schemas/validate_request.schema.json"
+  },
+  "response": {
+    "status": 200,
+    "media_type": "application/json",
+    "body": {
+      "engine_check": "none",
+      "runs": [
+        {
+          "name": "auror-ref-static-pose",
+          "run_id": "4444444444444444444444444444444444444444444444444444444444444444",
+          "valid": true,
+          "engine_checked": false,
+          "checks": [
+            {
+              "check": "schema",
+              "passed": true,
+              "errors": []
+            },
+            {
+              "check": "resolution",
+              "passed": true,
+              "errors": []
+            },
+            {
+              "check": "content_hash",
+              "passed": true,
+              "errors": []
+            },
+            {
+              "check": "library_files",
+              "passed": true,
+              "errors": []
+            }
+          ]
+        }
+      ]
+    },
+    "schema": "schemas/validate_response.schema.json"
+  },
+  "operation": "validate"
+}

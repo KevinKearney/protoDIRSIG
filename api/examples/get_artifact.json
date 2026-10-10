@@ -1,0 +1,178 @@
+{
+  "summary": "Read the resolved run spec of a run.",
+  "description": "The bytes are the canonical JSON serialization (RFC 8785) of the resolved run spec, the spec with its sensor block in place, so they hash to the run id; they are shown here as a parsed document. Run ids, sweep ids and the hash of `run_spec.json` are placeholders of the contract's form; the SDK does not compute them yet. Everything else is real library data. Members shown as `(abbreviated)` are cut from this example; the real body carries them in full.",
+  "request": {
+    "method": "GET",
+    "path": "/runs/4444444444444444444444444444444444444444444444444444444444444444/artifacts/run_spec.json"
+  },
+  "response": {
+    "status": 200,
+    "media_type": "application/json",
+    "body": {
+      "spec_version": "run-spec/1",
+      "descriptor": {
+        "meta": {
+          "name": "auror-ref-static-pose",
+          "tags": [
+            "auror",
+            "nir",
+            "static-pose",
+            "hypersonic-target"
+          ],
+          "description": "Received static-pose detection scene: a NIR staring sensor at a fixed LEO-altitude position over the Tahoe scene, with an embedded hypersonic target track.\n"
+        },
+        "origin": {
+          "kind": "(abbreviated)",
+          "engine": "(abbreviated)"
+        },
+        "collection": {
+          "epoch": "(abbreviated)",
+          "platform": "(abbreviated)",
+          "geometry": "(abbreviated)",
+          "illumination": "(abbreviated)",
+          "atmosphere": "(abbreviated)",
+          "background": "(abbreviated)",
+          "targets": "(abbreviated)"
+        },
+        "sensor": {
+          "sensor_system": {
+            "system_id": "auror.nir-staring-01",
+            "reference_frame": {
+              "name": "rig_body_enu",
+              "origin": "aperture stop centre of the primary instrument",
+              "handedness": "right",
+              "axis_convention": "x_boresight_y_right_z_down"
+            },
+            "frame_association": {
+              "policy": "none"
+            }
+          },
+          "entries": [
+            {
+              "entry_id": "auror-nir",
+              "identity": {
+                "instrument_id": "instr.auror.nir.staring.01",
+                "sensor_class": "staring_array"
+              },
+              "mount": {
+                "kind": "fixed",
+                "translation": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation": [
+                  1,
+                  0,
+                  0,
+                  0
+                ]
+              },
+              "optics": {
+                "aperture_diameter": 85.0,
+                "focal_length": 306.0,
+                "f_number": 3.6,
+                "throughput_in_band": {
+                  "value": 0.875,
+                  "provenance": "specified"
+                },
+                "distortion": {
+                  "model": "none"
+                }
+              },
+              "focal_planes": [
+                {
+                  "optical_path": {
+                    "split": "none"
+                  },
+                  "detector": {
+                    "DeviceVendorName": null,
+                    "DeviceModelName": null,
+                    "SensorWidth": null,
+                    "SensorHeight": null,
+                    "SensorPixelWidth": 10.0,
+                    "SensorPixelHeight": 10.0,
+                    "fill_factor": 1.0,
+                    "channel_layout": "single"
+                  },
+                  "readout": {
+                    "timestamp_reference": "exposure_start",
+                    "SensorShutterMode": "Global",
+                    "AdcBitDepth": 14
+                  },
+                  "channels": [
+                    {
+                      "channel_id": "nir-b1",
+                      "band": "NIR",
+                      "band_center": 0.85,
+                      "bandwidth": 0.15,
+                      "srf_model": {
+                        "kind": "gaussian",
+                        "center": 0.85,
+                        "fwhm": 0.15
+                      },
+                      "radiometric_reference": {
+                        "quantity": null,
+                        "unit": null
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "settings": [
+          {
+            "entry_id": "auror-nir",
+            "exposure_time": {
+              "value": 0.005,
+              "provenance": "specified"
+            },
+            "frame_rate": {
+              "value": 1000,
+              "provenance": "specified"
+            },
+            "gain": {
+              "value": 1,
+              "provenance": "specified"
+            },
+            "black_level": {
+              "value": 0,
+              "provenance": "specified"
+            },
+            "roi": {
+              "Width": 500,
+              "Height": 500,
+              "OffsetX": null,
+              "OffsetY": null
+            }
+          }
+        ],
+        "fidelity": {
+          "modeled": "(abbreviated)",
+          "approximated": "(abbreviated)",
+          "absent": "(abbreviated)",
+          "valid_for": "(abbreviated)"
+        },
+        "extras": {
+          "dirsig.atmosphere_db": "(abbreviated)",
+          "dirsig.weather_file": "(abbreviated)"
+        }
+      },
+      "engine": {
+        "generator": "(abbreviated)",
+        "scenes": "(abbreviated)",
+        "platform": "(abbreviated)",
+        "motion": "(abbreviated)",
+        "tasks": "(abbreviated)",
+        "atmosphere": "(abbreviated)",
+        "weather": "(abbreviated)",
+        "ephemeris": "(abbreviated)",
+        "run": "(abbreviated)"
+      }
+    },
+    "schema": "openapi.yaml#/components/schemas/RunSpecDocument"
+  },
+  "operation": "get_artifact"
+}
