@@ -108,6 +108,47 @@ class BackendConformance:
     def test_is_a_backend(self, backend):
         assert isinstance(backend, Backend)
 
+    # --- the library family -----------------------------------------------------------------------------------
+
+    KIND_FOLDERS = {"recipe": "recipes", "scenario": "scenarios", "engine_profile": "engine_profiles"}
+
+    def _library_files(self, library, kind):
+        folder = self.sensor_library(library) if kind == "sensor" else library / self.KIND_FOLDERS[kind]
+        return {(p.name if kind == "sensor" else p.stem): hashlib.sha256(p.read_bytes()).hexdigest()
+                for p in folder.glob("*.yaml")}
+
+    @pytest.mark.parametrize("kind", ["sensor", "scenario", "engine_profile", "recipe"])
+    def test_the_library_lists_every_resource(self, backend, library, kind):
+        listed = backend.list_resources(kind)
+        assert schema_errors("library_list", listed) == []
+        assert {r["name"]: r["sha256"] for r in listed["items"]} == self._library_files(library, kind)
+        assert [r["name"] for r in listed["items"]] == sorted(r["name"] for r in listed["items"])
+
+    @pytest.mark.parametrize("kind", ["sensor", "scenario", "engine_profile", "recipe"])
+    def test_the_library_reads_every_resource(self, backend, library, kind):
+        for item in backend.list_resources(kind)["items"]:
+            doc = backend.get_resource(kind, item["name"])
+            assert schema_errors("sensor_document" if kind == "sensor" else "library_document", doc) == []
+            folder = self.sensor_library(library) if kind == "sensor" else library / self.KIND_FOLDERS[kind]
+            path = folder / (item["name"] if kind == "sensor" else f"{item['name']}.yaml")
+            assert doc["document"] == yaml.safe_load(path.read_text()) and doc["sha256"] == item["sha256"]
+
+    def test_an_unknown_resource_is_not_found(self, backend):
+        with pytest.raises(NotFoundError) as e:
+            backend.get_resource("recipe", "no_such_recipe")
+        assert_problem(e.value, 404, "not-found")
+
+    def test_a_malformed_resource_names_its_file(self, backend, library):
+        path = library / "scenarios" / "conformance_malformed.yaml"
+        path.write_text("collection: [unclosed\n")
+        try:
+            with pytest.raises(AdmissionError) as e:
+                backend.get_resource("scenario", "conformance_malformed")
+            assert_problem(e.value, 422, "admission")
+            assert e.value.problem["layer"] == "scenarios/conformance_malformed.yaml"
+        finally:
+            path.unlink()
+
     def test_compose_returns_a_compose_response(self, backend, library):
         doc = backend.compose(library / "recipes" / "sensor_sweep_tahoe.yaml")
         assert schema_errors("compose_response", doc) == []

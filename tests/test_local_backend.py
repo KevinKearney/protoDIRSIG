@@ -66,7 +66,7 @@ class TestLocalBackend(BackendConformance):
     @classmethod
     def backend(cls, tmp_path_factory, library):
         work = tmp_path_factory.mktemp("work")
-        b = LocalBackend(work, CONFIG_REPO, max_parallel=1)
+        b = LocalBackend(work, CONFIG_REPO, max_parallel=1, library=library)
         yield b
         for run_id in b.store.list_runs():                    # stop anything still active, then delete the renders
             if b.get_run(run_id)["state"] in ("accepted", "running"):

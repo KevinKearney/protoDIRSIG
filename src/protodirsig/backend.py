@@ -1,13 +1,14 @@
 """The `Backend` protocol of the SDK API (`api/operations.md`, `sdk-api/1`) and `LocalBackend`, its local implementation.
 
-Implemented here: `compose`, `validate` (levels `none` and `dry_run`), `submit_run`, `submit_sweep`, `get_run`,
-`get_sweep`, `cancel_run`, `list_artifacts`, `get_artifact`. Not implemented (phase 2b-3): the library families
-`list_sensors`/`get_sensor`, `list_scenarios`/`get_scenario`, `list_engine_profiles`/`get_engine_profile` and
-`list_recipes`/`get_recipe`, and recipes or run specs given as documents: every `target` and `recipe` is a file path in
-this round (a recipe has a top-level `compose` key; a run spec a `spec_version` of `run-spec/1`).
+Implemented here: the library family (`list_resources(kind)` and `get_resource(kind, name)` for the kinds `sensor`,
+`scenario`, `engine_profile` and `recipe`, which the facade exposes as `list_sensors`, `get_sensor` and so on, through
+`library.LibraryReader`), `compose`, `validate` (levels `none` and `dry_run`), `submit_run`, `submit_sweep`, `get_run`,
+`get_sweep`, `cancel_run`, `list_artifacts`, `get_artifact`. A `target` or `recipe` is a file path (a recipe has a
+top-level `compose` key; a run spec a `spec_version` of `run-spec/1`).
 
 Every return value is the wire form: a plain dict that validates against the matching schema in `api/schemas/`
-(`compose_response`, `validate_response`, `run_status`, `sweep_status`, `artifact_list`), or for `get_artifact` the
+(`library_list`, `library_document`, `compose_response`, `validate_response`, `run_status`, `sweep_status`,
+`artifact_list`), or for `get_artifact` the
 tuple `(bytes, media_type)`. Errors are `errors.ProblemError` subclasses carrying a problem details dict: a recipe that
 does not compose or a request the SDK cannot act on is an `InvalidRequestError` or `AdmissionError`, a failed
 admission an `AdmissionError` naming the layer file and field, an unknown id a `NotFoundError`. A REST server is then a
@@ -45,6 +46,7 @@ from protodirsig.compose import MAX_RUNS, ComposeError, compose_sweep, dump
 from protodirsig.compose import default_sensor_library as recipe_sensor_library
 from protodirsig.contract import schema_violations, semantic_errors
 from protodirsig.errors import AdmissionError, InvalidRequestError, NotFoundError
+from protodirsig.library import LibraryReader
 from protodirsig.run_spec import RunSpecError, default_sensor_library, load_run_spec
 from protodirsig.store import ACTIVE, FINAL, RunStore, utc_now
 
@@ -53,7 +55,11 @@ TERMINATE_WAIT_S = 10
 
 @runtime_checkable
 class Backend(Protocol):
-    """The operations of `sdk-api/1` that exist after phase 2b-2; each returns the wire form (see the module)."""
+    """The operations of `sdk-api/1`; each returns the wire form (see the module)."""
+
+    def list_resources(self, kind) -> dict: ...
+
+    def get_resource(self, kind, name) -> dict: ...
 
     def compose(self, recipe, inline_sensor=False, max_runs=MAX_RUNS) -> dict: ...
 
@@ -88,9 +94,10 @@ class _Run:
 class LocalBackend:
     """The local `Backend`: runs in a store under `work_root`, assets from `config_repo` (read only), one worker
     process per run, at most `max_parallel` rendering at once. `sensor_library` overrides the sensor library a recipe
-    or run spec would use by default (the sibling `manifold_sensors/`)."""
+    or run spec would use by default (the sibling `manifold_sensors/`). `library` is the layer root the library
+    family reads (default: the repository's `manifold_run_specs/`)."""
 
-    def __init__(self, work_root, config_repo, *, max_parallel=1, sensor_library=None):
+    def __init__(self, work_root, config_repo, *, max_parallel=1, sensor_library=None, library=None):
         if int(max_parallel) < 1:
             raise ValueError("max_parallel must be at least 1")
         self.store = RunStore(work_root)
@@ -98,6 +105,7 @@ class LocalBackend:
         self.max_parallel = int(max_parallel)
         self.sensor_library = Path(sensor_library).resolve() if sensor_library is not None else None
         self._children = []
+        self.library = LibraryReader(library, self.sensor_library)
 
     # --- inputs -------------------------------------------------------------------------------------------------
 
@@ -140,6 +148,18 @@ class LocalBackend:
 
     def _report(self, run):
         return validate_spec(run.spec, run.path, self.config_repo, run.library)
+
+    # --- the library ---------------------------------------------------------------------------------------------
+
+    def list_resources(self, kind):
+        """The `library_list` of one kind: `{"items": [{name, sha256}, ...]}`, sorted by name."""
+        return {"items": self.library.list(kind)}
+
+    def get_resource(self, kind, name):
+        """The `library_document` (for a sensor, `sensor_document`) of one resource: `{name, sha256, document}`.
+        NotFoundError for an unknown name; AdmissionError naming the file for one that does not parse or is not of
+        its kind."""
+        return self.library.get(kind, name)
 
     # --- compose and validate -----------------------------------------------------------------------------------
 

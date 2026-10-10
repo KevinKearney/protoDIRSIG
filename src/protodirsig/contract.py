@@ -57,8 +57,8 @@ def contracts_dir():
     return packaged_contracts_dir() or Path(__file__).resolve().parents[2] / "manifold_contracts"
 
 
-@lru_cache(maxsize=4)
-def _validator(folder):
+@lru_cache(maxsize=8)
+def _validator(folder, root_schema=ROOT_SCHEMA):
     folder = Path(folder)
     docs = {name: json.loads((folder / name).read_text()) for name in SCHEMA_FILES}
 
@@ -72,13 +72,21 @@ def _validator(folder):
     resources = [(doc.get("$id", file), Resource.from_contents(doc, default_specification=DRAFT202012))
                  for file, doc in docs.items()]
     registry = Registry(retrieve=retrieve).with_resources(resources)
-    root = docs[ROOT_SCHEMA]
+    root = docs[root_schema]
     return Draft202012Validator(root, registry=registry)
 
 
 def validator():
     """The run-spec/1 validator over the current contracts folder (cached per folder)."""
     return _validator(str(contracts_dir()))
+
+
+def sensor_spec_violations(doc):
+    """Every violation of `sensor-spec/1` in a parsed sensor document, as `schema_violations` gives them for a run
+    spec (`path`, `message`, `at`), sorted. Empty means the document conforms."""
+    v = _validator(str(contracts_dir()), "sensor-spec-1.schema.json")
+    found = {(pointer(e.absolute_path), _message(e), pointer(_at(e))) for e in v.iter_errors(doc)}
+    return [{"path": p, "message": m, "at": a} for p, m, a in sorted(found)]
 
 
 def pointer(path):

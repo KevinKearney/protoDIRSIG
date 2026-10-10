@@ -190,9 +190,15 @@ def merge(layers, sensor_ref, sensor_doc=None, inline_sensor=False):
     return spec, {k: sources[k] for k in order}
 
 
+def sensor_library_for_root(layer_root):
+    """`manifold_sensors/`, the sibling of a layer root (the folder holding `recipes/`, `scenarios/`,
+    `engine_profiles/`): the one rule every reader of the library uses."""
+    return Path(layer_root).resolve().parent / "manifold_sensors"
+
+
 def default_sensor_library(recipe_path):
     """`manifold_sensors/`, the sibling of the layer root (the folder holding `recipes/`)."""
-    return Path(recipe_path).resolve().parent.parent.parent / "manifold_sensors"
+    return sensor_library_for_root(Path(recipe_path).resolve().parent.parent)
 
 
 def sweep_id(recipe_path):
