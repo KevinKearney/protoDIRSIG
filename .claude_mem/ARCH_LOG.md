@@ -649,3 +649,61 @@ Kevin unavailable; prompt.md "Sensor model, round two". Decisions in order made:
   (grid over other axes, compiled-scene cache by scene hash, scene-specific vs engine-general profile split).
   manifold_run_specs/README (sweeps, engine_overrides, --explain, --refresh-vectors, submit/run_sweep), root README,
   notebooks/README stage 03.
+
+## 2026-10-10 (round seven) — SDK API contract phase 1 (prompt.md; gate after Step 1)
+
+- **Step 0.** HEAD 947403d (five commits by Kevin since round five: positions on C-01/C-05/C-19..C-22, diagrams,
+  unwrapped markdown). No "round six" heading exists in this log; this is "round seven" as the prompt says. Suite
+  214 passed; compose --check, stamp_hashes --check, render_diagrams --check all 0. /tmp 2.2 M used. No index.lock.
+- **Step 0, public surface** (AST over tests/*.py, scripts/*.py and the code cells of every tracked notebook outside
+  notebooks/dev; module: symbol [users]):
+  - compose: compose, compose_sweep [nb], explain, sweep_id, dump, ComposeError, MAX_RUNS, OVERRIDABLE, HEADER
+    [scripts]. ComposedSweep is used through its attributes (runs, files, sensors, sources, sweep_id, recipe,
+    is_sweep), not imported.
+  - registry: LocalRegistry [nb] with submit, submit_recipe, submit_sweep, run_sweep. Result types used by
+    attribute: SubmissionResult (verdict, reasons, checks, simulation, accepted), SweepResult (sweep_id, runs,
+    errors, states), RunStatus (state, errors, spec_path, submission, result).
+  - simulation: Simulation [nb] with from_run_spec, validate, run (and attributes spec, auror_run, resolve_error,
+    work_dir); schema_errors; _run_dirsig (private, a test). Result types by attribute: ConformanceResult
+    (schema_ok, resolution_ok, execution_ok, ..., passed), RunResult (image, truth, output_dir, run_log, info_log,
+    warnings).
+  - run_spec: load_run_spec [nb], load_sensor_spec [nb], resolve_auror_run [nb], check_library_files [nb],
+    derive_run_spec, RunSpecError, _check_settings_roi (private, a test). AurorRun by attribute (seed, settings,
+    platform, sensor, ...).
+  - platform_gen: render_platform [nb], check_template, PlatformGenError, IMAGE_QUANTITY.
+  - spectral: read_curve [nb], resolve_curve, band_grid, channel_response, srf_model_values, SpectralError,
+    FWHM_PER_SIGMA, KINDS.
+  - motion_tasks: generate_motion, generate_tasks [nb]. scene_ref: reference_scene, copy_input, fingerprint
+    [nb, scripts]. scene_coverage: scene_coverage [nb]. platform_ref: PlatformFilesPlugin (get_plugin_inputs),
+    SpiceEphemerisPlugin [nb]. atmosphere_patches: PatchedNewAtmospherePlugin, PatchedModtranTapeBackend [nb].
+  - module imports: `from protodirsig import orbit, sensors` [nb] (orbit helpers; sensors.simple_atmosphere).
+  The API contract concerns compose, registry, simulation and run_spec; the rest are engine-side helpers.
+- **Step 1, requirements.** Kevin's needs as R-01..R-12 in his order; "run ids content-addressed and seeded runs
+  byte-reproducible" split into R-09 (ids) and R-10 (reproducibility), since one is gap and the other met. Added
+  from the code, each saying so in its rationale: R-13 asynchronous submission/state/cancel (the fixed decision, and
+  the operations get_run, get_sweep, cancel_run need a requirement), R-14 per-run independence in a sweep
+  (run_sweep), R-15 every composed spec is valid run-spec/1, R-16 content-hash verification on read.
+  Honest status calls: R-04 partial (only one engine, so "never copied per engine" is shown for DIRSIG only);
+  R-08 partial (ComposeError has layer/field; RunSpecError and admission reasons do not; no problem+json);
+  R-09 partial (sweep id exists and is tested; no run ids); R-12 partial (load_sensor_spec only); R-02 met although
+  validate's dry run needs a local DIRSIG (offline, and no library file changes, which is what R-02 says).
+  Gaps: R-06, R-07, R-11, R-13.
+- **Step 1, operations.** The 11 rows the prompt names; the library family written as two rows (list_*, get_*),
+  as "written once as a family" asks. Mode: validate is `pure` per the fixed decision ("compose and validate are
+  pure and offline"): no state is created and the verdict is deterministic; the gap list states that its execution
+  check spawns dirsig5 --dry_run in scratch and needs a DIRSIG install. Reads (list/get/get_run/...) are `pure`;
+  cancel_run `sync`; submissions `async`.
+- **Step 1, states.** Kept the six the prompt allows (accepted, rejected, running, rendered, failed, cancelled); no
+  `submitted`/`queued` state was added. Consequence, flagged for review: admission (the validate checks, a few
+  seconds) completes before submit_run/submit_sweep return, so the id comes back with accepted/rejected and only
+  execution is asynchronous. If admission must be asynchronous too, a pre-admission state is needed. Sweep has no
+  state of its own (derived from its runs).
+- **Step 1, idempotency.** submit_run: resubmitting the same spec returns the same id; a 409 is listed for "a run id
+  already submitted with different content", which can only happen on a hash collision; kept to make the
+  content-address rule explicit. Run-id derivation itself (which bytes: dump() with or without the GENERATED
+  header; inline vs ref sensor give different bytes) is left to Step 2's schemas; noted here as a review point.
+- **Step 1, citations.** Every operation cites at least one R-id. R-06 (a REST form for every operation) is cited
+  on every row. Exception: R-11 (documentation site) is cited by no operation; it is served by the contract
+  documents and docstrings, not by an operation. Checked by script; every `Today` symbol imports.
+- **Step 1, api/ text.** No C-n, no .claude_mem, no MANIFOLD internals (MANIFOLD is named only as the optional
+  service in R-01's rationale). Paragraphs and list items single-line.
