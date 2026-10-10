@@ -35,7 +35,7 @@ os.environ["PATH"] = f"{DIRSIG_HOME / 'bin'}{os.pathsep}" + os.environ.get("PATH
 import lxml.etree as et                                   # noqa: E402
 from dirfm import DIRSIG, SCENE, TASKS, frames            # noqa: E402
 from dirfm import flexible_motion as fm                   # noqa: E402
-from skyfield.api import EarthSatellite, Loader, wgs84    # noqa: E402
+from skyfield.api import wgs84                            # noqa: E402
 from spectral import open_image                           # noqa: E402
 
 from protodirsig import orbit, sensors                    # noqa: E402
@@ -71,21 +71,16 @@ def tacoma_pass():
     aim = [round(float(v), 3) for v in inst.split(",")[:3]]
 
     _, name, l1, l2 = orbit.fetch_tle(35946, DATA_DIR, expect_name="WORLDVIEW-2", expect_intl="09055A")
-    load = Loader(DATA_DIR, verbose=False)
-    ts = load.timescale()
-    sat = EarthSatellite(l1, l2, name, ts)
-    planets = load("de421.bsp")
-    target = wgs84.latlon(lat0, lon0)
-    t_culm, _, _ = orbit.choose_pass(orbit.find_passes(sat, target, planets["earth"], planets["sun"]))
-    epoch = orbit.pass_epoch(t_culm, PASS_DURATION)
+    best = orbit.choose_pass(orbit.find_passes(l1, l2, lat0, lon0, DATA_DIR / "de421.bsp"))
+    epoch = orbit.pass_epoch(best.culmination_s, PASS_DURATION)
     t = np.arange(round(PASS_DURATION / DENSE_DT) + 1) * DENSE_DT
-    times, _, pos, pos_teme = orbit.propagate(sat, ts, epoch, t)
-    orbit.check_teme_to_itrs(pos, pos_teme, times, t)
+    traj = orbit.propagate(l1, l2, epoch, t)
+    pos = traj.pos_itrs
+    orbit.check_teme_to_itrs(pos, traj.pos_teme, traj.ut1_jd, t)
     m = orbit.ecef_to_enu_matrix(lat0, lon0)
     k = int(round(FRAME_T / DENSE_DT))
     up = orbit.along_track_up(np.gradient(pos, t, axis=0) @ m.T, k)
-    return dict(l1=l1, l2=l2, epoch=epoch, t=t, pos=pos, k=k, aim=aim, up=up, sat=sat, ts=ts,
-                vel=np.gradient(pos, t, axis=0))
+    return dict(l1=l1, l2=l2, epoch=epoch, t=t, pos=pos, k=k, aim=aim, up=up, vel=np.gradient(pos, t, axis=0))
 
 
 def render(tag, motion, p, ref_file):

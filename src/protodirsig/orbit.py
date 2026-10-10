@@ -3,9 +3,18 @@
 Every function here is the code that notebook's Stage 1 built and verified inline (the
 notebook keeps its inline copies because they *are* the explanation). The derivations and the
 reasons for each check live there; this module only makes them reusable.
+
+The propagator is a seam. Only `propagate`, `find_passes`, `propagator_provenance` and the timescale helper touch
+skyfield, and they import it inside the function; every public function takes and returns numpy arrays and plain
+Python values, so no skyfield type crosses the module boundary and the propagator can be replaced behind
+`propagate`. A replacement must reproduce `manifold_contracts/vectors/orbit/` within its tolerance.
 """
 import urllib.request
+from dataclasses import dataclass
 from datetime import datetime, timezone
+from importlib.metadata import version
+from pathlib import Path
+from typing import NamedTuple
 
 import numpy as np
 
@@ -36,11 +45,20 @@ def fetch_tle(norad_id, cache_dir, refresh=False, expect_name=None, expect_intl=
             text = r.read().decode()
         fetched = datetime.now(timezone.utc).isoformat(timespec="seconds")
         path.write_text(f"# fetched {fetched} from {url}\n{text.strip()}\n")
+    return read_tle(path, norad_id, expect_name, expect_intl)
 
-    comment, name, line1, line2 = [ln.rstrip() for ln in path.read_text().splitlines()]
+
+def read_tle(path, norad_id=None, expect_name=None, expect_intl=None):
+    """A TLE file as `fetch_tle` writes it (comment line, name line, line 1, line 2), validated; no network.
+
+    Returns (comment, name, line1, line2). `norad_id`, if given, must match both lines' catalog number.
+    """
+    comment, name, line1, line2 = [ln.rstrip() for ln in Path(path).read_text().splitlines()]
     assert line1.startswith("1 ") and line2.startswith("2 ") and len(line1) == len(line2) == 69
     assert tle_checksum_ok(line1) and tle_checksum_ok(line2), "TLE checksum failure"
-    assert int(line1[2:7]) == int(line2[2:7]) == norad_id
+    assert int(line1[2:7]) == int(line2[2:7])
+    if norad_id is not None:
+        assert int(line1[2:7]) == norad_id, f"{path}: catalog {int(line1[2:7])} != {norad_id}"
     if expect_name:
         assert expect_name.upper() in name.upper(), f"catalog {norad_id} is {name!r}, not {expect_name}"
     if expect_intl:
@@ -48,45 +66,112 @@ def fetch_tle(norad_id, cache_dir, refresh=False, expect_name=None, expect_intl=
     return comment, name, line1, line2
 
 
+# --- propagator seam --------------------------------------------------------------------------
+
+PROPAGATOR = "skyfield_sgp4"          # the propagator tag a run spec's `engine.motion` names
+
+
+def propagator_provenance():
+    """Name and versions of the propagator behind `propagate`, for the execution record (never a run spec)."""
+    return {"name": "skyfield", "version": version("skyfield"), "sgp4_version": version("sgp4"), "tag": PROPAGATOR}
+
+
+def _timescale(eop=None):
+    """A skyfield timescale. `eop` None: skyfield's bundled Earth-orientation tables (no network). `eop` a path
+    to a copy of those tables (`iers.npz`, the same arrays) so they can be a hashed library file."""
+    from skyfield.api import Loader
+    if eop is None:
+        return Loader(".", verbose=False).timescale(builtin=True)
+    from skyfield.timelib import Timescale
+    arrays = np.load(eop)
+    daily_tt = arrays["tt_jd_minus_arange"] + np.arange(len(arrays["tt_jd_minus_arange"]))
+    daily_delta_t = (arrays["delta_t_1e7"] / 1e7).round(7)
+    return Timescale((daily_tt, daily_delta_t), arrays["leap_dates"], arrays["leap_offsets"])
+
+
+def _utc_iso(dt):
+    return dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+@dataclass(frozen=True, eq=False)
+class Trajectory:
+    """An SGP4 trajectory sampled at `epoch_utc + t`. Arrays are numpy; nothing here is a skyfield object."""
+    epoch_utc: str           # ISO-8601 UTC of t = 0, e.g. "2026-09-25T16:06:00Z"
+    t: np.ndarray            # (N,) offsets from epoch_utc, s
+    ut1_jd: np.ndarray       # (N,) UT1 Julian dates of the samples
+    pos_itrs: np.ndarray     # (N, 3) ITRS (ECEF) position, m
+    vel_itrs: np.ndarray     # (N, 3) ITRS velocity, m/s
+    pos_teme: np.ndarray     # (N, 3) TEME position, m
+    vel_teme: np.ndarray     # (N, 3) TEME velocity, m/s
+    propagator: dict         # propagator_provenance()
+
+
+def propagate(line1, line2, epoch, t, eop=None):
+    """SGP4 for the TLE (`line1`, `line2`) at `epoch + t` seconds; `epoch` a UTC datetime or ISO-8601 string.
+
+    The propagation entry point: the one function that turns a TLE into positions. `eop` as in `_timescale`."""
+    from skyfield.api import EarthSatellite
+    from skyfield.framelib import itrs
+    from skyfield.sgp4lib import TEME
+    if isinstance(epoch, str):
+        epoch = datetime.fromisoformat(epoch.replace("Z", "+00:00"))
+    epoch = epoch.astimezone(timezone.utc)
+    t = np.asarray(t, dtype=float)
+    ts = _timescale(eop)
+    times = ts.utc(epoch.year, epoch.month, epoch.day, epoch.hour, epoch.minute,
+                   epoch.second + epoch.microsecond / 1e6 + t)
+    geo = EarthSatellite(line1, line2, None, ts).at(times)
+    r_itrs, v_itrs = geo.frame_xyz_and_velocity(itrs)
+    r_teme, v_teme = geo.frame_xyz_and_velocity(TEME)
+    return Trajectory(epoch_utc=_utc_iso(epoch), t=t, ut1_jd=np.asarray(times.ut1, dtype=float),
+                      pos_itrs=r_itrs.m.T, vel_itrs=v_itrs.m_per_s.T, pos_teme=r_teme.m.T, vel_teme=v_teme.m_per_s.T,
+                      propagator=propagator_provenance())
+
+
 # --- pass selection --------------------------------------------------------------------------
 
-def find_passes(sat, target, earth, sun, days=7, min_el_deg=30.0):
-    """All culminations above `min_el_deg` within `days` of the TLE epoch, seen from `target`.
+class Pass(NamedTuple):
+    """One culmination: when (ISO-8601 UTC and POSIX seconds), how high, and the sun elevation at the target."""
+    culmination_utc: str
+    culmination_s: float
+    max_el_deg: float
+    sun_el_deg: float
 
-    Returns a list of (skyfield Time, max elevation deg, sun elevation deg at the target).
+
+def find_passes(line1, line2, lat_deg, lon_deg, ephemeris, days=7, min_el_deg=30.0, eop=None):
+    """All culminations above `min_el_deg` within `days` of the TLE epoch, seen from (`lat_deg`, `lon_deg`).
+
+    `ephemeris` is the path of a JPL ephemeris (`de421.bsp`), used for the sun only; it chooses a pass at
+    authoring time and is never a run input. Returns a list of `Pass`.
     """
+    from skyfield.api import EarthSatellite, load_file, wgs84
+    ts = _timescale(eop)
+    sat = EarthSatellite(line1, line2, None, ts)
+    planets = load_file(str(ephemeris))
+    target = wgs84.latlon(lat_deg, lon_deg)
     t_ev, kind = sat.find_events(target, sat.epoch, sat.epoch + days, altitude_degrees=min_el_deg)
     out = []
     for tc in t_ev[kind == 1]:                               # 1 = culmination
         el = (sat - target).at(tc).altaz()[0].degrees
-        sun_el = (earth + target).at(tc).observe(sun).apparent().altaz()[0].degrees
-        out.append((tc, el, sun_el))
+        sun_el = (planets["earth"] + target).at(tc).observe(planets["sun"]).apparent().altaz()[0].degrees
+        c = tc.utc_datetime()
+        out.append(Pass(_utc_iso(c), c.timestamp(), float(el), float(sun_el)))
     return out
 
 
 def choose_pass(candidates, min_sun_deg=20.0):
     """The stated rule: highest culmination among daylight (sun >= min_sun_deg) candidates."""
-    daylight = [c for c in candidates if c[2] >= min_sun_deg]
+    daylight = [c for c in candidates if c.sun_el_deg >= min_sun_deg]
     assert daylight, "no daylight pass in the search window"
-    return max(daylight, key=lambda c: c[1])
+    return max(daylight, key=lambda c: c.max_el_deg)
 
 
-def pass_epoch(t_culm, duration):
-    """Window start: `duration` s centred on culmination, rounded to a whole UTC second."""
-    c = t_culm.utc_datetime()
-    return datetime.fromtimestamp(round(c.timestamp()) - duration / 2, tz=timezone.utc)
+def pass_epoch(culmination_s, duration):
+    """Window start: `duration` s centred on culmination (POSIX seconds), rounded to a whole UTC second."""
+    return datetime.fromtimestamp(round(culmination_s) - duration / 2, tz=timezone.utc)
 
 
-# --- propagation and the TEME -> ITRS check ------------------------------------------------------
-
-def propagate(sat, ts, epoch, t):
-    """SGP4 at `epoch + t` seconds. Returns (skyfield Time, geocentric, pos ITRS (N,3), pos TEME (N,3))."""
-    from skyfield.framelib import itrs
-    from skyfield.sgp4lib import TEME
-    times = ts.utc(epoch.year, epoch.month, epoch.day, epoch.hour, epoch.minute, epoch.second + t)
-    geo = sat.at(times)
-    return times, geo, geo.frame_xyz(itrs).m.T, geo.frame_xyz(TEME).m.T
-
+# --- the TEME -> ITRS check ------------------------------------------------------------------------
 
 def gmst82(ut1_jd):
     """IAU-1982 Greenwich mean sidereal time (rad) from a UT1 Julian date. Check only."""
@@ -95,10 +180,10 @@ def gmst82(ut1_jd):
     return np.radians((sec % 86400.0) / 240.0)
 
 
-def check_teme_to_itrs(pos, pos_teme, times, t):
-    """The three independent checks on skyfield's TEME -> ITRS rotation; asserts, returns the numbers."""
+def check_teme_to_itrs(pos, pos_teme, ut1_jd, t):
+    """The three independent checks on the propagator's TEME -> ITRS rotation; asserts, returns the numbers."""
     rot = np.unwrap(np.arctan2(pos_teme[:, 1], pos_teme[:, 0]) - np.arctan2(pos[:, 1], pos[:, 0]))
-    rot_err = np.angle(np.exp(1j * (rot - gmst82(times.ut1))))
+    rot_err = np.angle(np.exp(1j * (rot - gmst82(ut1_jd))))
     res = {
         "max_dz_m": float(np.abs(pos_teme[:, 2] - pos[:, 2]).max()),
         "max_gmst_err_arcsec": float(np.degrees(np.abs(rot_err)).max() * 3600),
@@ -111,6 +196,43 @@ def check_teme_to_itrs(pos, pos_teme, times, t):
     assert abs(res["rate_rad_s"] / OMEGA_EARTH - 1) < 1e-4
     return res
 
+
+def teme_to_itrs_gmst82(pos_teme, ut1_jd):
+    """TEME -> ITRS by the GMST-1982 rotation about z alone (no polar motion): the second, hand-written path."""
+    g = gmst82(np.asarray(ut1_jd, dtype=float))
+    c, s = np.cos(g), np.sin(g)
+    x, y, z = np.asarray(pos_teme, dtype=float).T
+    return np.column_stack([c * x + s * y, -s * x + c * y, z])
+
+
+
+def bundled_eop_path():
+    """The path of skyfield's bundled Earth-orientation tables (`iers.npz`), found without importing skyfield."""
+    from importlib.util import find_spec
+    return Path(find_spec("skyfield").submodule_search_locations[0]) / "data" / "iers.npz"
+
+
+def itrs_by_sgp4_gmst82(line1, line2, epoch, t, eop=None):
+    """The second, independent path to the trajectory: the `sgp4` package directly, then `teme_to_itrs_gmst82`
+    with UT1 interpolated linearly from the Earth-orientation arrays (`eop`, default the bundled `iers.npz`).
+    Shares no code with `propagate` beyond the SGP4 theory and the data. Returns (pos_teme, pos_itrs, ut1_jd)."""
+    from sgp4.api import Satrec, jday
+    if isinstance(epoch, str):
+        epoch = datetime.fromisoformat(epoch.replace("Z", "+00:00"))
+    epoch = epoch.astimezone(timezone.utc)
+    arrays = np.load(eop or bundled_eop_path())
+    daily_tt = arrays["tt_jd_minus_arange"] + np.arange(len(arrays["tt_jd_minus_arange"]))
+    daily_delta_t = arrays["delta_t_1e7"] / 1e7
+    jd0, fr0 = jday(epoch.year, epoch.month, epoch.day, epoch.hour, epoch.minute,
+                    epoch.second + epoch.microsecond / 1e6)
+    fr = fr0 + np.asarray(t, dtype=float) / 86400.0
+    err, r, _ = Satrec.twoline2rv(line1, line2).sgp4_array(np.full(fr.shape, jd0), fr)
+    assert not err.any(), f"sgp4 error codes {set(err.tolist())}"
+    tai_utc = arrays["leap_offsets"][np.searchsorted(arrays["leap_dates"], jd0 + fr, side="right") - 1]
+    tt = jd0 + fr + (tai_utc + 32.184) / 86400.0
+    ut1 = tt - np.interp(tt, daily_tt, daily_delta_t) / 86400.0
+    pos_teme = r * 1e3
+    return pos_teme, teme_to_itrs_gmst82(pos_teme, ut1), ut1
 
 # --- geodesy ---------------------------------------------------------------------------------
 

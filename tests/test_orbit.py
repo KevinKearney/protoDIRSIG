@@ -3,6 +3,7 @@
 Uses the TLE and ephemeris cached in outputs/_orbit_data/ (skipped if absent), so the pass is
 the same one the notebook chose: Rochester, 2026-09-25 16:07 UTC.
 """
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -16,21 +17,18 @@ pytestmark = pytest.mark.skipif(not (DATA / "tle_35946.txt").exists() or not (DA
 
 
 def test_matches_phase2_rochester_pass():
-    from skyfield.api import EarthSatellite, Loader, wgs84
     _, name, l1, l2 = orbit.fetch_tle(35946, DATA, expect_name="WORLDVIEW-2", expect_intl="09055A")
-    load = Loader(DATA, verbose=False)
-    ts = load.timescale()
-    sat = EarthSatellite(l1, l2, name, ts)
-    planets = load("de421.bsp")
-    target = wgs84.latlon(43.1566, -77.6088)
+    best = orbit.choose_pass(orbit.find_passes(l1, l2, 43.1566, -77.6088, DATA / "de421.bsp"))
+    minute = datetime.fromtimestamp(round(best.culmination_s / 60) * 60, tz=timezone.utc)   # utc_strftime rounds
+    assert minute.strftime("%Y-%m-%d %H:%M") == "2026-09-25 16:07" and round(best.max_el_deg, 1) == 89.4
+    assert best.culmination_utc.startswith("2026-09-25T16:06:")
+    assert isinstance(best.culmination_s, float) and isinstance(best.sun_el_deg, float)
 
-    t_culm, el, sun_el = orbit.choose_pass(orbit.find_passes(sat, target, planets["earth"], planets["sun"]))
-    assert t_culm.utc_strftime("%Y-%m-%d %H:%M") == "2026-09-25 16:07" and round(el, 1) == 89.4
-
-    epoch = orbit.pass_epoch(t_culm, 120.0)
+    epoch = orbit.pass_epoch(best.culmination_s, 120.0)
     t = np.arange(12001) * 0.01
-    times, geo, pos, pos_teme = orbit.propagate(sat, ts, epoch, t)
-    orbit.check_teme_to_itrs(pos, pos_teme, times, t)
+    traj = orbit.propagate(l1, l2, epoch, t)
+    pos = traj.pos_itrs
+    orbit.check_teme_to_itrs(pos, traj.pos_teme, traj.ut1_jd, t)
 
     lat, lon, alt = orbit.ecef_to_geodetic(pos)
     miss = orbit.ground_km(lat, lon, 43.1566, -77.6088)

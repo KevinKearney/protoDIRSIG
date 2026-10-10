@@ -1,0 +1,9 @@
+# vectors/orbit/
+
+A golden vector for the propagator behind a moving-platform run: what any replacement for the SDK's propagator (today skyfield's SGP4, `protodirsig.orbit.propagate`) must reproduce.
+
+`tle_35946.txt` is the pinned two-line element set for NORAD 35946 (WORLDVIEW-2, element-set epoch 2026-09-22 14:00:09 UTC), in the form `orbit.fetch_tle` writes: a comment line naming its source and fetch time, the name line, and the two element lines. `expected.json` holds 121 samples of that TLE propagated by SGP4 from `epoch_utc` (2026-09-25 16:06:00 UTC, three days after the element-set epoch) at 1 s steps over 120 s: the position in ITRS (ECEF) and in TEME, in metres, to three decimals. It records the tolerance, how the tolerance was set, the skyfield and `sgp4` versions that produced it, and the Earth-orientation data used.
+
+A replacement passes if, for the same TLE and times, every ITRS position and every TEME position is within `tolerance_m` (0.1 m) of the vector's. The tolerance is the next power of ten above twice the largest difference measured between two independent paths on the producing machine: skyfield's SGP4 and TEME-to-ITRS rotation, and the `sgp4` package with a hand-written IAU-1982 GMST rotation (`orbit.itrs_by_sgp4_gmst82`); the two TEME tracks agree to below a micrometre and the ITRS tracks to 1.2 cm. The rotation to ITRS uses GMST-1982 and UT1 - UTC only, with no polar motion, and UT1 - UTC comes from skyfield's bundled Earth-orientation tables (`iers.npz`, whose sha256 the vector records); a replacement that applies polar motion or different UT1 data differs by up to several metres and must say so.
+
+`tests/test_orbit_vector.py` recomputes the vector with both paths. It needs no network and no cached file: the TLE is here and the Earth-orientation tables ship with skyfield. The vector is regenerated only when the pinned TLE changes, by propagating it as the test does and writing the same fields.

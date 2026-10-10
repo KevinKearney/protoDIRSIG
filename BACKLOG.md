@@ -127,9 +127,6 @@ Run `scripts/bootstrap.py status`, then the test suite, on a clean clone. Needs 
 ### pytest is not installed in the `protodirsig` env
 Every stage ran it from a scratch `--target` install. Declare the `dev` extra in `environment.yml`.
 
-### `test_orbit` skips on a fresh clone
-It needs `outputs/_orbit_data/tle_35946.txt` and `de421.bsp`, which are gitignored. Add a fixture or a documented bootstrap.
-
 ## Tacoma scene (only if Tacoma is used radiometrically)
 
 ### Radiometric seam at the mesh edge
