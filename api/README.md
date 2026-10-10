@@ -2,7 +2,7 @@
 
 Status: proposed. Contract version `sdk-api/1`.
 
-This folder is the contract of the protoDIRSIG SDK: the operations it offers, their inputs, outputs and errors, and the payload schemas they exchange. The SDK's Python class and its REST wrapper are to be written and tested against it. The SDK class is a hand-written facade over a `Backend` protocol with two implementations: `LocalBackend`, over the SDK's existing composer, registry and simulation code, which needs no server; and `RemoteBackend`, a REST client generated from `openapi.yaml`. Nothing here is implemented yet beyond what `operations.md` marks `built` or `partial`.
+This folder is the contract of the protoDIRSIG SDK: the operations it offers, their inputs, outputs and errors, and the payload schemas they exchange. The SDK's Python class and its REST wrapper are to be written and tested against it. The SDK class is a hand-written facade over a `Backend` protocol with two implementations: `LocalBackend` (`protodirsig.backend`, built: a run store under a work root and a worker process per run), which needs no server; and `RemoteBackend`, a REST client generated from `openapi.yaml` (not built). Nothing here is implemented beyond what `operations.md` marks `built` or `partial`.
 
 ## Contents and reading order
 
@@ -24,7 +24,7 @@ Authentication, tenancy and quotas are not part of this contract. A server that 
 
 ## Keeping the contract consistent
 
-`tests/test_api_contract.py` checks the contract against itself and the code. Every schema must be valid JSON Schema with every property described; the OpenAPI document must validate (with `openapi-spec-validator`, in the `dev` extra) and must name exactly the operations of `operations.md`; every example must validate against its schema and its operation; every operation must name existing code or be marked `gap`; every requirement must be cited; and no file in this folder may cite internal records. Run it with the rest of the suite:
+`tests/test_api_contract.py` checks the contract against itself and the code. Every schema must be valid JSON Schema with every property described; the OpenAPI document must validate (with `openapi-spec-validator`, in the `dev` extra) and must name exactly the operations of `operations.md`; every example must validate against its schema and its operation; every operation must name existing code or be marked `gap`; every requirement must be cited; and no file in this folder may cite internal records. `tests/backend_conformance.py` checks a backend against the contract (wire documents validated against `schemas/`, errors as problems), and `tests/test_local_backend.py` runs it for `LocalBackend`. Run it with the rest of the suite:
 
     pytest tests/test_api_contract.py
 
