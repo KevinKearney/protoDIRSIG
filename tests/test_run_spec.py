@@ -12,7 +12,7 @@ import pytest
 import yaml
 
 from protodirsig.run_spec import (RunSpecError, _check_settings_roi, derive_run_spec, check_library_files, load_run_spec, load_sensor_spec,
-                                  resolve_auror_run)
+                                  resolve_run)
 
 PROJECT = Path(__file__).resolve().parents[1]
 SPEC = PROJECT / "manifold_run_specs" / "auror_ref.yaml"
@@ -37,7 +37,7 @@ def test_spec_values():
 @needs_config_repo
 def test_resolves_against_config_repo():
     spec = load_run_spec(SPEC)
-    run = resolve_auror_run(spec, SPEC, CONFIG_REPO)
+    run = resolve_run(spec, SPEC, CONFIG_REPO)
     assert run.name == "auror-ref-static-pose" and run.origin == {"kind": "synthetic", "engine": "dirsig"}
     # Engine assets come from manifold_config_repo's library layout; motion/tasks are values to generate from.
     assert run.scene == CONFIG_REPO / "scenes" / "tahoe" / "tahoe.scene"
@@ -59,7 +59,7 @@ def test_resolves_against_config_repo():
 
 @needs_config_repo
 def test_plugins_match_received_jsim(tmp_path):
-    run = resolve_auror_run(load_run_spec(SPEC), SPEC, CONFIG_REPO)
+    run = resolve_run(load_run_spec(SPEC), SPEC, CONFIG_REPO)
     assert run.ephemeris_plugin().get_plugin_name() == "SpiceEphemeris"
     db = tmp_path / "AurorNewAtmosphere"
     db.write_bytes(b"")
@@ -73,7 +73,7 @@ def test_plugins_match_received_jsim(tmp_path):
 @needs_config_repo
 def test_library_files_render_cleanly():
     spec = load_run_spec(SPEC)
-    assert check_library_files(spec, resolve_auror_run(spec, SPEC, CONFIG_REPO)) == []
+    assert check_library_files(spec, resolve_run(spec, SPEC, CONFIG_REPO)) == []
 
 
 @needs_config_repo
@@ -83,7 +83,7 @@ def test_unrenderable_sensor_is_reported(tmp_path):
     shutil.copytree(SPEC.parent.parent / "manifold_sensors", lib)
     shutil.rmtree(lib / "spectral")                                  # the QE curve the DeepScan entry references
     spec = derive_run_spec(load_run_spec(SPEC), "deepscan_850_306_nir_1280.yaml", "deepscan-850-306-nir-1280")
-    bad = check_library_files(spec, resolve_auror_run(spec, SPEC, CONFIG_REPO, lib))
+    bad = check_library_files(spec, resolve_run(spec, SPEC, CONFIG_REPO, lib))
     assert len(bad) == 1 and "could not be rendered" in bad[0] and "not found" in bad[0]
 
 
@@ -103,7 +103,7 @@ def test_rejects_motion_it_cannot_generate(path, value, match):
         d = d[k]
     d[path[-1]] = value
     with pytest.raises(RunSpecError, match=match):
-        resolve_auror_run(spec, SPEC, CONFIG_REPO)
+        resolve_run(spec, SPEC, CONFIG_REPO)
 
 
 def _drop(d, key):
@@ -139,11 +139,11 @@ def _ref(path, name):
 ], ids=["ephemeris-jpl", "ephemeris-absent", "scenes-0", "scenes-2", "weather-install", "weather-absent",
         "split-channels", "platform-missing", "atmosphere-db-missing", "weather-file-missing"])
 def test_rejects_engine_values_it_does_not_handle(edit, match):
-    """The remaining RunSpecError branches of resolve_auror_run."""
+    """The remaining RunSpecError branches of resolve_run."""
     spec = load_run_spec(SPEC)
     edit(spec["engine"])
     with pytest.raises(RunSpecError, match=match):
-        resolve_auror_run(spec, SPEC, CONFIG_REPO)
+        resolve_run(spec, SPEC, CONFIG_REPO)
 
 
 @needs_config_repo
@@ -151,7 +151,7 @@ def test_rejects_naive_epoch():
     spec = load_run_spec(SPEC)
     spec["descriptor"]["collection"]["epoch"] = "2009-07-27T19:29:32"     # no offset
     with pytest.raises(RunSpecError, match="no UTC offset"):
-        resolve_auror_run(spec, SPEC, CONFIG_REPO)
+        resolve_run(spec, SPEC, CONFIG_REPO)
 
 
 @needs_config_repo
@@ -160,12 +160,12 @@ def test_rejects_other_atmosphere_plugins(plugin):
     spec = load_run_spec(SPEC)
     spec["engine"]["atmosphere"]["plugin"] = plugin
     with pytest.raises(RunSpecError, match="new_atmosphere"):
-        resolve_auror_run(spec, SPEC, CONFIG_REPO)
+        resolve_run(spec, SPEC, CONFIG_REPO)
 
 
 def test_missing_scene_is_specific(tmp_path):
     with pytest.raises(RunSpecError, match="scenes/tahoe/tahoe.scene"):
-        resolve_auror_run(load_run_spec(SPEC), SPEC, tmp_path)
+        resolve_run(load_run_spec(SPEC), SPEC, tmp_path)
 
 
 @needs_config_repo
@@ -174,12 +174,12 @@ def test_no_flat_scene_fallback():
     spec = load_run_spec(SPEC)
     spec["engine"]["scenes"][0]["ref"]["name"] = "scenes/tahoe"          # the old ref value: a directory here,
     with pytest.raises(RunSpecError, match="scenes/tahoe"):              # which the removed nested guess would
-        resolve_auror_run(spec, SPEC, CONFIG_REPO)                        # have completed to scenes/tahoe/tahoe.scene
+        resolve_run(spec, SPEC, CONFIG_REPO)                        # have completed to scenes/tahoe/tahoe.scene
     spec["engine"]["scenes"][0]["ref"]["name"] = "tahoe.scene"            # flat at the library root
     with pytest.raises(RunSpecError, match="tahoe.scene"):
-        resolve_auror_run(spec, SPEC, CONFIG_REPO)
+        resolve_run(spec, SPEC, CONFIG_REPO)
     with pytest.raises(RunSpecError, match="scenes/tahoe/tahoe.scene"):   # the received-tree fixture is not a library
-        resolve_auror_run(load_run_spec(SPEC), SPEC, FIXTURE)
+        resolve_run(load_run_spec(SPEC), SPEC, FIXTURE)
 
 
 def test_rejects_non_run_spec(tmp_path):
@@ -211,10 +211,10 @@ def test_load_sensor_spec_rejects(tmp_path, text, match):
 def test_missing_sensor_ref_is_specific(tmp_path):
     spec = load_run_spec(SPEC)
     with pytest.raises(RunSpecError, match="not found in the sensor library"):
-        resolve_auror_run(spec, tmp_path / "run.yaml", CONFIG_REPO, tmp_path)    # empty sensor library
+        resolve_run(spec, tmp_path / "run.yaml", CONFIG_REPO, tmp_path)    # empty sensor library
     spec["descriptor"]["sensor"] = {"sensor_system": {}}                     # the old inline shape
     with pytest.raises(RunSpecError, match="sensor-spec/1 ref"):
-        resolve_auror_run(spec, SPEC, CONFIG_REPO)
+        resolve_run(spec, SPEC, CONFIG_REPO)
 
 
 def test_settings_roi_checked_against_detector():
@@ -242,9 +242,9 @@ def test_non_zero_black_level_is_refused_at_resolution(level, refused):
         st["black_level"] = level
     if refused:
         with pytest.raises(RunSpecError, match=r"descriptor\.settings\[0\]\.black_level is .*unphysical units"):
-            resolve_auror_run(spec, SPEC, CONFIG_REPO)
+            resolve_run(spec, SPEC, CONFIG_REPO)
     else:
-        resolve_auror_run(spec, SPEC, CONFIG_REPO)
+        resolve_run(spec, SPEC, CONFIG_REPO)
 
 
 def test_derive_run_spec_swaps_sensor_only():
@@ -302,7 +302,7 @@ def test_rejects_sensor_shapes_it_does_not_generate(tmp_path, what, settings, ma
     elif settings is not None:
         spec["descriptor"]["settings"] = (st * 2)[:settings]
     with pytest.raises(RunSpecError, match=match):
-        resolve_auror_run(spec, SPEC, CONFIG_REPO, lib)
+        resolve_run(spec, SPEC, CONFIG_REPO, lib)
     path = tmp_path / "spec.yaml"
     path.write_text(yaml.safe_dump(spec, sort_keys=False))
     sim = Simulation.from_run_spec(path, CONFIG_REPO, tmp_path / "work", lib)

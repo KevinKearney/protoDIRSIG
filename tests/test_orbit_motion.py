@@ -15,7 +15,7 @@ import pytest
 
 from protodirsig import orbit
 from protodirsig.motion_tasks import generate_motion, orbit_waypoints
-from protodirsig.run_spec import RunSpecError, _check_orbit_files, check_library_files, load_run_spec, resolve_auror_run
+from protodirsig.run_spec import RunSpecError, _check_orbit_files, check_library_files, load_run_spec, resolve_run
 from protodirsig.simulation import schema_errors
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -33,7 +33,7 @@ def _spec():
 
 @needs_config_repo
 def test_orbit_spec_resolves():
-    run = resolve_auror_run(_spec(), SPEC, CONFIG_REPO)
+    run = resolve_run(_spec(), SPEC, CONFIG_REPO)
     o = run.orbit
     assert run.motion_kind == "orbit" and run.motion_position is None and run.motion_orientation is None
     assert o["tle"] == CONFIG_REPO / "orbit" / "worldview2_35946.tle" and o["propagator"] == "skyfield_sgp4"
@@ -47,7 +47,7 @@ def test_orbit_spec_resolves():
 
 @needs_config_repo
 def test_static_spec_still_resolves_as_before():
-    run = resolve_auror_run(load_run_spec(STATIC), STATIC, CONFIG_REPO)
+    run = resolve_run(load_run_spec(STATIC), STATIC, CONFIG_REPO)
     assert run.motion_kind == "static" and run.orbit is None and run.motion_position == [-400.0, 400.0, 550000.0]
 
 
@@ -81,7 +81,7 @@ def _edit(path, value):
 ])
 def test_orbit_refusals(path, value, match):
     with pytest.raises(RunSpecError, match=match):
-        resolve_auror_run(_edit(path, value), SPEC, CONFIG_REPO)
+        resolve_run(_edit(path, value), SPEC, CONFIG_REPO)
 
 
 def test_composed_orbit_spec_passes_the_schema_checks():
@@ -153,14 +153,14 @@ def _repo_with_orbit_copy(tmp_path):
 @needs_config_repo
 def test_a_changed_tle_byte_fails_hash_verification(tmp_path):
     repo = _repo_with_orbit_copy(tmp_path)
-    resolve_auror_run(_spec(), SPEC, repo)                                  # unchanged copy resolves
+    resolve_run(_spec(), SPEC, repo)                                  # unchanged copy resolves
     tle = repo / "orbit" / "worldview2_35946.tle"
     data = bytearray(tle.read_bytes())
     i = data.index(b"98.4713")
     data[i + 6] = ord("4")                                                    # 98.4713 -> 98.4714
     tle.write_bytes(bytes(data))
     with pytest.raises(RunSpecError, match="orbit TLE worldview2_35946.tle: content_hash .* does not match"):
-        resolve_auror_run(_spec(), SPEC, repo)
+        resolve_run(_spec(), SPEC, repo)
 
 
 def test_an_unparseable_tle_is_a_library_problem(tmp_path):

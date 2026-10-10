@@ -13,7 +13,7 @@ import lxml.etree as et
 import pytest
 
 from protodirsig.motion_tasks import generate_motion, generate_tasks
-from protodirsig.run_spec import load_run_spec, resolve_auror_run
+from protodirsig.run_spec import load_run_spec, resolve_run
 
 PROJECT = Path(__file__).resolve().parents[1]
 SPEC = PROJECT / "manifold_run_specs" / "auror_ref.yaml"
@@ -50,7 +50,7 @@ def _tasks(path):
 
 @pytest.fixture
 def generated(tmp_path):
-    run = resolve_auror_run(load_run_spec(SPEC), SPEC, CONFIG_REPO)
+    run = resolve_run(load_run_spec(SPEC), SPEC, CONFIG_REPO)
     return generate_motion(run, tmp_path / "motion"), generate_tasks(run, tmp_path / "tasks")
 
 

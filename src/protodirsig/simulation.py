@@ -1,4 +1,4 @@
-"""`Simulation`: the AUROR_ref job behind a constructor, three conformance checks and `run()`.
+"""`Simulation`: one run through the DIRSIG engine behind a constructor, three conformance checks and `run()`.
 
 Stage 02.
 What a notebook calls directly; no orchestration framework is imported here or below.
@@ -10,7 +10,7 @@ scope; the vehicle-not-appearing finding passes all three):
    `dirsig-engine-1.schema.json` and `sensor-spec-1.schema.json` (`contract.schema_violations`: required members,
    no unknown keys outside `descriptor.extras`, enumerations, quantities, the conditional rules), plus the
    `semantic_errors` the schemas cannot express. A referenced file is not opened here.
-2. **Resolution**: `run_spec.resolve_auror_run` finds every engine asset in `config_repo`, loads
+2. **Resolution**: `run_spec.resolve_run` finds every engine asset in `config_repo`, loads
    the sensor ref in the sensor library as `sensor-spec/1`, and accepts the motion as one this
    loader can generate (static, scene frame, `sceneenu` Euler; or orbit: a library TLE over a window, LookAt at a
    scene ENU point) and an epoch with a UTC offset.
@@ -44,7 +44,8 @@ from protodirsig.platform_gen import render_platform
 from protodirsig.platform_ref import PlatformFilesPlugin
 from protodirsig.motion_tasks import generate_motion, generate_tasks
 from protodirsig.run_spec import (RunSpecError, check_library_files, is_inline_sensor, load_run_spec,  # noqa: F401
-                                 resolve_auror_run, unstamped_refs)
+                                 resolve_run, unstamped_refs)
+from protodirsig.run_spec import resolve_run as resolve_auror_run  # noqa: F401 -- deprecated alias, for the notebooks
 from protodirsig.scene_ref import copy_input, reference_scene
 
 
@@ -120,7 +121,8 @@ def _run_dirsig(job, **options):
 
 
 class Simulation:
-    """One AUROR_ref-type job from a run spec. Construct with `Simulation.from_run_spec`.
+    """One DIRSIG job from a run spec. Construct with `Simulation.from_run_spec`. `resolved` is the
+    `run_spec.ResolvedRun` (None if the spec did not resolve); `auror_run` is a deprecated read-only alias of it.
 
     `config_repo` is the engine-asset library (scene, platform, atmosphere database, weather),
     read-only. `sensor_library` holds the `sensor-spec/1` documents (default `manifold_sensors/`, beside
@@ -133,7 +135,7 @@ class Simulation:
         self.run_spec_path, self.config_repo = Path(run_spec_path), Path(config_repo)
         self.sensor_library = Path(sensor_library) if sensor_library is not None else None
         self.work_dir = Path(work_dir) if work_dir is not None else Path(tempfile.mkdtemp(prefix="protodirsig_"))
-        self.spec = self.auror_run = None
+        self.spec = self.resolved = None
         self.load_error = self.resolve_error = None
         self.resolve_exception = None             # the resolution exception (RunSpecError.pointer names the member)
         try:
@@ -142,10 +144,15 @@ class Simulation:
             self.load_error = f"{type(e).__name__}: {e}"
         if self.spec is not None:
             try:
-                self.auror_run = resolve_auror_run(self.spec, self.run_spec_path, self.config_repo, self.sensor_library)
+                self.resolved = resolve_run(self.spec, self.run_spec_path, self.config_repo, self.sensor_library)
             except (RunSpecError, KeyError, TypeError) as e:
                 self.resolve_error = f"{type(e).__name__}: {e}"
                 self.resolve_exception = e
+
+    @property
+    def auror_run(self):
+        """Deprecated alias of `resolved` (renamed in phase 2b-3), kept for the notebooks."""
+        return self.resolved
 
     @classmethod
     def from_run_spec(cls, run_spec_path, config_repo, work_dir=None, sensor_library=None):
@@ -154,7 +161,7 @@ class Simulation:
     def _assemble(self, in_dir, out_dir):
         """The Stage 01 job: scene reference, byte-identical library copies, generated motion and
         tasks, four plugins, seed."""
-        r, lib = self.auror_run, self.config_repo
+        r, lib = self.resolved, self.config_repo
         ref_file = reference_scene(r.scene, in_dir / "auror_ref")   # wipes and recreates only this subdirectory
         scene = SCENE(r.scene.stem)
         scene._fname = ref_file                                     # private attribute: write() returns it as-is
@@ -211,14 +218,14 @@ class Simulation:
                                      False, ["not checked: run spec did not load"],
                                      False, None, "not attempted: run spec did not load")
         report = validate_spec(self.spec, self.run_spec_path, self.config_repo, self.sensor_library,
-                               resolved=(self.auror_run, self.resolve_exception))
+                               resolved=(self.resolved, self.resolve_exception))
         schema, mismatches = report.schema_errors, report.resolution_mismatches
 
         exec_log = exec_err = None
         engine_checked = False
         if engine_check == "none":
             pass
-        elif self.auror_run is None:
+        elif self.resolved is None:
             exec_err = "not attempted: references did not resolve, so no job could be assembled"
         else:
             engine_checked = True
@@ -247,7 +254,7 @@ class Simulation:
     def run(self, out_dir=None):
         """Assemble and render (Stage 01's job), with --run_info_filename and --log_info_filename
         written beside the images. Raises if the spec did not resolve or DIRSIG fails."""
-        if self.auror_run is None:
+        if self.resolved is None:
             raise RunSpecError(f"cannot run: {self.load_error or self.resolve_error}")
         out_dir = Path(out_dir) if out_dir is not None else self.work_dir / "output"
         job = self._assemble(self.work_dir / "input", out_dir)
@@ -261,7 +268,7 @@ class Simulation:
                         truth=[Path(t) for t in c["plugin_data"]["truth_filenames"] if t])
                   for c in info_log["capture_list"]]
         propagator = None
-        if self.auror_run.motion_kind == "orbit":
+        if self.resolved.motion_kind == "orbit":
             from protodirsig.orbit import propagator_provenance
             propagator = propagator_provenance()
         return RunResult(image=frames[0].image, truth=frames[0].truth,

@@ -1,7 +1,7 @@
 """Engine-free validation: the `none` level of `validate`, the checks admission runs before a run exists.
 
 `validate_spec(spec, ...)` runs, on a parsed run spec, the schema check (`contract.schema_errors`: the published
-schemas plus the semantic rules), resolution (`run_spec.resolve_auror_run`: every reference found in its library and
+schemas plus the semantic rules), resolution (`run_spec.resolve_run`: every reference found in its library and
 its stamped hash verified), the library-file comparison (`run_spec.check_library_files`: the platform template renders
 from the sensor-spec and `settings`, the orbit files load) and the unstamped listing (`run_spec.unstamped_refs`), and
 computes the run id (`identity.run_id`). It returns a `ValidationReport` and never raises for a bad spec. No DIRSIG
@@ -17,7 +17,7 @@ from pathlib import Path
 
 from protodirsig import identity
 from protodirsig.contract import schema_errors
-from protodirsig.run_spec import RunSpecError, check_library_files, resolve_auror_run, unstamped_refs
+from protodirsig.run_spec import RunSpecError, check_library_files, resolve_run, unstamped_refs
 
 REPOSITORY = Path(__file__).resolve().parents[2]
 
@@ -26,7 +26,7 @@ REPOSITORY = Path(__file__).resolve().parents[2]
 class ValidationReport:
     """The outcome of the engine-free checks for one run spec. `valid` is schema and resolution (including the library
     files); an unstamped member is listed, not a failure (submission refuses it). `run` is the resolved run object
-    (`run_spec.AurorRun`) when resolution succeeded, else None, and `resolve_exception` the exception when it did
+    (`run_spec.ResolvedRun`) when resolution succeeded, else None, and `resolve_exception` the exception when it did
     not (`RunSpecError.pointer` names the member)."""
     schema_errors: list
     resolution_mismatches: list
@@ -55,7 +55,7 @@ def validate_spec(spec, run_spec_path=None, config_repo=None, sensor_library=Non
 
     `config_repo` defaults to the repository's `manifold_config_repo/`; `sensor_library` to the sibling of the run
     spec's folder (`run_spec.default_sensor_library`), or the repository's `manifold_sensors/` without a path.
-    `resolved`, a `(run, exception)` pair the caller already computed with `resolve_auror_run` for the same spec and
+    `resolved`, a `(run, exception)` pair the caller already computed with `resolve_run` for the same spec and
     libraries, is used instead of resolving again (`Simulation` resolves at construction)."""
     config_repo = Path(config_repo) if config_repo is not None else REPOSITORY / "manifold_config_repo"
     if sensor_library is None and run_spec_path is None:
@@ -70,7 +70,7 @@ def validate_spec(spec, run_spec_path=None, config_repo=None, sensor_library=Non
     else:
         run = exc = None
         try:
-            run = resolve_auror_run(spec, path, config_repo, sensor_library)
+            run = resolve_run(spec, path, config_repo, sensor_library)
         except (RunSpecError, KeyError, TypeError, AttributeError) as e:
             exc = e
     if run is None:

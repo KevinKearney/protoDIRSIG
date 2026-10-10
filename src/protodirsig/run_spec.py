@@ -1,7 +1,12 @@
-"""Read the AUROR_ref job's references from a MANIFOLD run-spec YAML.
+"""Load a MANIFOLD run spec and resolve its references for a run through the DIRSIG engine (`resolve_run`).
 
-Narrow and tree-specific by design: this resolves `manifold_run_specs/auror_ref.yaml` for the stage notebooks
-(`notebooks/stage_NN_*.ipynb`). It is not a `dirsig-engine/1` interpreter.
+Narrow by design: it resolves what the repository's run specs use (one scene, `new_atmosphere`, SPICE ephemeris, a
+library weather file, static or orbit motion) and refuses the rest with a `RunSpecError`. It is not a general
+`dirsig-engine/1` interpreter.
+
+Renamed in phase 2b-3 (the old names stay as deprecated aliases of the same objects, for the notebooks):
+`resolve_auror_run` is `resolve_run`, `AurorRun` is `ResolvedRun`, `AUROR_ATMOSPHERE_BACKEND` is
+`NEW_ATMOSPHERE_BACKEND`.
 
 Two resolution roots, one per kind of thing referenced:
 - `config_repo`: the engine-asset library (CONOPS and Guide §5; Configuration_v02 A.8)
@@ -21,7 +26,7 @@ run spec's `settings`.
 What it drives: `engine.scenes`, `platform`, `atmosphere`, `weather`, `ephemeris` and
 `run.seed` name existing library files that the `scene_ref`, `platform_ref` and
 `atmosphere_patches` helpers reference as-is. `engine.motion` and `engine.tasks` are generated,
-not resolved: `AurorRun` carries their values, and `motion_tasks` writes the `.ppd` and `.tasks`
+not resolved: `ResolvedRun` carries their values, and `motion_tasks` writes the `.ppd` and `.tasks`
 files from them. Two motion forms are generated: `kind: static` with a scene-frame position and a `sceneenu`
 Euler orientation (a `.ppd`), and `kind: orbit` (proposed): a TLE propagated over a window into ECEF waypoints,
 pointed by a LookAt at a scene ENU point with the along-track `up` (a FlexMotion `.motion`). Anything else is
@@ -29,7 +34,7 @@ refused. The orbit form's TLE and Earth-orientation tables are library files und
 hash-verified like every other engine ref.
 
 Imports: the standard library, `yaml`, `lxml`, `protodirsig.spectral`, `protodirsig.dirhash` and `protodirsig.errors` only. The `dirfm`-bound plugin classes
-(`atmosphere_patches`, `platform_ref`) are imported inside `AurorRun.atmosphere_plugin` and `ephemeris_plugin`, the
+(`atmosphere_patches`, `platform_ref`) are imported inside `ResolvedRun.atmosphere_plugin` and `ephemeris_plugin`, the
 only places a job's plugins are built, so loading, resolving, checking and composing a run spec load no engine
 package (tests/test_import_boundary.py).
 
@@ -53,7 +58,7 @@ from protodirsig.dirhash import directory_digest
 from protodirsig.errors import ProblemError
 from protodirsig.spectral import PLACEHOLDER, sha256_file
 
-# dirfm-bound names, imported only when a job is built (AurorRun.atmosphere_plugin, ephemeris_plugin), so loading,
+# dirfm-bound names, imported only when a job is built (ResolvedRun.atmosphere_plugin, ephemeris_plugin), so loading,
 # resolving and composing a run spec needs no engine package. `from protodirsig.run_spec import <name>` still works.
 _ENGINE_BOUND = {"PatchedModtranTapeBackend": "protodirsig.atmosphere_patches",
                  "PatchedNewAtmospherePlugin": "protodirsig.atmosphere_patches",
@@ -69,7 +74,7 @@ def __getattr__(name):                         # PEP 562: the engine-bound names
 # The received jsim's MODTRAN-tape recipe: what atm_builder would use to rebuild the database.
 # The render reads the existing HDF5 database, not this block, and the run
 # spec has no field for it, so it is fixed here as part of the `new_atmosphere` special case.
-AUROR_ATMOSPHERE_BACKEND = {"profile": "New Profile", "atmospheric_model": "MidLatitudeSummer",
+NEW_ATMOSPHERE_BACKEND = {"profile": "New Profile", "atmospheric_model": "MidLatitudeSummer",
                             "boundary_aerosol_model": "RuralVis23Km", "multiple_scattering": "Isaac"}
 
 
@@ -114,7 +119,7 @@ def load_sensor_spec(sensor_library, sensor_ref_name):
 
 
 @dataclass(frozen=True)
-class AurorRun:
+class ResolvedRun:
     """The run spec's values: engine assets resolved to manifold_config_repo files, and the values the
     motion and tasks files are generated from (`motion_tasks`)."""
     name: str
@@ -146,7 +151,7 @@ class AurorRun:
         """`NewAtmosphere` over `db`, or over the resolved library database if not given. Pass the job's
         copy of the database so the jsim references it rather than the read-only original."""
         from protodirsig.atmosphere_patches import PatchedModtranTapeBackend, PatchedNewAtmospherePlugin
-        b = AUROR_ATMOSPHERE_BACKEND
+        b = NEW_ATMOSPHERE_BACKEND
         backend = (PatchedModtranTapeBackend().set_profile(b["profile"])
                    .set_atmospheric_model(b["atmospheric_model"])
                    .set_boundary_aerosol_model(b["boundary_aerosol_model"])
@@ -295,10 +300,10 @@ def check_settings_black_level(settings):
             raise RunSpecError(f"descriptor.settings[{i}].black_level {problem}")
 
 
-def resolve_auror_run(spec, run_spec_path, config_repo, sensor_library=None):
+def resolve_run(spec, run_spec_path, config_repo, sensor_library=None):
     """Resolve a loaded run spec: engine assets against `config_repo`, the sensor ref against
     `sensor_library` (default: `default_sensor_library(run_spec_path)`), and the motion/tasks
-    values the generator needs. Returns an `AurorRun`."""
+    values the generator needs. Returns a `ResolvedRun`."""
     config_repo = Path(config_repo)
     if sensor_library is None:
         sensor_library = default_sensor_library(run_spec_path)
@@ -393,7 +398,7 @@ def resolve_auror_run(spec, run_spec_path, config_repo, sensor_library=None):
     scene_path = _scene_file(config_repo, scene["ref"]["name"], scene["ref"], "/engine/scenes/0/ref")
     if kind == "orbit":
         orbit_values["scene_origin"] = _scene_origin(scene_path)
-    return AurorRun(
+    return ResolvedRun(
         name=desc["meta"]["name"],
         origin=dict(desc["origin"]),
         scene=scene_path,
@@ -551,3 +556,9 @@ def derive_run_spec(spec, sensor_ref_name, entry_id, roi=None, name=None):
     layers = {"recipe": ("derived recipe", recipe), "scenario": ("base spec collection", {"collection": desc["collection"]}),
               "engine_profile": ("base spec engine profile", profile)}
     return merge(layers, {"name": sensor_ref_name, "content_hash": "sha256:<hash>"})[0]
+
+
+# Deprecated aliases (phase 2b-3 renames), the same objects, kept for the notebooks.
+resolve_auror_run = resolve_run
+AurorRun = ResolvedRun
+AUROR_ATMOSPHERE_BACKEND = NEW_ATMOSPHERE_BACKEND

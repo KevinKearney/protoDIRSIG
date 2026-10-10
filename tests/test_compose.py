@@ -13,7 +13,7 @@ import pytest
 import yaml
 
 from protodirsig.compose import MAX_RUNS, OVERRIDABLE, ComposeError, compose, compose_sweep, dump, explain, sweep_id
-from protodirsig.run_spec import check_library_files, load_run_spec, resolve_auror_run
+from protodirsig.run_spec import check_library_files, load_run_spec, resolve_run
 from protodirsig.simulation import schema_errors
 from test_simulation import needs_dirsig
 
@@ -279,7 +279,7 @@ def test_inline_and_ref_sensor_render_the_same_platform(tmp_path, recipe):
     out = {}
     for inline in (False, True):
         spec = compose(recipe, inline_sensor=inline)
-        run = resolve_auror_run(spec, RUN_SPECS / f"{recipe.stem}.yaml", CONFIG_REPO)
+        run = resolve_run(spec, RUN_SPECS / f"{recipe.stem}.yaml", CONFIG_REPO)
         assert check_library_files(spec, run) == []
         path = tmp_path / f"{inline}.platform"
         render_platform(run.platform, run.sensor, run.settings[0]["entry_id"], run.settings, run.integration_samples,
@@ -317,7 +317,7 @@ def test_submit_and_run_sweep_keep_each_run_independent(tmp_path, monkeypatch):
     assert sub.sweep_id == sweep_id(recipe) and sub.errors == []
     assert sub.states == {nir: "accepted", deep: "rejected", vis: "accepted"}
     assert any("synthetic_visgaas.csv" in e for e in sub.runs[deep].errors)
-    assert all(r.submission.simulation.auror_run.seed == 42 for r in sub.runs.values() if r.state == "accepted")
+    assert all(r.submission.simulation.resolved.seed == 42 for r in sub.runs.values() if r.state == "accepted")
 
     def boom(*a, **k):
         raise RuntimeError("render failed on purpose")

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from protodirsig.run_spec import RunSpecError, load_run_spec, resolve_auror_run
+from protodirsig.run_spec import RunSpecError, load_run_spec, resolve_run
 from protodirsig.spectral import SpectralError, read_curve, resolve_curve
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,7 +25,7 @@ def test_edited_sensor_spec_fails_resolution(tmp_path):
     (lib / "auror-nir.yaml").write_text((lib / "auror-nir.yaml").read_text() + "\n# edited\n")
     run = load_run_spec(SPEC)
     with pytest.raises(RunSpecError, match="stamp_hashes"):
-        resolve_auror_run(run, SPEC, ROOT / "manifold_config_repo", lib)
+        resolve_run(run, SPEC, ROOT / "manifold_config_repo", lib)
 
 
 def test_placeholder_hash_is_not_verified(tmp_path):
@@ -34,7 +34,7 @@ def test_placeholder_hash_is_not_verified(tmp_path):
     (lib / "auror-nir.yaml").write_text((lib / "auror-nir.yaml").read_text() + "\n# edited\n")
     run = load_run_spec(SPEC)
     run["descriptor"]["sensor"]["ref"]["content_hash"] = "sha256:<hash>"
-    assert resolve_auror_run(run, SPEC, ROOT / "manifold_config_repo", lib).sensor["meta"]["name"] == "auror-nir"
+    assert resolve_run(run, SPEC, ROOT / "manifold_config_repo", lib).sensor["meta"]["name"] == "auror-nir"
 
 
 def test_edited_curve_fails(tmp_path):
@@ -52,13 +52,13 @@ def test_stale_scene_digest_fails_resolution():
     run = load_run_spec(SPEC)
     run["engine"]["scenes"][0]["ref"]["content_hash"] = "sha256:" + "0" * 64
     with pytest.raises(RunSpecError, match=r"scene directory tahoe: content_hash .* does not match the directory.*stamp_hashes"):
-        resolve_auror_run(run, SPEC, ROOT / "manifold_config_repo")
+        resolve_run(run, SPEC, ROOT / "manifold_config_repo")
 
 
 def test_scene_placeholder_is_not_verified():
     run = load_run_spec(SPEC)
     run["engine"]["scenes"][0]["ref"]["content_hash"] = "sha256:<hash>"
-    assert resolve_auror_run(run, SPEC, ROOT / "manifold_config_repo").scene.name == "tahoe.scene"
+    assert resolve_run(run, SPEC, ROOT / "manifold_config_repo").scene.name == "tahoe.scene"
 
 
 def test_repo_scene_refs_carry_the_directory_digest():

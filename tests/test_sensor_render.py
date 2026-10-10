@@ -234,8 +234,8 @@ def test_channel_gain_scales_the_image_and_bias_is_not_in_image_units(tmp_path, 
     assert "black_level" in simulation(tmp_path, LIB, "auror-nir.yaml", tag="refused", edit=settings(1, 1e15)).resolve_error
     import dataclasses
     sim = simulation(tmp_path, LIB, "auror-nir.yaml", tag="b")
-    st = dict(sim.auror_run.settings[0], black_level={"value": 1e15, "provenance": "specified"})
-    sim.auror_run = dataclasses.replace(sim.auror_run, settings=[st])
+    st = dict(sim.resolved.settings[0], black_level={"value": 1e15, "provenance": "specified"})
+    sim.resolved = dataclasses.replace(sim.resolved, settings=[st])
     biased = np.fromfile(sim.run().image, "<f8")
     g_number = (1 + 4 * (306.0 / 85.0) ** 2) / (0.875 * np.pi)
     np.testing.assert_allclose(biased - baseline, 1e15 / g_number, rtol=1e-4)
@@ -243,12 +243,12 @@ def test_channel_gain_scales_the_image_and_bias_is_not_in_image_units(tmp_path, 
 
 @needs_dirsig
 def test_split_channels_render_fails_with_this_atmosphere_database(tmp_path):
-    """Why `resolve_auror_run` refuses `split_channels: true`: one spectral state per channel, which the AUROR
+    """Why `resolve_run` refuses `split_channels: true`: one spectral state per channel, which the AUROR
     NewAtmosphere database does not hold. The dry run passes; the render fails. If this test starts failing
     because the render succeeds, the refusal can go."""
     import dataclasses
     sim = simulation(tmp_path, LIB, "auror-nir.yaml", tag="split")
-    sim.auror_run = dataclasses.replace(sim.auror_run, split_channels=True)      # past the resolution refusal
+    sim.resolved = dataclasses.replace(sim.resolved, split_channels=True)      # past the resolution refusal
     c = sim.validate()
     assert (c.schema_ok, c.resolution_ok, c.execution_ok) == (True, True, True), c
     with pytest.raises(RuntimeError, match="Missing spectral/temporal state in atmosphere database"):

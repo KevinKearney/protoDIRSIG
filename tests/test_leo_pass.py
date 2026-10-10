@@ -86,7 +86,7 @@ def ground_track_check(work_dir):
     sub = LocalRegistry().submit(GENERATED, CONFIG_REPO, work_dir)
     assert sub.accepted, sub.reasons
     res = sub.simulation.run()
-    run = sub.simulation.auror_run
+    run = sub.simulation.resolved
     t_wp, pos_wp, _, _ = orbit_waypoints(run)
     interp = lambda t: np.array([np.interp(t, t_wp, pos_wp[:, k]) for k in range(3)])
     out = {"frames": [], "propagator": res.propagator}

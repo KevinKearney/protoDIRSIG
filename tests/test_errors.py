@@ -17,7 +17,7 @@ from protodirsig import problems
 from protodirsig.compose import compose_sweep, dump
 from protodirsig.errors import AdmissionError, InvalidRequestError, NotFoundError, ProblemError
 from protodirsig.registry import LocalRegistry
-from protodirsig.run_spec import RunSpecError, load_run_spec, resolve_auror_run
+from protodirsig.run_spec import RunSpecError, load_run_spec, resolve_run
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_REPO = ROOT / "manifold_config_repo"
@@ -114,7 +114,7 @@ def test_from_resolution_error_locates_the_pointer(library):
     (name,) = sweep.runs
     spec = sweep.runs[name]
     with pytest.raises(RunSpecError) as e:
-        resolve_auror_run(spec, recipe, lib, root.parent / "manifold_sensors")
+        resolve_run(spec, recipe, lib, root.parent / "manifold_sensors")
     assert e.value.pointer == "/engine/weather/file/name"
     p = conforms(problems.from_resolution_error(e.value, spec, sweep.sources[name], recipe, "/runs"))
     assert (p["layer"], p["field"], p["instance"]) == (PROFILE, "engine.weather.file.name", "/runs")
@@ -149,7 +149,7 @@ def test_each_library_ref_sets_its_pointer(key, pointer):
            "database": eng["atmosphere"]["database"]["ref"], "weather": eng["weather"]["file"]}[key]
     ref["name"] = ref["name"].rsplit("/", 1)[0] + "/no_such_file"
     with pytest.raises(RunSpecError) as e:
-        resolve_auror_run(spec, RUN_SPECS / "auror_ref.yaml", CONFIG_REPO)
+        resolve_run(spec, RUN_SPECS / "auror_ref.yaml", CONFIG_REPO)
     assert e.value.pointer == pointer
 
 
@@ -157,7 +157,7 @@ def test_a_missing_sensor_sets_the_sensor_ref_pointer(tmp_path):
     spec = load_run_spec(RUN_SPECS / "auror_ref.yaml")
     spec["descriptor"]["sensor"]["ref"]["name"] = "no_such_sensor.yaml"
     with pytest.raises(RunSpecError) as e:
-        resolve_auror_run(spec, RUN_SPECS / "auror_ref.yaml", CONFIG_REPO)
+        resolve_run(spec, RUN_SPECS / "auror_ref.yaml", CONFIG_REPO)
     assert e.value.pointer == "/descriptor/sensor/ref/name"
 
 

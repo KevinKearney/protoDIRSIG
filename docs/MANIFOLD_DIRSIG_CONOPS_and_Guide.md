@@ -107,7 +107,7 @@ Layers, bottom to top:
 A recipe is composed into a run spec (`compose`, section 3.5); a composition error names the layer file and field. A run spec then becomes a run in three steps, each independently testable (hash verification and `.platform` rendering sit in steps 2 and 3):
 
 1. **Schema check** (`simulation.schema_errors`): the run spec conforms to `run-spec/1` and `dirsig-engine/1`, enforced from `manifold_contracts/run-spec-1.schema.json` and `dirsig-engine-1.schema.json` (section 3).
-2. **Resolution** (`run_spec.resolve_auror_run`): `engine.*` becomes `dirfm` objects and file paths.
+2. **Resolution** (`run_spec.resolve_run`, returning a `ResolvedRun`): `engine.*` becomes `dirfm` objects and file paths.
 3. **Execution check** (`Simulation.validate`): the job is assembled in a scratch directory and run with `dirsig5 --dry_run --log_info_filename`.
 
 `LocalRegistry.submit` runs the three and accepts or rejects; `submit_recipe` composes first. Submission also refuses a run spec with an unstamped reference, a `content_hash` that is still the `sha256:<hash>` placeholder (`run_spec.unstamped_refs`), because its run id would not identify the inputs; `Simulation.validate` reports such references (`ConformanceResult.unstamped`) without failing, since the placeholder is the authoring state. A rejection is one problem details object (RFC 9457) that names the layer file and the field in it where an authored file is at fault (`SubmissionResult.problem`, `protodirsig.problems`). `Simulation.run` renders only an accepted run; `submit_sweep` and `run_sweep` do the same for every run of a sweep.
@@ -119,7 +119,7 @@ A recipe is composed into a run spec (`compose`, section 3.5); a composition err
 
 Generation happens where `Simulation._assemble()` copies resolved assets into the job's `inputs/` directory. The closest MANIFOLD analog is `materialize` into `<work>/<run_id>/inputs` (Configuration_v02, line 309).
 
-`resolve_auror_run` is narrow by design (`built, partial`): `new_atmosphere`, ephemeris `spice`, weather `library`, one scene, static motion. It raises `RunSpecError` on anything else, so what it accepts is a lower bound on what the schema permits.
+`resolve_run` is narrow by design (`built, partial`): `new_atmosphere`, ephemeris `spice`, weather `library`, one scene, static motion. It raises `RunSpecError` on anything else, so what it accepts is a lower bound on what the schema permits.
 
 ## 3. Run-spec contract `built, partial`
 
@@ -305,7 +305,7 @@ A top-level folder exists here only if it has a MANIFOLD analog. `AUROR_ref/` ha
 | Module | Role | Status |
 |---|---|---|
 | `compose` | run specs composed from recipe, scenario, engine profile and library sensors (`compose/1`): one run, or one per sensor of a sweep, each with its run id and the sweep id; loads no engine package | `built`; rules `proposed` |
-| `run_spec` | run-spec loader and AUROR resolver (verifies stamped hashes, a scene's against its directory digest); `unstamped_refs` lists placeholder hashes; loads no engine package (the dirfm plugin classes load only when a job is built) | `built, partial` |
+| `run_spec` | run-spec loader and resolver, `resolve_run` returning a `ResolvedRun` (the old names `resolve_auror_run`, `AurorRun`, `AUROR_ATMOSPHERE_BACKEND` are deprecated aliases kept for the notebooks; verifies stamped hashes, a scene's against its directory digest); `unstamped_refs` lists placeholder hashes; loads no engine package (the dirfm plugin classes load only when a job is built) | `built, partial` |
 | `contract` | the `manifold_contracts/` schemas applied: `schema_violations(spec)` as JSON Pointers; admission enforces them through `simulation.schema_errors`; reads `$PROTODIRSIG_CONTRACTS`, else the copy packaged at build time (`protodirsig/_contracts/`), else the repository folder | `built` |
 | `identity` | run ids and sweep ids: RFC 8785 canonical JSON (`canonical_json`), the resolved run spec (`materialize_sensor`), `run_id`, `sweep_id_from_runs` | `built` |
 | `dirhash` | `dirhash/1`, the digest of a directory (`directory_manifest`, `directory_digest`): the hash a `.scene` reference carries, over the scene directory; standard library only | `built` |
@@ -319,7 +319,7 @@ A top-level folder exists here only if it has a MANIFOLD analog. `AUROR_ref/` ha
 | `platform_gen` | `.platform` rendered from the library template, `sensor-spec/1` and `settings` | `built` (one focal plane per entry) |
 | `spectral` | `spectral-curve/1` reader, channel shapes, response composition | `built` |
 | `motion_tasks` | motion and `.tasks` generation from `engine.motion`, `engine.tasks`: a `.ppd` for `static`, a FlexMotion `.motion` of ECEF waypoints for `orbit` (`orbit_waypoints`) | `built, partial` (static, orbit) |
-| `simulation` | schema check (`schema_errors`: the `manifold_contracts/` schemas through `contract`, plus `semantic_errors`), resolution and execution checks; unstamped references reported (`ConformanceResult.unstamped`); render; every capture as `RunResult.frames`; engine-bound (dirfm) | `built` |
+| `simulation` | `Simulation` (its resolved run is `Simulation.resolved`; `auror_run` is a deprecated alias); schema check (`schema_errors`: the `manifold_contracts/` schemas through `contract`, plus `semantic_errors`), resolution and execution checks; unstamped references reported (`ConformanceResult.unstamped`); render; every capture as `RunResult.frames`; engine-bound (dirfm) | `built` |
 | `registry` | `LocalRegistry`: local stand-in for submission; refuses unstamped references; results carry run ids, the sweep id and, for a rejection, a problem naming the layer file and field (`SubmissionResult.problem`); engine-bound through `simulation` | `built` |
 | `scene_ref`, `platform_ref`, `scene_coverage`, `atmosphere_patches` | `dirfm` gap-fillers | `built` |
 | `orbit`, `sensors` | the propagator seam (`propagate` returns a plain `Trajectory`; `find_passes`, `choose_pass`, `propagator_provenance`; no skyfield type in a signature), TEME→ITRS checks and a second sgp4 + GMST-1982 path, LookAt waypoint motion, `recover_position` from truth; sensor helpers | `built` |

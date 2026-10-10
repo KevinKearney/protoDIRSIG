@@ -33,7 +33,7 @@ Unknown keys are rejected at admission (the run-spec schema) and canonical-JSON 
 ### `--threads` in `engine.run`
 Not exposed. Add before MANIFOLD schedules concurrent DIRSIG jobs on shared hardware.
 
-### Generalize `resolve_auror_run`
+### Generalize `resolve_run`
 It accepts only `new_atmosphere`, ephemeris `spice`, weather `library`, one scene, and `static` or `orbit` motion. `four_curve` and others fail with a specific `RunSpecError`. The NewAtmosphere backend recipe (MODTRAN tape, `Isaac`) has no run-spec field and is fixed in `AUROR_ATMOSPHERE_BACKEND`.
 
 ### Moving-platform pass: what remains (C-05)

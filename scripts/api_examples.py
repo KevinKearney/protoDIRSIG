@@ -30,7 +30,7 @@ from protodirsig import problems                                        # noqa: 
 from protodirsig.compose import ComposeError, compose, compose_sweep   # noqa: E402
 from protodirsig.contract import schema_violations                       # noqa: E402
 from protodirsig.identity import run_id as compute_run_id                  # noqa: E402
-from protodirsig.run_spec import check_library_files, load_run_spec, resolve_auror_run   # noqa: E402
+from protodirsig.run_spec import check_library_files, load_run_spec, resolve_run   # noqa: E402
 from protodirsig.simulation import schema_errors   # noqa: E402
 
 OUT = ROOT / "api" / "examples"
@@ -194,7 +194,7 @@ def examples():
 
     spec_path = LAYERS / f"{SINGLE}.yaml"
     spec = load_run_spec(spec_path)
-    resolved = resolve_auror_run(spec, spec_path, CONFIG_REPO, SENSORS)
+    resolved = resolve_run(spec, spec_path, CONFIG_REPO, SENSORS)
     checks = [("schema", schema_errors(spec)), ("resolution", []), ("content_hash", []),
               ("library_files", check_library_files(spec, resolved))]
     checks = [{"check": c, "passed": not errs, "errors": [{"type": "urn:protodirsig:problem:admission",
