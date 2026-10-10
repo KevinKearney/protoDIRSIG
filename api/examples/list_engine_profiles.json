@@ -1,6 +1,6 @@
 {
   "summary": "List the engine profiles in the library.",
-  "description": "Real library data.",
+  "description": "Real library data, as `library.LibraryReader` lists it (a layer whose header says it does not validate yet carries `status`).",
   "request": {
     "method": "GET",
     "path": "/engine-profiles"
@@ -12,7 +12,8 @@
       "items": [
         {
           "name": "pointcollectors2_demo",
-          "sha256": "eb2528ca40b3da49dacc0f17cc40c83058f82a4f526e9dbba61d013fbefb438c"
+          "sha256": "eb2528ca40b3da49dacc0f17cc40c83058f82a4f526e9dbba61d013fbefb438c",
+          "status": "does-not-validate-yet"
         },
         {
           "name": "tahoe_leo_pass",

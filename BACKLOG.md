@@ -76,8 +76,8 @@ The run store and the worker use `fcntl` locks, `/proc` and process groups (`sta
 ### Streaming large artifacts
 `get_artifact` reads the whole file into memory. Large images or truth cubes need a streamed read (and a range read over REST).
 
-### Work-root garbage collection
-Runs stay in `<work_root>/runs/` for ever (about 34 MB per Tahoe run: the job's atmosphere copy and compiled scene HDF beside the outputs). Decide a retention policy (by age, by state, or keep outputs and drop `input/`) and whether a deleted run's id may be resubmitted.
+### Work-root clean-up
+Run records are identity-keyed results, not a cache, so the default work root is in the state directory (`$XDG_STATE_HOME/protodirsig/work`, else `~/.local/state/protodirsig/work`); a former default under `~/.cache/protodirsig/work` is left in place and `Workspace.local` warns once when it exists and the new root is empty. Runs stay in `<work_root>/runs/` for ever (about 34 MB per Tahoe run: the job's atmosphere copy and compiled scene HDF beside the outputs). Decide a retention policy (by age, by state, or keep outputs and drop `input/`) and whether a deleted run's id may be resubmitted.
 
 ### Documentation site
 A readthedocs-style site generated from `api/` (the operation table, schemas, OpenAPI document) and the SDK's docstrings (R-11 in `api/requirements.md`). The generator is chosen in phase 2, with the facade class whose docstrings it renders.
@@ -135,6 +135,9 @@ Kevin's DIRSIG motion notes. Contains errors (direct point-source viewing; targe
 
 ### Notebooks and tests still assume sibling checkouts and `~/DIRSIG`
 Notebook first cells set `DIRSIG_HOME` and locate `dirfm` by home-relative paths. Switch them to `external/` (the `dirsig` link and `dirsig-file-maker`) so the bootstrap is the only setup step, as `stage_03_sensor_sweep` does. Tests still fall back to `~/DIRSIG/<version>`.
+
+### Placed demo layers marked "does not validate yet"
+A layer file whose header comment (its text before the first blank line) contains "does not validate yet" is placed in the library but does not resolve yet (today the PointCollectors2 demo's recipe, scenario and engine profile). `library.file_status` reads the marker and the library listings surface it as `status: does-not-validate-yet`. Two test conventions depend on it: `tests/test_compose.py` skips such a recipe (`_resolvable`) in the test that resolves every one-run recipe, and `tests/test_import_boundary.py` filters out generated specs composed from such a recipe in the engine-free validation test. Remove the marker from a demo's layers when they validate, and the skip and filter then cover it again.
 
 ### Library assets: what remains after the manifest
 `manifold_config_repo/assets.json` and `scripts/bootstrap.py assets` place and verify assets from zip members of the linked DIRSIG install (the demos). Remaining: decide LFS versus a content-addressed store for assets that are not demos (acquired scenes and databases over about 50 MB); source kinds beyond `zip` (a directory in the install, such as the Tacoma and HarvardForest scenes, and an artifact store URL for acquired assets); a gitignored layer overlay for demo values that cannot be committed (sensor, pose, epoch: see the coverage document's first-demo findings). Each new scene also needs a matched atmosphere database, weather file and platform.

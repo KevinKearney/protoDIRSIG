@@ -1,6 +1,6 @@
 {
   "summary": "List the scenarios in the library.",
-  "description": "Real library data.",
+  "description": "Real library data, as `library.LibraryReader` lists it (a layer whose header says it does not validate yet carries `status`).",
   "request": {
     "method": "GET",
     "path": "/scenarios"
@@ -12,7 +12,8 @@
       "items": [
         {
           "name": "pointcollectors2_demo",
-          "sha256": "97faa022a469b72b042e88536268cc1297ead11850067577def7dcb8c61c27f3"
+          "sha256": "97faa022a469b72b042e88536268cc1297ead11850067577def7dcb8c61c27f3",
+          "status": "does-not-validate-yet"
         },
         {
           "name": "tahoe_leo_pass",

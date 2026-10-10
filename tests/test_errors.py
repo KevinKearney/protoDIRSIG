@@ -220,3 +220,68 @@ def test_every_exception_pickles_with_its_members(err):
     assert type(back) is type(err) and str(back) == str(err) and back.problem == err.problem
     for attr in ("layer", "field", "pointer"):
         assert getattr(back, attr, None) == getattr(err, attr, None)
+
+
+# --- the loader's refusals name the layer file and field (the committed PointCollectors2 demo recipe) ----------------
+
+DEMO_PROFILE = "engine_profiles/pointcollectors2_demo.yaml"
+DEMO_ASSETS = CONFIG_REPO / "demos" / "PointCollectors2"
+
+
+@pytest.fixture
+def demo_library(tmp_path):
+    root = tmp_path / "manifold_run_specs"
+    for d in ("recipes", "scenarios", "engine_profiles"):
+        shutil.copytree(RUN_SPECS / d, root / d)
+    shutil.copytree(ROOT / "manifold_sensors", tmp_path / "manifold_sensors")
+    return root
+
+
+def _demo_problem(library, tmp_path, check):
+    from protodirsig.workspace import Workspace
+    ws = Workspace.local(library=library, config_repo=CONFIG_REPO, work=tmp_path / "work")
+    run = ws.validate("pointcollectors2_demo").runs[0]
+    assert not run.valid
+    (failed,) = [c for c in run.checks if c.check == check]
+    assert not failed.passed
+    with pytest.raises(AdmissionError) as e:
+        ws.submit_run("pointcollectors2_demo")
+    return failed.errors[0].to_dict(), conforms(e.value.problem)
+
+
+def _set_tahoe_atmosphere(library, weather=False):
+    path = library / DEMO_PROFILE
+    tahoe = yaml.safe_load((library / "engine_profiles" / "tahoe_static_pose.yaml").read_text())["engine"]
+    text = path.read_text()
+    atm = text[text.index("  atmosphere:\n"):text.index("  weather:\n")]
+    text = text.replace(atm, "  atmosphere:\n    plugin: new_atmosphere\n    database:\n      ref: "
+                        + json.dumps(tahoe["atmosphere"]["database"]["ref"]) + "\n\n")
+    if weather:
+        w = text[text.index("  weather:\n"):text.index("  ephemeris:\n")]
+        text = text.replace(w, "  weather:\n    source: library\n    file: " + json.dumps(tahoe["weather"]["file"]) + "\n\n")
+    path.write_text(text)
+
+
+@needs_config_repo
+def test_the_atmosphere_refusal_names_the_engine_profile_field(demo_library, tmp_path):
+    check, problem = _demo_problem(demo_library, tmp_path, "resolution")
+    for p in (check, problem):
+        assert (p["layer"], p["field"]) == (DEMO_PROFILE, "engine.atmosphere.plugin"), p
+
+
+@needs_config_repo
+def test_the_weather_refusal_names_the_engine_profile_field(demo_library, tmp_path):
+    _set_tahoe_atmosphere(demo_library)
+    check, problem = _demo_problem(demo_library, tmp_path, "resolution")
+    for p in (check, problem):
+        assert (p["layer"], p["field"]) == (DEMO_PROFILE, "engine.weather.source"), p
+
+
+@pytest.mark.skipif(not (DEMO_ASSETS / "demo.platform").is_file(),
+                    reason="the PointCollectors2 demo assets are not placed (run scripts/bootstrap.py assets)")
+def test_the_platform_template_refusal_names_the_engine_profile_field(demo_library, tmp_path):
+    _set_tahoe_atmosphere(demo_library, weather=True)
+    check, problem = _demo_problem(demo_library, tmp_path, "library_files")
+    for p in (check, problem):
+        assert (p["layer"], p["field"]) == (DEMO_PROFILE, "engine.platform.ref"), p
+    assert "temporalintegration" in check["detail"]

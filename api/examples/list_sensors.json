@@ -1,6 +1,6 @@
 {
   "summary": "List the sensors in the library.",
-  "description": "Real library data.",
+  "description": "Real library data, as `library.LibraryReader` lists it (a layer whose header says it does not validate yet carries `status`).",
   "request": {
     "method": "GET",
     "path": "/sensors"

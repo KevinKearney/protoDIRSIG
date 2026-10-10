@@ -230,12 +230,26 @@ def from_submission(result, sources=None, instance=None, *, recipe=None):
     if isinstance(spec, dict) and sources:
         doc = _load_recipe(recipe)
         resolution = getattr(getattr(sim, "resolve_exception", None), "pointer", None)
-        pointers = [v["at"] for v in schema_violations(spec)] or ([resolution] if resolution else []) or \
+        library = library_pointers(getattr(getattr(sim, "last_conformance", None), "resolution_mismatches", None))
+        pointers = [v["at"] for v in schema_violations(spec)] or ([resolution] if resolution else []) or library or \
             [p if p.endswith("/revision") else p + "/content_hash" for p in unstamped_refs(spec)]
         if pointers:
             layer, field = locate(pointers[0], sources, spec=spec, recipe=doc)
     detail = " ".join(result.reasons) or f"The submission was {result.verdict}."
     return _problem(ADMISSION, 422, detail, instance, layer, field)
+
+
+def library_pointers(mismatches):
+    """The pointers of the library-file problems that carry one (`run_spec.LibraryProblem`)."""
+    return [m.pointer for m in mismatches or [] if getattr(m, "pointer", None)]
+
+
+def from_library_problem(problem, spec, sources, recipe=None, instance=None):
+    """The admission problem for one library-file problem (`check_library_files`): `layer` and `field` from its pointer
+    through `locate` when it has one and the SDK composed the spec, else null."""
+    pointer = getattr(problem, "pointer", None)
+    layer, field = locate(pointer, sources, spec=spec, recipe=recipe) if pointer and sources else (None, None)
+    return _problem(ADMISSION, 422, str(problem), instance, layer, field)
 
 
 def from_resolution_error(exc, spec, sources, recipe=None, instance=None):
@@ -272,7 +286,7 @@ def from_validation(report, sources=None, recipe=None, instance=None):
         except Exception:  # noqa: BLE001
             schema = []
         resolution = getattr(report.resolve_exception, "pointer", None)
-        pointers = schema or ([resolution] if resolution else []) or \
+        pointers = schema or ([resolution] if resolution else []) or library_pointers(report.resolution_mismatches) or \
             [p if p.endswith("/revision") else p + "/content_hash" for p in report.unstamped]
         if pointers:
             layer, field = locate(pointers[0], sources, spec=spec, recipe=_load_recipe(recipe))

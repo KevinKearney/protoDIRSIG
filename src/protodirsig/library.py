@@ -9,7 +9,8 @@ Names are what a recipe uses: a sensor by its file name (`auror-nir.yaml`; `get`
 engine profile or recipe by its file stem. `list(kind)` gives `[{name, sha256}]` sorted by name and `get(kind, name)`
 `{name, sha256, document}`, the shapes of `api/schemas/library_list.schema.json` (its `items`) and
 `library_document.schema.json` (`sensor_document.schema.json` for a sensor); `sha256` is the digest of the file's bytes,
-64 lowercase hex digits. A missing name raises `errors.NotFoundError` (404). A file that does not parse, or is not of
+64 lowercase hex digits; a layer file whose header comment says "does not validate yet" (a placed DIRSIG demo) also
+carries `status: does-not-validate-yet`. A missing name raises `errors.NotFoundError` (404). A file that does not parse, or is not of
 its kind, raises `errors.AdmissionError` whose problem names the file (`layer`) and the offending key (`field`) or null:
 a sensor must conform to `sensor-spec/1`; a recipe must carry `compose`, `meta`, `scenario`, `engine_profile`, `settings`,
 `sensor` or `sensors`, and only the keys `compose.merge` accepts of a recipe; a scenario must hold `collection` and an
@@ -29,6 +30,15 @@ from protodirsig.contract import sensor_spec_violations
 from protodirsig.errors import AdmissionError, InvalidRequestError, NotFoundError
 
 KINDS = ("sensor", "scenario", "engine_profile", "recipe")
+NOT_YET = "does not validate yet"               # the marker, in a layer file's first comment paragraph
+STATUS_NOT_YET = "does-not-validate-yet"        # how listings surface it (`status`)
+
+
+def file_status(text):
+    """`does-not-validate-yet` when the file's header (its text before the first blank line) carries the marker
+    "does not validate yet", else None. The marker is how a placed but not yet resolvable library entry (a DIRSIG
+    demo's layers) is labelled; the tests that resolve every repository recipe skip such entries."""
+    return STATUS_NOT_YET if NOT_YET in text.split("\n\n", 1)[0] else None
 REPOSITORY = Path(__file__).resolve().parents[2]
 
 
@@ -63,8 +73,15 @@ class LibraryReader:
         """`[{name, sha256}]` for every resource of `kind`, sorted by name."""
         folder = self.folder(kind)
         files = sorted(folder.glob("*.yaml")) if folder.is_dir() else []
-        return sorted(({"name": self._name(kind, p), "sha256": hashlib.sha256(p.read_bytes()).hexdigest()}
-                       for p in files if p.is_file()), key=lambda r: r["name"])
+        return sorted((self._item(kind, p) for p in files if p.is_file()), key=lambda r: r["name"])
+
+    def _item(self, kind, path):
+        data = path.read_bytes()
+        item = {"name": self._name(kind, path), "sha256": hashlib.sha256(data).hexdigest()}
+        status = None if kind == "sensor" else file_status(data.decode("utf-8", "replace"))
+        if status:
+            item["status"] = status
+        return item
 
     def path(self, kind, name):
         """The file of a named resource; NotFoundError if there is none. A name is a file name or stem, never a path."""
@@ -87,7 +104,11 @@ class LibraryReader:
         except yaml.YAMLError as e:
             raise AdmissionError(problems.admission(f"{layer} does not parse as YAML: {e}", layer=layer)) from e
         self._check(kind, doc, layer)
-        return {"name": self._name(kind, path), "sha256": hashlib.sha256(data).hexdigest(), "document": doc}
+        out = {"name": self._name(kind, path), "sha256": hashlib.sha256(data).hexdigest(), "document": doc}
+        status = None if kind == "sensor" else file_status(data.decode("utf-8", "replace"))
+        if status:
+            out["status"] = status
+        return out
 
     def _check(self, kind, doc, layer):
         def bad(message, field=None):

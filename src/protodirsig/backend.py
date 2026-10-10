@@ -227,7 +227,7 @@ class LocalBackend:
         if exc is None:
             checks.append({"check": "resolution", "passed": True, "errors": []})
             checks.append({"check": "content_hash", "passed": True, "errors": unstamped})
-            library = [problems.admission(m) for m in report.resolution_mismatches]
+            library = [problems.from_library_problem(m, spec, src, recipe) for m in report.resolution_mismatches]
             checks.append({"check": "library_files", "passed": not library, "errors": library})
         elif pointer.endswith("/content_hash"):
             checks.append({"check": "resolution", "passed": True, "errors": []})

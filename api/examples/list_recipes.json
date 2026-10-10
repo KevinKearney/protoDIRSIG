@@ -1,6 +1,6 @@
 {
   "summary": "List the recipes in the library.",
-  "description": "Real library data.",
+  "description": "Real library data, as `library.LibraryReader` lists it (a layer whose header says it does not validate yet carries `status`).",
   "request": {
     "method": "GET",
     "path": "/recipes"
@@ -20,7 +20,8 @@
         },
         {
           "name": "pointcollectors2_demo",
-          "sha256": "ca0d80803585ef4842846e668bd25609333bb3665976744a63a617ae00a9ff25"
+          "sha256": "ca0d80803585ef4842846e668bd25609333bb3665976744a63a617ae00a9ff25",
+          "status": "does-not-validate-yet"
         },
         {
           "name": "sensor_sweep_tahoe",

@@ -172,3 +172,28 @@ def test_local_registry_is_deprecated():
         warnings.simplefilter("always")
         LocalRegistry()
     assert any(issubclass(w.category, DeprecationWarning) and "Workspace" in str(w.message) for w in caught)
+
+
+def test_the_default_work_root_is_the_state_directory_and_the_former_one_is_named_once(tmp_path, monkeypatch, caplog):
+    import logging
+    from protodirsig.workspace import former_work_root
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    assert default_work_root() == tmp_path / "state" / "protodirsig" / "work"
+    old = former_work_root()
+    assert old == tmp_path / "cache" / "protodirsig" / "work"
+    with caplog.at_level(logging.WARNING, logger="protodirsig"):
+        Workspace.local()                                       # no former root: no warning
+    assert caplog.records == []
+    (old / "runs").mkdir(parents=True)
+    with caplog.at_level(logging.WARNING, logger="protodirsig"):
+        Workspace.local()
+    assert len(caplog.records) == 1 and str(old) in caplog.records[0].getMessage()
+    assert (old / "runs").is_dir()                              # left in place, not moved
+    caplog.clear()
+    with caplog.at_level(logging.WARNING, logger="protodirsig"):
+        Workspace.local(work=tmp_path / "explicit")             # an explicit work root: no warning
+    assert caplog.records == []
+    monkeypatch.delenv("XDG_STATE_HOME")
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    assert default_work_root() == tmp_path / "home" / ".local" / "state" / "protodirsig" / "work"

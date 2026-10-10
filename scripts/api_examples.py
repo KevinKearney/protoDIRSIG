@@ -29,6 +29,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from protodirsig import problems                                        # noqa: E402
 from protodirsig.compose import ComposeError, compose, compose_sweep   # noqa: E402
 from protodirsig.contract import schema_violations                       # noqa: E402
+from protodirsig.library import LibraryReader                            # noqa: E402
 from protodirsig.identity import run_id as compute_run_id                  # noqa: E402
 from protodirsig.run_spec import check_library_files, load_run_spec, resolve_run   # noqa: E402
 from protodirsig.simulation import schema_errors   # noqa: E402
@@ -136,10 +137,10 @@ def examples():
         lib = library(kind)
         ex[f"list_{kind}"] = {
             "summary": f"List the {kind.replace('_', ' ')} in the library.",
-            "description": "Real library data.",
+            "description": "Real library data, as `library.LibraryReader` lists it (a layer whose header says it does not "
+                           "validate yet carries `status`).",
             "request": get(path),
-            "response": ok({"items": [{"name": n, "sha256": sha(p)} for n, p in lib.items()]},
-                           "schemas/library_list.schema.json")}
+            "response": ok({"items": LibraryReader(LAYERS).list(one)}, "schemas/library_list.schema.json")}
         name = picks[kind]
         doc = yaml.safe_load(lib[name].read_text())
         big = kind == "engine_profiles"

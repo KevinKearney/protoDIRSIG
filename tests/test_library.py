@@ -23,7 +23,7 @@ def test_every_file_is_listed_with_its_digest(kind):
     files = sorted(FOLDERS[kind].glob("*.yaml"))
     want = sorted(({"name": p.name if kind == "sensor" else p.stem, "sha256": sha256_file(p).removeprefix("sha256:")}
                    for p in files), key=lambda r: r["name"])
-    assert listed == want and listed
+    assert [{k: v for k, v in r.items() if k != "status"} for r in listed] == want and listed
     assert schema_errors("library_list", {"items": listed}) == []
 
 
@@ -32,7 +32,9 @@ def test_get_round_trips_every_resource(kind):
     for item in reader.list(kind):
         doc = reader.get(kind, item["name"])
         path = FOLDERS[kind] / (item["name"] if kind == "sensor" else f"{item['name']}.yaml")
-        assert doc == {"name": item["name"], "sha256": item["sha256"], "document": yaml.safe_load(path.read_text())}
+        assert {k: v for k, v in doc.items() if k != "status"} == \
+            {"name": item["name"], "sha256": item["sha256"], "document": yaml.safe_load(path.read_text())}
+        assert doc.get("status") == item.get("status")
         assert schema_errors("sensor_document" if kind == "sensor" else "library_document", doc) == []
 
 
@@ -91,3 +93,22 @@ def test_a_sensor_that_is_not_sensor_spec_names_the_file_and_key(copy):
     with pytest.raises(AdmissionError) as e:
         copy.get("sensor", "bad.yaml")
     assert (e.value.problem["layer"], e.value.problem["field"]) == ("manifold_sensors/bad.yaml", "sensor")
+
+
+@pytest.mark.parametrize("kind, name", [("recipe", "pointcollectors2_demo"), ("scenario", "pointcollectors2_demo"),
+                                        ("engine_profile", "pointcollectors2_demo")])
+def test_a_layer_marked_not_yet_valid_carries_its_status(kind, name):
+    listed = {r["name"]: r for r in reader.list(kind)}
+    assert listed[name]["status"] == "does-not-validate-yet"
+    assert all("status" not in r for n, r in listed.items() if n != name)
+    doc = reader.get(kind, name)
+    assert doc["status"] == "does-not-validate-yet" and schema_errors("library_document", doc) == []
+    from protodirsig import models
+    assert models.LibraryDocument.from_dict(doc).status == "does-not-validate-yet"
+    assert "status" not in reader.get(kind, "tahoe_static_pose" if kind != "recipe" else "auror_ref")
+
+
+def test_the_marker_is_read_from_the_header_only(tmp_path):
+    from protodirsig.library import file_status
+    assert file_status("# Recipe (does not validate yet: see docs)\n\ncompose: compose/1\n") == "does-not-validate-yet"
+    assert file_status("# Recipe\n\n# a later comment: does not validate yet\ncompose: compose/1\n") is None

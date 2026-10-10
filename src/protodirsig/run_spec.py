@@ -164,6 +164,19 @@ class ResolvedRun:
         return SpiceEphemerisPlugin()
 
 
+class LibraryProblem(str):
+    """A library-file problem (`check_library_files`): a string, as before, with the `pointer` of the spec member whose
+    file has the problem, so `problems.locate` can name the layer file and field."""
+
+    def __new__(cls, text, pointer=None):
+        obj = super().__new__(cls, text)
+        obj.pointer = pointer
+        return obj
+
+    def __reduce__(self):
+        return LibraryProblem, (str(self), self.pointer)
+
+
 def _member(pointer, key):
     return f"{pointer}/{key}" if pointer else None
 
@@ -314,7 +327,7 @@ def resolve_run(spec, run_spec_path, config_repo, sensor_library=None):
             f"engine.atmosphere.plugin is {atm.get('plugin')!r}; this loader handles only "
             "'new_atmosphere', the non-adopted extension the AUROR_ref spec uses (guide §6). "
             "It is not a general dirsig-engine/1 interpreter, so 'four_curve' and 'basic' are "
-            "not supported here.")
+            "not supported here.", pointer="/engine/atmosphere/plugin")
     ephemeris = eng.get("ephemeris", {}).get("plugin")
     if ephemeris != "spice":
         raise RunSpecError(f"engine.ephemeris.plugin is {ephemeris!r}; only 'spice' (no inputs) is handled",
@@ -324,7 +337,8 @@ def resolve_run(spec, run_spec_path, config_repo, sensor_library=None):
     weather = eng.get("weather")
     if weather is None or weather.get("source") != "library":
         raise RunSpecError(f"engine.weather must be a library file for this tree, got {weather!r}",
-                           pointer="/engine/weather")
+                           pointer="/engine/weather/source" if isinstance(weather, dict) and "source" in weather
+                           else "/engine/weather")
 
     # Motion and tasks are generated with dirfm (motion_tasks): PlatformPosition writes a static .ppd, FlexMotion an
     # orbit's waypoint .motion, TASKS one .tasks file. Schema-valid values they cannot express are refused.
@@ -494,7 +508,7 @@ def check_library_files(spec, run):
     from protodirsig.spectral import SpectralError
     bad = check_template(run.platform)
     if bad:
-        return bad
+        return [LibraryProblem(b, "/engine/platform/ref") for b in bad]
     if run.orbit is not None:
         bad = _check_orbit_files(run.orbit)
         if bad:

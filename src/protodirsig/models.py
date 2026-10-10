@@ -268,14 +268,20 @@ class LibraryDocument(_Model):
         The sha256 of the resource file's bytes, 64 lowercase hex digits.
     document : dict
         The parsed YAML document.
+    status : Literal['does-not-validate-yet'], optional
+        Present only for a resource whose file marks it as placed but not yet resolvable: `does-not-validate-yet`
+        (the file's header comment says "does not validate yet"; its findings are in the library's documents).
+        Absent for an ordinary resource.
     """
     name: str
     sha256: str
     document: dict
+    status: Literal['does-not-validate-yet'] = None
     _FIELDS = (
         ('name', 'name', ('scalar', ('string',), None), True, False),
         ('sha256', 'sha256', ('scalar', ('string',), None), True, False),
         ('document', 'document', ('dict',), True, False),
+        ('status', 'status', ('scalar', ('string',), ('does-not-validate-yet',)), False, False),
     )
     _CLOSED = True
 
@@ -612,12 +618,18 @@ class LibraryListItem(_Model):
         The name a recipe uses for the resource.
     sha256 : str
         The sha256 of the resource file's bytes, 64 lowercase hex digits.
+    status : Literal['does-not-validate-yet'], optional
+        Present only for a resource whose file marks it as placed but not yet resolvable: `does-not-validate-yet`
+        (the file's header comment says "does not validate yet"; its findings are in the library's documents).
+        Absent for an ordinary resource.
     """
     name: str
     sha256: str
+    status: Literal['does-not-validate-yet'] = None
     _FIELDS = (
         ('name', 'name', ('scalar', ('string',), None), True, False),
         ('sha256', 'sha256', ('scalar', ('string',), None), True, False),
+        ('status', 'status', ('scalar', ('string',), ('does-not-validate-yet',)), False, False),
     )
     _CLOSED = True
 

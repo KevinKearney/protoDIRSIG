@@ -138,6 +138,7 @@ class Simulation:
         self.spec = self.resolved = None
         self.load_error = self.resolve_error = None
         self.resolve_exception = None             # the resolution exception (RunSpecError.pointer names the member)
+        self.last_conformance = None              # the result of the last validate() (library problems carry pointers)
         try:
             self.spec = load_run_spec(self.run_spec_path)
         except Exception as e:  # noqa: BLE001 -- missing file, yaml.YAMLError, RunSpecError (not run-spec/1)
@@ -245,11 +246,12 @@ class Simulation:
                     problems = self._check_log(exec_log)
                     exec_err = "; ".join(problems) if problems else None
 
-        return ConformanceResult(
+        self.last_conformance = ConformanceResult(
             schema_ok=not schema, schema_error="; ".join(schema) or None,
             resolution_ok=not mismatches, resolution_mismatches=mismatches,
             execution_ok=exec_err is None, execution_log=exec_log, execution_error=exec_err,
             unstamped=report.unstamped, engine_checked=engine_checked)
+        return self.last_conformance
 
     def run(self, out_dir=None):
         """Assemble and render (Stage 01's job), with --run_info_filename and --log_info_filename

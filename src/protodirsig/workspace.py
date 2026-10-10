@@ -8,6 +8,7 @@ from its schema (`protodirsig.models`); errors are the `errors.ProblemError` fam
 Imports no engine package at module level (the backend's worker process is the only engine-bound code).
 """
 import hashlib
+import logging
 import os
 import time
 from dataclasses import dataclass
@@ -22,16 +23,42 @@ FINAL_STATES = ("rendered", "failed", "cancelled")
 
 
 def default_work_root():
-    """The default work root of `Workspace.local`: `$XDG_CACHE_HOME/protodirsig/work`, else
-    `~/.cache/protodirsig/work`.
+    """The default work root of `Workspace.local`: `$XDG_STATE_HOME/protodirsig/work`, else
+    `~/.local/state/protodirsig/work`.
+
+    Run records are identity-keyed results, not a cache, so they live in the state directory, not the cache directory.
 
     Returns
     -------
     pathlib.Path
         The folder runs are stored under when no `work` is given.
     """
+    base = os.environ.get("XDG_STATE_HOME") or str(Path.home() / ".local" / "state")
+    return Path(base) / "protodirsig" / "work"
+
+
+def former_work_root():
+    """Where the default work root was before it moved to the state directory: `$XDG_CACHE_HOME/protodirsig/work`, else
+    `~/.cache/protodirsig/work`. It is never moved or deleted.
+
+    Returns
+    -------
+    pathlib.Path
+        The former default work root.
+    """
     base = os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache")
     return Path(base) / "protodirsig" / "work"
+
+
+def _warn_about_former_root(work):
+    """One warning when the former default work root exists and the new default is empty (runs stay where they are)."""
+    old = former_work_root()
+    runs = work / "runs"
+    empty = not runs.is_dir() or not any(runs.iterdir())       # no run stored yet (the store's empty folders count as empty)
+    if old.is_dir() and old != work and empty:
+        logging.getLogger("protodirsig").warning(
+            "the default work root is now %s; runs stored under the former default %s are not moved (pass "
+            "work=%r to keep using them)", work, old, str(old))
 
 
 @dataclass(frozen=True)
@@ -84,7 +111,9 @@ class Workspace:
         config_repo : str or pathlib.Path, optional
             The engine-asset library, read only; default the repository's `manifold_config_repo/`.
         work : str or pathlib.Path, optional
-            The work root runs are stored under; default `default_work_root()`.
+            The work root runs are stored under; default `default_work_root()` (the state directory). If the former
+            default (`former_work_root()`, in the cache directory) exists and the new one is empty, one warning names
+            it; nothing is moved.
         max_parallel : int, optional
             How many runs render at once (default 1).
         sensor_library : str or pathlib.Path, optional
@@ -103,7 +132,10 @@ class Workspace:
         """
         library = Path(library) if library is not None else REPOSITORY / "manifold_run_specs"
         config_repo = Path(config_repo) if config_repo is not None else REPOSITORY / "manifold_config_repo"
-        work = Path(work) if work is not None else default_work_root()
+        if work is None:
+            work = default_work_root()
+            _warn_about_former_root(work)
+        work = Path(work)
         return cls(LocalBackend(work, config_repo, max_parallel=max_parallel, sensor_library=sensor_library,
                                 library=library))
 
