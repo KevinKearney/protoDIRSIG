@@ -145,7 +145,7 @@ def materialize_sensor(spec, sensor_library):
         raise RunSpecError(f"descriptor.sensor is neither a sensor-spec/1 reference nor an inline block: {sensor!r:.80}")
     path = Path(sensor_library) / ref["name"]
     if path.is_file():
-        _verify_hash(path, ref, "sensor-spec")              # a stamped hash must match; a placeholder is not checked
+        _verify_hash(path, ref, "sensor-spec", "/descriptor/sensor/ref")   # stamped: must match; placeholder: not checked
     doc = load_sensor_spec(sensor_library, ref["name"])
     desc["sensor"] = copy.deepcopy(doc["sensor"])
     return out

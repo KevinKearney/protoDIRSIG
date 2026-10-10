@@ -192,6 +192,7 @@ class Simulation:
         self.work_dir = Path(work_dir) if work_dir is not None else Path(tempfile.mkdtemp(prefix="protodirsig_"))
         self.spec = self.auror_run = None
         self.load_error = self.resolve_error = None
+        self.resolve_exception = None             # the resolution exception (RunSpecError.pointer names the member)
         try:
             self.spec = load_run_spec(self.run_spec_path)
         except Exception as e:  # noqa: BLE001 -- missing file, yaml.YAMLError, RunSpecError (not run-spec/1)
@@ -201,6 +202,7 @@ class Simulation:
                 self.auror_run = resolve_auror_run(self.spec, self.run_spec_path, self.config_repo, self.sensor_library)
             except (RunSpecError, KeyError, TypeError) as e:
                 self.resolve_error = f"{type(e).__name__}: {e}"
+                self.resolve_exception = e
 
     @classmethod
     def from_run_spec(cls, run_spec_path, config_repo, work_dir=None, sensor_library=None):

@@ -73,7 +73,15 @@ AUROR_ATMOSPHERE_BACKEND = {"profile": "New Profile", "atmospheric_model": "MidL
 
 
 class RunSpecError(ValueError):
-    """The run spec asks for something this tree-specific loader does not handle."""
+    """The run spec asks for something this tree-specific loader does not handle, or a reference does not resolve.
+
+    `pointer` is the RFC 6901 JSON Pointer of the spec member being resolved when the error is about one (a reference's
+    `name` for a missing file, its `content_hash` for a hash mismatch), else None. `problems.locate` maps it to the
+    layer file and field of a composed spec."""
+
+    def __init__(self, *args, pointer=None):
+        super().__init__(*args)
+        self.pointer = pointer
 
 
 def load_run_spec(path):
@@ -149,42 +157,50 @@ class AurorRun:
         return SpiceEphemerisPlugin()
 
 
-def _root_file(root, rel, what, ref=None):
+def _member(pointer, key):
+    return f"{pointer}/{key}" if pointer else None
+
+
+def _root_file(root, rel, what, ref=None, pointer=None):
+    """The library file `root / rel`, hash-verified against `ref`. `pointer` is the ref's place in the spec."""
     path = root / rel
     if not path.is_file():
-        raise RunSpecError(f"{what} {rel!r} not found: {path} is not a file")
-    _verify_hash(path, ref, what)
+        raise RunSpecError(f"{what} {rel!r} not found: {path} is not a file", pointer=_member(pointer, "name"))
+    _verify_hash(path, ref, what, pointer)
     return path
 
 
-def _verify_hash(path, ref, what):
+def _verify_hash(path, ref, what, pointer=None):
     """A stamped `content_hash` (not the `sha256:<hash>` placeholder) must equal the file's sha256."""
     want = ref.get("content_hash") if isinstance(ref, dict) else None
     if isinstance(want, str) and PLACEHOLDER not in want and sha256_file(path) != want:
         raise RunSpecError(f"{what} {path.name}: content_hash {want[:19]}... does not match the file "
-                           f"({sha256_file(path)[:19]}...); run scripts/stamp_hashes.py after an intended edit")
+                           f"({sha256_file(path)[:19]}...); run scripts/stamp_hashes.py after an intended edit",
+                           pointer=_member(pointer, "content_hash"))
 
 
-def _verify_directory_hash(directory, ref, what):
+def _verify_directory_hash(directory, ref, what, pointer=None):
     """A stamped `content_hash` (not the placeholder) must equal the `dirhash/1` digest of `directory`."""
     want = ref.get("content_hash") if isinstance(ref, dict) else None
     if isinstance(want, str) and PLACEHOLDER not in want:
         try:
             got = directory_digest(directory)
         except ValueError as e:
-            raise RunSpecError(f"{what} directory {directory.name}: cannot be hashed: {e}") from e
+            raise RunSpecError(f"{what} directory {directory.name}: cannot be hashed: {e}",
+                               pointer=_member(pointer, "name")) from e
         if got != want:
             raise RunSpecError(f"{what} directory {directory.name}: content_hash {want[:19]}... does not match the "
-                               f"directory ({got[:19]}...); run scripts/stamp_hashes.py after an intended edit")
+                               f"directory ({got[:19]}...); run scripts/stamp_hashes.py after an intended edit",
+                               pointer=_member(pointer, "content_hash"))
 
 
-def _scene_file(config_repo, ref_name, ref=None):
+def _scene_file(config_repo, ref_name, ref=None, pointer=None):
     # The ref names the `.scene` file itself in the library layout, `scenes/<scene>/<scene>.scene`
     # (Configuration_v02 A.8.3; guide §9), with geometry/, materials/ and maps/ beside it. No
     # fallback search: the earlier nested-then-flat guess against the received tree is gone. A stamped hash is the
     # `dirhash/1` digest of the directory holding the `.scene` file (protodirsig.dirhash), verified here.
-    path = _root_file(config_repo, ref_name, "scene")
-    _verify_directory_hash(path.parent, ref, "scene")
+    path = _root_file(config_repo, ref_name, "scene", pointer=pointer)
+    _verify_directory_hash(path.parent, ref, "scene", pointer)
     return path
 
 
@@ -294,12 +310,14 @@ def resolve_auror_run(spec, run_spec_path, config_repo, sensor_library=None):
             "not supported here.")
     ephemeris = eng.get("ephemeris", {}).get("plugin")
     if ephemeris != "spice":
-        raise RunSpecError(f"engine.ephemeris.plugin is {ephemeris!r}; only 'spice' (no inputs) is handled")
+        raise RunSpecError(f"engine.ephemeris.plugin is {ephemeris!r}; only 'spice' (no inputs) is handled",
+                           pointer="/engine/ephemeris/plugin")
     if len(eng["scenes"]) != 1:
-        raise RunSpecError(f"expected one engine.scenes entry, got {len(eng['scenes'])}")
+        raise RunSpecError(f"expected one engine.scenes entry, got {len(eng['scenes'])}", pointer="/engine/scenes")
     weather = eng.get("weather")
     if weather is None or weather.get("source") != "library":
-        raise RunSpecError(f"engine.weather must be a library file for this tree, got {weather!r}")
+        raise RunSpecError(f"engine.weather must be a library file for this tree, got {weather!r}",
+                           pointer="/engine/weather")
 
     # Motion and tasks are generated with dirfm (motion_tasks): PlatformPosition writes a static .ppd, FlexMotion an
     # orbit's waypoint .motion, TASKS one .tasks file. Schema-valid values they cannot express are refused.
@@ -325,12 +343,14 @@ def resolve_auror_run(spec, run_spec_path, config_repo, sensor_library=None):
             "(a TLE propagated to ECEF waypoints, dirfm FlexMotion). 'waypoints' (authored samples) is not built.")
     epoch = datetime.fromisoformat(str(spec["descriptor"]["collection"]["epoch"]).replace("Z", "+00:00"))
     if epoch.tzinfo is None:                 # dirfm TASKS writes a malformed offset for a naive datetime
-        raise RunSpecError(f"descriptor.collection.epoch {epoch.isoformat()!r} has no UTC offset")
+        raise RunSpecError(f"descriptor.collection.epoch {epoch.isoformat()!r} has no UTC offset",
+                           pointer="/descriptor/collection/epoch")
 
     scene, plat = eng["scenes"][0], eng["platform"]
     channel_response = plat.get("channel_response", "tabulated")
     if channel_response not in ("tabulated", "native"):
-        raise RunSpecError(f"engine.platform.channel_response is {channel_response!r}; expected 'tabulated' or 'native'")
+        raise RunSpecError(f"engine.platform.channel_response is {channel_response!r}; expected 'tabulated' or 'native'",
+                           pointer="/engine/platform/channel_response")
     if plat.get("split_channels"):
         # One spectral state per channel; the NewAtmosphere database has states for the focal plane's bandpass
         # only. The dry run passes and the render fails ("Missing spectral/temporal state"), so refuse it here.
@@ -348,8 +368,12 @@ def resolve_auror_run(spec, run_spec_path, config_repo, sensor_library=None):
             raise RunSpecError("descriptor.sensor must be a sensor-spec/1 ref ({ref: {name: <name>.yaml}}) or an inline "
                                f"sensor block (sensor_system, entries), got {sensor!r:.80}")
         if (Path(sensor_library) / sensor_name).is_file():
-            _verify_hash(Path(sensor_library) / sensor_name, ref, "sensor-spec")
-        sensor_doc = load_sensor_spec(sensor_library, sensor_name)
+            _verify_hash(Path(sensor_library) / sensor_name, ref, "sensor-spec", "/descriptor/sensor/ref")
+        try:
+            sensor_doc = load_sensor_spec(sensor_library, sensor_name)
+        except RunSpecError as e:
+            e.pointer = e.pointer or "/descriptor/sensor/ref/name"
+            raise
     entries = sensor_doc["sensor"].get("entries") or []
     if len(entries) != 1:
         raise RunSpecError(f"sensor {sensor_name!r} has {len(entries)} entries; one sensor entry per job is "
@@ -364,7 +388,7 @@ def resolve_auror_run(spec, run_spec_path, config_repo, sensor_library=None):
         raise RunSpecError(f"descriptor.settings must have one member (one sensor entry per job); got {got}")
     _check_settings_roi(settings, sensor_doc)
     check_settings_black_level(settings)
-    scene_path = _scene_file(config_repo, scene["ref"]["name"], scene["ref"])
+    scene_path = _scene_file(config_repo, scene["ref"]["name"], scene["ref"], "/engine/scenes/0/ref")
     if kind == "orbit":
         orbit_values["scene_origin"] = _scene_origin(scene_path)
     return AurorRun(
@@ -372,7 +396,7 @@ def resolve_auror_run(spec, run_spec_path, config_repo, sensor_library=None):
         origin=dict(desc["origin"]),
         scene=scene_path,
         scene_offset=list(scene.get("offset", [0, 0, 0])),
-        platform=_root_file(config_repo, plat["ref"]["name"], "platform", plat["ref"]),
+        platform=_root_file(config_repo, plat["ref"]["name"], "platform", plat["ref"], "/engine/platform/ref"),
         motion_position=[float(v) for v in motion["position"]["xyz"]] if kind == "static" else None,
         motion_orientation={"order": euler["order"], "units": euler["units"],
                             "angles": [float(v) for v in euler["angles"]]} if kind == "static" else None,
@@ -382,8 +406,8 @@ def resolve_auror_run(spec, run_spec_path, config_repo, sensor_library=None):
         split_channels=bool(plat["split_channels"]),
         integration_samples=int(plat["integration_samples"]),
         atmosphere_db=_root_file(config_repo, atm["database"]["ref"]["name"], "atmosphere database",
-                                  atm["database"]["ref"]),
-        weather=_root_file(config_repo, weather["file"]["name"], "weather file", weather["file"]),
+                                  atm["database"]["ref"], "/engine/atmosphere/database/ref"),
+        weather=_root_file(config_repo, weather["file"]["name"], "weather file", weather["file"], "/engine/weather/file"),
         ephemeris=ephemeris,
         seed=int(eng["run"]["seed"]),
         sensor=sensor_doc,
@@ -416,8 +440,9 @@ def _resolve_orbit(motion, eng, config_repo):
     for key, what in (("tle", "orbit TLE"), ("earth_orientation", "Earth-orientation tables")):
         ref = o.get(key)
         if not isinstance(ref, dict) or not isinstance(ref.get("name"), str):
-            raise RunSpecError(f"engine.motion.orbit.{key} must be a library ref {{name, content_hash}}, got {ref!r}")
-        refs[key] = _root_file(config_repo, ref["name"], what, ref)
+            raise RunSpecError(f"engine.motion.orbit.{key} must be a library ref {{name, content_hash}}, got {ref!r}",
+                               pointer=f"/engine/motion/orbit/{key}")
+        refs[key] = _root_file(config_repo, ref["name"], what, ref, f"/engine/motion/orbit/{key}")
     w, dt = o.get("window"), o.get("waypoint_spacing")
     if not (isinstance(w, dict) and _number(w.get("start")) and _number(w.get("duration")) and w["duration"] > 0):
         raise RunSpecError(f"engine.motion.orbit.window must be {{start, duration}} in seconds, duration > 0; got {w!r}")

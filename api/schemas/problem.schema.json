@@ -6,7 +6,7 @@
   "required": ["type", "title", "status"],
   "properties": {
     "type": {
-      "description": "A URI reference identifying the kind of problem. This contract defines `urn:protodirsig:problem:compose` (a recipe does not compose), `urn:protodirsig:problem:admission` (a submission failed admission), `urn:protodirsig:problem:not-found` (an unknown id or name) and `urn:protodirsig:problem:invalid-request` (a request body that does not match its schema).",
+      "description": "A URI reference identifying the kind of problem. This contract defines `urn:protodirsig:problem:compose` (a recipe does not compose), `urn:protodirsig:problem:admission` (a submission failed admission), `urn:protodirsig:problem:not-found` (an unknown id or name), `urn:protodirsig:problem:invalid-request` (a request body that does not match its schema, or a request the SDK cannot act on as given) and `urn:protodirsig:problem:execution` (an accepted run failed while executing; status 500).",
       "type": "string",
       "format": "uri-reference"
     },
@@ -15,7 +15,7 @@
       "type": "string"
     },
     "status": {
-      "description": "The HTTP status code of the response: 422 for composition, validation and admission errors, 404 for an unknown id or name.",
+      "description": "The HTTP status code of the response: 422 for composition, validation and admission errors, 404 for an unknown id or name, 500 for a run that failed while executing.",
       "type": "integer",
       "minimum": 400,
       "maximum": 599

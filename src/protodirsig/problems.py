@@ -21,6 +21,11 @@ layout (a settings member's index, which the composer reorders by sensor entry; 
 dict or a path); otherwise the recipe file is named with `field` None. A pointer no layer owns gives `(None, None)`:
 nothing is guessed.
 
+The pointers come from three places: a schema violation (`contract.schema_violations`, its `at`), a resolution failure
+(`run_spec.RunSpecError.pointer`: a reference's `name` for a missing file, its `content_hash` for a mismatch) and an
+unstamped member (`run_spec.unstamped_refs`). An execution failure (`execution_failed`, status 500) and an unknown id
+(`not_found`, 404) name no authored file. `errors.ProblemError` and its subclasses carry these dicts as exceptions.
+
 Imports: the standard library, `yaml`, `protodirsig.contract` and `protodirsig.run_spec` only; no engine package.
 """
 import re
@@ -34,8 +39,12 @@ from protodirsig.run_spec import unstamped_refs
 COMPOSE = "urn:protodirsig:problem:compose"
 ADMISSION = "urn:protodirsig:problem:admission"
 NOT_FOUND = "urn:protodirsig:problem:not-found"
+INVALID_REQUEST = "urn:protodirsig:problem:invalid-request"
+EXECUTION = "urn:protodirsig:problem:execution"
 TITLES = {COMPOSE: "The recipe does not compose", ADMISSION: "The submission failed admission",
-          NOT_FOUND: "Not found"}
+          NOT_FOUND: "Not found", INVALID_REQUEST: "The request is not valid",
+          EXECUTION: "The run failed while executing"}
+NO_LAYER = (NOT_FOUND, EXECUTION)                   # kinds of problem no authored file causes
 DESCRIPTOR_MEMBERS = ("meta", "origin", "collection", "sensor", "settings", "fidelity", "extras")
 
 
@@ -172,7 +181,7 @@ def _problem(type_, status, detail, instance=None, layer=None, field=None, error
     out = {"type": type_, "title": TITLES[type_], "status": status, "detail": detail}
     if instance is not None:
         out["instance"] = instance
-    if type_ != NOT_FOUND:
+    if type_ not in NO_LAYER:
         out["layer"], out["field"] = layer, field
     if errors is not None:
         out["errors"] = errors
@@ -240,12 +249,35 @@ def from_submission(result, sources=None, instance=None, *, recipe=None):
     layer = field = None
     if isinstance(spec, dict) and sources:
         doc = _load_recipe(recipe)
-        pointers = [v["at"] for v in schema_violations(spec)] or \
+        resolution = getattr(getattr(sim, "resolve_exception", None), "pointer", None)
+        pointers = [v["at"] for v in schema_violations(spec)] or ([resolution] if resolution else []) or \
             [p if p.endswith("/revision") else p + "/content_hash" for p in unstamped_refs(spec)]
         if pointers:
             layer, field = locate(pointers[0], sources, spec=spec, recipe=doc)
     detail = " ".join(result.reasons) or f"The submission was {result.verdict}."
     return _problem(ADMISSION, 422, detail, instance, layer, field)
+
+
+def from_resolution_error(exc, spec, sources, recipe=None, instance=None):
+    """The admission problem for a reference that does not resolve (a `run_spec.RunSpecError` raised while resolving
+    `spec`): `layer` and `field` from the exception's `pointer` through `locate` when the SDK composed the spec
+    (`sources`), else null. Nothing is guessed: an error with no pointer, or a member no layer owns, names no file."""
+    pointer = getattr(exc, "pointer", None)
+    layer, field = locate(pointer, sources, spec=spec, recipe=recipe) if pointer and sources else (None, None)
+    run = (((spec or {}).get("descriptor") or {}).get("meta") or {}).get("name") or "run spec"
+    where = f" ({layer}: {field})" if layer and field else (f" ({layer})" if layer else "")
+    return _problem(ADMISSION, 422, f"Run {run}: a reference does not resolve{where}: {exc}", instance, layer, field)
+
+
+def execution_failed(run_id, name, message, instance=None):
+    """The problem for an accepted run that failed while executing (the engine, the worker or the host): status 500,
+    no authored file."""
+    return _problem(EXECUTION, 500, f"Run {name} ({run_id}) failed while executing: {message}", instance)
+
+
+def invalid_request(detail, instance=None, layer=None, field=None):
+    """The problem for a request the SDK cannot act on as given (for example a sweep recipe sent to `submit_run`)."""
+    return _problem(INVALID_REQUEST, 422, detail, instance, layer, field)
 
 
 def not_found(kind, identifier, instance=None):
