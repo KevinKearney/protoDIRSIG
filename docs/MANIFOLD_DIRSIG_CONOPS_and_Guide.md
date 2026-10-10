@@ -154,11 +154,19 @@ Members (Configuration_v02 A.8.1): `generator`, `scenes`, `platform`, `motion`, 
 - **Division with `descriptor`.** Epoch, exposure, frame rate, gain, and black level are stated once, in `descriptor`; the generator writes them into `.tasks` and `.platform`. Platform position at epoch is emitted by the generator and may be omitted from an authored spec.
 - **`scenes[]`.** Library scene references with optional `[x,y,z]` offsets. `scene2hdf` compiles the HDF at run time beside the `.scene` file; the HDF is derived, outside the manifest, never pre-compiled in the library.
 - **`platform`.** References a library `.platform` by name and hash; the file is a template. The generator (`platform_gen`) substitutes every value `descriptor.sensor` and `descriptor.settings` model (section 4) and keeps the rest: names, mount, truth collections, spatial response, hypersampling, bandpass. `output_prefix`, `split_channels`, `integration_samples`, and `channel_response`: `tabulated` (default) writes each channel as a tabulated response; `native` reproduces the received platform's DIRSIG gaussian channel (section 9) and is used only by `auror_ref.yaml`. `split_channels: true` is refused at resolution: it asks for one spectral state per channel, which the `new_atmosphere` database does not hold (section 9).
-- **`motion`.** `static | waypoints | orbit`. Orbit propagation (skyfield + SGP4 with UT1–UTC) runs outside DIRSIG; only ECEF waypoint samples cross into the engine body.
+- **`motion`.** `static | waypoints | orbit`. `static` (a `.ppd`) and `orbit` (`proposed`, below) are generated; `waypoints` is refused at resolution. Orbit propagation (skyfield + SGP4 with UT1–UTC) runs outside DIRSIG; only ECEF waypoint samples cross into the engine body.
 - **`tasks`.** `{start, stop}` windows relative to `descriptor.collection.epoch`; `start == stop` is one static sample.
 - **`atmosphere`, `weather`, `ephemeris`.** `atmosphere.plugin` is `four_curve` or `basic` in A.8.7. AUROR uses `new_atmosphere` (`proposed`, section 10). `ephemeris.plugin: spice` takes no inputs and reads kernels from the DIRSIG installation.
 - **`run`.** Seed, convergence, thread count. Recorded on the execution record, not in identity. `engine.run.seed` is confirmed to work: `dirfm.DIRSIG.set_seed` passes `--random_seed` to both `scene2hdf` and `dirsig5`, and seeded renders are byte-identical across assemblies. `--threads` is not in `engine.run`.
 - **Not in the body** (A.7): quaternion orientation, STK report import, velocity-tracking `up`, `EarthGrid`, jitter, uniform or classic radiative transfer, turbulence, uniform weather. A tree needing these is registered with a hand-written descriptor.
+
+#### `motion` kind `orbit` `proposed`
+
+A moving platform on an orbit, stated as the law that produces its track, not as DIRSIG's classes. Members of `engine.motion`: `kind: orbit`; `orbit.tle` (a library ref `{name, content_hash}` under `orbit/`, section 5); `orbit.propagator` (`skyfield_sgp4`, the only value); `orbit.earth_orientation` (a library ref to the UT1–UTC tables, `orbit/iers.npz`); `orbit.window` (`start` and `duration`, seconds from `descriptor.collection.epoch`, which must cover every task window); `orbit.waypoint_spacing` (seconds; the window must be a whole number of steps); and `orientation: {kind: lookat, lookat: {frame: sceneenu, target: [x, y, z], up: along_track}}`. The generator (`motion_tasks.generate_motion`) propagates the TLE over the window at a tenth of the spacing, thins the track to ECEF waypoints at the spacing, and writes a DIRSIG FlexMotion `.motion` (waypoints location engine in `ecef`, LookAt orientation engine at the scene ENU target). `up: along_track` is the horizontal velocity direction at the window centre, held fixed for the pass (`orbit.along_track_up`). `PlatformFilesPlugin` passes the `.motion` file to DIRSIG as it passes a `.ppd`.
+
+Everything the form reads is a hashed library file: the TLE and the Earth-orientation tables (a byte copy of the tables bundled with skyfield 1.54, daily UT1–UTC from 1973 to January 2027, no polar motion). The JPL ephemeris used to choose a pass (`de421.bsp`, for the sun's elevation) is an authoring-time input only and is never a run input. The propagator's name and versions (`orbit.propagator_provenance()`) are recorded on the run's result for the execution record, never in the run spec. A replacement propagator must reproduce the golden vector in `manifold_contracts/vectors/orbit/` within its tolerance (0.1 m). DIRSIG's own `sgp4` location engine is not used: it applies no UT1–UTC and lands about 33 m from this track.
+
+A multi-frame pass needs a platform template whose image and truth files are written once per capture (`<schedule>capture</schedule>`, files `<base>-t<task>-c<capture>.img`); with the `simulation` schedule DIRSIG stacks the frames in one image and keeps only the last frame's truth. `Simulation.run` returns every capture as `RunResult.frames`. The descriptor is unchanged: no key is added for the pass, and derived time-varying geometry (range and elevation extremes, closest approach, ground-track extent) is not computed into it (C-05).
 
 ### 3.3 Outside both sections
 
@@ -180,7 +188,7 @@ A **run** is one composed run spec and one execution; its **job directory** is t
 | sensor | `manifold_sensors/<file>.yaml` | `descriptor.sensor`: `{ref: {name, content_hash}}`, or inline |
 | (generated) | `manifold_run_specs/<name>.yaml`, or `<name>--<sensor>.yaml` per sweep run | the composed run specs; tracked, `GENERATED` header |
 
-An engine profile is the engine block for one scenario under one engine (scene, motion, tasks, atmosphere, generator, run); splitting scene-specific from engine-general content is deferred. `auror_ref` and `synthetic_vis` share the scenario and the engine profile `tahoe_static_pose`; the AUROR recipe sets `engine_overrides: {platform.channel_response: native}`, the one path the rules allow a recipe to override.
+An engine profile is the engine block for one scenario under one engine (scene, motion, tasks, atmosphere, generator, run); splitting scene-specific from engine-general content is deferred. `auror_ref` and `synthetic_vis` share the scenario and the engine profile `tahoe_static_pose`; `leo_pass_tahoe` (a LEO pass, section 3.2) has its own scenario and engine profile, `tahoe_leo_pass`; the AUROR recipe sets `engine_overrides: {platform.channel_response: native}`, the one path the rules allow a recipe to override.
 
 Recipe fields (rules version `compose/1`): `compose: compose/1`; `meta` (`name`, `tags`, `description`); `sensor` (a sensor-library file name) or `sensors` (a list of them: a sweep); `scenario` and `engine_profile` (layer names); `settings` (members keyed by `entry_id`); `fidelity` (`modeled`, `approximated`, `absent`, `valid_for`); optionally `fidelity_by_sensor` and `engine_overrides`.
 
@@ -235,6 +243,8 @@ manifold_config_repo/
   platforms/<platform>/<platform>.platform
   weather/<name>.wth
   atmosphere/<name>             # proposed path; see section 10
+  orbit/<name>.tle              # proposed: TLE for engine.motion kind orbit (section 3.2)
+  orbit/iers.npz                # proposed: Earth-orientation (UT1 - UTC) tables for the propagator
 manifold_run_specs/
   recipes/<name>.yaml           # compose/1 recipe: meta, settings, fidelity; names the layers below and a sensor
   scenarios/<name>.yaml         # descriptor.collection
@@ -244,6 +254,7 @@ manifold_sensors/               # sensor library: sensor-spec/1 documents; never
   spectral/<qe|optics|filter>/  # spectral-curve/1 CSVs
 manifold_contracts/             # schemas, vocabulary, validators (sensor-spec-1.schema.json)
   vectors/compose/<case>/       # conformance vectors for an input constructor
+  vectors/orbit/                # golden vector for the propagator: pinned TLE, expected positions, tolerance
 external/                       # pinned dirfm, agent-docs, DIRSIG link; gitignored (pins.json tracked)
 src/protodirsig/  tests/  notebooks/
 scripts/                        # bootstrap, compose, stamp_hashes, import_curve, crosscheck_sgp4
@@ -255,9 +266,9 @@ Refs resolve by which side of the schema they sit on.
 
 | Ref | Resolves against |
 |---|---|
-| `engine.*` (`scenes[].ref`, `platform.ref`, `atmosphere.database.ref`, `weather.file`) | `manifold_config_repo/` |
+| `engine.*` (`scenes[].ref`, `platform.ref`, `atmosphere.database.ref`, `weather.file`, `motion.orbit.tle`, `motion.orbit.earth_orientation`) | `manifold_config_repo/` |
 | `descriptor.*` (`sensor.ref`) | `manifold_sensors/` (the sensor library) |
-| `engine.motion`, `engine.tasks` | not resolved; generated into the job directory |
+| `engine.motion`, `engine.tasks` | generated into the job directory (an orbit's TLE and tables resolve as above) |
 
 Each library folder is a resolution root and maps to a future MANIFOLD repository. Any `descriptor` ref added later resolves against its own library, regardless of where the engine-asset library lives. `manifold_config_repo/` is read-only at run time. A job directory holds a scene reference copy (geometry and materials symlinked back to the library), byte-identical copies of the weather file and atmosphere database, the `.platform` rendered by `platform_gen`, and the generated motion and tasks files.
 
@@ -293,11 +304,11 @@ A top-level folder exists here only if it has a MANIFOLD analog. `AUROR_ref/` ha
 | `run_spec` | run-spec loader and AUROR resolver | `built, partial` |
 | `platform_gen` | `.platform` rendered from the library template, `sensor-spec/1` and `settings` | `built` (one focal plane per entry) |
 | `spectral` | `spectral-curve/1` reader, channel shapes, response composition | `built` |
-| `motion_tasks` | `.ppd` and `.tasks` generation from `engine.motion`, `engine.tasks` | `built, partial` (static) |
-| `simulation` | schema, resolution, execution checks; render | `built` |
+| `motion_tasks` | motion and `.tasks` generation from `engine.motion`, `engine.tasks`: a `.ppd` for `static`, a FlexMotion `.motion` of ECEF waypoints for `orbit` (`orbit_waypoints`) | `built, partial` (static, orbit) |
+| `simulation` | schema, resolution, execution checks; render; every capture as `RunResult.frames` | `built` |
 | `registry` | `LocalRegistry`: local stand-in for submission | `built` |
 | `scene_ref`, `platform_ref`, `scene_coverage`, `atmosphere_patches` | `dirfm` gap-fillers | `built` |
-| `orbit`, `sensors` | skyfield TEME→ECEF and trajectory; sensor helpers | `built` |
+| `orbit`, `sensors` | the propagator seam (`propagate` returns a plain `Trajectory`; `find_passes`, `choose_pass`, `propagator_provenance`; no skyfield type in a signature), TEME→ITRS checks and a second sgp4 + GMST-1982 path, LookAt waypoint motion, `recover_position` from truth; sensor helpers | `built` |
 
 `scripts/compose.py [--check]` writes the generated run specs; `scripts/stamp_hashes.py [--check]` stamps `content_hash` values in sensor and layer files and verifies them in generated run specs; `scripts/import_curve.py` converts measured curves to `spectral-curve/1`. Pending work is in `BACKLOG.md`.
 
@@ -387,7 +398,7 @@ One row per interface item. `Outcome` is filled after review with the MANIFOLD t
 | C-02 | `atmosphere/<name>` flat library path | modeled on `weather/<name>.wth`; ratify with C-03 | `proposed` | |
 | C-03 | `new_atmosphere` plugin value in A.8.7 (database role `dirsig:atmosphere_db`) | AUROR's atmosphere is `NewAtmosphere` reading a prebuilt HDF5 database; `four_curve` in the architecture-view instances is wrong for this tree. The recipe (MODTRAN tape, `Isaac`) has no run-spec field | `proposed` | |
 | C-04 | Where motion and tasks are generated | at `materialize`, from `engine.motion` and `engine.tasks`; or does MANIFOLD expect them pre-built upstream? | `open` | |
-| C-05 | Moving-platform motion generation | only `kind: static` is generated; `waypoints` and `orbit` are rejected at resolution. The orbit pieces exist outside the contract (`orbit.py`: TLE, SGP4 through skyfield with UT1-UTC, TEME to ECEF check, pass selection, thinning, a `dirfm` `FlexMotion` builder). Not built: an `engine.motion` form for `orbit` (a TLE or ephemeris source as a hashed library asset, a time window, a pointing law); multi-frame `.tasks` for a pass; a descriptor form for time-varying geometry (derived range and elevation extremes, closest approach, ground-track extent: MANIFOLD decides which it indexes). Scope: a ground-imaging pass first (the StkImport1 reconstruction); an observer imaging a space object against space (stars, space background, relative target motion) is out of scope until the BACKLOG item for it is taken | `open` | |
+| C-05 | Moving-platform motion generation | `kind: orbit` is built for a ground-imaging pass (section 3.2, `proposed`): a library TLE propagated by SGP4 with UT1–UTC over a window, ECEF waypoints, LookAt at a scene ENU point with a fixed along-track up, multi-frame tasks; `recipes/leo_pass_tahoe.yaml` renders three frames of a WORLDVIEW-2 pass over Tahoe, and an independent check recovers the platform position from each frame's truth within 0.4 m of the track. `waypoints` (authored samples) is not built, and DIRSIG's native `sgp4` location engine is not used (no UT1–UTC, about 33 m off). Open questions for MANIFOLD: the descriptor form for a moving platform (the descriptor is unchanged; the pass is stated in `engine` only), and whether MANIFOLD indexes derived time-varying geometry (range and elevation extremes, closest approach, ground-track extent), which is not computed into the spec. Scope: a ground-imaging pass; an observer imaging a space object against space (stars, space background, relative target motion) is out of scope until the BACKLOG item for it is taken | `built, partial` | |
 | C-06 | Authority of DIRSIG JSON logs | disagreement flag only, never authoritative over the descriptor (the run log is incomplete and unversioned) | `proposed` | |
 | C-07 | Compile-once | `scene2hdf` output as a content-hashed artifact, invalidated by scene change; `submit` then `run()` currently compiles twice | `proposed` | |
 | C-08 | `--threads` in `engine.run` | add before concurrent jobs share hardware | `open` | |

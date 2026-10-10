@@ -14,6 +14,8 @@ The sensor is a file in `manifold_sensors/`, named by the recipe and never copie
 
 **Sweeps.** `sensors: [<file>, ...]` instead of `sensor:` makes one run per listed sensor, sharing the scenario, engine profile and seed. `settings` is keyed by `entry_id` across the listed sensors, and each run takes its sensor's members. Run names are `<meta.name>--<sensor file stem>`; `fidelity_by_sensor: {<file>: {...}}` gives a run its own fidelity. At most 32 runs. The sweep id is the first 12 hex digits of the recipe file's sha256; it is printed by `--explain` and never written into a run spec. `recipes/sensor_sweep_tahoe.yaml` is the example: the three library sensors, 32 x 32 windows.
 
+**Pass.** `recipes/leo_pass_tahoe.yaml` (scenario and engine profile `tahoe_leo_pass`) is a moving platform: `engine.motion` kind `orbit` propagates the library TLE `orbit/worldview2_35946.tle` over a 120 s window into ECEF waypoints with a LookAt at the scenario point, and three task windows give three 16 x 16 frames centred on culmination (CONOPS and Guide §3.2).
+
 ```bash
 python scripts/compose.py                                   # write every <name>.yaml from its recipe
 python scripts/compose.py --check                           # fail if a generated file is stale

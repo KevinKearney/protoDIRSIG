@@ -34,10 +34,10 @@ Duplicate-key and unknown-key rejection and canonical-JSON hashing are not built
 Not exposed. Add before MANIFOLD schedules concurrent DIRSIG jobs on shared hardware.
 
 ### Generalize `resolve_auror_run`
-It accepts only `new_atmosphere`, ephemeris `spice`, weather `library`, one scene, and `static` motion. `four_curve` and others fail with a specific `RunSpecError`. The NewAtmosphere backend recipe (MODTRAN tape, `Isaac`) has no run-spec field and is fixed in `AUROR_ATMOSPHERE_BACKEND`.
+It accepts only `new_atmosphere`, ephemeris `spice`, weather `library`, one scene, and `static` or `orbit` motion. `four_curve` and others fail with a specific `RunSpecError`. The NewAtmosphere backend recipe (MODTRAN tape, `Isaac`) has no run-spec field and is fixed in `AUROR_ATMOSPHERE_BACKEND`.
 
-### Moving-platform ground-imaging pass (C-05, high priority)
-A LEO platform imaging a ground scene: the StkImport1 reconstruction through the run-spec driver. Needs an `engine.motion` form for `orbit` (TLE or ephemeris as a hashed library asset, window, pointing law), generation from `orbit.py` in `motion_tasks`, multi-frame `.tasks` with per-frame truth, and the skyfield data (`de421.bsp`, IERS) pinned and hashed so a run does not read the network. Confirm `dirfm` supports a `LookAt` whose location engine is a waypoint track before promising target staring. Frame count, ROI and convergence are set by cost: a 500 x 500 frame takes about 7 minutes. Compile-once (C-07), threads (C-08) and parallel sweeps become real here. Validation vehicle: `tutorial_orbit_to_ground` Stage 3, with the independent ground-track check.
+### Moving-platform pass: what remains (C-05)
+The ground-imaging pass is built (`engine.motion` kind `orbit`, CONOPS §3.2; `recipes/leo_pass_tahoe.yaml`, three 16 x 16 frames with an independent ground-track check). Remaining: a form for DIRSIG's native `sgp4` location engine, if one is wanted, with its recorded 33 m difference from the UT1-corrected track (it applies no UT1 - UTC; see the item below); an authored `waypoints` form; frame count, ROI and runtime beyond 16 x 16 (a 500 x 500 frame takes about 7 minutes), where compile-once (C-07), threads (C-08) and parallel sweeps become the cost drivers; refreshing the library Earth-orientation tables (`manifold_config_repo/orbit/iers.npz`, a copy of skyfield 1.54's, covers UT1 - UTC to January 2027) and deciding whether polar motion is applied; per-frame truth products beyond the GeoLocation and Intersection collectors of the pass template. MANIFOLD's answers on the descriptor form and on indexing derived time-varying geometry (C-05) may add descriptor work.
 
 ### Space-object imaging against space (after the pass)
 An observer imaging a space object against space: star field (no streamlined support in DIRSIG; a flux-matched finite emitter, or compositing from the truth cube), space background, relative target motion, probably a different scene. A separate design problem; C-05 scopes it out until this item is taken.
@@ -69,6 +69,9 @@ Sweeps exist over the sensor axis only (CONOPS §3.5). Remaining: a grid over ot
 
 ### Documentation site
 A readthedocs-style site generated from `api/` (the operation table, schemas, OpenAPI document) and the SDK's docstrings (R-11 in `api/requirements.md`). The generator is chosen in phase 2, with the facade class whose docstrings it renders.
+
+### Phase 2 restructure input
+Two lists from a usage audit of `src/protodirsig` and `scripts/`, for the SDK restructure. AUROR-specific names: `run_spec.resolve_auror_run`, `run_spec.AurorRun`, `run_spec.AUROR_ATMOSPHERE_BACKEND`, the `Simulation.auror_run` attribute, the module docstrings of `simulation.py` and `run_spec.py` ("the AUROR_ref job"), the `new_atmosphere` refusal text in `run_spec.py`, and an AUROR_ref mention in `platform_gen.py`. Engine-bound modules (import `dirfm`, skyfield, or run DIRSIG tools): `atmosphere_patches`, `motion_tasks`, `platform_ref`, `sensors`, `simulation` (dirfm); `orbit` (skyfield and sgp4 inside functions, dirfm in `lookat_motion`); `scene_ref` and `simulation` (spawn engine tools); and transitively `run_spec` (imports `atmosphere_patches` and `platform_ref`), hence `compose` and `registry` (`tests/test_import_boundary.py` records this set). Unused code found by the audit was deleted; nothing was renamed.
 
 ### Multi-focal-plane generation
 `platform_gen` renders one focal plane per run (C-19). A rig whose entries image the same instant needs one `.platform` with several focal planes and one run with several `settings` members. Build it when a run needs a co-boresight rig, and after MANIFOLD answers C-19.
@@ -103,6 +106,9 @@ DS9 cannot read the ENVI `.img` + `.hdr` (float64, BIP). Build a pyqtgraph viewe
 
 ### `tutorial_orbit_to_ground` Stage 3
 Final render and comparison. The notebook status still reads "in progress".
+
+### `tutorial_tacoma_scene` calls the old `orbit` API
+Its Stage 1 calls `orbit.find_passes`, `choose_pass`, `pass_epoch`, `propagate` and `check_teme_to_itrs` with skyfield objects; those now take and return plain values (`orbit.Pass`, `orbit.Trajectory`). Its stored outputs stand; re-executing it needs that cell moved to the new calls, as `scripts/crosscheck_sgp4.py` was.
 
 ### New-user notebooks
 A short path for a new user of `dirfm` and then the SDK, built from the existing tutorials and stage notebooks. Define the path before writing anything new.
