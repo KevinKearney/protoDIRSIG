@@ -269,6 +269,43 @@ def from_resolution_error(exc, spec, sources, recipe=None, instance=None):
     return _problem(ADMISSION, 422, f"Run {run}: a reference does not resolve{where}: {exc}", instance, layer, field)
 
 
+def admission(detail, instance=None, layer=None, field=None):
+    """A plain admission problem (422) for a failed check with no richer constructor (a library-file problem, a
+    semantic rule)."""
+    return _problem(ADMISSION, 422, detail, instance, layer, field)
+
+
+def from_validation(report, sources=None, recipe=None, instance=None):
+    """The one admission problem for an `admission.ValidationReport` that does not admit (not valid, or an unstamped
+    member): every reason in `detail`; `layer` and `field` from the first schema violation, else the resolution
+    failure's pointer, else the first unstamped member, when `sources` attributes it. None if the report admits."""
+    spec = report.spec
+    if report.valid and not report.unstamped:
+        return None
+    run = (((spec or {}).get("descriptor") or {}).get("meta") or {}).get("name") if isinstance(spec, dict) else None
+    reasons = []
+    if report.schema_errors:
+        reasons.append("Schema check failed: " + "; ".join(report.schema_errors))
+    if report.resolution_mismatches:
+        reasons.append("Resolution check failed: " + "; ".join(report.resolution_mismatches))
+    if report.unstamped:
+        reasons.append(f"Stamp check failed: {', '.join(report.unstamped)} carry a placeholder instead of a stamped "
+                       "value; run scripts/stamp_hashes.py (and scripts/compose.py for a composed spec)")
+    layer = field = None
+    if isinstance(spec, dict) and sources:
+        try:
+            schema = [v["at"] for v in schema_violations(spec)]
+        except Exception:  # noqa: BLE001
+            schema = []
+        resolution = getattr(report.resolve_exception, "pointer", None)
+        pointers = schema or ([resolution] if resolution else []) or \
+            [p if p.endswith("/revision") else p + "/content_hash" for p in report.unstamped]
+        if pointers:
+            layer, field = locate(pointers[0], sources, spec=spec, recipe=_load_recipe(recipe))
+    return _problem(ADMISSION, 422, f"Run {run or '(unnamed)'} failed admission. " + " ".join(reasons), instance,
+                    layer, field)
+
+
 def execution_failed(run_id, name, message, instance=None):
     """The problem for an accepted run that failed while executing (the engine, the worker or the host): status 500,
     no authored file."""

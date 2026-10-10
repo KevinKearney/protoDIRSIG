@@ -314,6 +314,7 @@ A top-level folder exists here only if it has a MANIFOLD analog. `AUROR_ref/` ha
 | `admission` | engine-free validation, the `none` level: `validate_spec` (schema, resolution, library files, unstamped members, run id) returning a `ValidationReport`; no engine package | `built` |
 | `store` | the run store: `RunStore` (one directory per run id under a work root: canonical `run_spec.json`, `status.json`, `execution.json`; atomic creation, compare-and-set state under `flock`, `reap` of dead workers), `artifacts_for`; no engine package | `built` |
 | `worker` | `python -m protodirsig.worker <run_dir>`: one process per run; slot locks, `accepted` to `running`, dry run then render, artifacts, final state, execution record; engine-bound (dirfm) | `built` |
+| `backend` | the `Backend` protocol of `sdk-api/1` (`compose`, `validate`, `submit_run`, `submit_sweep`, `get_run`, `get_sweep`, `cancel_run`, `list_artifacts`, `get_artifact`; wire-form dicts) and `LocalBackend` (run store, a worker process per run, `max_parallel` slots, cancel by process group); no engine package at import | `built` |
 | `platform_gen` | `.platform` rendered from the library template, `sensor-spec/1` and `settings` | `built` (one focal plane per entry) |
 | `spectral` | `spectral-curve/1` reader, channel shapes, response composition | `built` |
 | `motion_tasks` | motion and `.tasks` generation from `engine.motion`, `engine.tasks`: a `.ppd` for `static`, a FlexMotion `.motion` of ECEF waypoints for `orbit` (`orbit_waypoints`) | `built, partial` (static, orbit) |
