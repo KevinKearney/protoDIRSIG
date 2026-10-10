@@ -26,3 +26,6 @@ external/*
 
 # Working prompt for Claude Code; not versioned
 /prompt.md
+
+# Library assets materialized by scripts/bootstrap.py assets from manifold_config_repo/assets.json (DIRSIG demos: licensed, not committed)
+/manifold_config_repo/demos/

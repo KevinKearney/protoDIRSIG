@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.manifold.example/contracts/assets-1.schema.json",
+  "title": "assets/1",
+  "description": "The manifest of library assets that are not committed (`manifold_config_repo/assets.json`): for each, where it is placed under the engine-asset library, how it is identified (a digest), and where it comes from. `scripts/bootstrap.py assets` materializes the entries as real files and verifies each digest.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "assets"
+  ],
+  "properties": {
+    "version": {
+      "description": "The manifest format, `assets/1`.",
+      "const": "assets/1"
+    },
+    "assets": {
+      "description": "One entry per asset, a file or a directory.",
+      "type": "array",
+      "items": {
+        "description": "One library asset.",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "kind",
+          "digest",
+          "size",
+          "source"
+        ],
+        "properties": {
+          "path": {
+            "description": "Where the asset is placed, relative to `manifold_config_repo/`, POSIX separators, never leaving it (for example `demos/<Name>/scenes/<scene>`).",
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!/)(?!.*(^|/)\\.\\.(/|$))[^\\\\\\n]+$"
+          },
+          "kind": {
+            "description": "`file` (one file) or `directory` (a folder of files, such as a scene directory).",
+            "enum": [
+              "file",
+              "directory"
+            ]
+          },
+          "digest": {
+            "description": "`sha256:` + 64 lowercase hex digits: for a `file` the sha256 of its bytes; for a `directory` its `dirhash/1` digest (manifold_contracts/README.md). A layer file that references the asset stamps the same value.",
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "size": {
+            "description": "The asset's size in bytes (for a directory, the total of its files).",
+            "type": "integer",
+            "minimum": 0
+          },
+          "source": {
+            "description": "Where the asset's bytes come from.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "archive",
+              "prefix"
+            ],
+            "properties": {
+              "kind": {
+                "description": "The kind of source. `zip`: members of a zip archive, read in place.",
+                "const": "zip"
+              },
+              "archive": {
+                "description": "The archive's path; `{dirsig}` stands for the DIRSIG installation the repository links (`external/dirsig`), for example `{dirsig}/demos/zips/<Name>.zip`.",
+                "type": "string",
+                "minLength": 1
+              },
+              "prefix": {
+                "description": "For a `file`, the member's path inside the archive; for a `directory`, the directory prefix inside the archive whose members are placed below `path`.",
+                "type": "string"
+              },
+              "members": {
+                "description": "For a `directory`, the members to place, relative to `prefix` (default: every member under it). Their relative paths are kept below `path`.",
+                "type": "array",
+                "items": {
+                  "description": "A member path relative to `prefix`.",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "minItems": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
