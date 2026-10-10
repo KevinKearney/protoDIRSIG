@@ -9,7 +9,6 @@ from datetime import datetime, timezone
 
 import numpy as np
 
-MU_EARTH = 3.986004418e14            # m^3/s^2
 OMEGA_EARTH = 7.2921150e-5           # rad/s, Earth sidereal rotation rate
 WGS84_A = 6378137.0                  # semi-major axis, m
 WGS84_F = 1 / 298.257223563
@@ -47,12 +46,6 @@ def fetch_tle(norad_id, cache_dir, refresh=False, expect_name=None, expect_intl=
     if expect_intl:
         assert line1[9:17].strip() == expect_intl, f"international designator {line1[9:17]!r} != {expect_intl}"
     return comment, name, line1, line2
-
-
-def mean_altitude_km(sat):
-    """Kepler's-third-law mean altitude from the TLE mean motion (independent of propagation)."""
-    n_rad_s = sat.model.no_kozai / 60.0
-    return ((MU_EARTH / n_rad_s**2) ** (1 / 3) - WGS84_A) / 1e3
 
 
 # --- pass selection --------------------------------------------------------------------------

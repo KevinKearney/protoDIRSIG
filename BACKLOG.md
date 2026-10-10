@@ -61,9 +61,6 @@ Synthetic curves are 1 nm over 0.150-14.000 µm; imported curves keep their sour
 
 ## SDK and run-spec engine
 
-### Doc-code drift check
-A test asserting that every module in `src/protodirsig` appears in the CONOPS module table. (Every composed run spec passing `schema_errors` is tested in `tests/test_compose.py`.)
-
 ### Sweeps and layers: what remains after the sensor axis
 Sweeps exist over the sensor axis only (CONOPS §3.5). Remaining: a grid over other axes (exposure, epoch, geometry), with grid versus zip decided per axis and the run cap applied to the product; a compiled-scene cache keyed by scene hash, so the runs of a sweep that share a scene compile it once (with compile-once); and splitting scene-specific from engine-general engine-profile content, now that the AUROR and VIS profiles are one file with a recipe override.
 
