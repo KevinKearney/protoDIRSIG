@@ -77,7 +77,11 @@ print(json.dumps({{"name": spec["descriptor"]["meta"]["name"], "engine": "dirfm"
 def test_engine_free_validation_runs_with_the_engine_packages_unimportable():
     """admission.validate_spec completes on every generated run spec with dirfm, skyfield and sgp4 unimportable: valid,
     not engine-checked, nothing unstamped, and the run id identity gives."""
-    specs = sorted(str(p) for p in (ROOT / "manifold_run_specs").glob("*.yaml"))
+    def recipe_header(spec):                      # the generated header names the recipe the spec came from
+        recipe = spec.read_text().splitlines()[0].split(" from ", 1)[1].split(" - ", 1)[0]
+        return (ROOT / "manifold_run_specs" / recipe).read_text().split("\n\n", 1)[0]
+    specs = sorted(str(p) for p in (ROOT / "manifold_run_specs").glob("*.yaml")
+                   if "does not validate yet" not in recipe_header(p))      # placed demos: findings, not runs
     code = BLOCKED + f"""
 import json, yaml
 from pathlib import Path

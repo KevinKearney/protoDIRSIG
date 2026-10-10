@@ -1,0 +1,48 @@
+# Engine profile for the DIRSIG install demo PointCollectors2 (does not validate yet: see
+# docs/DIRSIG_demo_coverage.md). Its library assets come from the demo archive of that name in the DIRSIG installation
+# and are materialized under manifold_config_repo/demos/PointCollectors2/ by `scripts/bootstrap.py assets`
+# (manifold_config_repo/assets.json); they are gitignored, and only their names and hashes appear here. The scene is
+# hashed as a directory (dirhash/1). The demo's atmosphere is a BasicAtmosphere `.atm` file with uniform weather,
+# which the SDK's loader does not take; it is named here as `atmosphere.plugin: basic` with the file as a ref. The
+# motion is a stand-in static pose (the demo's own pose is not copied: licensed content).
+
+origin:
+  kind: synthetic
+  engine: dirsig
+
+engine:
+  generator: {tool: dirfm, revision: "93195cee1ccc4f31a214e114d94c493a1d4cc22f", spec_schema: dirsig-engine/1}
+
+  scenes:
+    - ref: {name: demos/PointCollectors2/scenes/demo/demo.scene, content_hash: "sha256:104c7356ef718420b96814df5ecc97b02d18f6e9d6715e909132922a2c7d6218"}
+      offset: [0, 0, 0]
+
+  platform:
+    ref: {name: demos/PointCollectors2/demo.platform, content_hash: "sha256:d9bf8374d443dd620ba81a2fc3787c6c4ef786c570aec68df71e3d868e53d8b4"}
+    library_entry: pointcollectors2-demo
+    output_prefix: pointcollectors2_
+    split_channels: false
+    integration_samples: 1
+
+  motion:
+    kind: static
+    position: {frame: scene, xyz: [0.0, 0.0, 1000.0]}     # stand-in
+    orientation:
+      kind: euler
+      euler: {order: xyz, units: radians, frame: sceneenu, angles: [0.0, 0.0, 0.0]}   # stand-in
+
+  tasks:
+    windows: [{start: 0.0, stop: 0.0}]
+
+  atmosphere:
+    plugin: basic
+    file: {name: demos/PointCollectors2/uniform.atm, content_hash: "sha256:b7901b20d41c617bfe3a7d3e60736c1047a2b990e420151ccb301c5dd662f610"}
+
+  weather:
+    source: install           # the demo's weather is the uniform weather inside its .atm file; there is no weather file
+
+  ephemeris:
+    plugin: spice
+
+  run:
+    seed: 1

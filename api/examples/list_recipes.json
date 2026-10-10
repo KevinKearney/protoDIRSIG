@@ -19,6 +19,10 @@
           "sha256": "e3965f41fdaccc746898bef3a708aac2e17bf2502a6f636055c3305e927dce1d"
         },
         {
+          "name": "pointcollectors2_demo",
+          "sha256": "ca0d80803585ef4842846e668bd25609333bb3665976744a63a617ae00a9ff25"
+        },
+        {
           "name": "sensor_sweep_tahoe",
           "sha256": "802a0f18b3e7034ed03cef0cae5b4bc957e242ee60c8b97d65e5f670707cc0ed"
         },

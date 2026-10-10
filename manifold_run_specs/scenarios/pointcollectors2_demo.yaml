@@ -1,0 +1,26 @@
+# Scenario for the DIRSIG install demo PointCollectors2 (does not validate yet: see docs/DIRSIG_demo_coverage.md).
+# The demo's own epoch, platform pose and viewing geometry are not copied here: DIRSIG demo content is licensed and
+# no value taken from a demo file is committed. Every value below is a stand-in, chosen by the SDK, to let the
+# loader be exercised; regenerating the demo would need these from the demo's tasks and motion files.
+
+collection:
+  epoch: "2000-01-01T12:00:00Z"        # stand-in
+  platform:
+    class: aircraft
+    position:
+      frame: geodetic
+      datum: WGS84
+      latitude:  {value: 0.0, provenance: modeled}       # stand-in
+      longitude: {value: 0.0, provenance: modeled}       # stand-in
+      altitude:  {value: 1000, provenance: modeled}      # stand-in
+      altitude_reference: ellipsoid
+  geometry:
+    regime: nadir
+    range: {value: 1000, provenance: modeled}            # stand-in
+  illumination:
+    regime: daylight
+  atmosphere:
+    regime: unspecified
+  background:
+    regime: synthetic
+  targets: []

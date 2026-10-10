@@ -11,6 +11,10 @@
     "body": {
       "items": [
         {
+          "name": "pointcollectors2_demo",
+          "sha256": "97faa022a469b72b042e88536268cc1297ead11850067577def7dcb8c61c27f3"
+        },
+        {
           "name": "tahoe_leo_pass",
           "sha256": "b434744ccb0dc7521417c63629d5fa23eab61b6b9c4120a2f0253e1a76492ddd"
         },

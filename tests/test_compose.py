@@ -20,6 +20,15 @@ from test_simulation import needs_dirsig
 ROOT = Path(__file__).resolve().parents[1]
 RUN_SPECS = ROOT / "manifold_run_specs"
 ALL_RECIPES = sorted((RUN_SPECS / "recipes").glob("*.yaml"))
+NOT_YET = "does not validate yet"           # a recipe header marking a library entry that is placed but not resolvable
+
+
+def _resolvable(recipes):
+    """The recipes, with those whose header says they do not validate yet skipped (with that reason)."""
+    return [pytest.param(r, marks=pytest.mark.skip(reason=f"{r.name}: {NOT_YET} (see docs/DIRSIG_demo_coverage.md)"))
+            if NOT_YET in r.read_text().split("\n\n", 1)[0] else r for r in recipes]
+
+
 RECIPES = [r for r in ALL_RECIPES if "sensors" not in yaml.safe_load(r.read_text())]     # one-run recipes
 SWEEP = RUN_SPECS / "recipes" / "sensor_sweep_tahoe.yaml"
 VECTORS = ROOT / "manifold_contracts" / "vectors" / "compose"
@@ -272,7 +281,7 @@ def test_stamp_hashes_verifies_generated_specs(tmp_path):
 
 
 @pytest.mark.skipif(not (CONFIG_REPO / "scenes" / "tahoe" / "tahoe.scene").is_file(), reason="manifold_config_repo not present")
-@pytest.mark.parametrize("recipe", RECIPES, ids=lambda p: p.stem)
+@pytest.mark.parametrize("recipe", _resolvable(RECIPES), ids=lambda p: p.stem)
 def test_inline_and_ref_sensor_render_the_same_platform(tmp_path, recipe):
     """The resolver accepts both forms of descriptor.sensor and renders the same .platform from each."""
     from protodirsig.platform_gen import render_platform
