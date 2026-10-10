@@ -308,6 +308,7 @@ A top-level folder exists here only if it has a MANIFOLD analog. `AUROR_ref/` ha
 | `run_spec` | run-spec loader and AUROR resolver; loads no engine package (the dirfm plugin classes load only when a job is built) | `built, partial` |
 | `contract` | the `manifold_contracts/` schemas applied: `schema_violations(spec)` as JSON Pointers; admission enforces them through `simulation.schema_errors` | `built` |
 | `identity` | run ids and sweep ids: RFC 8785 canonical JSON (`canonical_json`), the resolved run spec (`materialize_sensor`), `run_id`, `sweep_id_from_runs` | `built` |
+| `dirhash` | `dirhash/1`, the digest of a directory (`directory_manifest`, `directory_digest`): the hash a `.scene` reference carries, over the scene directory; standard library only | `built` |
 | `platform_gen` | `.platform` rendered from the library template, `sensor-spec/1` and `settings` | `built` (one focal plane per entry) |
 | `spectral` | `spectral-curve/1` reader, channel shapes, response composition | `built` |
 | `motion_tasks` | motion and `.tasks` generation from `engine.motion`, `engine.tasks`: a `.ppd` for `static`, a FlexMotion `.motion` of ECEF waypoints for `orbit` (`orbit_waypoints`) | `built, partial` (static, orbit) |

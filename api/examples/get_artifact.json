@@ -3,7 +3,7 @@
   "description": "The bytes are the canonical JSON serialization (RFC 8785) of the resolved run spec, the spec with its sensor block in place, so they hash to the run id; they are shown here as a parsed document, complete. Run ids and sweep ids are computed from the composed specs; the hash of `run_spec.json` is the run id. Everything else is real library data.",
   "request": {
     "method": "GET",
-    "path": "/runs/1c9e6343b64c324aa68c7ebca64e8b9e76e0a1a1413538ed1efbd9dc00e46088/artifacts/run_spec.json"
+    "path": "/runs/3acc34f4ee764dd26bb1685002b2a50d3123dc8407367e4f86a4136fa9ee9841/artifacts/run_spec.json"
   },
   "response": {
     "status": 200,
@@ -213,7 +213,7 @@
           {
             "ref": {
               "name": "scenes/tahoe/tahoe.scene",
-              "content_hash": "sha256:<hash>"
+              "content_hash": "sha256:b5ddce9fe2b99141d35af5943ad310d3876d3b7b0b37833cd4142f37421cfbf6"
             },
             "offset": [
               0,

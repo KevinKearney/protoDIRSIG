@@ -3,19 +3,19 @@
   "description": "Only the resolved run spec exists before the run renders; the logs, the image, its header and the truth images are listed as they are written. Run ids and sweep ids are computed from the composed specs; the hash of `run_spec.json` is the run id. Everything else is real library data.",
   "request": {
     "method": "GET",
-    "path": "/runs/1c9e6343b64c324aa68c7ebca64e8b9e76e0a1a1413538ed1efbd9dc00e46088/artifacts"
+    "path": "/runs/3acc34f4ee764dd26bb1685002b2a50d3123dc8407367e4f86a4136fa9ee9841/artifacts"
   },
   "response": {
     "status": 200,
     "media_type": "application/json",
     "body": {
-      "run_id": "1c9e6343b64c324aa68c7ebca64e8b9e76e0a1a1413538ed1efbd9dc00e46088",
+      "run_id": "3acc34f4ee764dd26bb1685002b2a50d3123dc8407367e4f86a4136fa9ee9841",
       "artifacts": [
         {
           "name": "run_spec.json",
-          "sha256": "1c9e6343b64c324aa68c7ebca64e8b9e76e0a1a1413538ed1efbd9dc00e46088",
+          "sha256": "3acc34f4ee764dd26bb1685002b2a50d3123dc8407367e4f86a4136fa9ee9841",
           "media_type": "application/json",
-          "uri": "file:///tmp/protodirsig/runs/1c9e6343b64c324aa68c7ebca64e8b9e76e0a1a1413538ed1efbd9dc00e46088/run_spec.json"
+          "uri": "file:///tmp/protodirsig/runs/3acc34f4ee764dd26bb1685002b2a50d3123dc8407367e4f86a4136fa9ee9841/run_spec.json"
         }
       ]
     },

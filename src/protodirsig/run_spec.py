@@ -28,7 +28,7 @@ pointed by a LookAt at a scene ENU point with the along-track `up` (a FlexMotion
 refused. The orbit form's TLE and Earth-orientation tables are library files under `config_repo` (`orbit/`),
 hash-verified like every other engine ref.
 
-Imports: the standard library, `yaml`, `lxml` and `protodirsig.spectral` only. The `dirfm`-bound plugin classes
+Imports: the standard library, `yaml`, `lxml`, `protodirsig.spectral` and `protodirsig.dirhash` only. The `dirfm`-bound plugin classes
 (`atmosphere_patches`, `platform_ref`) are imported inside `AurorRun.atmosphere_plugin` and `ephemeris_plugin`, the
 only places a job's plugins are built, so loading, resolving, checking and composing a run spec load no engine
 package (tests/test_import_boundary.py).
@@ -36,9 +36,10 @@ package (tests/test_import_boundary.py).
 Loading is a plain `yaml.safe_load`. `AV_MANIFOLD_Metadata_v02.md` §6.15 specifies a strict
 loader (duplicate-key rejection, canonical-JSON hashing, unknown-key rejection). That belongs to
 MANIFOLD's registry side, which is not built yet, so it is not built here: a duplicated key in the
-YAML silently keeps the last value, and no `content_hash` is computed canonically. A stamped hash (sha256 of the file bytes, `scripts/stamp_hashes.py`)
-on a file ref is verified when the file is read; the `sha256:<hash>` placeholder is not (a `.scene` ref stays
-a placeholder, since its geometry and materials sit beside it).
+YAML silently keeps the last value, and no `content_hash` is computed canonically. A stamped hash
+(`scripts/stamp_hashes.py`) is verified when the reference is resolved: on a file ref the sha256 of the file bytes, on
+a `.scene` ref the `dirhash/1` digest of the scene directory (`protodirsig.dirhash`), since the geometry and materials
+sit beside the `.scene` file. The `sha256:<hash>` placeholder is not verified.
 """
 import copy
 from dataclasses import dataclass
@@ -48,6 +49,7 @@ from pathlib import Path
 import lxml.etree as et
 import yaml
 
+from protodirsig.dirhash import directory_digest
 from protodirsig.spectral import PLACEHOLDER, sha256_file
 
 # dirfm-bound names, imported only when a job is built (AurorRun.atmosphere_plugin, ephemeris_plugin), so loading,
@@ -163,11 +165,27 @@ def _verify_hash(path, ref, what):
                            f"({sha256_file(path)[:19]}...); run scripts/stamp_hashes.py after an intended edit")
 
 
-def _scene_file(config_repo, ref_name):
+def _verify_directory_hash(directory, ref, what):
+    """A stamped `content_hash` (not the placeholder) must equal the `dirhash/1` digest of `directory`."""
+    want = ref.get("content_hash") if isinstance(ref, dict) else None
+    if isinstance(want, str) and PLACEHOLDER not in want:
+        try:
+            got = directory_digest(directory)
+        except ValueError as e:
+            raise RunSpecError(f"{what} directory {directory.name}: cannot be hashed: {e}") from e
+        if got != want:
+            raise RunSpecError(f"{what} directory {directory.name}: content_hash {want[:19]}... does not match the "
+                               f"directory ({got[:19]}...); run scripts/stamp_hashes.py after an intended edit")
+
+
+def _scene_file(config_repo, ref_name, ref=None):
     # The ref names the `.scene` file itself in the library layout, `scenes/<scene>/<scene>.scene`
     # (Configuration_v02 A.8.3; guide §9), with geometry/, materials/ and maps/ beside it. No
-    # fallback search: the earlier nested-then-flat guess against the received tree is gone.
-    return _root_file(config_repo, ref_name, "scene")
+    # fallback search: the earlier nested-then-flat guess against the received tree is gone. A stamped hash is the
+    # `dirhash/1` digest of the directory holding the `.scene` file (protodirsig.dirhash), verified here.
+    path = _root_file(config_repo, ref_name, "scene")
+    _verify_directory_hash(path.parent, ref, "scene")
+    return path
 
 
 
@@ -314,7 +332,7 @@ def resolve_auror_run(spec, run_spec_path, config_repo, sensor_library=None):
         raise RunSpecError(f"descriptor.settings must have one member (one sensor entry per job); got {got}")
     _check_settings_roi(settings, sensor_doc)
     check_settings_black_level(settings)
-    scene_path = _scene_file(config_repo, scene["ref"]["name"])
+    scene_path = _scene_file(config_repo, scene["ref"]["name"], scene["ref"])
     if kind == "orbit":
         orbit_values["scene_origin"] = _scene_origin(scene_path)
     return AurorRun(

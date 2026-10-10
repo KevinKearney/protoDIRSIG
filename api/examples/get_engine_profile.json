@@ -10,7 +10,7 @@
     "media_type": "application/json",
     "body": {
       "name": "tahoe_static_pose",
-      "sha256": "ef0ef3a1a0c49963ac36b7da6305febd082608cc681381f55cb80678a5b81e9f",
+      "sha256": "01d2999149ee54a88bbe63651994e4dbbd75e28375149580f4fc3bd937717ec4",
       "document": {
         "origin": {
           "kind": "(abbreviated)",

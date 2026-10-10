@@ -1,0 +1,6 @@
+{
+ "description": "dirhash/1 of tree/: the manifest (one line per regular file, sha256 of its bytes, two spaces, its POSIX path relative to tree/, sorted by the UTF-8 bytes of the path) and the digest, sha256: plus the sha256 of the manifest. The order exercises byte order: B.txt before a.txt (upper case first), a.txt before a/b.txt ('.' is 0x2E, '/' is 0x2F); materials/matériau.txt is a non-ASCII name and materials/empty.dat an empty file.",
+ "directory": "tree",
+ "manifest": "633eb999de7198169b325921b04739393e0538ed2175ee8026dfa1d0b6ebfcdd  B.txt\nbee62a0c68c21fa6cd8b6a3e9434de8b448498ade312a9b58c87e9d94bf135ba  a.txt\n2406920e17b61cda02f741fc10fd8c356fa44ae2e612db782e8910cd45d03346  a/b.txt\n12d10d023d80715180637d6b2a7a7aedae4c053086ceaeec7c3b4fff0af13190  materials/emissivity/gray.ems\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  materials/empty.dat\n67c30a81a3699cccd73e844eaeba848abc410a395792121ba799195903a4d190  materials/matériau.txt\n",
+ "digest": "sha256:afd4efb48e3bf75cd4cd1eb6bb58a09f3162149132e73dd0bb0da5234755be6e"
+}

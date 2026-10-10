@@ -87,7 +87,8 @@ def test_the_valid_corpus_is_what_the_repository_produces():
 
 @pytest.mark.parametrize("path", VALID, ids=lambda p: str(p.relative_to(ROOT)))
 def test_every_composed_spec_validates(path):
-    """In the state the repository keeps it in: a .scene ref keeps its sha256:<hash> placeholder, as the layers do."""
+    """In the state the repository keeps it in: the generated specs stamped (a .scene ref with its directory digest), the
+    hand-written vectors with the sha256:<hash> placeholder on the .scene ref."""
     errors = [f"{list(e.absolute_path)}: {e.message[:200]}" for e in VALIDATOR.iter_errors(yaml.safe_load(path.read_text()))]
     assert errors == []
 

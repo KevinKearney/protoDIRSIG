@@ -93,7 +93,7 @@ engine:
   scenes:
   - ref:
       name: scenes/tahoe/tahoe.scene
-      content_hash: sha256:<hash>
+      content_hash: sha256:b5ddce9fe2b99141d35af5943ad310d3876d3b7b0b37833cd4142f37421cfbf6
     offset:
     - 0
     - 0

@@ -12,11 +12,11 @@
       "items": [
         {
           "name": "tahoe_leo_pass",
-          "sha256": "93b17ed6ee9d43ab9eaf94e5f5dc69cfe60315b0de9b31a7735ecf0f0c832014"
+          "sha256": "788de7418b88eaf85493eb84f962445cc09c92de8c74045f967fd315e4b692b6"
         },
         {
           "name": "tahoe_static_pose",
-          "sha256": "ef0ef3a1a0c49963ac36b7da6305febd082608cc681381f55cb80678a5b81e9f"
+          "sha256": "01d2999149ee54a88bbe63651994e4dbbd75e28375149580f4fc3bd937717ec4"
         }
       ]
     },

@@ -13,51 +13,51 @@
     "status": 202,
     "media_type": "application/json",
     "body": {
-      "sweep_id": "4367df71fc0bcebd1601882a5320c9868f718c6816347e1cdaf6f0a495fe2b28",
+      "sweep_id": "672dd733161ae3c605a8ec36a1f3b75ae2845338e9cb9d23f4e49ed601335cd0",
       "recipe": {
         "name": "sensor_sweep_tahoe",
         "sha256": "802a0f18b3e7034ed03cef0cae5b4bc957e242ee60c8b97d65e5f670707cc0ed"
       },
       "runs": [
         {
-          "run_id": "565a9e10d7132c7d87867b22f213ff47de663ede0b7aa7fcffbe606bfc3740d3",
+          "run_id": "1e2a5afc7efc68a24fc56548876a10a4261dd92006eff718fd49ded0900a87e3",
           "name": "sensor-sweep-tahoe--auror-nir",
           "state": "accepted",
           "errors": [],
           "artifacts": [
             {
               "name": "run_spec.json",
-              "sha256": "565a9e10d7132c7d87867b22f213ff47de663ede0b7aa7fcffbe606bfc3740d3",
+              "sha256": "1e2a5afc7efc68a24fc56548876a10a4261dd92006eff718fd49ded0900a87e3",
               "media_type": "application/json",
-              "uri": "file:///tmp/protodirsig/runs/565a9e10d7132c7d87867b22f213ff47de663ede0b7aa7fcffbe606bfc3740d3/run_spec.json"
+              "uri": "file:///tmp/protodirsig/runs/1e2a5afc7efc68a24fc56548876a10a4261dd92006eff718fd49ded0900a87e3/run_spec.json"
             }
           ]
         },
         {
-          "run_id": "a6cfc3aad0f94b6cb71539973ad0ffb388559d13ec7c5af4b6bb2b64b94089e0",
+          "run_id": "d1895546aad9e7c6149ab084a4b6a54d13fc811785131bec3bb62f4980b5c4b4",
           "name": "sensor-sweep-tahoe--deepscan_850_306_nir_1280",
           "state": "accepted",
           "errors": [],
           "artifacts": [
             {
               "name": "run_spec.json",
-              "sha256": "a6cfc3aad0f94b6cb71539973ad0ffb388559d13ec7c5af4b6bb2b64b94089e0",
+              "sha256": "d1895546aad9e7c6149ab084a4b6a54d13fc811785131bec3bb62f4980b5c4b4",
               "media_type": "application/json",
-              "uri": "file:///tmp/protodirsig/runs/a6cfc3aad0f94b6cb71539973ad0ffb388559d13ec7c5af4b6bb2b64b94089e0/run_spec.json"
+              "uri": "file:///tmp/protodirsig/runs/d1895546aad9e7c6149ab084a4b6a54d13fc811785131bec3bb62f4980b5c4b4/run_spec.json"
             }
           ]
         },
         {
-          "run_id": "14e6305c2139fe45048eaf50d4a5f1984f5fbd823960e9c5d8446cb2d9f43881",
+          "run_id": "5a98e98e09142190d1db9dc6380f613cce2277842d5c080e60a69a6f811de918",
           "name": "sensor-sweep-tahoe--synthetic_600_200_vis_1920",
           "state": "accepted",
           "errors": [],
           "artifacts": [
             {
               "name": "run_spec.json",
-              "sha256": "14e6305c2139fe45048eaf50d4a5f1984f5fbd823960e9c5d8446cb2d9f43881",
+              "sha256": "5a98e98e09142190d1db9dc6380f613cce2277842d5c080e60a69a6f811de918",
               "media_type": "application/json",
-              "uri": "file:///tmp/protodirsig/runs/14e6305c2139fe45048eaf50d4a5f1984f5fbd823960e9c5d8446cb2d9f43881/run_spec.json"
+              "uri": "file:///tmp/protodirsig/runs/5a98e98e09142190d1db9dc6380f613cce2277842d5c080e60a69a6f811de918/run_spec.json"
             }
           ]
         }

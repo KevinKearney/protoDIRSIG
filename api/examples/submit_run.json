@@ -13,16 +13,16 @@
     "status": 202,
     "media_type": "application/json",
     "body": {
-      "run_id": "1c9e6343b64c324aa68c7ebca64e8b9e76e0a1a1413538ed1efbd9dc00e46088",
+      "run_id": "3acc34f4ee764dd26bb1685002b2a50d3123dc8407367e4f86a4136fa9ee9841",
       "name": "auror-ref-static-pose",
       "state": "accepted",
       "errors": [],
       "artifacts": [
         {
           "name": "run_spec.json",
-          "sha256": "1c9e6343b64c324aa68c7ebca64e8b9e76e0a1a1413538ed1efbd9dc00e46088",
+          "sha256": "3acc34f4ee764dd26bb1685002b2a50d3123dc8407367e4f86a4136fa9ee9841",
           "media_type": "application/json",
-          "uri": "file:///tmp/protodirsig/runs/1c9e6343b64c324aa68c7ebca64e8b9e76e0a1a1413538ed1efbd9dc00e46088/run_spec.json"
+          "uri": "file:///tmp/protodirsig/runs/3acc34f4ee764dd26bb1685002b2a50d3123dc8407367e4f86a4136fa9ee9841/run_spec.json"
         }
       ]
     },

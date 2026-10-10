@@ -23,8 +23,8 @@
 # resolved for this prototype's own run spec as of Stage 04 (FINDINGS.md): a real manifold_config_repo/
 # holds these assets, copied once from AUROR_ref, in the library layout A.8 specifies.
 #
-# The .scene hash is a placeholder (its geometry and materials sit beside it); the other refs are stamped
-# by scripts/stamp_hashes.py.
+# Every ref is stamped by scripts/stamp_hashes.py: a file ref with the sha256 of the file, the .scene ref with
+# the dirhash/1 digest of its scene directory (the .scene file, geometry/ and materials/).
 
 origin:
   kind: synthetic
@@ -38,7 +38,7 @@ engine:
   generator: {tool: dirfm, revision: "<git-sha>", spec_schema: dirsig-engine/1}
 
   scenes:
-    - ref: {name: scenes/tahoe/tahoe.scene, content_hash: "sha256:<hash>"}
+    - ref: {name: scenes/tahoe/tahoe.scene, content_hash: "sha256:b5ddce9fe2b99141d35af5943ad310d3876d3b7b0b37833cd4142f37421cfbf6"}
       # Config-repo layout (scenes/<scene>/<scene>.scene, A.8.3), resolved in full as of Stage 04:
       # manifold_config_repo/scenes/tahoe/ holds tahoe.scene plus geometry/ and materials/ as descendants
       # (this scene has no maps/; the convention allows one, per CONOPS and Guide §5), copied once from the

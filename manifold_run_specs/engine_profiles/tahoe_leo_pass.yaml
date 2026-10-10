@@ -15,8 +15,8 @@
 # that collection adds the Intersection collector (scene ENU hit point, distance), from which the independent
 # ground-track check recovers the platform position.
 #
-# The .scene hash is a placeholder (its geometry and materials sit beside it); the other refs are stamped by
-# scripts/stamp_hashes.py.
+# Every ref is stamped by scripts/stamp_hashes.py: a file ref with the sha256 of the file, the .scene ref with
+# the dirhash/1 digest of its scene directory (the .scene file, geometry/ and materials/).
 
 origin:
   kind: synthetic
@@ -30,7 +30,7 @@ engine:
   generator: {tool: dirfm, revision: "<git-sha>", spec_schema: dirsig-engine/1}
 
   scenes:
-    - ref: {name: scenes/tahoe/tahoe.scene, content_hash: "sha256:<hash>"}
+    - ref: {name: scenes/tahoe/tahoe.scene, content_hash: "sha256:b5ddce9fe2b99141d35af5943ad310d3876d3b7b0b37833cd4142f37421cfbf6"}
       offset: [0, 0, 0]
 
   platform:
