@@ -1,25 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Run-spec document",
-  "description": "A `run-spec/1` document.",
-  "type": "object",
-  "required": [
-    "spec_version",
-    "descriptor",
-    "engine"
-  ],
-  "properties": {
-    "spec_version": {
-      "description": "The run-spec version.",
-      "const": "run-spec/1"
-    },
-    "descriptor": {
-      "description": "What is observed and by which sensor.",
-      "type": "object"
-    },
-    "engine": {
-      "description": "How the engine is driven.",
-      "type": "object"
-    }
-  }
+  "description": "A `run-spec/1` document: the engine-independent descriptor and, for a DIRSIG run, the `dirsig-engine/1` engine block. Its sensor is a reference to a library sensor by name and content hash, or the sensor block in place. Defined by `manifold_contracts/run-spec-1.schema.json`, referenced here, not copied.",
+  "$ref": "../../manifold_contracts/run-spec-1.schema.json"
 }

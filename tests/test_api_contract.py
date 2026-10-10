@@ -26,6 +26,8 @@ SCHEMAS = sorted((API / "schemas").glob("*.schema.json"))
 EXAMPLES = sorted((API / "examples").glob("*.json"))
 OPENAPI = yaml.safe_load((API / "openapi.yaml").read_text())
 VECTORS = ROOT / "manifold_contracts" / "vectors" / "compose"
+CONTRACTS = ROOT / "manifold_contracts"
+MARKER = "(abbreviated)"                       # scripts/api_examples.py ABBREVIATION_MARKER
 
 
 def _load(path):
@@ -33,7 +35,12 @@ def _load(path):
 
 
 def _retrieve(uri):
-    return Resource.from_contents(_load(Path(uri.removeprefix("file://"))), default_specification=DRAFT202012)
+    """A schema by its file; a contract schema also by its file name, for references between the contract schemas,
+    which are sibling file names under a relative $id (see manifold_contracts/README.md)."""
+    path = Path(uri.removeprefix("file://"))
+    if not path.is_file() and (CONTRACTS / path.name).is_file():
+        path = CONTRACTS / path.name
+    return Resource.from_contents(_load(path), default_specification=DRAFT202012)
 
 
 REGISTRY = Registry(retrieve=_retrieve)
@@ -156,8 +163,48 @@ def test_example_validates_against_its_schema_and_operation(path):
         assert errors == [], errors
     op = OPENAPI["paths"][template][method]
     assert str(resp["status"]) in op["responses"]
+    if any(MARKER in json.dumps(spec) for _, spec in _run_specs(resp["body"])):
+        pytest.skip("abbreviated run spec in the body is not a complete document; "
+                    "test_run_spec_bodies_validate_against_the_run_spec_schema checks its marker instead")
     errors = [e.message for e in _validator(resp["schema"]).iter_errors(resp["body"])]
     assert errors == [], errors
+
+
+def _run_specs(node, where=""):
+    """Every run-spec document in an example body: a mapping whose spec_version is run-spec/1."""
+    if isinstance(node, dict):
+        if node.get("spec_version") == "run-spec/1":
+            yield where, node
+        for k, v in node.items():
+            yield from _run_specs(v, f"{where}.{k}")
+    elif isinstance(node, list):
+        for i, v in enumerate(node):
+            yield from _run_specs(v, f"{where}[{i}]")
+
+
+RUN_SPEC_EXAMPLES = sorted(p.name for p in EXAMPLES if any(True for part in ("request", "response")
+                                                            for _ in _run_specs(_load(p)[part].get("body"))))
+
+
+def test_some_example_carries_a_complete_run_spec():
+    complete = [n for n in RUN_SPEC_EXAMPLES
+                if not any(MARKER in json.dumps(s) for _, s in _run_specs(_load(API / "examples" / n)["response"]["body"]))]
+    assert "get_artifact.json" in complete and "compose.json" in RUN_SPEC_EXAMPLES
+
+
+@pytest.mark.parametrize("name", RUN_SPEC_EXAMPLES)
+def test_run_spec_bodies_validate_against_the_run_spec_schema(name):
+    """A complete run spec validates against manifold_contracts/run-spec-1.schema.json; an abbreviated one is not a
+    complete document, so it must say so (the marker in the body and in the description) and is not validated."""
+    ex = _load(API / "examples" / name)
+    validator = _validator("../manifold_contracts/run-spec-1.schema.json")
+    for part in ("request", "response"):
+        for where, spec in _run_specs(ex[part].get("body")):
+            if MARKER in json.dumps(spec):
+                assert "abbreviated" in ex["description"], f"{name}{where}: cut members but the description does not say so"
+                continue
+            errors = [f"{list(e.absolute_path)}: {e.message[:160]}" for e in validator.iter_errors(spec)]
+            assert errors == [], (name, where, errors)
 
 
 def test_every_operation_has_an_example():

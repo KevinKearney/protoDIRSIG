@@ -1,6 +1,6 @@
 {
   "summary": "Read the resolved run spec of a run.",
-  "description": "The bytes are the canonical JSON serialization (RFC 8785) of the resolved run spec, the spec with its sensor block in place, so they hash to the run id; they are shown here as a parsed document. Run ids, sweep ids and the hash of `run_spec.json` are placeholders of the contract's form; the SDK does not compute them yet. Everything else is real library data. Members shown as `(abbreviated)` are cut from this example; the real body carries them in full.",
+  "description": "The bytes are the canonical JSON serialization (RFC 8785) of the resolved run spec, the spec with its sensor block in place, so they hash to the run id; they are shown here as a parsed document, complete. Run ids, sweep ids and the hash of `run_spec.json` are placeholders of the contract's form; the SDK does not compute them yet. Everything else is real library data.",
   "request": {
     "method": "GET",
     "path": "/runs/4444444444444444444444444444444444444444444444444444444444444444/artifacts/run_spec.json"
@@ -22,17 +22,52 @@
           "description": "Received static-pose detection scene: a NIR staring sensor at a fixed LEO-altitude position over the Tahoe scene, with an embedded hypersonic target track.\n"
         },
         "origin": {
-          "kind": "(abbreviated)",
-          "engine": "(abbreviated)"
+          "kind": "synthetic",
+          "engine": "dirsig"
         },
         "collection": {
-          "epoch": "(abbreviated)",
-          "platform": "(abbreviated)",
-          "geometry": "(abbreviated)",
-          "illumination": "(abbreviated)",
-          "atmosphere": "(abbreviated)",
-          "background": "(abbreviated)",
-          "targets": "(abbreviated)"
+          "epoch": "2009-07-27T19:29:32Z",
+          "platform": {
+            "class": "satellite",
+            "position": {
+              "frame": "geodetic",
+              "datum": "WGS84",
+              "latitude": {
+                "value": 39.0036,
+                "provenance": "specified"
+              },
+              "longitude": {
+                "value": -120.0046,
+                "provenance": "specified"
+              },
+              "altitude": {
+                "value": 550000,
+                "provenance": "specified"
+              },
+              "altitude_reference": "ellipsoid"
+            }
+          },
+          "geometry": {
+            "regime": "orbital_nadir",
+            "range": {
+              "value": 500000,
+              "provenance": "modeled"
+            }
+          },
+          "illumination": {
+            "regime": "daylight"
+          },
+          "atmosphere": {
+            "regime": "mid_latitude_summer"
+          },
+          "background": {
+            "regime": "rural"
+          },
+          "targets": [
+            {
+              "class": "vehicle_air"
+            }
+          ]
         },
         "sensor": {
           "sensor_system": {
@@ -150,26 +185,108 @@
           }
         ],
         "fidelity": {
-          "modeled": "(abbreviated)",
-          "approximated": "(abbreviated)",
-          "absent": "(abbreviated)",
-          "valid_for": "(abbreviated)"
+          "modeled": [
+            "reflective and emissive radiance",
+            "atmospheric transmission and path radiance"
+          ],
+          "approximated": [
+            "detector noise",
+            "optics blur"
+          ],
+          "absent": [
+            "platform jitter"
+          ],
+          "valid_for": "Scene-radiometry and sensor-chain studies at the modeled band, geometry and atmosphere. Not valid for target-visibility studies: the vehicle's material has zero reflectance and its 1500 K emission is not evaluated in a 0.41-2.0 um job unless temperature prediction is forced, so the vehicle renders black.\n"
         },
         "extras": {
-          "dirsig.atmosphere_db": "(abbreviated)",
-          "dirsig.weather_file": "(abbreviated)"
+          "dirsig.atmosphere_db": "jsims/AurorNewAtmosphere",
+          "dirsig.weather_file": "saw.wth"
         }
       },
       "engine": {
-        "generator": "(abbreviated)",
-        "scenes": "(abbreviated)",
-        "platform": "(abbreviated)",
-        "motion": "(abbreviated)",
-        "tasks": "(abbreviated)",
-        "atmosphere": "(abbreviated)",
-        "weather": "(abbreviated)",
-        "ephemeris": "(abbreviated)",
-        "run": "(abbreviated)"
+        "generator": {
+          "tool": "dirfm",
+          "revision": "<git-sha>",
+          "spec_schema": "dirsig-engine/1"
+        },
+        "scenes": [
+          {
+            "ref": {
+              "name": "scenes/tahoe/tahoe.scene",
+              "content_hash": "sha256:<hash>"
+            },
+            "offset": [
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "platform": {
+          "ref": {
+            "name": "platforms/AurorNIRDetector/AurorNIRDetector.platform",
+            "content_hash": "sha256:bed58062f31a1e21945ad357dc36ccfc9e88b5fd14ec4e365a42d2f4df4b2515"
+          },
+          "library_entry": "auror-nir-detector",
+          "output_prefix": "auror_nir_",
+          "split_channels": false,
+          "integration_samples": 10,
+          "channel_response": "native"
+        },
+        "motion": {
+          "kind": "static",
+          "position": {
+            "frame": "scene",
+            "xyz": [
+              -400.0,
+              400.0,
+              550000.0
+            ]
+          },
+          "orientation": {
+            "kind": "euler",
+            "euler": {
+              "order": "xyz",
+              "units": "radians",
+              "frame": "sceneenu",
+              "angles": [
+                0.0,
+                0.0,
+                3.141592654
+              ]
+            }
+          }
+        },
+        "tasks": {
+          "windows": [
+            {
+              "start": 0.0,
+              "stop": 0.0
+            }
+          ]
+        },
+        "atmosphere": {
+          "plugin": "new_atmosphere",
+          "database": {
+            "ref": {
+              "name": "atmosphere/AurorNewAtmosphere",
+              "content_hash": "sha256:7bbaf61d8a26806d0f22818d5c2b816a62fe69b120e5f2c1ef81d334253b8168"
+            }
+          }
+        },
+        "weather": {
+          "source": "library",
+          "file": {
+            "name": "weather/saw.wth",
+            "content_hash": "sha256:7ab85eefcdbb14a945498f5156262d861ec6f933fb10742bde84852c96ef2676"
+          }
+        },
+        "ephemeris": {
+          "plugin": "spice"
+        },
+        "run": {
+          "seed": 42
+        }
       }
     },
     "schema": "schemas/run_spec_document.schema.json"

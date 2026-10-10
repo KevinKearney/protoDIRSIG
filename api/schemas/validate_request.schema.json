@@ -4,13 +4,27 @@
   "description": "A request to check whether runs would be admitted, without submitting them. Give exactly one of a run spec, a recipe name or a recipe document; a recipe is composed first and each of its runs is checked.",
   "type": "object",
   "additionalProperties": false,
-  "oneOf": [{"required": ["run_spec"]}, {"required": ["recipe_name"]}, {"required": ["recipe"]}],
+  "oneOf": [
+    {
+      "required": [
+        "run_spec"
+      ]
+    },
+    {
+      "required": [
+        "recipe_name"
+      ]
+    },
+    {
+      "required": [
+        "recipe"
+      ]
+    }
+  ],
   "properties": {
     "run_spec": {
       "description": "A `run-spec/1` document, with its sensor by reference or in place.",
-      "type": "object",
-      "required": ["spec_version"],
-      "properties": {"spec_version": {"description": "The run-spec version.", "const": "run-spec/1"}}
+      "$ref": "run_spec_document.schema.json"
     },
     "recipe_name": {
       "description": "The name of a recipe in the library (its file stem).",
@@ -20,12 +34,22 @@
     "recipe": {
       "description": "A recipe document (`compose: compose/1`), composed against the library.",
       "type": "object",
-      "required": ["compose"],
-      "properties": {"compose": {"description": "The composition rules the recipe is written for.", "const": "compose/1"}}
+      "required": [
+        "compose"
+      ],
+      "properties": {
+        "compose": {
+          "description": "The composition rules the recipe is written for.",
+          "const": "compose/1"
+        }
+      }
     },
     "engine_check": {
       "description": "`none`: the engine-free checks only (the run-spec schema, reference resolution, content-hash verification and the library files); pure, and needs no engine. These are the checks admission runs. `dry_run`: those checks and a DIRSIG dry run of the assembled job, which needs a local DIRSIG installation.",
-      "enum": ["none", "dry_run"],
+      "enum": [
+        "none",
+        "dry_run"
+      ],
       "default": "none"
     }
   }

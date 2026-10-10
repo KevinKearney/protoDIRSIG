@@ -34,6 +34,7 @@ SWEEP, SINGLE = "sensor_sweep_tahoe", "auror_ref"
 PLACEHOLDER = ("Run ids, sweep ids and the hash of `run_spec.json` are placeholders of the contract's form; the SDK "
                "does not compute them yet. Everything else is real library data.")
 ABBREVIATED = "Members shown as `(abbreviated)` are cut from this example; the real body carries them in full."
+ABBREVIATION_MARKER = "(abbreviated)"         # the value of every cut member; tests look for it
 RUN_IDS = {f"sensor-sweep-tahoe--{s}": c * 64 for s, c in (("auror-nir", "1"), ("deepscan_850_306_nir_1280", "2"),
                                                            ("synthetic_600_200_vis_1920", "3"))}
 RUN_IDS["auror-ref-static-pose"] = "4" * 64
@@ -46,7 +47,7 @@ def sha(path):
 
 
 def cut(d):
-    return {k: "(abbreviated)" for k in d}
+    return {k: ABBREVIATION_MARKER for k in d}
 
 
 def short_spec(spec):
@@ -207,9 +208,9 @@ def examples():
         "summary": "Read the resolved run spec of a run.",
         "description": ("The bytes are the canonical JSON serialization (RFC 8785) of the resolved run spec, the "
                         "spec with its sensor block in place, so they hash to the run id; they are shown here as a "
-                        f"parsed document. {PLACEHOLDER} {ABBREVIATED}"),
+                        f"parsed document, complete. {PLACEHOLDER}"),
         "request": get(f"/runs/{RUN_IDS[name]}/artifacts/run_spec.json"),
-        "response": ok(short_spec(compose(LAYERS / "recipes" / f"{SINGLE}.yaml", inline_sensor=True)),
+        "response": ok(compose(LAYERS / "recipes" / f"{SINGLE}.yaml", inline_sensor=True),
                        "schemas/run_spec_document.schema.json")}
     for k, v in ex.items():
         v["operation"] = k.split(".")[0]
