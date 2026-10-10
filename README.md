@@ -13,16 +13,16 @@ to-do list.
 
 A `run-spec/1` YAML names a collection, a sensor (a reference into `manifold_sensors/`) and engine assets (references
 into `manifold_config_repo/`). It is composed from layer files: a recipe naming a scenario, an engine profile and a
-library sensor (`scripts/compose.py`). The driver validates the spec, verifies content hashes, renders the `.platform` from the
+library sensor, or several sensors for a sweep (one run per sensor; `scripts/compose.py`). The driver validates the spec, verifies content hashes, renders the `.platform` from the
 sensor description, generates motion and tasks files, runs a DIRSIG dry-run, and renders through `dirfm`.
 Output is imagery in electrons per m² of focal plane plus truth. Three sensors are in the library
 (AUROR NIR, a 1280-pixel NIR, a 1920-pixel VIS); the AUROR job reproduces the received platform file.
 
 ```python
-from protodirsig.registry import LocalRegistry   # submit_recipe (or submit a run spec), then Simulation.run
+from protodirsig.registry import LocalRegistry   # submit_recipe / submit_sweep, then Simulation.run / run_sweep
 ```
 
-`notebooks/stage_01`–`stage_03` run the reference job, the conformance path and a sensor sweep.
+`notebooks/stage_01`–`stage_03` run the reference job, the conformance path and a three-sensor sweep.
 
 ## Environment setup
 

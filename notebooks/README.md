@@ -34,9 +34,10 @@ results are cited in the CONOPS and Guide.
   `manifold_config_repo/` under `outputs/`; `manifold_config_repo/` itself is unchanged.
 - **`stage_03_sensor_sweep.ipynb`** — The same scenario through different sensors. Shows the sensor
   library (`manifold_sensors/`), one entry's blocks, the three spectral curves, and the channel response the
-  generator writes into each `.platform`. Then derives a run spec per sensor from `auror_ref.yaml`
-  with `derive_run_spec`, submits each through `LocalRegistry`, and renders two sensors in a 32 × 32
-  window (seconds each). Compares the ground sample distance measured from the geolocation truth
+  generator writes into each `.platform`. Then composes the sweep recipe
+  `manifold_run_specs/recipes/sensor_sweep_tahoe.yaml` into one run per library sensor (`compose_sweep`),
+  submits every run (`LocalRegistry.submit_sweep`) and renders all three in 32 × 32 windows (`run_sweep`,
+  seconds each). Compares the ground sample distance measured from the geolocation truth
   with pitch ÷ focal length × range. Closes with what is synthetic and what is not. Finds DIRSIG and
   `dirfm` through `external/` (`scripts/bootstrap.py install`), with no home-directory paths.
 

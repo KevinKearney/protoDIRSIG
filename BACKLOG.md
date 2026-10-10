@@ -98,14 +98,12 @@ needing the UV or LWIR needs a template with that bandpass and scene and atmosph
 A test asserting that every module in `src/protodirsig` appears in the CONOPS module table. (Every composed run
 spec passing `schema_errors` is tested in `tests/test_compose.py`.)
 
-### Sweep: one recipe, several runs
-A recipe with a `sensors:` list (and later other axes) expands into one composed run per combination, under a
-sweep id; the engine never fans out (C-18, C-19). To decide: grid versus zip across axes; a run-count cap
-before anything is submitted; per-run failure status recorded under the sweep id, so one failed run does not
-fail the rest; `settings` members naming another sensor's entries are dropped per run, which `compose/1`
-reserves for this. A shared `engine.run.seed` does not give equal noise across sensors (different sampling).
-Later optimization: a compiled-scene cache keyed by scene hash, so runs sharing a scene compile it once
-(with compile-once).
+### Sweeps and layers: what remains after the sensor axis
+Sweeps exist over the sensor axis only (CONOPS §3.5). Remaining: a grid over other axes (exposure, epoch,
+geometry), with grid versus zip decided per axis and the run cap applied to the product; a compiled-scene cache
+keyed by scene hash, so the runs of a sweep that share a scene compile it once (with compile-once); and splitting
+scene-specific from engine-general engine-profile content, now that the AUROR and VIS profiles are one file with
+a recipe override.
 
 ### Release repo plan
 Cut the validated SDK, tests, and notebooks into a new repository under formal change control. Strip

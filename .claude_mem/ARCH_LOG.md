@@ -635,3 +635,17 @@ Kevin unavailable; prompt.md "Sensor model, round two". Decisions in order made:
 - **Step 3.3.** Suite 214, stamp --check 0, compose --check 0.
 - **Step 3.4.** /tmp at 2.5 G (pytest sessions) before the renders -> cleared. stage_01 236 s, stage_02 254 s, 0
   errors; diffs are execution timestamps and the printed run() time only (render output unchanged).
+- **Step 4, CONOPS.** §3.5: sweep = the set of runs one recipe composes to (term fixed); generated-file row; recipe
+  fields (+sensors, fidelity_by_sensor, engine_overrides); rules (no overridable member; engine_overrides
+  allow-list; settings per listed sensor; black-level refusal); new "Sweeps `built, partial`" paragraph (fields, one
+  run per sensor, zip by entry_id, no cross product, names, fidelity_by_sensor, cap 32, sweep id, per-run states and
+  independence, shared seed); CLI paragraph. Overview step 1, roles table (+compose_sweep/submit_sweep; new "Sweep
+  execution" row), §2 step list, §3.1 settings bullet, §4 run-models sentence: "job" -> "run" where a run is meant
+  (kept "AUROR job" and "0.41-2.0 um job", which name the DIRSIG job). §7 compose row, §8 stage_03 row. C-18 and C-19
+  revised to the built behavior. **C-22 added**: the sweep id is kept out of every spec, so a registered run cannot
+  say which sweep it belongs to; whether MANIFOLD records a sweep (id, recipe/layer hashes, runs, states) is a
+  MANIFOLD decision. §9 was done in Step 1. Folder table unchanged (still true).
+- **Step 4, other docs.** BACKLOG: sweep item replaced by "Sweeps and layers: what remains after the sensor axis"
+  (grid over other axes, compiled-scene cache by scene hash, scene-specific vs engine-general profile split).
+  manifold_run_specs/README (sweeps, engine_overrides, --explain, --refresh-vectors, submit/run_sweep), root README,
+  notebooks/README stage 03.
