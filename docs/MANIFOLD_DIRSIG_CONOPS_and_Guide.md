@@ -337,6 +337,7 @@ What the code lacks is listed under "Where the code departs from the contract to
 | `stage_01_auror_from_runspec` | AUROR job from `auror_ref.yaml`, seeded, motion and tasks generated |
 | `stage_02_conformance_template` | same job through `LocalRegistry`, then `Simulation.run`; adds an 8-pixel Lambertian visibility disk (albedo 0.8) in a library mirror under `outputs/` |
 | `stage_03_sensor_sweep` | the sensor library, its curves and composed channel responses; the sweep recipe `sensor_sweep_tahoe` through `compose_sweep`, `submit_sweep` and `run_sweep`; three sensors rendered at 32 × 32 with GSD from the truth |
+| `stage_04_leo_pass` | the pass recipe `leo_pass_tahoe` (`engine.motion` kind `orbit`, section 3.2): compose and explain, engine-free validation and the dry run, three 16 x 16 frames around culmination, and the independent ground-track checks |
 | `dirfm_tutorials/` | `dirfm` basics; orbit-to-ground (Stage 3 unwritten); Tacoma; AUROR direct |
 | `sidebars/vehicle_point_source` | distils the vehicle mesh to a radiant intensity; renders the emitter with thermal prediction forced |
 | `dev/` | local discovery logs; gitignored |
