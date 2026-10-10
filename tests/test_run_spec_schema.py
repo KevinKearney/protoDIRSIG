@@ -1,10 +1,10 @@
 """manifold_contracts/run-spec-1.schema.json and dirsig-engine-1.schema.json against the repository and the checker.
 
-The schemas are the documented contract; `simulation.schema_errors` is the executable checker the SDK runs. These
-tests hold them together: every run spec the repository produces validates; every mutation in a corpus built from
-two valid specs (one static, one orbit) is rejected by the schema; and for every document the schema's verdict
-equals `schema_errors(spec) == []`, except for the named allowances below, each a place where the checker is
-narrower than the documented contract. A change on either side that adds or removes a disagreement fails the test.
+The schemas are the documented contract, and admission enforces them: `simulation.schema_errors` is
+`contract.schema_violations` plus `semantic_errors`. These tests hold that together: every run spec the repository
+produces validates; every mutation in a corpus built from two valid specs (one static, one orbit) is rejected by the
+schema; `contract` gives the schema's own verdict on every document; `schema_errors` accepts nothing the schema
+rejects; and it rejects beyond the schema only the named semantic cases.
 """
 import copy
 import json
@@ -174,29 +174,53 @@ def test_every_mutation_is_rejected_by_the_schema(name):
 
 # --- agreement with schema_errors -----------------------------------------------------------------
 
-# Each allowance: the documents on which the schema rejects and schema_errors accepts, and why the schema is right.
-ALLOWANCES = {
-    "unknown_keys": ({"unknown_key_in_top", "unknown_key_in_descriptor", "unknown_key_in_engine",
-                      "unknown_key_in_engine_platform", "unknown_key_in_engine_motion"},
-                     "CONOPS 3.1: unknown keys are rejected everywhere except extras; schema_errors checks required members only"),
-    "origin_axes": ({"invalid_origin_kind", "invalid_origin_engine", "origin_engine_field_kind_synthetic"},
-                    "CONOPS 3.1: origin.kind and origin.engine are enumerated and engine is field iff kind is field; schema_errors does not read origin"),
-    "quantity_rules": ({"invalid_quantity_provenance", "measured_without_conditions"},
-                       "CONOPS 3.1: provenance is enumerated and conditions is required when measured; schema_errors does not check quantities"),
-    "range_with_targets": ({"targets_without_range"},
-                           "CONOPS 3.1: geometry.range is required when targets is non-empty; schema_errors checks descriptor blocks only"),
+# Admission enforces the schemas (schema_errors = contract.schema_violations + semantic_errors), so the checker is
+# never narrower than the schema. It is wider only by the semantic rules JSON Schema cannot express, each named here.
+SEMANTIC = {
+    "seed_is_a_float": (S, _set(("engine", "run", "seed"), 42.0),
+                        "JSON Schema's integer accepts 42.0; the generator needs an integer seed"),
+    "integration_samples_is_a_float": (S, _set(("engine", "platform", "integration_samples"), 10.0),
+                                       "JSON Schema's integer accepts 10.0; the generator needs an integer"),
+    "origin_engine_satsim": (S, _set(("descriptor", "origin", "engine"), "satsim"),
+                             "the schemas type the engine block only for dirsig; this SDK executes only dirsig runs"),
 }
 
 
-def test_the_schema_and_schema_errors_agree_except_the_named_allowances():
+def _semantic(name):
+    base, edit, _ = SEMANTIC[name]
+    spec = copy.deepcopy(BASES[base])
+    edit(spec)
+    return spec
+
+
+def _corpus():
     docs = {f"valid:{p.relative_to(ROOT)}": yaml.safe_load(p.read_text()) for p in VALID}
     docs.update({name: mutated(name) for name in MUTATIONS})
-    disagree = {}
-    for name, spec in docs.items():
-        by_schema, by_checker = schema_ok(spec), schema_errors(spec) == []
-        if by_schema != by_checker:
-            disagree[name] = ("schema rejects, schema_errors accepts" if by_checker else "schema accepts, schema_errors rejects")
-    allowed = set().union(*(names for names, _ in ALLOWANCES.values()))
-    assert set(disagree) == allowed, {"unexpected": {k: v for k, v in disagree.items() if k not in allowed},
-                                      "no longer disagreeing": sorted(allowed - set(disagree))}
-    assert set(disagree.values()) == {"schema rejects, schema_errors accepts"}
+    docs.update({f"semantic:{name}": _semantic(name) for name in SEMANTIC})
+    return docs
+
+
+def test_contract_module_gives_the_schemas_own_verdict():
+    """contract.schema_violations is the schema, applied: same verdict as an independent validator, on every document."""
+    from protodirsig import contract
+    for name, spec in _corpus().items():
+        assert (contract.schema_violations(spec) == []) == schema_ok(spec), name
+        assert all(v["path"] == "" or v["path"].startswith("/") for v in contract.schema_violations(spec)), name
+
+
+def test_schema_errors_enforces_the_schema_and_only_named_semantic_rules_beyond_it():
+    wider = set()
+    for name, spec in _corpus().items():
+        accepted = schema_errors(spec) == []
+        if accepted:
+            assert schema_ok(spec), f"{name}: schema_errors accepts what the schema rejects"
+        elif schema_ok(spec):
+            wider.add(name)
+    assert wider == {f"semantic:{n}" for n in SEMANTIC}, wider
+
+
+@pytest.mark.parametrize("name", sorted(SEMANTIC))
+def test_each_semantic_case_is_caught_by_semantic_errors(name):
+    from protodirsig.simulation import semantic_errors
+    spec = _semantic(name)
+    assert schema_ok(spec) and semantic_errors(spec), name

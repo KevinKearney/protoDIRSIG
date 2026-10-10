@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "run-spec/1",
   "title": "run-spec/1 (proposed; Metadata_v02 section 6 as read by protoDIRSIG)",
-  "description": "One run: an engine-independent descriptor (registered, searched, hashed into the provenance record) and, for a synthetic run, the origin-specific engine block the generator consumes. Unknown keys are rejected everywhere except descriptor.extras. This schema is the SDK's reading of the MANIFOLD metadata document, not a MANIFOLD artefact. Rules this schema cannot express, enforced at admission by the loader: a stamped content_hash (the sensor reference, every engine reference) must equal the sha256 of the referenced file and the file must exist; settings.entry_id must name an entry of the sensor, once; the SDK renders one sensor entry (one settings member) per run; black_level must be 0 (the generator cannot apply a bias); placeholders (sha256:<hash>, <git-sha>) are refused outside the places the layer files use them; and the engine block's own admission rules (see dirsig-engine-1.schema.json). The $id follows sensor-spec-1.schema.json's convention (a relative id). References between the three contract schemas are sibling file names; a validator that rebases them on the relative $id must map the three files by name.",
+  "description": "One run: an engine-independent descriptor (registered, searched, hashed into the provenance record) and, for a synthetic run, the origin-specific engine block the generator consumes. Unknown keys are rejected everywhere except descriptor.extras. This schema is the SDK's reading of the MANIFOLD metadata document, not a MANIFOLD artefact. Rules this schema cannot express, enforced at admission by the loader: a stamped content_hash (the sensor reference, every engine reference) must equal the sha256 of the referenced file and the file must exist; settings.entry_id must name an entry of the sensor, once; the SDK renders one sensor entry (one settings member) per run; black_level must be 0 (the generator cannot apply a bias); the placeholder sha256:<hash> marks an unstamped reference and is not verified; and the engine block's own admission rules (see dirsig-engine-1.schema.json). The $id follows sensor-spec-1.schema.json's convention (a relative id). References between the three contract schemas are sibling file names; a validator that rebases them on the relative $id must map the three files by name.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -405,9 +405,9 @@
                       "minLength": 1
                     },
                     "content_hash": {
-                      "description": "sha256: followed by the 64 lowercase hex digits of the file's sha256.",
+                      "description": "sha256: followed by the 64 lowercase hex digits of the file's sha256, or the placeholder sha256:<hash> for a ref not yet stamped.",
                       "type": "string",
-                      "pattern": "^sha256:[0-9a-f]{64}$"
+                      "pattern": "^sha256:([0-9a-f]{64}|<hash>)$"
                     }
                   }
                 }

@@ -304,6 +304,7 @@ A top-level folder exists here only if it has a MANIFOLD analog. `AUROR_ref/` ha
 |---|---|---|
 | `compose` | run specs composed from recipe, scenario, engine profile and library sensors (`compose/1`): one run, or one per sensor of a sweep | `built`; rules `proposed` |
 | `run_spec` | run-spec loader and AUROR resolver | `built, partial` |
+| `contract` | the `manifold_contracts/` schemas applied: `schema_violations(spec)` as JSON Pointers; admission enforces them through `simulation.schema_errors` | `built` |
 | `platform_gen` | `.platform` rendered from the library template, `sensor-spec/1` and `settings` | `built` (one focal plane per entry) |
 | `spectral` | `spectral-curve/1` reader, channel shapes, response composition | `built` |
 | `motion_tasks` | motion and `.tasks` generation from `engine.motion`, `engine.tasks`: a `.ppd` for `static`, a FlexMotion `.motion` of ECEF waypoints for `orbit` (`orbit_waypoints`) | `built, partial` (static, orbit) |

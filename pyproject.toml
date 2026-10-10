@@ -16,10 +16,11 @@ dependencies = [
     "h5py",
     "matplotlib",
     "pyyaml",
+    "jsonschema",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "ruff", "jupyter", "jsonschema", "openapi-spec-validator"]
+dev = ["pytest", "ruff", "jupyter", "openapi-spec-validator"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

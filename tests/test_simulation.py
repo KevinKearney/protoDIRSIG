@@ -71,7 +71,7 @@ def test_bad_enum_fails_schema(tmp_path):
     # (A bad motion.kind would now also fail resolution, which refuses motion it can't generate.)
     path = broken_spec(tmp_path, lambda s: s["engine"]["generator"].update(tool="make"))
     c = Simulation.from_run_spec(path, CONFIG_REPO, tmp_path / "work", SENSORS).validate()
-    assert not c.schema_ok and "engine.generator.tool" in c.schema_error
+    assert not c.schema_ok and "/engine/generator/tool: 'make' is not one of" in c.schema_error
     assert c.resolution_ok and c.execution_ok         # each check is independent evidence
 
 
@@ -136,16 +136,19 @@ def test_schema_rejects_each_enum(path):
         d = d[k]
     d[path[-1]] = "bogus"
     errs = schema_errors(spec)
-    assert len(errs) == 1 and errs[0].startswith(f"engine.{'.'.join(path)} is 'bogus', not one of"), errs
+    where = "/engine/" + "/".join(path)
+    assert errs and all(e.startswith(f"{where}: ") for e in errs), errs          # every violation is at that field
+    assert any(f"{where}: 'bogus' is not one of" in e or e.startswith(f"{where}: 'dirsig-engine/1' was expected")
+               for e in errs), errs                                          # spec_schema is a const
 
 
 def test_sensor_ref_schema():
     spec = yaml.safe_load(SPEC.read_text())
     del spec["descriptor"]["sensor"]["ref"]["name"]
     errs = schema_errors(spec)
-    assert len(errs) == 1 and "descriptor.sensor.ref.name" in errs[0]
+    assert errs == ["/descriptor/sensor: matches none of the allowed forms; closest: /ref: 'name' is a required property"]
     spec["descriptor"]["sensor"] = {"sensor_system": {"system_id": "x"}}   # the old inline shape
-    assert any("descriptor.sensor.ref.name" in e for e in schema_errors(spec))
+    assert any(e.startswith("/descriptor/sensor: matches none of the allowed forms") for e in schema_errors(spec))
 
 
 @needs_dirsig

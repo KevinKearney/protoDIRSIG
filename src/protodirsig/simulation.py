@@ -6,12 +6,10 @@ What a notebook calls directly; no orchestration framework is imported here or b
 The three checks, and nothing more (radiometric correctness and scientific utility are out of
 scope; the vehicle-not-appearing finding passes all three):
 
-1. **Schema**: the run spec parses, the required members of `run-spec/1` and the
-   `dirsig-engine/1` body (AV_MANIFOLD_Configuration_v02 A.8) are present, and every enumerated
-   engine field holds a value A.8 permits, plus the documented `new_atmosphere` extension.
-   `descriptor` is checked for its required blocks only, not field by field, except that
-   `descriptor.sensor` must be a `sensor-spec/1` ref with a string `ref.name`, or an inline sensor block
-   (`sensor_system` and `entries`). A referenced file is not opened here.
+1. **Schema**: the run spec conforms to the published schemas, `manifold_contracts/run-spec-1.schema.json` with
+   `dirsig-engine-1.schema.json` and `sensor-spec-1.schema.json` (`contract.schema_violations`: required members,
+   no unknown keys outside `descriptor.extras`, enumerations, quantities, the conditional rules), plus the
+   `semantic_errors` the schemas cannot express. A referenced file is not opened here.
 2. **Resolution**: `run_spec.resolve_auror_run` finds every engine asset in `config_repo`, loads
    the sensor ref in the sensor library as `sensor-spec/1`, and accepts the motion as one this
    loader can generate (static, scene frame, `sceneenu` Euler; or orbit: a library TLE over a window, LookAt at a
@@ -37,13 +35,15 @@ from pathlib import Path
 from dirfm import DIRSIG, SCENE
 from dirfm.weather import ThermWeatherFilePlugin
 
+from protodirsig.contract import schema_violations
 from protodirsig.platform_gen import render_platform
 from protodirsig.platform_ref import PlatformFilesPlugin
 from protodirsig.motion_tasks import generate_motion, generate_tasks
 from protodirsig.run_spec import RunSpecError, check_library_files, is_inline_sensor, load_run_spec, resolve_auror_run
 from protodirsig.scene_ref import copy_input, reference_scene
 
-# Required members, from AV_MANIFOLD_Metadata_v02 §6 (descriptor) and Configuration_v02 A.8.1.
+# Required members and enumerations as the schemas in manifold_contracts/ state them (Metadata_v02 §6, Configuration_v02
+# A.8.1); kept for callers and tests. The schema check itself is contract.schema_violations.
 DESCRIPTOR_REQUIRED = ("meta", "origin", "collection", "sensor", "settings", "fidelity")
 ENGINE_REQUIRED = ("generator", "scenes", "platform", "motion", "tasks", "atmosphere")
 # Enumerated engine fields (A.8.2-A.8.7). `new_atmosphere` is the documented, non-adopted
@@ -108,90 +108,37 @@ def _get(d, path):
 
 
 def schema_errors(spec):
-    """Every schema violation in a parsed run spec (empty list = conformant). See module docstring."""
+    """Every schema violation in a parsed run spec (empty list = conformant). See module docstring.
+
+    The published schemas (`manifold_contracts/run-spec-1.schema.json` with `dirsig-engine-1.schema.json` and
+    `sensor-spec-1.schema.json`, applied by `contract.schema_violations`) as `"<JSON Pointer>: <message>"`, in
+    pointer order, then `semantic_errors(spec)`: the rules the schemas cannot express. Duplicates removed.
+    """
+    msgs = [f"{v['path'] or '/'}: {v['message']}" for v in schema_violations(spec)]
+    return list(dict.fromkeys(msgs + semantic_errors(spec)))
+
+
+def semantic_errors(spec):
+    """The schema-check rules JSON Schema cannot express (the loader enforces the others at resolution):
+
+    - an integer member read from YAML as a float (`engine.run.seed`, `engine.platform.integration_samples`):
+      JSON Schema's `integer` accepts 42.0, the generator needs an integer;
+    - `descriptor.origin.engine` other than `dirsig`: the schemas type the engine block only for dirsig, and this SDK
+      checks and executes only `dirsig-engine/1` runs.
+    """
     errs = []
-    if spec.get("spec_version") != "run-spec/1":
-        errs.append(f"spec_version is {spec.get('spec_version')!r}, expected 'run-spec/1'")
-    desc, eng = spec.get("descriptor"), spec.get("engine")
-    if not isinstance(desc, dict):
-        errs.append("descriptor is missing")
-    else:
-        errs += [f"descriptor.{k} is missing" for k in DESCRIPTOR_REQUIRED if k not in desc]
-        if ("sensor" in desc and not isinstance(_get(desc, ("sensor", "ref", "name")), str)
-                and not is_inline_sensor(desc["sensor"])):
-            errs.append("descriptor.sensor.ref.name is missing: descriptor.sensor must be a sensor-spec/1 ref "
-                        "or an inline sensor block with sensor_system and entries (CONOPS and Guide §4)")
-    if not isinstance(eng, dict):
-        return errs + ["engine is missing (required for a DIRSIG run)"]
-    errs += [f"engine.{k} is missing" for k in ENGINE_REQUIRED if k not in eng]
-    for path, allowed in ENGINE_ENUMS.items():
-        v = _get(eng, path)
-        if v is not _MISSING and v not in allowed:
-            errs.append(f"engine.{'.'.join(path)} is {v!r}, not one of {sorted(allowed)}")
-    scenes = eng.get("scenes")
-    if "scenes" in eng and (not isinstance(scenes, list) or not scenes):
-        errs.append("engine.scenes must be a list with at least one entry")
-    for i, s in enumerate(scenes if isinstance(scenes, list) else []):
-        if not isinstance(_get(s, ("ref", "name")), str):
-            errs.append(f"engine.scenes[{i}].ref.name is missing")
-    refs = [("platform", "ref")]
-    if _get(eng, ("atmosphere", "plugin")) == "new_atmosphere":
-        refs.append(("atmosphere", "database", "ref"))
-    if _get(eng, ("weather", "source")) == "library":
-        refs.append(("weather", "file"))
-    for path in refs:
-        if not isinstance(_get(eng, path + ("name",)), str):
-            errs.append(f"engine.{'.'.join(path)}.name is missing")
-    for key in ("library_entry", "output_prefix"):
-        if "platform" in eng and _get(eng, ("platform", key)) is _MISSING:
-            errs.append(f"engine.platform.{key} is missing")
-    mode = _get(eng, ("platform", "channel_response"))
-    if mode is not _MISSING and mode not in ("tabulated", "native"):
-        errs.append(f"engine.platform.channel_response is {mode!r}, expected 'tabulated' or 'native'")
-    samples = _get(eng, ("platform", "integration_samples"))
-    if samples is not _MISSING and not (isinstance(samples, int) and samples >= 1):
-        errs.append(f"engine.platform.integration_samples is {samples!r}, expected an integer >= 1")
-    windows = _get(eng, ("tasks", "windows"))
-    if "tasks" in eng and (not isinstance(windows, list) or not windows
-                           or not all(isinstance(w, dict) and {"start", "stop"} <= w.keys() for w in windows)):
-        errs.append("engine.tasks.windows must be a non-empty list of {start, stop}")
-    seed = _get(eng, ("run", "seed"))
-    if seed is not _MISSING and not (isinstance(seed, int) and not isinstance(seed, bool)):
-        errs.append(f"engine.run.seed is {seed!r}, expected an integer")
-    if _get(eng, ("motion", "kind")) == "orbit":
-        errs += _orbit_schema_errors(eng["motion"])
-    return errs
-
-
-def _num(v):
-    return isinstance(v, (int, float)) and not isinstance(v, bool)
-
-
-def _orbit_schema_errors(motion):
-    """The `orbit` motion form (proposed): orbit {tle, earth_orientation refs; propagator; window {start, duration};
-    waypoint_spacing} and orientation {kind: lookat, lookat {frame: sceneenu, target [x, y, z], up: along_track}}."""
-    errs = []
-    for key in ("tle", "earth_orientation"):
-        if not isinstance(_get(motion, ("orbit", key, "name")), str):
-            errs.append(f"engine.motion.orbit.{key}.name is missing")
-    if _get(motion, ("orbit", "propagator")) is _MISSING:
-        errs.append("engine.motion.orbit.propagator is missing")
-    for key in ("start", "duration"):
-        if not _num(_get(motion, ("orbit", "window", key))):
-            errs.append(f"engine.motion.orbit.window.{key} is missing or not a number")
-    if _num(_get(motion, ("orbit", "window", "duration"))) and motion["orbit"]["window"]["duration"] <= 0:
-        errs.append("engine.motion.orbit.window.duration must be positive")
-    spacing = _get(motion, ("orbit", "waypoint_spacing"))
-    if not (_num(spacing) and spacing > 0):
-        errs.append(f"engine.motion.orbit.waypoint_spacing is {spacing!r}, expected a positive number of seconds")
-    if _get(motion, ("orientation", "kind")) != "lookat":
-        errs.append("engine.motion.orientation.kind must be 'lookat' for kind 'orbit'")
-    target = _get(motion, ("orientation", "lookat", "target"))
-    if not (isinstance(target, list) and len(target) == 3 and all(_num(v) for v in target)):
-        errs.append("engine.motion.orientation.lookat.target must be [x, y, z] in metres, scene ENU")
-    for key in ("frame", "up"):
-        if _get(motion, ("orientation", "lookat", key)) is _MISSING:
-            errs.append(f"engine.motion.orientation.lookat.{key} is missing")
+    eng = spec.get("engine") if isinstance(spec, dict) else None
+    if isinstance(eng, dict):
+        seed = _get(eng, ("run", "seed"))
+        if isinstance(seed, float):
+            errs.append(f"engine.run.seed is {seed!r}, expected an integer")
+        samples = _get(eng, ("platform", "integration_samples"))
+        if isinstance(samples, float):
+            errs.append(f"engine.platform.integration_samples is {samples!r}, expected an integer >= 1")
+    origin = _get(spec, ("descriptor", "origin", "engine")) if isinstance(spec, dict) else _MISSING
+    if origin is not _MISSING and origin in ("satsim", "usd", "field"):
+        errs.append(f"descriptor.origin.engine is {origin!r}; this SDK checks and executes only dirsig runs "
+                    "(dirsig-engine/1)")
     return errs
 
 

@@ -89,13 +89,13 @@ def test_composed_orbit_spec_passes_the_schema_checks():
 
 
 @pytest.mark.parametrize("path, value, match", [
-    (("motion", "orbit", "tle"), KeyError, "orbit.tle.name is missing"),
-    (("motion", "orbit", "propagator"), "other", "orbit.propagator is 'other'"),
-    (("motion", "orbit", "window"), {"start": 0}, "window.duration is missing"),
-    (("motion", "orbit", "waypoint_spacing"), 0, "waypoint_spacing is 0"),
-    (("motion", "orientation", "kind"), "euler", "must be 'lookat' for kind 'orbit'"),
-    (("motion", "orientation", "lookat", "up"), "velocity", "lookat.up is 'velocity'"),
-    (("motion", "orientation", "lookat", "target"), "origin", "lookat.target must be"),
+    (("motion", "orbit", "tle"), KeyError, r"^/engine/motion/orbit: 'tle' is a required property"),
+    (("motion", "orbit", "propagator"), "other", r"^/engine/motion/orbit/propagator: 'other' is not one of"),
+    (("motion", "orbit", "window"), {"start": 0}, r"^/engine/motion/orbit/window: 'duration' is a required property"),
+    (("motion", "orbit", "waypoint_spacing"), 0, r"^/engine/motion/orbit/waypoint_spacing: 0 is less than or equal to"),
+    (("motion", "orientation", "kind"), "euler", r"^/engine/motion/orientation/kind: 'lookat' was expected"),
+    (("motion", "orientation", "lookat", "up"), "velocity", r"^/engine/motion/orientation/lookat/up: 'velocity' is not one of"),
+    (("motion", "orientation", "lookat", "target"), "origin", r"^/engine/motion/orientation/lookat/target: 'origin' is not of type 'array'"),
 ])
 def test_orbit_schema_errors(path, value, match):
     errs = schema_errors(_edit(path, value))
