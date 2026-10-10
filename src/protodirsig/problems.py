@@ -26,7 +26,8 @@ The pointers come from three places: a schema violation (`contract.schema_violat
 unstamped member (`run_spec.unstamped_refs`). An execution failure (`execution_failed`, status 500) and an unknown id
 (`not_found`, 404) name no authored file. `errors.ProblemError` and its subclasses carry these dicts as exceptions.
 
-Imports: the standard library, `yaml`, `protodirsig.contract` and `protodirsig.run_spec` only; no engine package.
+Imports: the standard library, `yaml`, `protodirsig.contract`, `protodirsig.errors` and `protodirsig.run_spec` only; no
+engine package.
 """
 import re
 from pathlib import Path
@@ -34,17 +35,12 @@ from pathlib import Path
 import yaml
 
 from protodirsig.contract import schema_violations
+# The plain constructors and the type URNs live in `errors` (which `run_spec` imports); re-exported here.
+from protodirsig.errors import (ADMISSION, COMPOSE, EXECUTION, INVALID_REQUEST, NO_LAYER, NOT_FOUND,  # noqa: F401
+                                TITLES, admission, execution_failed, from_compose_error, invalid_request, not_found)
+from protodirsig.errors import make_problem as _problem
 from protodirsig.run_spec import unstamped_refs
 
-COMPOSE = "urn:protodirsig:problem:compose"
-ADMISSION = "urn:protodirsig:problem:admission"
-NOT_FOUND = "urn:protodirsig:problem:not-found"
-INVALID_REQUEST = "urn:protodirsig:problem:invalid-request"
-EXECUTION = "urn:protodirsig:problem:execution"
-TITLES = {COMPOSE: "The recipe does not compose", ADMISSION: "The submission failed admission",
-          NOT_FOUND: "Not found", INVALID_REQUEST: "The request is not valid",
-          EXECUTION: "The run failed while executing"}
-NO_LAYER = (NOT_FOUND, EXECUTION)                   # kinds of problem no authored file causes
 DESCRIPTOR_MEMBERS = ("meta", "origin", "collection", "sensor", "settings", "fidelity", "extras")
 
 
@@ -177,22 +173,6 @@ def _sub(spec, prefix):
     return node
 
 
-def _problem(type_, status, detail, instance=None, layer=None, field=None, errors=None):
-    out = {"type": type_, "title": TITLES[type_], "status": status, "detail": detail}
-    if instance is not None:
-        out["instance"] = instance
-    if type_ not in NO_LAYER:
-        out["layer"], out["field"] = layer, field
-    if errors is not None:
-        out["errors"] = errors
-    return out
-
-
-def from_compose_error(exc, instance=None):
-    """The problem for a `compose.ComposeError`: the layer file and field it names, its message as `detail`."""
-    return _problem(COMPOSE, 422, str(exc), instance, getattr(exc, "layer", None), getattr(exc, "field", None))
-
-
 def _where(layer, field, pointer):
     if layer and field:
         return f"{layer}: {field}"
@@ -269,12 +249,6 @@ def from_resolution_error(exc, spec, sources, recipe=None, instance=None):
     return _problem(ADMISSION, 422, f"Run {run}: a reference does not resolve{where}: {exc}", instance, layer, field)
 
 
-def admission(detail, instance=None, layer=None, field=None):
-    """A plain admission problem (422) for a failed check with no richer constructor (a library-file problem, a
-    semantic rule)."""
-    return _problem(ADMISSION, 422, detail, instance, layer, field)
-
-
 def from_validation(report, sources=None, recipe=None, instance=None):
     """The one admission problem for an `admission.ValidationReport` that does not admit (not valid, or an unstamped
     member): every reason in `detail`; `layer` and `field` from the first schema violation, else the resolution
@@ -304,19 +278,3 @@ def from_validation(report, sources=None, recipe=None, instance=None):
             layer, field = locate(pointers[0], sources, spec=spec, recipe=_load_recipe(recipe))
     return _problem(ADMISSION, 422, f"Run {run or '(unnamed)'} failed admission. " + " ".join(reasons), instance,
                     layer, field)
-
-
-def execution_failed(run_id, name, message, instance=None):
-    """The problem for an accepted run that failed while executing (the engine, the worker or the host): status 500,
-    no authored file."""
-    return _problem(EXECUTION, 500, f"Run {name} ({run_id}) failed while executing: {message}", instance)
-
-
-def invalid_request(detail, instance=None, layer=None, field=None):
-    """The problem for a request the SDK cannot act on as given (for example a sweep recipe sent to `submit_run`)."""
-    return _problem(INVALID_REQUEST, 422, detail, instance, layer, field)
-
-
-def not_found(kind, identifier, instance=None):
-    """The problem for an unknown id or name: `kind` is what was looked up (`run`, `sweep`, `recipe`, ...)."""
-    return _problem(NOT_FOUND, 404, f"No {kind} {identifier!r}.", instance)

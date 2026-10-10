@@ -181,3 +181,42 @@ def test_problem_errors_carry_conforming_problems():
     assert all(isinstance(e, ProblemError) for e in cases)
     with pytest.raises(TypeError):
         ProblemError({"detail": "no type"})
+
+
+# --- one exception family -------------------------------------------------------------------------------------------
+
+def _family():
+    from protodirsig.compose import ComposeError
+    return [ComposeError("recipes/r.yaml", "fidelity", "missing"), RunSpecError("scene not found", pointer="/engine/x"),
+            AdmissionError("the submission failed", layer="recipes/r.yaml", field="settings[0]"),
+            AdmissionError(problems.admission("from a problem")), NotFoundError("run", "0" * 64),
+            InvalidRequestError("not a recipe"), ProblemError("plain")]
+
+
+@pytest.mark.parametrize("err", _family(), ids=lambda e: type(e).__name__)
+def test_except_problem_error_catches_every_sdk_error(err):
+    with pytest.raises(ProblemError):
+        raise err
+    conforms(err.problem)
+    assert err.problem["detail"] == str(err)
+
+
+def test_the_built_problems_carry_class_type_and_members():
+    from protodirsig.compose import ComposeError
+    c = ComposeError("recipes/r.yaml", "fidelity", "missing").problem
+    assert (c["type"], c["status"], c["layer"], c["field"]) == ("urn:protodirsig:problem:compose", 422, "recipes/r.yaml",
+                                                                "fidelity")
+    r = RunSpecError("m").problem
+    assert (r["type"], r["status"], r["layer"]) == ("urn:protodirsig:problem:admission", 422, None)
+    a = AdmissionError("x", layer="l.yaml", field="f").problem
+    assert (a["layer"], a["field"]) == ("l.yaml", "f")
+    assert isinstance(RunSpecError("m"), ValueError) and issubclass(ComposeError, RunSpecError)
+
+
+@pytest.mark.parametrize("err", _family(), ids=lambda e: type(e).__name__)
+def test_every_exception_pickles_with_its_members(err):
+    import pickle
+    back = pickle.loads(pickle.dumps(err))
+    assert type(back) is type(err) and str(back) == str(err) and back.problem == err.problem
+    for attr in ("layer", "field", "pointer"):
+        assert getattr(back, attr, None) == getattr(err, attr, None)

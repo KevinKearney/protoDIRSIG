@@ -28,7 +28,7 @@ pointed by a LookAt at a scene ENU point with the along-track `up` (a FlexMotion
 refused. The orbit form's TLE and Earth-orientation tables are library files under `config_repo` (`orbit/`),
 hash-verified like every other engine ref.
 
-Imports: the standard library, `yaml`, `lxml`, `protodirsig.spectral` and `protodirsig.dirhash` only. The `dirfm`-bound plugin classes
+Imports: the standard library, `yaml`, `lxml`, `protodirsig.spectral`, `protodirsig.dirhash` and `protodirsig.errors` only. The `dirfm`-bound plugin classes
 (`atmosphere_patches`, `platform_ref`) are imported inside `AurorRun.atmosphere_plugin` and `ephemeris_plugin`, the
 only places a job's plugins are built, so loading, resolving, checking and composing a run spec load no engine
 package (tests/test_import_boundary.py).
@@ -50,6 +50,7 @@ import lxml.etree as et
 import yaml
 
 from protodirsig.dirhash import directory_digest
+from protodirsig.errors import ProblemError
 from protodirsig.spectral import PLACEHOLDER, sha256_file
 
 # dirfm-bound names, imported only when a job is built (AurorRun.atmosphere_plugin, ephemeris_plugin), so loading,
@@ -72,15 +73,16 @@ AUROR_ATMOSPHERE_BACKEND = {"profile": "New Profile", "atmospheric_model": "MidL
                             "boundary_aerosol_model": "RuralVis23Km", "multiple_scattering": "Isaac"}
 
 
-class RunSpecError(ValueError):
+class RunSpecError(ProblemError, ValueError):
     """The run spec asks for something this tree-specific loader does not handle, or a reference does not resolve.
 
-    `pointer` is the RFC 6901 JSON Pointer of the spec member being resolved when the error is about one (a reference's
-    `name` for a missing file, its `content_hash` for a hash mismatch), else None. `problems.locate` maps it to the
-    layer file and field of a composed spec."""
+    A `ProblemError` (admission, 422) and a `ValueError`. `pointer` is the RFC 6901 JSON Pointer of the spec member
+    being resolved when the error is about one (a reference's `name` for a missing file, its `content_hash` for a hash
+    mismatch), else None. `problems.locate` maps it to the layer file and field of a composed spec."""
 
     def __init__(self, *args, pointer=None):
-        super().__init__(*args)
+        super().__init__(args[0] if args else None)
+        self.args = args
         self.pointer = pointer
 
 
