@@ -1,21 +1,21 @@
 {
   "summary": "List the artifacts of a run that has not rendered yet.",
-  "description": "Only the resolved run spec exists before the run renders; the logs, the image, its header and the truth images are listed as they are written. Run ids, sweep ids and the hash of `run_spec.json` are placeholders of the contract's form; the SDK does not compute them yet. Everything else is real library data.",
+  "description": "Only the resolved run spec exists before the run renders; the logs, the image, its header and the truth images are listed as they are written. Run ids and sweep ids are computed from the composed specs; the hash of `run_spec.json` is the run id. Everything else is real library data.",
   "request": {
     "method": "GET",
-    "path": "/runs/4444444444444444444444444444444444444444444444444444444444444444/artifacts"
+    "path": "/runs/1c9e6343b64c324aa68c7ebca64e8b9e76e0a1a1413538ed1efbd9dc00e46088/artifacts"
   },
   "response": {
     "status": 200,
     "media_type": "application/json",
     "body": {
-      "run_id": "4444444444444444444444444444444444444444444444444444444444444444",
+      "run_id": "1c9e6343b64c324aa68c7ebca64e8b9e76e0a1a1413538ed1efbd9dc00e46088",
       "artifacts": [
         {
           "name": "run_spec.json",
-          "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+          "sha256": "1c9e6343b64c324aa68c7ebca64e8b9e76e0a1a1413538ed1efbd9dc00e46088",
           "media_type": "application/json",
-          "uri": "file:///tmp/protodirsig/runs/4444444444444444444444444444444444444444444444444444444444444444/run_spec.json"
+          "uri": "file:///tmp/protodirsig/runs/1c9e6343b64c324aa68c7ebca64e8b9e76e0a1a1413538ed1efbd9dc00e46088/run_spec.json"
         }
       ]
     },

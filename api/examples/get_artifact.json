@@ -1,9 +1,9 @@
 {
   "summary": "Read the resolved run spec of a run.",
-  "description": "The bytes are the canonical JSON serialization (RFC 8785) of the resolved run spec, the spec with its sensor block in place, so they hash to the run id; they are shown here as a parsed document, complete. Run ids, sweep ids and the hash of `run_spec.json` are placeholders of the contract's form; the SDK does not compute them yet. Everything else is real library data.",
+  "description": "The bytes are the canonical JSON serialization (RFC 8785) of the resolved run spec, the spec with its sensor block in place, so they hash to the run id; they are shown here as a parsed document, complete. Run ids and sweep ids are computed from the composed specs; the hash of `run_spec.json` is the run id. Everything else is real library data.",
   "request": {
     "method": "GET",
-    "path": "/runs/4444444444444444444444444444444444444444444444444444444444444444/artifacts/run_spec.json"
+    "path": "/runs/1c9e6343b64c324aa68c7ebca64e8b9e76e0a1a1413538ed1efbd9dc00e46088/artifacts/run_spec.json"
   },
   "response": {
     "status": 200,

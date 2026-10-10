@@ -5,10 +5,12 @@
     python scripts/api_examples.py --check   exit 1 if an example differs from what the library gives now
 
 One file per operation, plus `compose.problem.json`, the problem produced by actually composing the
-`member_in_two_layers` conformance vector. Library names, content hashes, documents, composed specs, provenance and
-validation outcomes are real. Run ids, sweep ids and the hash of the resolved-spec artifact are placeholders of the
-contract's form (64 hex digits): the SDK does not compute them yet (api/operations.md, gaps). Large bodies are
-abbreviated, and each example's description says so. No engine is run.
+`member_in_two_layers` conformance vector, and `list_artifacts.pass.json`, a multi-frame run. Library names,
+content hashes, documents, composed specs, provenance and validation outcomes are real; run ids and sweep ids are
+computed from the composed specs (`protodirsig.identity`), and the hash of `run_spec.json` is its run id (the
+artifact is the canonical JSON of the resolved spec). Hashes of rendered files (images, headers, truth, logs) are
+marked placeholders, 64 zeros: no engine is run here. Large bodies are abbreviated, and each example's description
+says so.
 """
 import hashlib
 import json
@@ -21,6 +23,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
 from protodirsig.compose import ComposeError, compose, compose_sweep   # noqa: E402
+from protodirsig.identity import run_id as compute_run_id                  # noqa: E402
 from protodirsig.run_spec import check_library_files, load_run_spec, resolve_auror_run   # noqa: E402
 from protodirsig.simulation import schema_errors   # noqa: E402
 
@@ -31,14 +34,17 @@ CONFIG_REPO = ROOT / "manifold_config_repo"
 VECTOR = ROOT / "manifold_contracts" / "vectors" / "compose" / "member_in_two_layers"
 SWEEP, SINGLE = "sensor_sweep_tahoe", "auror_ref"
 
-PLACEHOLDER = ("Run ids, sweep ids and the hash of `run_spec.json` are placeholders of the contract's form; the SDK "
-               "does not compute them yet. Everything else is real library data.")
+PLACEHOLDER = ("Run ids and sweep ids are computed from the composed specs; the hash of `run_spec.json` is the run "
+               "id. Everything else is real library data.")
+RENDERED_PLACEHOLDER = ("Hashes of rendered files (images, headers, truth images, logs) are placeholders, 64 zeros: "
+                        "no run is rendered for these examples.")
+ZERO = "0" * 64
 ABBREVIATED = "Members shown as `(abbreviated)` are cut from this example; the real body carries them in full."
 ABBREVIATION_MARKER = "(abbreviated)"         # the value of every cut member; tests look for it
-RUN_IDS = {f"sensor-sweep-tahoe--{s}": c * 64 for s, c in (("auror-nir", "1"), ("deepscan_850_306_nir_1280", "2"),
-                                                           ("synthetic_600_200_vis_1920", "3"))}
-RUN_IDS["auror-ref-static-pose"] = "4" * 64
-SWEEP_ID = "a" * 64
+PASS = "leo_pass_tahoe"
+_COMPOSED = {r: compose_sweep(LAYERS / "recipes" / f"{r}.yaml") for r in (SWEEP, SINGLE, PASS)}
+RUN_IDS = {n: i for c in _COMPOSED.values() for n, i in c.run_ids.items()}     # computed: identity.run_id
+SWEEP_ID = _COMPOSED[SWEEP].sweep_id                                           # computed: identity.sweep_id_from_runs
 RUN_DIR = "file:///tmp/protodirsig/runs"
 
 
@@ -212,6 +218,27 @@ def examples():
         "request": get(f"/runs/{RUN_IDS[name]}/artifacts/run_spec.json"),
         "response": ok(compose(LAYERS / "recipes" / f"{SINGLE}.yaml", inline_sensor=True),
                        "schemas/run_spec_document.schema.json")}
+    pid = RUN_IDS["leo-pass-tahoe"]
+    pass_spec = _COMPOSED[PASS].runs["leo-pass-tahoe"]
+    assert compute_run_id(pass_spec, SENSORS) == pid
+    frames = []
+    for k, _ in enumerate(pass_spec["engine"]["tasks"]["windows"]):
+        for base, kind in (("AurorNIROutput", "image"), ("truth1", "truth")):
+            for ext, media in ((".img", "application/octet-stream"), (".img.hdr", "text/plain")):
+                name = f"{base}-t{k:04d}-c0000{ext}"
+                frames.append({"name": name, "sha256": ZERO, "media_type": media, "uri": f"{RUN_DIR}/{pid}/{name}",
+                               "frame": k})
+    logs = [{"name": n, "sha256": ZERO, "media_type": "application/json", "uri": f"{RUN_DIR}/{pid}/{n}"}
+            for n in ("run_info.json", "log_info.json")]
+    ex["list_artifacts.pass"] = {
+        "summary": f"List the artifacts of the rendered `{PASS}` run: three frames.",
+        "description": ("A multi-frame run lists one image, one header and one truth product per capture, named "
+                        "`<base>-t<task>-c<capture>` as the pass template writes them, each with its zero-based `frame`; "
+                        "the run spec and the engine logs belong to the run as a whole and carry no frame. "
+                        f"{PLACEHOLDER} {RENDERED_PLACEHOLDER}"),
+        "request": get(f"/runs/{pid}/artifacts"),
+        "response": ok({"run_id": pid, "artifacts": [spec_artifact(pid)] + logs + frames},
+                       "schemas/artifact_list.schema.json")}
     for k, v in ex.items():
         v["operation"] = k.split(".")[0]
     return ex

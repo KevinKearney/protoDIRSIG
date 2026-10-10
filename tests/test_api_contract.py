@@ -230,7 +230,8 @@ def test_problem_example_names_the_layer_and_field_of_the_triggering_compose_err
 
 
 def _symbol(dotted):
-    """Resolve `module.name`, `Class.method` or `module.Class` against protodirsig's modules."""
+    """Resolve `module.name`, `Class.method`, `Class.field` (a dataclass field) or `module.Class` against protodirsig's
+    modules."""
     first, *rest = dotted.split(".")
     mods = [importlib.import_module(f"protodirsig.{m.name}") for m in pkgutil.iter_modules(protodirsig.__path__)]
     for start in [m for m in mods if m.__name__ == f"protodirsig.{first}"] + \
@@ -238,7 +239,8 @@ def _symbol(dotted):
         obj = start
         try:
             for part in rest:
-                obj = getattr(obj, part)
+                fields = getattr(obj, "__dataclass_fields__", {})
+                obj = fields[part] if part in fields else getattr(obj, part)
             return obj
         except AttributeError:
             continue
@@ -275,3 +277,89 @@ def test_api_folder_is_publishable():
         text = path.read_text()
         assert not re.search(r"\bC-\d", text), f"{path.relative_to(ROOT)} cites a C-n row"
         assert ".claude_mem" not in text, f"{path.relative_to(ROOT)} cites .claude_mem"
+
+
+# --- computed ids and frames in the examples ---------------------------------------------------------
+
+def _ids(node, where=""):
+    """Every run id and sweep id an example states: `run_id`/`sweep_id` members and the id segments of paths."""
+    if isinstance(node, dict):
+        for k, v in node.items():
+            if k in ("run_id", "sweep_id") and isinstance(v, str):
+                yield f"{where}.{k}", v
+            elif k == "path" and isinstance(v, str):
+                for seg in v.split("/"):
+                    if len(seg) == 64:
+                        yield f"{where}.path", seg
+            else:
+                yield from _ids(v, f"{where}.{k}")
+    elif isinstance(node, list):
+        for i, v in enumerate(node):
+            yield from _ids(v, f"{where}[{i}]")
+
+
+def _library_ids():
+    from protodirsig.compose import compose_sweep
+    out = set()
+    for recipe in sorted((ROOT / "manifold_run_specs" / "recipes").glob("*.yaml")):
+        sweep = compose_sweep(recipe)
+        out |= set(sweep.run_ids.values()) | {sweep.sweep_id}
+    return out
+
+
+@pytest.mark.parametrize("path", EXAMPLES, ids=lambda p: p.name)
+def test_example_ids_are_computed_not_placeholders(path):
+    ex = _load(path)
+    known = _library_ids()
+    for where, value in _ids({"request": ex["request"], "response": ex["response"]}):
+        assert not re.fullmatch(r"(.)\1{63}", value), f"{path.name}{where}: placeholder id {value[:8]}..."
+        if path.name != "compose.problem.json":
+            assert value in known, f"{path.name}{where}: {value[:12]} is not the id of any library run or sweep"
+
+
+def test_compose_example_ids_equal_the_composed_ids():
+    from protodirsig.compose import compose_sweep
+    ex = _load(API / "examples" / "compose.json")
+    sweep = compose_sweep(ROOT / "manifold_run_specs" / "recipes" / f"{ex['request']['body']['recipe_name']}.yaml")
+    body = ex["response"]["body"]
+    assert body["sweep_id"] == sweep.sweep_id
+    assert {r["name"]: r["run_id"] for r in body["runs"]} == sweep.run_ids
+
+
+def test_get_artifact_example_is_the_resolved_spec_and_hashes_to_its_run_id():
+    from protodirsig import identity
+    ex = _load(API / "examples" / "get_artifact.json")
+    rid = ex["request"]["path"].split("/")[2]
+    spec = ex["response"]["body"]
+    assert identity.run_id(spec, ROOT / "manifold_sensors") == rid
+    assert identity.sha256_hex(identity.canonical_json(spec)) == rid           # the artifact's bytes hash to the id
+
+
+def test_multi_frame_example_has_one_product_per_capture():
+    ex = _load(API / "examples" / "list_artifacts.pass.json")
+    arts = ex["response"]["body"]["artifacts"]
+    framed = [a for a in arts if "frame" in a]
+    assert all(isinstance(a["frame"], int) and not isinstance(a["frame"], bool) and a["frame"] >= 0 for a in framed)
+    assert sorted({a["frame"] for a in framed}) == [0, 1, 2]
+    for k in range(3):
+        names = {a["name"] for a in framed if a["frame"] == k}
+        assert names == {f"AurorNIROutput-t{k:04d}-c0000.img", f"AurorNIROutput-t{k:04d}-c0000.img.hdr",
+                         f"truth1-t{k:04d}-c0000.img", f"truth1-t{k:04d}-c0000.img.hdr"}
+    assert {a["name"] for a in arts if "frame" not in a} == {"run_spec.json", "run_info.json", "log_info.json"}
+
+
+def test_every_frame_in_the_examples_is_a_non_negative_integer():
+    for path in EXAMPLES:
+        for where, node in _walk_dicts(_load(path)):
+            if "frame" in node and "sha256" in node:
+                assert isinstance(node["frame"], int) and node["frame"] >= 0, (path.name, where)
+
+
+def _walk_dicts(node, where=""):
+    if isinstance(node, dict):
+        yield where, node
+        for k, v in node.items():
+            yield from _walk_dicts(v, f"{where}.{k}")
+    elif isinstance(node, list):
+        for i, v in enumerate(node):
+            yield from _walk_dicts(v, f"{where}[{i}]")

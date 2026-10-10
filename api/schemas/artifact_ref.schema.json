@@ -4,10 +4,15 @@
   "description": "A reference to one file a run produced. The SDK returns references, never bare file paths: a reference carries the file's content hash and type, so it stays meaningful away from the machine that wrote it and its bytes can be verified after download.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["name", "sha256", "media_type", "uri"],
+  "required": [
+    "name",
+    "sha256",
+    "media_type",
+    "uri"
+  ],
   "properties": {
     "name": {
-      "description": "The artifact's name, unique within its run, for example `run_spec.json`, `image.img`, `image.hdr`, `truth.img`, `run_log.json` or `info_log.json`. It is the last segment of the `get_artifact` path.",
+      "description": "The artifact's name, unique within its run, for example `run_spec.json`, `run_info.json` or `log_info.json`, or a per-capture product named `<base>-t<task>-c<capture>.img` (and `.img.hdr`) as the platform template writes it. It is the last segment of the `get_artifact` path.",
       "type": "string",
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
     },
@@ -25,6 +30,11 @@
       "description": "Where the bytes can be read: a `file://` URI when the run was executed locally, or a download URL when it was executed by a server.",
       "type": "string",
       "format": "uri"
+    },
+    "frame": {
+      "description": "For an artifact that belongs to one capture of a multi-frame run (an image, its header, a truth product), the zero-based index of that capture, in task order. Absent for an artifact that belongs to the run as a whole (the run spec, the engine logs).",
+      "type": "integer",
+      "minimum": 0
     }
   }
 }

@@ -1,0 +1,121 @@
+{
+  "summary": "List the artifacts of the rendered `leo_pass_tahoe` run: three frames.",
+  "description": "A multi-frame run lists one image, one header and one truth product per capture, named `<base>-t<task>-c<capture>` as the pass template writes them, each with its zero-based `frame`; the run spec and the engine logs belong to the run as a whole and carry no frame. Run ids and sweep ids are computed from the composed specs; the hash of `run_spec.json` is the run id. Everything else is real library data. Hashes of rendered files (images, headers, truth images, logs) are placeholders, 64 zeros: no run is rendered for these examples.",
+  "request": {
+    "method": "GET",
+    "path": "/runs/7deae0e2b62eb6c26c78cb6568494f573731feac294c1050fb1024f7287e946a/artifacts"
+  },
+  "response": {
+    "status": 200,
+    "media_type": "application/json",
+    "body": {
+      "run_id": "7deae0e2b62eb6c26c78cb6568494f573731feac294c1050fb1024f7287e946a",
+      "artifacts": [
+        {
+          "name": "run_spec.json",
+          "sha256": "7deae0e2b62eb6c26c78cb6568494f573731feac294c1050fb1024f7287e946a",
+          "media_type": "application/json",
+          "uri": "file:///tmp/protodirsig/runs/7deae0e2b62eb6c26c78cb6568494f573731feac294c1050fb1024f7287e946a/run_spec.json"
+        },
+        {
+          "name": "run_info.json",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "media_type": "application/json",
+          "uri": "file:///tmp/protodirsig/runs/7deae0e2b62eb6c26c78cb6568494f573731feac294c1050fb1024f7287e946a/run_info.json"
+        },
+        {
+          "name": "log_info.json",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "media_type": "application/json",
+          "uri": "file:///tmp/protodirsig/runs/7deae0e2b62eb6c26c78cb6568494f573731feac294c1050fb1024f7287e946a/log_info.json"
+        },
+        {
+          "name": "AurorNIROutput-t0000-c0000.img",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "media_type": "application/octet-stream",
+          "uri": "file:///tmp/protodirsig/runs/7deae0e2b62eb6c26c78cb6568494f573731feac294c1050fb1024f7287e946a/AurorNIROutput-t0000-c0000.img",
+          "frame": 0
+        },
+        {
+          "name": "AurorNIROutput-t0000-c0000.img.hdr",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "media_type": "text/plain",
+          "uri": "file:///tmp/protodirsig/runs/7deae0e2b62eb6c26c78cb6568494f573731feac294c1050fb1024f7287e946a/AurorNIROutput-t0000-c0000.img.hdr",
+          "frame": 0
+        },
+        {
+          "name": "truth1-t0000-c0000.img",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "media_type": "application/octet-stream",
+          "uri": "file:///tmp/protodirsig/runs/7deae0e2b62eb6c26c78cb6568494f573731feac294c1050fb1024f7287e946a/truth1-t0000-c0000.img",
+          "frame": 0
+        },
+        {
+          "name": "truth1-t0000-c0000.img.hdr",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "media_type": "text/plain",
+          "uri": "file:///tmp/protodirsig/runs/7deae0e2b62eb6c26c78cb6568494f573731feac294c1050fb1024f7287e946a/truth1-t0000-c0000.img.hdr",
+          "frame": 0
+        },
+        {
+          "name": "AurorNIROutput-t0001-c0000.img",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "media_type": "application/octet-stream",
+          "uri": "file:///tmp/protodirsig/runs/7deae0e2b62eb6c26c78cb6568494f573731feac294c1050fb1024f7287e946a/AurorNIROutput-t0001-c0000.img",
+          "frame": 1
+        },
+        {
+          "name": "AurorNIROutput-t0001-c0000.img.hdr",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "media_type": "text/plain",
+          "uri": "file:///tmp/protodirsig/runs/7deae0e2b62eb6c26c78cb6568494f573731feac294c1050fb1024f7287e946a/AurorNIROutput-t0001-c0000.img.hdr",
+          "frame": 1
+        },
+        {
+          "name": "truth1-t0001-c0000.img",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "media_type": "application/octet-stream",
+          "uri": "file:///tmp/protodirsig/runs/7deae0e2b62eb6c26c78cb6568494f573731feac294c1050fb1024f7287e946a/truth1-t0001-c0000.img",
+          "frame": 1
+        },
+        {
+          "name": "truth1-t0001-c0000.img.hdr",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "media_type": "text/plain",
+          "uri": "file:///tmp/protodirsig/runs/7deae0e2b62eb6c26c78cb6568494f573731feac294c1050fb1024f7287e946a/truth1-t0001-c0000.img.hdr",
+          "frame": 1
+        },
+        {
+          "name": "AurorNIROutput-t0002-c0000.img",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "media_type": "application/octet-stream",
+          "uri": "file:///tmp/protodirsig/runs/7deae0e2b62eb6c26c78cb6568494f573731feac294c1050fb1024f7287e946a/AurorNIROutput-t0002-c0000.img",
+          "frame": 2
+        },
+        {
+          "name": "AurorNIROutput-t0002-c0000.img.hdr",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "media_type": "text/plain",
+          "uri": "file:///tmp/protodirsig/runs/7deae0e2b62eb6c26c78cb6568494f573731feac294c1050fb1024f7287e946a/AurorNIROutput-t0002-c0000.img.hdr",
+          "frame": 2
+        },
+        {
+          "name": "truth1-t0002-c0000.img",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "media_type": "application/octet-stream",
+          "uri": "file:///tmp/protodirsig/runs/7deae0e2b62eb6c26c78cb6568494f573731feac294c1050fb1024f7287e946a/truth1-t0002-c0000.img",
+          "frame": 2
+        },
+        {
+          "name": "truth1-t0002-c0000.img.hdr",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "media_type": "text/plain",
+          "uri": "file:///tmp/protodirsig/runs/7deae0e2b62eb6c26c78cb6568494f573731feac294c1050fb1024f7287e946a/truth1-t0002-c0000.img.hdr",
+          "frame": 2
+        }
+      ]
+    },
+    "schema": "schemas/artifact_list.schema.json"
+  },
+  "operation": "list_artifacts"
+}
