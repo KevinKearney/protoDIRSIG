@@ -312,6 +312,8 @@ A top-level folder exists here only if it has a MANIFOLD analog. `AUROR_ref/` ha
 | `problems` | problem details (RFC 9457) naming the authored file and field at fault: `locate` (a pointer into a composed spec to its layer file and field, from the composer's provenance), `from_compose_error`, `from_schema_violations`, `from_submission`, `not_found`; no engine package | `built` |
 | `errors` | `ProblemError` (`.problem`, a problem details dict) and its subclasses `AdmissionError`, `NotFoundError`, `InvalidRequestError`: the exceptions the Backend raises; no engine package | `built` |
 | `admission` | engine-free validation, the `none` level: `validate_spec` (schema, resolution, library files, unstamped members, run id) returning a `ValidationReport`; no engine package | `built` |
+| `store` | the run store: `RunStore` (one directory per run id under a work root: canonical `run_spec.json`, `status.json`, `execution.json`; atomic creation, compare-and-set state under `flock`, `reap` of dead workers), `artifacts_for`; no engine package | `built` |
+| `worker` | `python -m protodirsig.worker <run_dir>`: one process per run; slot locks, `accepted` to `running`, dry run then render, artifacts, final state, execution record; engine-bound (dirfm) | `built` |
 | `platform_gen` | `.platform` rendered from the library template, `sensor-spec/1` and `settings` | `built` (one focal plane per entry) |
 | `spectral` | `spectral-curve/1` reader, channel shapes, response composition | `built` |
 | `motion_tasks` | motion and `.tasks` generation from `engine.motion`, `engine.tasks`: a `.ppd` for `static`, a FlexMotion `.motion` of ECEF waypoints for `orbit` (`orbit_waypoints`) | `built, partial` (static, orbit) |
