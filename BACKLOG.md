@@ -52,9 +52,19 @@ It accepts only `new_atmosphere`, ephemeris `spice`, weather `library`, one scen
 `four_curve` and others fail with a specific `RunSpecError`. The NewAtmosphere backend recipe (MODTRAN tape,
 `Isaac`) has no run-spec field and is fixed in `AUROR_ATMOSPHERE_BACKEND`.
 
-### Waypoint and orbit motion generation
-Motion generation covers `kind: static` only. Waypoints and orbits need `dirfm.FlexMotion` and a design
-decision.
+### Moving-platform ground-imaging pass (C-05, high priority)
+A LEO platform imaging a ground scene: the StkImport1 reconstruction through the run-spec driver. Needs an
+`engine.motion` form for `orbit` (TLE or ephemeris as a hashed library asset, window, pointing law), generation
+from `orbit.py` in `motion_tasks`, multi-frame `.tasks` with per-frame truth, and the skyfield data (`de421.bsp`,
+IERS) pinned and hashed so a run does not read the network. Confirm `dirfm` supports a `LookAt` whose location
+engine is a waypoint track before promising target staring. Frame count, ROI and convergence are set by cost: a
+500 x 500 frame takes about 7 minutes. Compile-once (C-07), threads (C-08) and parallel sweeps become real here.
+Validation vehicle: `tutorial_orbit_to_ground` Stage 3, with the independent ground-track check.
+
+### Space-object imaging against space (after the pass)
+An observer imaging a space object against space: star field (no streamlined support in DIRSIG; a flux-matched
+finite emitter, or compositing from the truth cube), space background, relative target motion, probably a
+different scene. A separate design problem; C-05 scopes it out until this item is taken.
 
 ## Sensor model
 
@@ -104,6 +114,11 @@ geometry), with grid versus zip decided per axis and the run cap applied to the 
 keyed by scene hash, so the runs of a sweep that share a scene compile it once (with compile-once); and splitting
 scene-specific from engine-general engine-profile content, now that the AUROR and VIS profiles are one file with
 a recipe override.
+
+### Multi-focal-plane generation
+`platform_gen` renders one focal plane per run (C-19). A rig whose entries image the same instant needs one
+`.platform` with several focal planes and one run with several `settings` members. Build it when a run needs a
+co-boresight rig, and after MANIFOLD answers C-19.
 
 ### Release repo plan
 Cut the validated SDK, tests, and notebooks into a new repository under formal change control. Strip
