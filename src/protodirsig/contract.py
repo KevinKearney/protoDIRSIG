@@ -13,6 +13,11 @@ files there from `manifold_contracts/`, see `setup.py`, and a checkout or editab
 that does not resolve on the network; references between the three schemas are sibling file names resolved against it,
 and a `referencing` registry holds each file under its `$id` (and retrieves by file name), so everything resolves offline.
 
+`schema_errors(spec)` is the SDK's schema check: each violation as `"<JSON Pointer>: <message>"`, then
+`semantic_errors(spec)`, the rules the schemas cannot express. It lives here, with the constants `DESCRIPTOR_REQUIRED`,
+`ENGINE_REQUIRED` and `ENGINE_ENUMS`, so engine-free validation (`admission`) needs no engine package; `simulation`
+re-exports them.
+
 Imports: the standard library, `jsonschema` and `referencing` only; no engine package and nothing from `simulation`.
 """
 import json
@@ -129,3 +134,67 @@ def schema_violations(spec):
 
 def conforms(spec):
     return validator().is_valid(spec)
+
+
+# Required members and enumerations as the schemas in manifold_contracts/ state them (Metadata_v02 §6, Configuration_v02
+# A.8.1); kept for callers and tests. The schema check itself is schema_violations.
+DESCRIPTOR_REQUIRED = ("meta", "origin", "collection", "sensor", "settings", "fidelity")
+ENGINE_REQUIRED = ("generator", "scenes", "platform", "motion", "tasks", "atmosphere")
+# Enumerated engine fields (A.8.2-A.8.7). `new_atmosphere` is the documented, non-adopted
+# extension (CONOPS and Guide §10); A.8.7 adopts only `four_curve` and `basic`.
+ENGINE_ENUMS = {
+    ("generator", "tool"): {"dirfm"},
+    ("generator", "spec_schema"): {"dirsig-engine/1"},
+    ("motion", "kind"): {"static", "waypoints", "orbit"},
+    ("motion", "orientation", "kind"): {"euler", "lookat"},
+    ("motion", "orbit", "propagator"): {"skyfield_sgp4"},           # the orbit form (proposed, CONOPS §3.2)
+    ("motion", "orientation", "lookat", "frame"): {"sceneenu"},
+    ("motion", "orientation", "lookat", "up"): {"along_track"},
+    ("atmosphere", "plugin"): {"four_curve", "basic", "new_atmosphere"},
+    ("weather", "source"): {"library", "install"},
+    ("ephemeris", "plugin"): {"spice"},
+}
+_MISSING = object()
+
+
+def _get(d, path):
+    for k in path:
+        if not isinstance(d, dict) or k not in d:
+            return _MISSING
+        d = d[k]
+    return d
+
+
+def schema_errors(spec):
+    """Every schema violation in a parsed run spec (empty list = conformant). See module docstring.
+
+    The published schemas (`manifold_contracts/run-spec-1.schema.json` with `dirsig-engine-1.schema.json` and
+    `sensor-spec-1.schema.json`, applied by `contract.schema_violations`) as `"<JSON Pointer>: <message>"`, in
+    pointer order, then `semantic_errors(spec)`: the rules the schemas cannot express. Duplicates removed.
+    """
+    msgs = [f"{v['path'] or '/'}: {v['message']}" for v in schema_violations(spec)]
+    return list(dict.fromkeys(msgs + semantic_errors(spec)))
+
+
+def semantic_errors(spec):
+    """The schema-check rules JSON Schema cannot express (the loader enforces the others at resolution):
+
+    - an integer member read from YAML as a float (`engine.run.seed`, `engine.platform.integration_samples`):
+      JSON Schema's `integer` accepts 42.0, the generator needs an integer;
+    - `descriptor.origin.engine` other than `dirsig`: the schemas type the engine block only for dirsig, and this SDK
+      checks and executes only `dirsig-engine/1` runs.
+    """
+    errs = []
+    eng = spec.get("engine") if isinstance(spec, dict) else None
+    if isinstance(eng, dict):
+        seed = _get(eng, ("run", "seed"))
+        if isinstance(seed, float):
+            errs.append(f"engine.run.seed is {seed!r}, expected an integer")
+        samples = _get(eng, ("platform", "integration_samples"))
+        if isinstance(samples, float):
+            errs.append(f"engine.platform.integration_samples is {samples!r}, expected an integer >= 1")
+    origin = _get(spec, ("descriptor", "origin", "engine")) if isinstance(spec, dict) else _MISSING
+    if origin is not _MISSING and origin in ("satsim", "usd", "field"):
+        errs.append(f"descriptor.origin.engine is {origin!r}; this SDK checks and executes only dirsig runs "
+                    "(dirsig-engine/1)")
+    return errs

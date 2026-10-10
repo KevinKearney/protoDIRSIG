@@ -35,33 +35,18 @@ from pathlib import Path
 from dirfm import DIRSIG, SCENE
 from dirfm.weather import ThermWeatherFilePlugin
 
-from protodirsig.contract import schema_violations
+# The schema check moved to contract (pure, no engine package); re-exported so `from protodirsig.simulation import
+# schema_errors` keeps working.
+from protodirsig.contract import (DESCRIPTOR_REQUIRED, ENGINE_ENUMS, ENGINE_REQUIRED, _MISSING, _get,  # noqa: F401
+                                  schema_errors, schema_violations, semantic_errors)
+from protodirsig.admission import validate_spec
 from protodirsig.platform_gen import render_platform
 from protodirsig.platform_ref import PlatformFilesPlugin
 from protodirsig.motion_tasks import generate_motion, generate_tasks
-from protodirsig.run_spec import (RunSpecError, check_library_files, is_inline_sensor, load_run_spec, resolve_auror_run,
-                                 unstamped_refs)
+from protodirsig.run_spec import (RunSpecError, check_library_files, is_inline_sensor, load_run_spec,  # noqa: F401
+                                 resolve_auror_run, unstamped_refs)
 from protodirsig.scene_ref import copy_input, reference_scene
 
-# Required members and enumerations as the schemas in manifold_contracts/ state them (Metadata_v02 §6, Configuration_v02
-# A.8.1); kept for callers and tests. The schema check itself is contract.schema_violations.
-DESCRIPTOR_REQUIRED = ("meta", "origin", "collection", "sensor", "settings", "fidelity")
-ENGINE_REQUIRED = ("generator", "scenes", "platform", "motion", "tasks", "atmosphere")
-# Enumerated engine fields (A.8.2-A.8.7). `new_atmosphere` is the documented, non-adopted
-# extension (CONOPS and Guide §10); A.8.7 adopts only `four_curve` and `basic`.
-ENGINE_ENUMS = {
-    ("generator", "tool"): {"dirfm"},
-    ("generator", "spec_schema"): {"dirsig-engine/1"},
-    ("motion", "kind"): {"static", "waypoints", "orbit"},
-    ("motion", "orientation", "kind"): {"euler", "lookat"},
-    ("motion", "orbit", "propagator"): {"skyfield_sgp4"},           # the orbit form (proposed, CONOPS §3.2)
-    ("motion", "orientation", "lookat", "frame"): {"sceneenu"},
-    ("motion", "orientation", "lookat", "up"): {"along_track"},
-    ("atmosphere", "plugin"): {"four_curve", "basic", "new_atmosphere"},
-    ("weather", "source"): {"library", "install"},
-    ("ephemeris", "plugin"): {"spice"},
-}
-_MISSING = object()
 
 
 @dataclass
@@ -74,6 +59,7 @@ class ConformanceResult:
     execution_log: dict | None
     execution_error: str | None
     unstamped: list = field(default_factory=list)   # pointers of refs with the sha256:<hash> placeholder (run_spec.unstamped_refs)
+    engine_checked: bool = False                    # True when the DIRSIG dry run was performed
 
     @property
     def passed(self):
@@ -99,49 +85,6 @@ class RunResult:
     warnings: list[str] = field(default_factory=list)
     frames: list[Frame] = field(default_factory=list)   # every capture, in log order (one per task window)
     propagator: dict | None = None                      # orbit motion: orbit.propagator_provenance(); never in a spec
-
-
-def _get(d, path):
-    for k in path:
-        if not isinstance(d, dict) or k not in d:
-            return _MISSING
-        d = d[k]
-    return d
-
-
-def schema_errors(spec):
-    """Every schema violation in a parsed run spec (empty list = conformant). See module docstring.
-
-    The published schemas (`manifold_contracts/run-spec-1.schema.json` with `dirsig-engine-1.schema.json` and
-    `sensor-spec-1.schema.json`, applied by `contract.schema_violations`) as `"<JSON Pointer>: <message>"`, in
-    pointer order, then `semantic_errors(spec)`: the rules the schemas cannot express. Duplicates removed.
-    """
-    msgs = [f"{v['path'] or '/'}: {v['message']}" for v in schema_violations(spec)]
-    return list(dict.fromkeys(msgs + semantic_errors(spec)))
-
-
-def semantic_errors(spec):
-    """The schema-check rules JSON Schema cannot express (the loader enforces the others at resolution):
-
-    - an integer member read from YAML as a float (`engine.run.seed`, `engine.platform.integration_samples`):
-      JSON Schema's `integer` accepts 42.0, the generator needs an integer;
-    - `descriptor.origin.engine` other than `dirsig`: the schemas type the engine block only for dirsig, and this SDK
-      checks and executes only `dirsig-engine/1` runs.
-    """
-    errs = []
-    eng = spec.get("engine") if isinstance(spec, dict) else None
-    if isinstance(eng, dict):
-        seed = _get(eng, ("run", "seed"))
-        if isinstance(seed, float):
-            errs.append(f"engine.run.seed is {seed!r}, expected an integer")
-        samples = _get(eng, ("platform", "integration_samples"))
-        if isinstance(samples, float):
-            errs.append(f"engine.platform.integration_samples is {samples!r}, expected an integer >= 1")
-    origin = _get(spec, ("descriptor", "origin", "engine")) if isinstance(spec, dict) else _MISSING
-    if origin is not _MISSING and origin in ("satsim", "usd", "field"):
-        errs.append(f"descriptor.origin.engine is {origin!r}; this SDK checks and executes only dirsig runs "
-                    "(dirsig-engine/1)")
-    return errs
 
 
 class _Capture(logging.Handler):
@@ -252,28 +195,33 @@ class Simulation:
             problems.append(f"reference datetime {ref} != descriptor.collection.epoch {epoch}")
         return problems
 
-    def validate(self):
-        """Run all three checks, each reported independently; never raises for a bad spec. `unstamped` lists the
-        references that carry the `sha256:<hash>` placeholder; it is reported, not a failed check (`passed` ignores
-        it), and `LocalRegistry.submit` refuses such a spec."""
+    def validate(self, engine_check="dry_run"):
+        """Run the checks, each reported independently; never raises for a bad spec. `unstamped` lists the members
+        that carry a placeholder (`sha256:<hash>`, `<git-sha>`); it is reported, not a failed check (`passed` ignores
+        it), and `LocalRegistry.submit` refuses such a spec.
+
+        `engine_check`: `"dry_run"` (the default, as before) also assembles the job and runs the DIRSIG dry run;
+        `"none"` stops after the engine-free checks (`admission.validate_spec`), so `execution_ok` is True,
+        `execution_error` None, `engine_checked` False and `passed` is schema and resolution only. The schema,
+        resolution and unstamped parts are `admission.validate_spec` at both levels."""
+        if engine_check not in ("none", "dry_run"):
+            raise ValueError(f"engine_check is {engine_check!r}; expected 'none' or 'dry_run'")
         if self.spec is None:
             return ConformanceResult(False, f"run spec did not load: {self.load_error}",
                                      False, ["not checked: run spec did not load"],
                                      False, None, "not attempted: run spec did not load")
-        schema = schema_errors(self.spec)
-
-        if self.auror_run is None:
-            mismatches = [f"references did not resolve: {self.resolve_error}"]
-        else:
-            try:
-                mismatches = check_library_files(self.spec, self.auror_run)
-            except Exception as e:  # noqa: BLE001
-                mismatches = [f"library files could not be compared: {type(e).__name__}: {e}"]
+        report = validate_spec(self.spec, self.run_spec_path, self.config_repo, self.sensor_library,
+                               resolved=(self.auror_run, self.resolve_exception))
+        schema, mismatches = report.schema_errors, report.resolution_mismatches
 
         exec_log = exec_err = None
-        if self.auror_run is None:
+        engine_checked = False
+        if engine_check == "none":
+            pass
+        elif self.auror_run is None:
             exec_err = "not attempted: references did not resolve, so no job could be assembled"
         else:
+            engine_checked = True
             scratch = self.work_dir / "validate"
             log_file = scratch / "log_info.json"
             log_file.unlink(missing_ok=True)
@@ -294,7 +242,7 @@ class Simulation:
             schema_ok=not schema, schema_error="; ".join(schema) or None,
             resolution_ok=not mismatches, resolution_mismatches=mismatches,
             execution_ok=exec_err is None, execution_log=exec_log, execution_error=exec_err,
-            unstamped=unstamped_refs(self.spec))
+            unstamped=report.unstamped, engine_checked=engine_checked)
 
     def run(self, out_dir=None):
         """Assemble and render (Stage 01's job), with --run_info_filename and --log_info_filename

@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PROPAGATOR = ("skyfield", "sgp4")
 ENGINE = ("dirfm",)
 PURE = ["protodirsig.compose", "protodirsig.run_spec", "protodirsig.orbit", "protodirsig.contract", "protodirsig.identity",
-        "protodirsig.dirhash", "protodirsig.problems", "protodirsig.errors"]
+        "protodirsig.dirhash", "protodirsig.problems", "protodirsig.errors", "protodirsig.admission"]
 DIRFM_BOUND = {"protodirsig.registry", "protodirsig.simulation"}     # known; phase 2b separates LocalBackend
 
 
@@ -70,3 +70,28 @@ print(json.dumps({{"name": spec["descriptor"]["meta"]["name"], "engine": "dirfm"
     res = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
     assert res.returncode == 0, res.stderr
     assert json.loads(res.stdout) == {"name": "auror-ref-static-pose", "engine": False}
+
+
+def test_engine_free_validation_runs_with_the_engine_packages_unimportable():
+    """admission.validate_spec completes on every generated run spec with dirfm, skyfield and sgp4 unimportable: valid,
+    not engine-checked, nothing unstamped, and the run id identity gives."""
+    specs = sorted(str(p) for p in (ROOT / "manifold_run_specs").glob("*.yaml"))
+    code = BLOCKED + f"""
+import json, yaml
+from pathlib import Path
+from protodirsig import identity
+from protodirsig.admission import validate_spec
+out = {{}}
+for p in {specs!r}:
+    spec = yaml.safe_load(Path(p).read_text())
+    r = validate_spec(spec, p, {str(ROOT / "manifold_config_repo")!r})
+    out[Path(p).name] = [r.valid, r.engine_checked, r.unstamped, r.run_id == identity.run_id(spec, {str(ROOT / "manifold_sensors")!r}),
+                         r.schema_errors + r.resolution_mismatches]
+print(json.dumps({{"runs": out, "engine": sorted(m for m in ("dirfm", "skyfield", "sgp4") if m in sys.modules)}}))
+"""
+    res = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    assert res.returncode == 0, res.stderr
+    got = json.loads(res.stdout)
+    assert got["engine"] == [] and len(got["runs"]) == len(specs) == 6
+    for name, (valid, checked, unstamped, same_id, errors) in got["runs"].items():
+        assert (valid, checked, unstamped, same_id) == (True, False, [], True), (name, errors)
