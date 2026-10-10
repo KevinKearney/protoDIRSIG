@@ -366,3 +366,32 @@ def test_run_sweep_renders_each_run_as_it_renders_alone(tmp_path):
         images[name] = swept
     a, b = images.values()
     assert a.shape == b.shape == (256,) and not np.allclose(a, b)
+
+
+@pytest.mark.parametrize("recipe", ALL_RECIPES, ids=lambda p: p.stem)
+def test_a_recipe_document_composes_like_its_file(recipe):
+    from protodirsig.compose import compose_sweep_document
+    by_file = compose_sweep(recipe)
+    by_doc = compose_sweep_document(yaml.safe_load(recipe.read_text()), recipe.parent.parent)
+    assert by_doc.runs == by_file.runs and by_doc.run_ids == by_file.run_ids and by_doc.sweep_id == by_file.sweep_id
+    for name in by_doc.runs:
+        src = by_doc.sources[name]
+        assert {m: v for m, v in src.items() if v["layer"] != "(recipe document)"} == \
+            {m: v for m, v in by_file.sources[name].items() if v["layer"] != by_file.recipe}
+
+
+def test_an_error_in_a_recipe_document_names_the_document():
+    from protodirsig.compose import compose_document, compose_sweep_document
+    doc = yaml.safe_load((RUN_SPECS / "recipes" / "synthetic_vis.yaml").read_text())
+    del doc["scenario"]
+    with pytest.raises(ComposeError) as e:
+        compose_sweep_document(doc, RUN_SPECS)
+    assert (e.value.layer, e.value.field) == ("(recipe document)", "scenario")
+    with pytest.raises(ComposeError) as e:
+        compose_sweep_document(["not", "a", "recipe"], RUN_SPECS)
+    assert e.value.layer == "(recipe document)"
+    doc = yaml.safe_load((RUN_SPECS / "recipes" / "synthetic_vis.yaml").read_text())
+    doc["scenario"] = "no_such"
+    with pytest.raises(ComposeError) as e:
+        compose_document(doc, RUN_SPECS)
+    assert e.value.layer == "scenarios/no_such.yaml"                     # a layer the document names: that file

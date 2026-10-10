@@ -3,8 +3,11 @@
 Implemented here: the library family (`list_resources(kind)` and `get_resource(kind, name)` for the kinds `sensor`,
 `scenario`, `engine_profile` and `recipe`, which the facade exposes as `list_sensors`, `get_sensor` and so on, through
 `library.LibraryReader`), `compose`, `validate` (levels `none` and `dry_run`), `submit_run`, `submit_sweep`, `get_run`,
-`get_sweep`, `cancel_run`, `list_artifacts`, `get_artifact`. A `target` or `recipe` is a file path (a recipe has a
-top-level `compose` key; a run spec a `spec_version` of `run-spec/1`).
+`get_sweep`, `cancel_run`, `list_artifacts`, `get_artifact`. A `target` or `recipe` is a library recipe name (a string
+with no path separator and no `.yaml` suffix), a file path, or a parsed document (a dict); a recipe has a top-level
+`compose` key, a run spec a `spec_version` of `run-spec/1`. A recipe document composes against the backend's library
+(`compose.compose_sweep_document`); its `recipe` member in a response has name null and the sha256 of its canonical
+JSON.
 
 Every return value is the wire form: a plain dict that validates against the matching schema in `api/schemas/`
 (`library_list`, `library_document`, `compose_response`, `validate_response`, `run_status`, `sweep_status`,
@@ -42,7 +45,7 @@ import yaml
 
 from protodirsig import identity, problems
 from protodirsig.admission import validate_spec
-from protodirsig.compose import MAX_RUNS, ComposeError, compose_sweep, dump
+from protodirsig.compose import MAX_RUNS, ComposeError, compose_sweep, compose_sweep_document, dump
 from protodirsig.compose import default_sensor_library as recipe_sensor_library
 from protodirsig.contract import schema_violations, semantic_errors
 from protodirsig.errors import AdmissionError, InvalidRequestError, NotFoundError
@@ -120,30 +123,60 @@ class LocalBackend:
             raise InvalidRequestError(f"{path} is not a recipe or a run spec (not a mapping)")
         return doc
 
+    def _input(self, target):
+        """`(document, path)` for a target: a library recipe name (no path separator, no `.yaml`), a file path, or a
+        document (a dict, path None). An unknown recipe name raises NotFoundError."""
+        if isinstance(target, dict):
+            return target, None
+        if isinstance(target, str) and "/" not in target and "\\" not in target and not target.endswith(".yaml") \
+                and not Path(target).exists():
+            path = self.library.path("recipe", target)
+        else:
+            path = Path(target).resolve()
+        return self._load(path), path
+
+    @staticmethod
+    def _recipe_ref(document, path):
+        """The `recipe` member of a compose_response or sweep_status: a file by stem and the digest of its bytes; a
+        document with name null and the digest of its canonical JSON."""
+        if path is None:
+            return {"name": None, "sha256": identity.sha256_hex(identity.canonical_json(document))}
+        return {"name": path.stem, "sha256": _sha256_file(path)}
+
     def _compose(self, recipe, inline_sensor=False, max_runs=MAX_RUNS, error=InvalidRequestError):
-        recipe = Path(recipe).resolve()
-        library = self.sensor_library or recipe_sensor_library(recipe)
+        """`(sweep, sensor library, recipe ref, recipe for problems)` for a recipe name, path or document."""
+        document, path = self._input(recipe)
         try:
-            return compose_sweep(recipe, inline_sensor=inline_sensor, sensor_library=library, max_runs=max_runs), library
+            if path is None:
+                library = self.sensor_library or self.library.sensor_library
+                sweep = compose_sweep_document(document, self.library.root, inline_sensor=inline_sensor,
+                                               sensor_library=library, max_runs=max_runs)
+            else:
+                library = self.sensor_library or recipe_sensor_library(path)
+                sweep = compose_sweep(path, inline_sensor=inline_sensor, sensor_library=library, max_runs=max_runs)
         except ComposeError as e:
             raise error(problems.from_compose_error(e)) from e
+        return sweep, library, self._recipe_ref(document, path), (document if path is None else path)
 
     def _runs(self, target, error=InvalidRequestError):
-        """The runs a target names: the runs of a recipe (composed here) or the one run spec in a file."""
-        target = Path(target).resolve()
-        doc = self._load(target)
-        if "compose" in doc:
-            sweep, library = self._compose(target, error=error)
-            return [_Run(n, s, library, sweep.sources[n], target) for n, s in sweep.runs.items()], sweep
-        if doc.get("spec_version") == "run-spec/1":
-            try:
-                spec = load_run_spec(target)
-            except RunSpecError as e:
-                raise InvalidRequestError(f"{target}: {e}") from e
-            library = self.sensor_library or default_sensor_library(target)
-            name = ((spec.get("descriptor") or {}).get("meta") or {}).get("name") or target.stem
-            return [_Run(name, spec, library, path=target)], None
-        raise InvalidRequestError(f"{target} is neither a recipe (compose: compose/1) nor a run spec (spec_version: "
+        """`(runs, sweep, recipe ref)`: the runs of a recipe (composed here) or the one run spec a target names."""
+        document, path = self._input(target)
+        if "compose" in document:
+            sweep, library, ref, recipe = self._compose(target, error=error)
+            return [_Run(n, s, library, sweep.sources[n], recipe) for n, s in sweep.runs.items()], sweep, ref
+        if document.get("spec_version") == "run-spec/1":
+            if path is not None:
+                try:
+                    spec = load_run_spec(path)
+                except RunSpecError as e:
+                    raise InvalidRequestError(f"{path}: {e}") from e
+                library = self.sensor_library or default_sensor_library(path)
+            else:
+                spec, library = document, self.sensor_library or self.library.sensor_library
+            name = ((spec.get("descriptor") or {}).get("meta") or {}).get("name") or (path.stem if path else None)
+            return [_Run(name, spec, library, path=path)], None, None
+        where = path or "the document"
+        raise InvalidRequestError(f"{where} is neither a recipe (compose: compose/1) nor a run spec (spec_version: "
                                   "run-spec/1)")
 
     def _report(self, run):
@@ -164,11 +197,11 @@ class LocalBackend:
     # --- compose and validate -----------------------------------------------------------------------------------
 
     def compose(self, recipe, inline_sensor=False, max_runs=MAX_RUNS):
-        """The `compose_response` for a recipe file; a recipe that does not compose raises InvalidRequestError with
+        """The `compose_response` for a recipe (library name, file path or document); a recipe that does not compose
+        raises InvalidRequestError with
         the compose problem (layer and field)."""
-        sweep, _ = self._compose(recipe, inline_sensor, max_runs)
-        recipe = Path(recipe).resolve()
-        return {"sweep_id": sweep.sweep_id, "recipe": {"name": recipe.stem, "sha256": _sha256_file(recipe)},
+        sweep, _, ref, _ = self._compose(recipe, inline_sensor, max_runs)
+        return {"sweep_id": sweep.sweep_id, "recipe": ref,
                 "is_sweep": sweep.is_sweep,
                 "runs": [{"run_id": sweep.run_ids[n], "name": n, "sensor": sweep.sensors[n], "run_spec": s,
                           "provenance": sweep.sources[n]} for n, s in sweep.runs.items()]}
@@ -211,7 +244,7 @@ class LocalBackend:
         installation the run is reported not engine-checked and not valid at that level, with the reason."""
         if engine_check not in ("none", "dry_run"):
             raise InvalidRequestError(f"engine_check is {engine_check!r}; expected 'none' or 'dry_run'")
-        runs, _ = self._runs(target)
+        runs, _, _ = self._runs(target)
         out = []
         for run in runs:
             report = self._report(run)
@@ -277,9 +310,9 @@ class LocalBackend:
         """Admit and start one run (a run spec file or a one-run recipe); returns its `run_status`: `accepted` for a
         new run, the current status for one already submitted (no second worker). A failed admission, including an
         unstamped member, raises AdmissionError naming the layer file and field; nothing is created."""
-        runs, sweep = self._runs(target, error=AdmissionError)
+        runs, sweep, _ = self._runs(target, error=AdmissionError)
         if len(runs) != 1:
-            raise InvalidRequestError(f"{Path(target).name} composes to {len(runs)} runs (it names several sensors); "
+            raise InvalidRequestError(f"the recipe composes to {len(runs)} runs (it names several sensors); "
                                       "submit it with submit_sweep", "/runs")
         run = runs[0]
         report = self._report(run)
@@ -294,10 +327,9 @@ class LocalBackend:
     def submit_sweep(self, recipe):
         """Admit every run of a sweep recipe as a whole, then create and start them; returns the `sweep_status`. If any
         run fails admission, one AdmissionError lists every failing run in `errors` and nothing is created."""
-        runs, sweep = self._runs(recipe, error=AdmissionError)
+        runs, sweep, ref = self._runs(recipe, error=AdmissionError)
         if sweep is None:
-            raise InvalidRequestError(f"{Path(recipe).name} is a run spec, not a recipe; submit it with submit_run",
-                                      "/sweeps")
+            raise InvalidRequestError("a run spec, not a recipe; submit it with submit_run", "/sweeps")
         failing = []
         for run in runs:
             p = problems.from_validation(self._report(run), run.sources, run.recipe)
@@ -311,8 +343,7 @@ class LocalBackend:
                                             f"was created: {', '.join(f['run'] for f in failing)}",
                                   "layer": first["layer"], "field": first["field"], "errors": failing})
         ids = [self._create(run)[0] for run in runs]
-        recipe = Path(recipe).resolve()
-        self.store.create_sweep(sweep.sweep_id, {"recipe": {"name": recipe.stem, "sha256": _sha256_file(recipe)},
+        self.store.create_sweep(sweep.sweep_id, {"recipe": ref,
                                                  "run_ids": ids})
         return self.get_sweep(sweep.sweep_id)
 

@@ -258,17 +258,53 @@ def _settings_by_sensor(recipe, rel, sensors, docs):
     return out, by_entry
 
 
+DOCUMENT_LAYER = "(recipe document)"                               # the `layer` of an error in a recipe given as a dict
+
+
 def compose_sweep(recipe_path, *, inline_sensor=False, sensor_library=None, max_runs=MAX_RUNS):
     """Every run the recipe composes to: one for a `sensor` recipe, one per listed sensor for a `sensors` recipe.
     Returns a `ComposedSweep` (runs in sensor-list order, the sweep id, file stems, provenance)."""
     recipe_path = Path(recipe_path).resolve()
     root = recipe_path.parent.parent
-    library = Path(sensor_library).resolve() if sensor_library is not None else default_sensor_library(recipe_path)
-    rel = lambda p: p.relative_to(root).as_posix()                  # noqa: E731
-    recipe_rel = rel(recipe_path)
+    recipe_rel = recipe_path.relative_to(root).as_posix()
     recipe = _load_layer(recipe_path, recipe_rel)
+    library = Path(sensor_library).resolve() if sensor_library is not None else default_sensor_library(recipe_path)
+    return _compose(recipe, root, recipe_rel, recipe_path.stem, sha256_file(recipe_path), library, inline_sensor,
+                    max_runs)
+
+
+def compose_sweep_document(document, library_root, *, inline_sensor=False, sensor_library=None, max_runs=MAX_RUNS):
+    """`compose_sweep` for a recipe given as a parsed document (a dict) against a layer root (the folder holding
+    `scenarios/` and `engine_profiles/`): the same rules, errors and outputs. An error in the document itself names
+    the layer `(recipe document)` and the field; its provenance hash is `sha256:` + the digest of its RFC 8785
+    canonical JSON (`identity.canonical_json`)."""
+    if not isinstance(document, dict):
+        raise ComposeError(DOCUMENT_LAYER, None, f"expected a mapping, got {type(document).__name__}")
+    root = Path(library_root).resolve()
+    library = Path(sensor_library).resolve() if sensor_library is not None else sensor_library_for_root(root)
+    try:
+        digest = "sha256:" + identity.sha256_hex(identity.canonical_json(document))
+    except (TypeError, ValueError) as e:
+        raise ComposeError(DOCUMENT_LAYER, None, f"is not a JSON document: {e}") from e
+    name = (document.get("meta") or {}).get("name") if isinstance(document.get("meta"), dict) else None
+    stem = name if isinstance(name, str) and name else "recipe"
+    return _compose(copy.deepcopy(document), root, DOCUMENT_LAYER, stem, digest, library, inline_sensor, max_runs)
+
+
+def compose_document(document, library_root, *, inline_sensor=False, sensor_library=None):
+    """`compose` for a recipe given as a parsed document: the one run spec of a one-sensor recipe document."""
+    sweep = compose_sweep_document(document, library_root, inline_sensor=inline_sensor, sensor_library=sensor_library)
+    if sweep.is_sweep:
+        raise ComposeError(sweep.recipe, "sensors", "a sweep recipe composes several runs; use compose_sweep_document")
+    (name,) = sweep.runs
+    return sweep.runs[name]
+
+
+def _compose(recipe, root, recipe_rel, recipe_stem, recipe_hash, library, inline_sensor, max_runs):
+    """The one composition path: a parsed recipe, its layer root, the label and hash its provenance records."""
+    rel = lambda p: p.relative_to(root).as_posix()                  # noqa: E731
     sensors, is_sweep = _sensor_list(recipe, recipe_rel, max_runs)
-    files = {"recipe": recipe_path}
+    files = {}
     layers = {}
     for kind in ("scenario", "engine_profile"):
         name = recipe.get(kind)
@@ -310,13 +346,13 @@ def compose_sweep(recipe_path, *, inline_sensor=False, sensor_library=None, max_
         ref = {"name": s, "content_hash": sha256_file(library / s)}
         spec, sources = merge({"recipe": (recipe_rel, run), **layers}, ref, docs[s], inline_sensor)
         name = spec["descriptor"]["meta"]["name"]
-        paths = {recipe_rel: recipe_path, **{layers[k][0]: files[k] for k in layers}, s: library / s}
+        hashes = {recipe_rel: recipe_hash, **{layers[k][0]: sha256_file(files[k]) for k in layers},
+                  s: sha256_file(library / s)}
         label = f"{library.name}/{s}"
         out.runs[name] = spec
-        out.files[name] = f"{recipe_path.stem}--{stem}" if is_sweep else recipe_path.stem
+        out.files[name] = f"{recipe_stem}--{stem}" if is_sweep else recipe_stem
         out.sensors[name] = s
-        out.sources[name] = {member: {"layer": label if src == s else src,
-                                      "content_hash": sha256_file(paths[src]) if src in paths else None}
+        out.sources[name] = {member: {"layer": label if src == s else src, "content_hash": hashes.get(src)}
                              for member, src in sources.items()}
         out.run_ids[name] = identity.run_id(spec, library)
     out.sweep_id = identity.sweep_id_from_runs(out.run_ids.values())

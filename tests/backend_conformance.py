@@ -163,6 +163,52 @@ class BackendConformance:
         assert_problem(e.value, 422, "compose")
         assert (e.value.problem["layer"], e.value.problem["field"]) == ("recipes/conformance_bad_compose.yaml", "color")
 
+    # --- recipes by name, path and document --------------------------------------------------------------------
+
+    @pytest.mark.parametrize("recipe", ["auror_ref", "sensor_sweep_tahoe"])
+    def test_a_recipe_by_name_path_or_document_composes_the_same(self, backend, library, recipe):
+        path = library / "recipes" / f"{recipe}.yaml"
+        by_name = backend.compose(recipe)
+        by_path = backend.compose(path)
+        by_doc = backend.compose(yaml.safe_load(path.read_text()))
+        for doc in (by_name, by_path, by_doc):
+            assert schema_errors("compose_response", doc) == []
+        assert by_name == by_path
+        assert by_doc["sweep_id"] == by_path["sweep_id"]
+        assert [(r["run_id"], r["run_spec"]) for r in by_doc["runs"]] == [(r["run_id"], r["run_spec"]) for r in by_path["runs"]]
+        assert by_path["recipe"] == {"name": recipe, "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+        assert by_doc["recipe"] == {"name": None,
+                                    "sha256": identity.sha256_hex(identity.canonical_json(yaml.safe_load(path.read_text())))}
+        assert backend.validate(recipe)["runs"][0]["run_id"] == by_path["runs"][0]["run_id"]
+
+    def test_a_recipe_document_with_a_missing_layer_name_names_the_document(self, backend, library):
+        doc = yaml.safe_load((library / "recipes" / "auror_ref.yaml").read_text())
+        del doc["engine_profile"]
+        with pytest.raises((InvalidRequestError, AdmissionError)) as e:
+            backend.compose(doc)
+        assert_problem(e.value, 422, "compose")
+        assert (e.value.problem["layer"], e.value.problem["field"]) == ("(recipe document)", "engine_profile")
+
+    def test_an_unknown_recipe_name_is_not_found(self, backend):
+        for call in (lambda: backend.compose("no_such_recipe"), lambda: backend.submit_run("no_such_recipe"),
+                     lambda: backend.validate("no_such_recipe"), lambda: backend.submit_sweep("no_such_recipe")):
+            with pytest.raises(NotFoundError) as e:
+                call()
+            assert_problem(e.value, 404, "not-found")
+
+    def test_a_sweep_document_is_idempotent(self, backend, library):
+        path = variant(library, "sensor_sweep_tahoe", "conformance_sweep_doc", width=21, edit=two_sensors)
+        doc = yaml.safe_load(path.read_text())
+        path.unlink()                                                   # the document is all the backend gets
+        with self.hold_execution(backend):
+            first = backend.submit_sweep(doc)
+            again = backend.submit_sweep(copy.deepcopy(doc))
+            assert schema_errors("sweep_status", first) == [] and first["recipe"]["name"] is None
+            assert again["sweep_id"] == first["sweep_id"]
+            assert [r["run_id"] for r in again["runs"]] == [r["run_id"] for r in first["runs"]]
+            for r in first["runs"]:
+                backend.cancel_run(r["run_id"])
+
     def test_validate_none_needs_no_engine(self, backend, library, monkeypatch, tmp_path):
         def no_process(*a, **k):
             raise AssertionError("an engine or worker process was started by validate at engine_check='none'")
