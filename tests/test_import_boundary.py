@@ -17,7 +17,8 @@ PROPAGATOR = ("skyfield", "sgp4")
 ENGINE = ("dirfm",)
 PURE = ["protodirsig.compose", "protodirsig.run_spec", "protodirsig.orbit", "protodirsig.contract", "protodirsig.identity",
         "protodirsig.dirhash", "protodirsig.problems", "protodirsig.errors", "protodirsig.admission",
-        "protodirsig.store", "protodirsig.backend", "protodirsig.library"]
+        "protodirsig.store", "protodirsig.backend", "protodirsig.library",
+        "protodirsig.models"]
 DIRFM_BOUND = {"protodirsig.registry", "protodirsig.simulation", "protodirsig.worker"}   # worker: the engine side of LocalBackend
 
 
