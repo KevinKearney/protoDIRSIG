@@ -20,7 +20,7 @@ meta:
 
 sensor: two_entry.yaml
 scenario: tahoe_static_pose
-engine_profile: tahoe_static_pose_native     # channel_response native reproduces the received platform
+engine_profile: tahoe_static_pose
 
 settings:                                                  # listed out of the sensor's entry order
   - entry_id: auror-nir-b

@@ -38,7 +38,9 @@ def _recipe(case):
 
 def test_vectors_cover_the_required_cases():
     assert {c.name for c in CASES} >= {"auror_ref", "synthetic_vis", "member_in_two_layers", "missing_sensor",
-                                       "unresolved_entry_id", "settings_by_entry_id", "inline_sensor"}
+                                       "unresolved_entry_id", "settings_by_entry_id", "inline_sensor",
+                                       "engine_override", "engine_override_off_list", "engine_override_missing_path",
+                                       "black_level_nonzero"}
 
 
 @pytest.mark.parametrize("case", CASES, ids=lambda p: p.name)
@@ -74,6 +76,18 @@ def test_equivalence_vectors_are_the_repository_layers(name):
             assert path.read_bytes() == (ROOT / "manifold_sensors" / path.name).read_bytes(), path.name
 
 
+def test_refresh_vectors_is_idempotent():
+    """The equivalence vectors are current, so a refresh changes nothing (`scripts/compose.py --refresh-vectors`)."""
+    assert _script("compose").refresh_vectors() == []
+
+
+def test_engine_override_sets_the_allowed_path_only():
+    spec = compose(RUN_SPECS / "recipes" / "auror_ref.yaml")
+    assert spec["engine"]["platform"]["channel_response"] == "native"
+    assert "channel_response" not in compose(RUN_SPECS / "recipes" / "synthetic_vis.yaml")["engine"]["platform"]
+    assert "engine_overrides" not in yaml.safe_dump(spec)
+
+
 def test_generated_run_specs_are_current():
     assert _script("compose").main(["--check"]) == 0, "run scripts/compose.py"
 
@@ -95,15 +109,17 @@ def test_composed_spec_passes_the_run_spec_checks(recipe):
 def test_explain_names_the_layer_of_every_member():
     recipe = RUN_SPECS / "recipes" / "auror_ref.yaml"
     spec, src = compose(recipe), explain(recipe)
-    assert list(src) == ["spec_version", *(f"descriptor.{m}" for m in spec["descriptor"]), "engine"]
+    assert list(src) == ["spec_version", *(f"descriptor.{m}" for m in spec["descriptor"]), "engine",
+                         "engine.platform.channel_response"]
     assert {k: v["layer"] for k, v in src.items()} == {
         "spec_version": "rules compose/1",
         "descriptor.meta": "recipes/auror_ref.yaml", "descriptor.settings": "recipes/auror_ref.yaml",
         "descriptor.fidelity": "recipes/auror_ref.yaml",
         "descriptor.collection": "scenarios/tahoe_static_pose.yaml",
-        "descriptor.origin": "engine_profiles/tahoe_static_pose_native.yaml",
-        "descriptor.extras": "engine_profiles/tahoe_static_pose_native.yaml",
-        "engine": "engine_profiles/tahoe_static_pose_native.yaml",
+        "descriptor.origin": "engine_profiles/tahoe_static_pose.yaml",
+        "descriptor.extras": "engine_profiles/tahoe_static_pose.yaml",
+        "engine": "engine_profiles/tahoe_static_pose.yaml",
+        "engine.platform.channel_response": "recipes/auror_ref.yaml",
         "descriptor.sensor": "manifold_sensors/auror-nir.yaml"}
     assert src["descriptor.sensor"]["content_hash"] == spec["descriptor"]["sensor"]["ref"]["content_hash"]
     assert all(v["content_hash"].startswith("sha256:") for k, v in src.items() if k != "spec_version")

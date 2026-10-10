@@ -173,6 +173,25 @@ def _check_settings_roi(settings, sensor_doc):
                                    f"for entry {s['entry_id']!r}")
 
 
+def black_level_problem(setting):
+    """Why a `settings` member's `black_level` is refused for a DIRSIG run, or None. It is written as the channel's
+    `bias`, which DIRSIG adds before the focal-plane conversion (the image moves by bias / G#), so a non-zero value
+    gives an image in unphysical units with no signal behind it. Absent or zero is accepted; gain is not restricted."""
+    level = setting.get("black_level")
+    value = level.get("value") if isinstance(level, dict) else level
+    if value in (None, 0):
+        return None
+    return (f"is {value!r}: DIRSIG applies it as the channel bias before the focal-plane conversion, so a non-zero "
+            "black level yields an image in unphysical units without any signal; use 0 or omit it")
+
+
+def check_settings_black_level(settings):
+    for i, s in enumerate(settings):
+        problem = black_level_problem(s)
+        if problem:
+            raise RunSpecError(f"descriptor.settings[{i}].black_level {problem}")
+
+
 def resolve_auror_run(spec, run_spec_path, config_repo, sensor_library=None):
     """Resolve a loaded run spec: engine assets against `config_repo`, the sensor ref against
     `sensor_library` (default: `default_sensor_library(run_spec_path)`), and the motion/tasks
@@ -257,6 +276,7 @@ def resolve_auror_run(spec, run_spec_path, config_repo, sensor_library=None):
         got = f"{len(settings)} members" if isinstance(settings, list) else repr(settings)
         raise RunSpecError(f"descriptor.settings must have one member (one sensor entry per job); got {got}")
     _check_settings_roi(settings, sensor_doc)
+    check_settings_black_level(settings)
     return AurorRun(
         name=desc["meta"]["name"],
         origin=dict(desc["origin"]),

@@ -11,5 +11,10 @@ Guide §3.5 and C-21). Each case holds layer files (`recipes/`, `scenarios/`, `e
 sensor library. `tests/test_compose.py` runs every case against `protodirsig.compose`; another constructor passes
 by producing the same specs and the same error locations.
 
+The `auror_ref` and `synthetic_vis` cases are copies of the repository's own layers, and
+`vectors/compose/manifold_sensors/` holds copies of the library sensors they name; `tests/test_compose.py` fails when
+they drift. `python scripts/compose.py --refresh-vectors` rewrites those two cases (layers and `expected.yaml`) and
+the sensor copies from the repository; it is idempotent. The other cases are written by hand.
+
 Future MANIFOLD home: the `manifold-contracts` repository, versioned by immutable git tag. Where a schema
 file and a field table disagree, the schema wins.

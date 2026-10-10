@@ -19,7 +19,9 @@ meta:
 
 sensor: auror-nir.yaml
 scenario: tahoe_static_pose
-engine_profile: tahoe_static_pose_native     # channel_response native reproduces the received platform
+engine_profile: tahoe_static_pose
+engine_overrides:
+  platform.channel_response: native   # reproduces the received platform: DIRSIG's own gaussian channel, peak 1/sqrt(2 pi) (CONOPS and Guide §9)
 
 settings:
   - entry_id: auror-nir

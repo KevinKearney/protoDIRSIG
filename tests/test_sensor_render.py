@@ -229,7 +229,14 @@ def test_channel_gain_scales_the_image_and_bias_is_not_in_image_units(tmp_path, 
         return edit
     gained = np.fromfile(simulation(tmp_path, LIB, "auror-nir.yaml", tag="g2", edit=settings(2, 0)).run().image, "<f8")
     np.testing.assert_allclose(gained, 2 * baseline, rtol=1e-12)
-    biased = np.fromfile(simulation(tmp_path, LIB, "auror-nir.yaml", tag="b", edit=settings(1, 1e15)).run().image, "<f8")
+    # A non-zero black level is refused at resolution (run_spec.black_level_problem), so the bias is set past it,
+    # as the split_channels test does: the generator still writes whatever bias it is given.
+    assert "black_level" in simulation(tmp_path, LIB, "auror-nir.yaml", tag="refused", edit=settings(1, 1e15)).resolve_error
+    import dataclasses
+    sim = simulation(tmp_path, LIB, "auror-nir.yaml", tag="b")
+    st = dict(sim.auror_run.settings[0], black_level={"value": 1e15, "provenance": "specified"})
+    sim.auror_run = dataclasses.replace(sim.auror_run, settings=[st])
+    biased = np.fromfile(sim.run().image, "<f8")
     g_number = (1 + 4 * (306.0 / 85.0) ** 2) / (0.875 * np.pi)
     np.testing.assert_allclose(biased - baseline, 1e15 / g_number, rtol=1e-4)
 

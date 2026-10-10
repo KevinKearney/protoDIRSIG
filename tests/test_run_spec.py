@@ -230,6 +230,23 @@ def test_settings_roi_checked_against_detector():
         _check_settings_roi([{"entry_id": "nope"}], doc)
 
 
+@needs_config_repo
+@pytest.mark.parametrize("level, refused", [({"value": 3, "provenance": "specified"}, True), (0.5, True),
+                                            ({"value": 0, "provenance": "specified"}, False), (None, False)])
+def test_non_zero_black_level_is_refused_at_resolution(level, refused):
+    spec = load_run_spec(SPEC)
+    st = spec["descriptor"]["settings"][0]
+    if level is None:
+        del st["black_level"]
+    else:
+        st["black_level"] = level
+    if refused:
+        with pytest.raises(RunSpecError, match=r"descriptor\.settings\[0\]\.black_level is .*unphysical units"):
+            resolve_auror_run(spec, SPEC, CONFIG_REPO)
+    else:
+        resolve_auror_run(spec, SPEC, CONFIG_REPO)
+
+
 def test_derive_run_spec_swaps_sensor_only():
     base = load_run_spec(SPEC)
     new = derive_run_spec(base, "deepscan_850_306_nir_1280.yaml", "deepscan-850-306-nir-1280", roi={"Width": 64, "Height": 32})

@@ -1,6 +1,6 @@
 # Engine-profile layer (compose/1): descriptor.origin, descriptor.extras and the dirsig-engine/1 block for the
-# tahoe_static_pose scenario, with every
-# channel tabulated (the default channel_response). Identical to tahoe_static_pose_native.yaml otherwise.
+# tahoe_static_pose scenario. Channels are tabulated (the default channel_response); a recipe may set
+# engine.platform.channel_response through engine_overrides (recipes/auror_ref.yaml sets native).
 # Companion to the protoDIRSIG CONOPS and Guide (docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md).
 #
 # Built against:

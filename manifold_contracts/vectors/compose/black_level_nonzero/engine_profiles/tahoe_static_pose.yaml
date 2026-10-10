@@ -1,6 +1,6 @@
 # Engine-profile layer (compose/1): descriptor.origin, descriptor.extras and the dirsig-engine/1 block for the
-# tahoe_static_pose scenario, rendered with
-# channel_response native: DIRSIG's own gaussian channel, reproducing the received AUROR_ref platform.
+# tahoe_static_pose scenario. Channels are tabulated (the default channel_response); a recipe may set
+# engine.platform.channel_response through engine_overrides (recipes/auror_ref.yaml sets native).
 # Companion to the protoDIRSIG CONOPS and Guide (docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md).
 #
 # Built against:
@@ -54,7 +54,6 @@ engine:
     output_prefix: auror_nir_
     split_channels: false
     integration_samples: 10
-    channel_response: native   # reproduces the received platform: DIRSIG's own gaussian channel, peak 1/sqrt(2 pi) (CONOPS and Guide §9)
 
   motion:
     kind: static

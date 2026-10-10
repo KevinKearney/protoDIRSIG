@@ -274,7 +274,8 @@ the `run-spec/1` rules unchanged, so if MANIFOLD declines layered submission onl
 
 An engine profile is the engine block for one scenario under one engine (scene, motion, tasks, atmosphere,
 generator, run); splitting scene-specific from engine-general content is deferred. `auror_ref` and
-`synthetic_vis` share the scenario `tahoe_static_pose` and differ in engine profile only by `channel_response`.
+`synthetic_vis` share the scenario and the engine profile `tahoe_static_pose`; the AUROR recipe sets
+`engine_overrides: {platform.channel_response: native}`, the one path the rules allow a recipe to override.
 
 Recipe fields (rules version `compose/1`): `compose: compose/1`; `meta` (`name`, `tags`, `description`);
 `sensor` (a sensor-library file name); `scenario` and `engine_profile` (layer names); `settings` (members keyed
@@ -577,7 +578,9 @@ documentation.
   every library sensor. It is not a sensor field: the sensor's `radiometric_reference` is its own calibration
   (section 4). The generator writes `settings.gain` and `settings.black_level` as the channel's `gain` and
   `bias`. Gain multiplies the image exactly. Bias is added before the focal-plane conversion, so the image moves
-  by bias / G#, not by bias (16 × 16, `tests/test_sensor_render.py`). Every run spec here has gain 1 and bias 0.
+  by bias / G#, not by bias (16 × 16, `tests/test_sensor_render.py`): a non-zero black level gives an image in
+  unphysical units with no signal behind it. Resolution (and composition) therefore refuses a DIRSIG run spec whose
+  `settings[i].black_level` is non-zero, naming the field; absent or zero is accepted, and gain is not restricted.
 - `aperturediameter` is in metres and `focallength` in millimetres. Adjacent-pixel horizontal spacing on the
   ground equals pitch / focal length × range within 1 % (three sensors, nadir view). `xarrayoffset` and
   `yarrayoffset` are in µm and positive toward increasing column and row: a 16 × 16 window offset by +8 pixels
@@ -622,5 +625,5 @@ One row per interface item. `Outcome` is filled after review with the MANIFOLD t
 | C-14 | Detector manufacturer and model | `focal_planes[].detector.DeviceVendorName` and `DeviceModelName` (SFNC names, Detector_v02 §6.3); placement in the focal plane rather than `identity` | `proposed` | |
 | C-15 | Full frame versus modeled window | `detector` is the Detector_v02 `array` block (SFNC `SensorWidth`, `SensorHeight`, pitch, `fill_factor`, `channel_layout`, all the full sensor) plus vendor and model, under a different block name. The window DIRSIG models is the commanded `roi` (SFNC `Width`, `Height`, `OffsetX`, `OffsetY`) in run-spec `settings`, as Detector_v02 treats a region of interest; the offset places the window in the field (DIRSIG array offset), so it is not decorative | `proposed` | |
 | C-19 | Entries per DIRSIG run | one sensor entry, one focal plane, one `settings` member; several channels per focal plane. A multi-entry or multi-focal-plane sensor-spec is refused at resolution, not partly rendered; composition accepts one `settings` member per entry. Several sensors or entries become several runs above the engine (a sweep), so the engine never fans out. Open: does MANIFOLD expect one run spec per entry, or one job per entry from one run spec? | `open` | |
-| C-20 | Is `radiometric_reference` optional? | what an image holds is a property of the engine, not of the sensor: DIRSIG's is photo-electrons per m² of focal plane over the exposure (`platform_gen.IMAGE_QUANTITY`, section 9), at gain 1 and bias 0. `radiometric_reference` is the sensor's own calibration; Detector_v02 §6.8 makes `quantity` and `unit` required, so a sensor with no known calibration carries both as `null`. The earlier proposal of an `electron_exposure` member is withdrawn. Question: may `radiometric_reference` be optional (0..1) when no calibration is known, and where is an engine's image quantity recorded (engine schema or execution record)? | `open` | |
+| C-20 | Where the product's radiometric quantity is stated; is `radiometric_reference` optional? | the registered descriptor has no member that states what the product's radiometric quantity is. DIRSIG's image holds photo-electrons per m² of focal plane per exposure (`platform_gen.IMAGE_QUANTITY`, section 9, at gain 1 and black level 0), and the sensor file no longer says so: `radiometric_reference` is the sensor's own calibration, with `quantity` and `unit` `null` where none is known because Detector_v02 §6.8 requires them. Questions: where is the quantity stated (in `collection`, or in output metadata)? May `radiometric_reference` be optional (0..1) when no calibration is known? | `open` | |
 | C-21 | Layered submission and a MANIFOLD input constructor | a run is authored as a recipe, a scenario, an engine profile and a library sensor, and composed into one `run-spec/1` (section 3.5). Ask: MANIFOLD accepts layered submission and adopts `protodirsig.compose` as the reference for its input constructor, tested by `manifold_contracts/vectors/compose/`. Questions: does the registered descriptor carry the sensor inline or by name and hash (both compose and resolve here; the default is the ref); where is layer provenance (file and hash per member) recorded, given it is kept out of the spec; is `compose/1` the version tag for the composition rules? The composed spec conforms to `run-spec/1` as it is, so a rejection loses only the authoring layer | `proposed` | |
