@@ -30,7 +30,7 @@ ORBIT = ROOT / "manifold_run_specs" / "leo_pass_tahoe.yaml"
 
 
 def _retrieve(uri):
-    """Offline: a contract schema by its file, or by its file name when a validator rebased it on the relative $id."""
+    """Offline: a contract schema by its file, or by its file name under the absolute id base (which does not resolve)."""
     path = Path(uri.removeprefix("file://"))
     if not path.is_file():
         path = CONTRACTS / path.name
@@ -50,7 +50,7 @@ def test_schema_is_valid_2020_12(name):
     schema = json.loads((CONTRACTS / f"{name}.schema.json").read_text())
     Draft202012Validator.check_schema(schema)
     assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
-    assert schema["$id"] == name.rsplit("-", 1)[0] + "/" + name.rsplit("-", 1)[1]
+    assert schema["$id"] == f"https://schemas.manifold.example/contracts/{name}.schema.json"
 
 
 def _walk(node, where=""):

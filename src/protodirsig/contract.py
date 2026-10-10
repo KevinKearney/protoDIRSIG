@@ -7,8 +7,9 @@ enforces the schemas.
 
 The schemas are read from the repository's `manifold_contracts/` folder, the sibling of `src/` (as
 `run_spec.default_sensor_library` locates `manifold_sensors/`); the environment variable `PROTODIRSIG_CONTRACTS`
-overrides the folder. References between the three schemas are resolved offline by a `referencing` registry that
-maps each file by its `$id` and by its file name.
+overrides the folder. Each schema's `$id` is an absolute URI under https://schemas.manifold.example/contracts/, a base
+that does not resolve on the network; references between the three schemas are sibling file names resolved against it,
+and a `referencing` registry holds each file under its `$id` (and retrieves by file name), so everything resolves offline.
 
 Imports: the standard library, `jsonschema` and `referencing` only; no engine package and nothing from `simulation`.
 """

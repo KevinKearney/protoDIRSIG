@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "sensor-spec/1",
+  "$id": "https://schemas.manifold.example/contracts/sensor-spec-1.schema.json",
   "title": "sensor-spec/1 (proposed; Detector_v02 field names, program extensions marked in CONOPS section 10)",
   "type": "object",
   "additionalProperties": false,

@@ -36,7 +36,7 @@ def _load(path):
 
 def _retrieve(uri):
     """A schema by its file; a contract schema also by its file name, for references between the contract schemas,
-    which are sibling file names under a relative $id (see manifold_contracts/README.md)."""
+    which are sibling file names resolved against the absolute $id base https://schemas.manifold.example/contracts/."""
     path = Path(uri.removeprefix("file://"))
     if not path.is_file() and (CONTRACTS / path.name).is_file():
         path = CONTRACTS / path.name
