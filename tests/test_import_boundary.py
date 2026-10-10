@@ -15,7 +15,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 PROPAGATOR = ("skyfield", "sgp4")
 ENGINE = ("dirfm",)
-PURE = ["protodirsig.compose", "protodirsig.run_spec", "protodirsig.orbit", "protodirsig.contract"]
+PURE = ["protodirsig.compose", "protodirsig.run_spec", "protodirsig.orbit", "protodirsig.contract", "protodirsig.identity"]
 DIRFM_BOUND = {"protodirsig.registry", "protodirsig.simulation"}     # known; phase 2b separates LocalBackend
 
 

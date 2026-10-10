@@ -1,0 +1,17 @@
+{
+ "description": "The run id of each composed document in vectors/compose (sha256 of the RFC 8785 canonical JSON of the run spec with its sensor in place; sensor library vectors/compose/manifold_sensors), and the sweep id of the sweep case (sha256 of the canonical JSON of its sorted run ids).",
+ "run_ids": {
+  "auror_ref/expected.yaml": "1c9e6343b64c324aa68c7ebca64e8b9e76e0a1a1413538ed1efbd9dc00e46088",
+  "engine_override/expected.yaml": "644ab1c21c4fa6f5b24a42624d45822f4f9b6683b02000c71bf8cb0f53faff1a",
+  "inline_sensor/expected.yaml": "c1da24db8278ac9b811e129c2323b3742b9bcd1d19fe14af0d8f246523fb0a9f",
+  "inline_sensor/expected_inline.yaml": "c1da24db8278ac9b811e129c2323b3742b9bcd1d19fe14af0d8f246523fb0a9f",
+  "settings_by_entry_id/expected.yaml": "94a9c3c3686e1cfb81f6bc0cf4d6ff97e69527e908e18cfb9e38ad61445f50fe",
+  "sweep_three_sensors/expected/sensor_sweep_tahoe--auror-nir.yaml": "565a9e10d7132c7d87867b22f213ff47de663ede0b7aa7fcffbe606bfc3740d3",
+  "sweep_three_sensors/expected/sensor_sweep_tahoe--deepscan_850_306_nir_1280.yaml": "a6cfc3aad0f94b6cb71539973ad0ffb388559d13ec7c5af4b6bb2b64b94089e0",
+  "sweep_three_sensors/expected/sensor_sweep_tahoe--synthetic_600_200_vis_1920.yaml": "14e6305c2139fe45048eaf50d4a5f1984f5fbd823960e9c5d8446cb2d9f43881",
+  "synthetic_vis/expected.yaml": "c1da24db8278ac9b811e129c2323b3742b9bcd1d19fe14af0d8f246523fb0a9f"
+ },
+ "sweep_ids": {
+  "sweep_three_sensors": "4367df71fc0bcebd1601882a5320c9868f718c6816347e1cdaf6f0a495fe2b28"
+ }
+}

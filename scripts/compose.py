@@ -4,7 +4,7 @@
     python scripts/compose.py                      write every generated run spec
     python scripts/compose.py --check              list stale, missing or orphaned generated files, exit 1 if any (CI)
     python scripts/compose.py --inline-sensor      write descriptor.sensor inline instead of as a ref
-    python scripts/compose.py --explain <recipe>   print the sweep id and, per run, each member, its layer and hash
+    python scripts/compose.py --explain <recipe>   print the sweep id and, per run, its run id and each member, its layer and hash
     python scripts/compose.py --refresh-vectors    rewrite the equivalence vectors from the repository's layers
 
 A one-sensor recipe writes manifold_run_specs/<name>.yaml; a sweep recipe (`sensors`) writes one
@@ -85,6 +85,7 @@ def main(argv):
         print(f"sweep_id {sweep.sweep_id}  ({sweep.recipe}, {len(sweep.runs)} run{'s' if len(sweep.runs) != 1 else ''})")
         for name, sources in sweep.sources.items():
             print(f"run {name}  -> manifold_run_specs/{sweep.files[name]}.yaml")
+            print(f"  run_id {sweep.run_ids[name]}")
             for member, src in sources.items():
                 print(f"  {member:34s} {src['layer']:48s} {src['content_hash'] or ''}")
         return 0

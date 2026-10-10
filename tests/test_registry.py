@@ -49,3 +49,20 @@ def test_submit_enforces_the_run_spec_schema(tmp_path, edit, where):
     assert r.verdict == "rejected" and not r.accepted and not r.checks["schema"]
     schema = [reason for reason in r.reasons if reason.startswith("Schema check failed")]
     assert schema and where in schema[0], r.reasons
+
+
+@needs_dirsig
+def test_submissions_carry_their_run_ids(tmp_path):
+    """SubmissionResult.run_id is identity.run_id of the submitted spec; each run of a sweep carries its id and the
+    sweep the id derived from them."""
+    import yaml
+
+    from protodirsig import identity
+    from protodirsig.compose import compose_sweep
+    r = LocalRegistry().submit(SPEC, CONFIG_REPO, tmp_path / "one", SENSORS)
+    assert r.run_id == identity.run_id(yaml.safe_load(SPEC.read_text()), SENSORS) and len(r.run_id) == 64
+    recipe = SPEC.parent / "recipes" / "sensor_sweep_tahoe.yaml"
+    sub = LocalRegistry().submit_sweep(recipe, CONFIG_REPO, tmp_path / "sweep")
+    composed = compose_sweep(recipe)
+    assert sub.sweep_id == composed.sweep_id and {n: s.run_id for n, s in sub.runs.items()} == composed.run_ids
+    assert all(s.submission.run_id == s.run_id for s in sub.runs.values())

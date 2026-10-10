@@ -15,7 +15,10 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from protodirsig.compose import MAX_RUNS, ComposeError, compose, compose_sweep, default_sensor_library, dump, sweep_id
+from protodirsig import identity
+from protodirsig.compose import MAX_RUNS, ComposeError, compose, compose_sweep, default_sensor_library, dump, sweep_id  # noqa: F401
+from protodirsig.run_spec import RunSpecError
+from protodirsig.run_spec import default_sensor_library as run_spec_default_library
 from protodirsig.simulation import Simulation
 
 
@@ -25,6 +28,7 @@ class SubmissionResult:
     reasons: list[str]                             # plain-language, one per failed check
     checks: dict[str, bool] = field(default_factory=dict)   # {"schema": ..., "resolution": ..., "execution": ...}
     simulation: Simulation | None = None           # the validated job; call .run() on it if accepted
+    run_id: str | None = None                      # identity.run_id of the submitted spec; None if it cannot be computed
 
     @property
     def accepted(self):
@@ -41,11 +45,12 @@ class RunStatus:
     spec_path: Path | None = None                  # the composed run spec written into the sweep's work directory
     submission: SubmissionResult | None = None
     result: object | None = None                   # simulation.RunResult once rendered
+    run_id: str | None = None                      # the run's id (identity.run_id), 64 hex digits
 
 
 @dataclass
 class SweepResult:
-    sweep_id: str
+    sweep_id: str                                  # identity.sweep_id_from_runs; "" when the recipe did not compose
     recipe: Path
     runs: dict[str, RunStatus] = field(default_factory=dict)   # by run name, in sensor-list order
     errors: list[str] = field(default_factory=list)           # recipe-level: the recipe did not compose
@@ -62,12 +67,13 @@ class LocalRegistry:
         recipe-level error; otherwise each run is `accepted` or `rejected` with its reasons, independently."""
         recipe_path = Path(recipe_path).resolve()
         library = default_sensor_library(recipe_path)
-        result = SweepResult(sweep_id(recipe_path) if recipe_path.is_file() else "", recipe_path)
+        result = SweepResult("", recipe_path)
         try:
             sweep = compose_sweep(recipe_path, sensor_library=library, max_runs=max_runs)
         except ComposeError as e:
             result.errors.append(f"Composition failed: {e}")
             return result
+        result.sweep_id = sweep.sweep_id
         work_dir = Path(work_dir) if work_dir is not None else Path(tempfile.mkdtemp(prefix="protodirsig_sweep_"))
         work_dir.mkdir(parents=True, exist_ok=True)
         for name, spec in sweep.runs.items():
@@ -76,9 +82,10 @@ class LocalRegistry:
             try:
                 sub = self.submit(path, config_repo, work_dir / sweep.files[name], library)
             except Exception as e:  # noqa: BLE001 -- one run's failure must not stop the others
-                result.runs[name] = RunStatus(name, "rejected", [f"{type(e).__name__}: {e}"], path)
+                result.runs[name] = RunStatus(name, "rejected", [f"{type(e).__name__}: {e}"], path,
+                                              run_id=sweep.run_ids[name])
                 continue
-            result.runs[name] = RunStatus(name, sub.verdict, list(sub.reasons), path, sub)
+            result.runs[name] = RunStatus(name, sub.verdict, list(sub.reasons), path, sub, run_id=sweep.run_ids[name])
         return result
 
     def run_sweep(self, sweep, config_repo=None, work_dir=None):
@@ -132,4 +139,15 @@ class LocalRegistry:
         return SubmissionResult(verdict="accepted" if c.passed else "rejected", reasons=reasons,
                                 checks={"schema": c.schema_ok, "resolution": c.resolution_ok,
                                         "execution": c.execution_ok},
-                                simulation=sim)
+                                simulation=sim, run_id=_run_id(sim, run_spec_path))
+
+
+def _run_id(sim, run_spec_path):
+    """The submitted spec's run id, or None when its sensor cannot be materialized (the reasons say why)."""
+    if sim.spec is None:
+        return None
+    library = sim.sensor_library if sim.sensor_library is not None else run_spec_default_library(run_spec_path)
+    try:
+        return identity.run_id(sim.spec, library)
+    except (RunSpecError, TypeError, ValueError):
+        return None

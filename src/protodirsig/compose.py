@@ -27,7 +27,8 @@ sensor, a second member for one entry, a listed sensor with no member, and an `e
 sensors are errors. A sweep run's `meta.name` is `<meta.name>--<sensor file stem>`; tags and description are
 shared. `fidelity` is shared; `fidelity_by_sensor: {<sensor file>: {...}}` replaces it for that sensor, and
 `fidelity` may be omitted when every listed sensor has one. A sweep has at most `MAX_RUNS` runs, checked before
-anything else is loaded. Its `sweep_id` is the first 12 hex digits of the sha256 of the recipe's bytes.
+anything else is loaded. Each run has a `run_id` and the sweep a `sweep_id` (`protodirsig.identity`): the sha256
+of the RFC 8785 canonical JSON of the run spec with its sensor in place, and of the sorted list of run ids.
 
 The `roi` check of `run_spec` applies to each composed spec, and for a DIRSIG run the black-level check. No key is
 added to the descriptor outside what the layers hold; layer provenance (file and hash per member) and the sweep id
@@ -38,12 +39,12 @@ Imports: the standard library, `yaml`, `protodirsig.run_spec` and `protodirsig.s
 engine package, so composing needs no `dirfm`, skyfield or DIRSIG (tests/test_import_boundary.py).
 """
 import copy
-import hashlib
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
 
+from protodirsig import identity
 from protodirsig.run_spec import RunSpecError, _check_settings_roi, black_level_problem, load_sensor_spec
 from protodirsig.spectral import sha256_file
 
@@ -75,13 +76,15 @@ class ComposeError(RunSpecError):
 @dataclass
 class ComposedSweep:
     """What `compose_sweep` returns. `runs` maps each run's `meta.name` to its spec, in sensor-list order; `files`
-    maps it to the generated file's stem, `sensors` to its sensor file, `sources` to its `explain` record."""
+    maps it to the generated file's stem, `sensors` to its sensor file, `sources` to its `explain` record, `run_ids`
+    to its run id (64 hex digits). `sweep_id` is derived from the sorted run ids (identity.sweep_id_from_runs)."""
     sweep_id: str
     recipe: str                                                    # root-relative recipe file
     is_sweep: bool                                                 # the recipe names `sensors`
     runs: dict = field(default_factory=dict)
     files: dict = field(default_factory=dict)
     sensors: dict = field(default_factory=dict)
+    run_ids: dict = field(default_factory=dict)
     sources: dict = field(default_factory=dict)
 
 
@@ -193,8 +196,9 @@ def default_sensor_library(recipe_path):
 
 
 def sweep_id(recipe_path):
-    """The first 12 hex digits of the sha256 of the recipe file's bytes."""
-    return hashlib.sha256(Path(recipe_path).read_bytes()).hexdigest()[:12]
+    """The sweep id of a recipe: 64 hex digits, the sha256 of the canonical JSON of the sorted run ids it composes to
+    (identity.sweep_id_from_runs). Composes the recipe; a recipe that does not compose raises ComposeError."""
+    return compose_sweep(recipe_path).sweep_id
 
 
 def _sensor_list(recipe, rel, max_runs):
@@ -288,7 +292,7 @@ def compose_sweep(recipe_path, *, inline_sensor=False, sensor_library=None, max_
     if "fidelity" not in recipe and not all(s in per_sensor for s in sensors):
         raise ComposeError(recipe_rel, "fidelity", "missing (fidelity_by_sensor does not cover every listed sensor)")
 
-    out = ComposedSweep(sweep_id(recipe_path), recipe_rel, is_sweep)
+    out = ComposedSweep("", recipe_rel, is_sweep)
     base = {k: v for k, v in recipe.items() if k not in ("sensor", "sensors", "fidelity_by_sensor", "fidelity")}
     for s in sensors:
         stem = Path(s).stem
@@ -308,6 +312,8 @@ def compose_sweep(recipe_path, *, inline_sensor=False, sensor_library=None, max_
         out.sources[name] = {member: {"layer": label if src == s else src,
                                       "content_hash": sha256_file(paths[src]) if src in paths else None}
                              for member, src in sources.items()}
+        out.run_ids[name] = identity.run_id(spec, library)
+    out.sweep_id = identity.sweep_id_from_runs(out.run_ids.values())
     return out
 
 
