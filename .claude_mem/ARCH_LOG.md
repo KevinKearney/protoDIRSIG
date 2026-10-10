@@ -623,3 +623,15 @@ Kevin unavailable; prompt.md "Sensor model, round two". Decisions in order made:
   files; sweep id; cap; compose refuses a sweep; every run of every recipe passes schema_errors (ref and inline);
   submit/run with deepscan rejected (QE curve removed from a tmp library) and VIS failing at render (monkeypatched
   run) while auror-nir renders at 16x16; a non-composing recipe). Suite 213.
+- **Step 3.1.** test_run_sweep_renders_each_run_as_it_renders_alone: a two-sensor copy of the example recipe
+  (auror-nir, VIS; 16x16), run_sweep -> both rendered; each image byte-equal (assert_array_equal) to
+  Simulation.from_run_spec(run.spec_path).run() in a fresh directory, headers equal, 16x16; the two differ. ~11 s.
+- **Step 3.2, stage_03.** Rewritten on the first attempt: cells 0 (overview), 2 (+RECIPE), 11 (native now via
+  engine_overrides; sweep tabulated), 12-19 replaced (recipe explained; compose_sweep with per-run differences;
+  submit_sweep; run_sweep with three panels; GSD for three runs). Library/curve/channel-response cells 3-10 kept
+  unchanged. Executed end to end (15 s): 0 errors; measured medians 3.64e15 (auror-nir), 2.86e15 (DeepScan, 0.79x
+  = its QE at 0.85 um), 7.7e15 (VIS); GSD ratios 1.0006, 1.0006, 1.0047. The result paragraph was written after the
+  run from those numbers (markdown only). No derive_run_spec, no old folder names. nbconvert added cell ids.
+- **Step 3.3.** Suite 214, stamp --check 0, compose --check 0.
+- **Step 3.4.** /tmp at 2.5 G (pytest sessions) before the renders -> cleared. stage_01 236 s, stage_02 254 s, 0
+  errors; diffs are execution timestamps and the printed run() time only (render output unchanged).

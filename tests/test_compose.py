@@ -329,3 +329,35 @@ def test_submit_sweep_reports_a_recipe_that_does_not_compose(tmp_path):
     sub = LocalRegistry().submit_sweep(bad, CONFIG_REPO, tmp_path)
     assert sub.runs == {} and sub.sweep_id == sweep_id(bad)
     assert sub.errors[0].startswith("Composition failed: recipes/sensor_sweep_tahoe.yaml: sensors[1]:")
+
+
+@needs_dirsig
+def test_run_sweep_renders_each_run_as_it_renders_alone(tmp_path):
+    """A two-sensor sweep through run_sweep: each run's image equals the same run spec rendered on its own (shape and
+    values; seeded, so byte for byte), and the two sensors' images differ. 16 x 16 windows."""
+    import numpy as np
+
+    from protodirsig.registry import LocalRegistry
+    from protodirsig.simulation import Simulation
+    root = _layers(tmp_path)
+    doc = yaml.safe_load(SWEEP.read_text())
+    keep = ["auror-nir.yaml", "synthetic_600_200_vis_1920.yaml"]
+    doc["sensors"] = keep
+    doc["settings"] = [dict(m, roi={"Width": 16, "Height": 16, "OffsetX": None, "OffsetY": None})
+                       for m in doc["settings"] if m["entry_id"] != "deepscan-850-306-nir-1280"]
+    doc["fidelity_by_sensor"] = {k: v for k, v in doc["fidelity_by_sensor"].items() if k in keep}
+    recipe = root / "recipes" / "two_sensors.yaml"
+    recipe.write_text(yaml.safe_dump(doc, sort_keys=False))
+    out = LocalRegistry().run_sweep(recipe, CONFIG_REPO, tmp_path / "sweep")
+    assert sorted(out.states.values()) == ["rendered", "rendered"], out.states
+    images = {}
+    for name, run in out.runs.items():
+        swept = np.fromfile(run.result.image, "<f8")
+        alone = Simulation.from_run_spec(run.spec_path, CONFIG_REPO, tmp_path / f"alone-{name}",
+                                         tmp_path / "manifold_sensors").run()
+        hdr = Path(f"{alone.image}.hdr").read_text()
+        assert hdr == Path(f"{run.result.image}.hdr").read_text() and "samples = 16" in hdr and "lines = 16" in hdr
+        np.testing.assert_array_equal(swept, np.fromfile(alone.image, "<f8"))
+        images[name] = swept
+    a, b = images.values()
+    assert a.shape == b.shape == (256,) and not np.allclose(a, b)
