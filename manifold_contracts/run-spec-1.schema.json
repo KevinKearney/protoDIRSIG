@@ -1,0 +1,584 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "run-spec/1",
+  "title": "run-spec/1 (proposed; Metadata_v02 section 6 as read by protoDIRSIG)",
+  "description": "One run: an engine-independent descriptor (registered, searched, hashed into the provenance record) and, for a synthetic run, the origin-specific engine block the generator consumes. Unknown keys are rejected everywhere except descriptor.extras. This schema is the SDK's reading of the MANIFOLD metadata document, not a MANIFOLD artefact. Rules this schema cannot express, enforced at admission by the loader: a stamped content_hash (the sensor reference, every engine reference) must equal the sha256 of the referenced file and the file must exist; settings.entry_id must name an entry of the sensor, once; the SDK renders one sensor entry (one settings member) per run; black_level must be 0 (the generator cannot apply a bias); placeholders (sha256:<hash>, <git-sha>) are refused outside the places the layer files use them; and the engine block's own admission rules (see dirsig-engine-1.schema.json). The $id follows sensor-spec-1.schema.json's convention (a relative id). References between the three contract schemas are sibling file names; a validator that rebases them on the relative $id must map the three files by name.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "spec_version",
+    "descriptor"
+  ],
+  "properties": {
+    "spec_version": {
+      "description": "The run-spec version.",
+      "const": "run-spec/1"
+    },
+    "descriptor": {
+      "$ref": "#/$defs/descriptor"
+    },
+    "engine": {
+      "description": "The origin-specific generator input: dirsig-engine/1 when descriptor.origin.engine is dirsig; absent for field data.",
+      "type": "object"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "descriptor": {
+            "properties": {
+              "origin": {
+                "properties": {
+                  "engine": {
+                    "const": "dirsig"
+                  }
+                },
+                "required": [
+                  "engine"
+                ]
+              }
+            },
+            "required": [
+              "origin"
+            ]
+          }
+        },
+        "required": [
+          "descriptor"
+        ]
+      },
+      "then": {
+        "required": [
+          "engine"
+        ],
+        "properties": {
+          "engine": {
+            "$ref": "dirsig-engine-1.schema.json"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "descriptor": {
+            "properties": {
+              "origin": {
+                "properties": {
+                  "kind": {
+                    "const": "field"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              }
+            },
+            "required": [
+              "origin"
+            ]
+          }
+        },
+        "required": [
+          "descriptor"
+        ]
+      },
+      "then": {
+        "not": {
+          "required": [
+            "engine"
+          ]
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "quantity": {
+      "description": "A value with its provenance: measured, specified (a datasheet or a commanded value), modeled, or inherited_from_type. conditions is required when the value was measured. Fields fixed by design are plain scalars, not quantities.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "provenance"
+      ],
+      "properties": {
+        "value": {
+          "description": "The value, in the field's documented unit.",
+          "type": "number"
+        },
+        "provenance": {
+          "description": "Where the value came from.",
+          "enum": [
+            "measured",
+            "specified",
+            "modeled",
+            "inherited_from_type"
+          ]
+        },
+        "uncertainty": {
+          "description": "The value's uncertainty, in the same unit.",
+          "type": "number",
+          "minimum": 0
+        },
+        "uncertainty_kind": {
+          "description": "What uncertainty states, for example a standard deviation or a bound.",
+          "type": "string"
+        },
+        "conditions": {
+          "description": "The conditions of the measurement.",
+          "type": [
+            "object",
+            "string"
+          ]
+        }
+      },
+      "if": {
+        "properties": {
+          "provenance": {
+            "const": "measured"
+          }
+        },
+        "required": [
+          "provenance"
+        ]
+      },
+      "then": {
+        "required": [
+          "conditions"
+        ]
+      }
+    },
+    "regime": {
+      "description": "A governed vocabulary term for one aspect of the collection.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "regime"
+      ],
+      "properties": {
+        "regime": {
+          "description": "The term, for example daylight, rural or mid_latitude_summer. Members observed in protoDIRSIG scenarios; the MANIFOLD governed vocabulary decides.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "descriptor": {
+      "description": "The engine-independent part of the run: what is observed, by which sensor, under which commanded settings, and how faithfully.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "meta",
+        "origin",
+        "collection",
+        "sensor",
+        "settings",
+        "fidelity"
+      ],
+      "properties": {
+        "meta": {
+          "description": "Identity and search terms.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {
+              "description": "The run's name: an immutable alias to one parameter set.",
+              "type": "string",
+              "minLength": 1
+            },
+            "tags": {
+              "description": "Search tags.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": {
+              "description": "Free text for a reader.",
+              "type": "string"
+            }
+          }
+        },
+        "origin": {
+          "description": "Where the data comes from: two axes. engine is field exactly when kind is field.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "engine"
+          ],
+          "properties": {
+            "kind": {
+              "description": "synthetic (rendered by an engine) or field (collected).",
+              "enum": [
+                "synthetic",
+                "field"
+              ]
+            },
+            "engine": {
+              "description": "The engine that renders a synthetic run, or field.",
+              "enum": [
+                "dirsig",
+                "satsim",
+                "usd",
+                "field"
+              ]
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "kind": {
+                    "const": "field"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "engine": {
+                    "const": "field"
+                  }
+                }
+              },
+              "else": {
+                "properties": {
+                  "engine": {
+                    "not": {
+                      "const": "field"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "collection": {
+          "description": "Observation conditions as governed terms and derived quantities, not engine parameters. geometry.range is required when targets is non-empty.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "epoch": {
+              "description": "Phenomenon time: when the observation is (or is modelled as being), ISO-8601 with a UTC offset.",
+              "type": "string"
+            },
+            "platform": {
+              "description": "The observing platform. Members observed in protoDIRSIG scenarios; the MANIFOLD governed vocabulary decides.",
+              "type": "object",
+              "properties": {
+                "class": {
+                  "description": "The platform class, for example satellite.",
+                  "type": "string"
+                },
+                "position": {
+                  "description": "The platform position at the epoch, geodetic. Omitted when the generator emits it (a moving platform).",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "frame",
+                    "latitude",
+                    "longitude",
+                    "altitude"
+                  ],
+                  "properties": {
+                    "frame": {
+                      "description": "The position frame, geodetic.",
+                      "type": "string"
+                    },
+                    "datum": {
+                      "description": "The geodetic datum, for example WGS84.",
+                      "type": "string"
+                    },
+                    "latitude": {
+                      "description": "Latitude, degrees north.",
+                      "$ref": "#/$defs/quantity"
+                    },
+                    "longitude": {
+                      "description": "Longitude, degrees east.",
+                      "$ref": "#/$defs/quantity"
+                    },
+                    "altitude": {
+                      "description": "Altitude, metres.",
+                      "$ref": "#/$defs/quantity"
+                    },
+                    "altitude_reference": {
+                      "description": "What altitude is measured from, for example ellipsoid.",
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "geometry": {
+              "description": "The viewing geometry.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "regime": {
+                  "description": "A governed term, for example orbital_nadir. Members observed in protoDIRSIG scenarios; the MANIFOLD governed vocabulary decides.",
+                  "type": "string"
+                },
+                "range": {
+                  "description": "Sensor-to-target range, metres.",
+                  "$ref": "#/$defs/quantity"
+                }
+              }
+            },
+            "illumination": {
+              "$ref": "#/$defs/regime"
+            },
+            "atmosphere": {
+              "$ref": "#/$defs/regime"
+            },
+            "background": {
+              "$ref": "#/$defs/regime"
+            },
+            "targets": {
+              "description": "What is observed.",
+              "type": "array",
+              "items": {
+                "description": "One target.",
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "class"
+                ],
+                "properties": {
+                  "class": {
+                    "description": "The target class, for example vehicle_air. Members observed in protoDIRSIG scenarios; the MANIFOLD governed vocabulary decides.",
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "targets": {
+                "minItems": 1
+              }
+            },
+            "required": [
+              "targets"
+            ]
+          },
+          "then": {
+            "required": [
+              "geometry"
+            ],
+            "properties": {
+              "geometry": {
+                "required": [
+                  "range"
+                ]
+              }
+            }
+          }
+        },
+        "sensor": {
+          "description": "The sensor: a reference to a sensor-spec/1 document in the sensor library by name and the sha256 of its bytes, or that document's sensor block in place.",
+          "oneOf": [
+            {
+              "description": "A sensor-spec/1 reference.",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "ref"
+              ],
+              "properties": {
+                "ref": {
+                  "description": "The library sensor file.",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "name",
+                    "content_hash"
+                  ],
+                  "properties": {
+                    "name": {
+                      "description": "The sensor file's name in the sensor library, for example auror-nir.yaml.",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "content_hash": {
+                      "description": "sha256: followed by the 64 lowercase hex digits of the file's sha256.",
+                      "type": "string",
+                      "pattern": "^sha256:[0-9a-f]{64}$"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "$ref": "sensor-spec-1.schema.json#/properties/sensor"
+            }
+          ]
+        },
+        "settings": {
+          "description": "Commanded per-entry values: one member per sensor entry the run models, each naming its entry. They stay in the run spec, not the sensor file. A composition may carry one member per entry of a multi-entry sensor; the SDK's loader renders one entry per run and refuses more.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "description": "The commanded values for one sensor entry.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "entry_id"
+            ],
+            "properties": {
+              "entry_id": {
+                "description": "The sensor entry (sensor.entries[].entry_id) the run models.",
+                "type": "string",
+                "minLength": 1
+              },
+              "exposure_time": {
+                "description": "Exposure (integration) time, seconds.",
+                "$ref": "#/$defs/quantity"
+              },
+              "frame_rate": {
+                "description": "Frame rate, frames per second.",
+                "$ref": "#/$defs/quantity"
+              },
+              "gain": {
+                "description": "Gain, dimensionless.",
+                "$ref": "#/$defs/quantity"
+              },
+              "black_level": {
+                "description": "Black level (bias), counts.",
+                "$ref": "#/$defs/quantity"
+              },
+              "roi": {
+                "description": "The commanded window, GenICam SFNC names, pixels.",
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "Width",
+                  "Height"
+                ],
+                "properties": {
+                  "Width": {
+                    "description": "Window width, pixels.",
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "Height": {
+                    "description": "Window height, pixels.",
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "OffsetX": {
+                    "description": "Window column offset in the full frame, or null for a centred window.",
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "OffsetY": {
+                    "description": "Window row offset in the full frame, or null for a centred window.",
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  }
+                }
+              },
+              "binning": {
+                "description": "Commanded binning. No protoDIRSIG run uses it; its form is the MANIFOLD vocabulary's.",
+                "type": "object"
+              }
+            }
+          }
+        },
+        "fidelity": {
+          "description": "What the run models, approximates and leaves out, and what it is valid for. Authored, not derived, not queryable.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "modeled",
+            "approximated",
+            "absent",
+            "valid_for"
+          ],
+          "properties": {
+            "modeled": {
+              "description": "Effects modelled.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "approximated": {
+              "description": "Effects approximated.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "absent": {
+              "description": "Effects not modelled.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "valid_for": {
+              "description": "Free text: the studies the run is valid and not valid for.",
+              "type": "string"
+            }
+          }
+        },
+        "field": {
+          "description": "Field-collection metadata, required when origin.kind is field. No protoDIRSIG run is field data; its members are the MANIFOLD vocabulary's.",
+          "type": "object"
+        },
+        "extras": {
+          "description": "Namespaced <origin>.<name> values stored without query guarantees, for example dirsig.weather_file.",
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[a-z0-9_]+\\.[A-Za-z0-9_.-]+$": {}
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "origin": {
+                "properties": {
+                  "kind": {
+                    "const": "field"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              }
+            },
+            "required": [
+              "origin"
+            ]
+          },
+          "then": {
+            "required": [
+              "field"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "field"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}
