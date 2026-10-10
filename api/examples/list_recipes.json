@@ -15,6 +15,10 @@
           "sha256": "308393983b5b5a3871b232dcad387803123c3dc6bc8ed56ad17b486801cb3cb1"
         },
         {
+          "name": "leo_pass_tahoe",
+          "sha256": "2a88549c93bb92caf4db70666d2fe1ba92f7902f531e3d5476a7ac81a97bd7ad"
+        },
+        {
           "name": "sensor_sweep_tahoe",
           "sha256": "802a0f18b3e7034ed03cef0cae5b4bc957e242ee60c8b97d65e5f670707cc0ed"
         },

@@ -1,0 +1,33 @@
+# Recipe (compose/1): the tahoe_leo_pass scenario imaged by auror-nir from WORLDVIEW-2's orbit: three frames 10 s
+# apart, centred on culmination. scripts/compose.py composes it into manifold_run_specs/leo_pass_tahoe.yaml.
+# The sensor is the one the Tahoe sweep's first run uses (manifold_sensors/auror-nir.yaml); only settings differ.
+
+compose: compose/1
+
+meta:
+  name: leo-pass-tahoe
+  tags: [pass, leo, orbit-motion, hypersonic-target]
+  description: >
+    A sunlit WORLDVIEW-2 pass over DIRSIG's Tahoe scene (88 deg maximum elevation), the platform track propagated
+    from a library TLE, three frames centred on culmination in a centred 16 x 16 window.
+
+sensor: auror-nir.yaml
+scenario: tahoe_leo_pass
+engine_profile: tahoe_leo_pass
+
+settings:
+  - entry_id: auror-nir
+    exposure_time: {value: 0.00001, provenance: specified}   # 10 us: the platform moves 7.6 cm per frame, not 38 m
+    frame_rate: {value: 1000, provenance: specified}
+    gain: {value: 1, provenance: specified}
+    black_level: {value: 0, provenance: specified}
+    roi: {Width: 16, Height: 16, OffsetX: null, OffsetY: null}    # centred window
+
+fidelity:
+  modeled: [reflective and emissive radiance, atmospheric transmission and path radiance, platform motion along an SGP4 track]
+  approximated: [detector noise, optics blur, Earth orientation (UT1 - UTC, no polar motion)]
+  absent: [platform jitter]
+  valid_for: >
+    Pipeline and geometry studies of a LEO pass in a 16 x 16 window: platform position, pointing and ground track.
+    Not valid for target-visibility studies: the vehicle's emission is not evaluated in a 0.41-2.0 um job unless
+    temperature prediction is forced, so the vehicle renders black.

@@ -11,6 +11,10 @@
     "body": {
       "items": [
         {
+          "name": "tahoe_leo_pass",
+          "sha256": "b434744ccb0dc7521417c63629d5fa23eab61b6b9c4120a2f0253e1a76492ddd"
+        },
+        {
           "name": "tahoe_static_pose",
           "sha256": "e6172b88f55591d167cfbc1db9685a9c42b5048282e9020ee3a5adf039ae50c0"
         }

@@ -90,7 +90,7 @@ def test_unrenderable_sensor_is_reported(tmp_path):
 @needs_config_repo
 @pytest.mark.parametrize("path, value, match", [
     (("motion", "kind"), "waypoints", "FlexMotion"),
-    (("motion", "kind"), "orbit", "FlexMotion"),
+    (("motion", "kind"), "orbit", "engine.motion.orbit is missing"),     # orbit is generated now; it needs its block
     (("motion", "orientation", "kind"), "lookat", "FlexMotion"),
     (("motion", "position", "frame"), "ecef", "scene-frame"),
     (("motion", "orientation", "euler", "frame"), "ecef", "sceneenu"),

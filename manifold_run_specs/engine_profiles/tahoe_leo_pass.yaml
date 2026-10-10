@@ -1,0 +1,71 @@
+# Engine-profile layer (compose/1): descriptor.origin, descriptor.extras and the dirsig-engine/1 block for the
+# tahoe_leo_pass scenario: the tahoe_static_pose engine block with orbit motion, three task windows and the pass
+# variant of the AUROR NIR platform template. Companion to the protoDIRSIG CONOPS and Guide
+# (docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md).
+#
+# engine.motion kind orbit is a PROPOSED form (CONOPS and Guide §3.2), named for the law, not for DIRSIG's classes:
+# the library TLE is propagated by SGP4 (propagator skyfield_sgp4, with UT1 - UTC from the library Earth-orientation
+# tables) over the window, sampled every waypoint_spacing seconds as ECEF waypoints, and pointed by a LookAt at a
+# scene ENU point with a fixed up: the horizontal velocity direction at the window centre (along_track). The
+# generator writes a DIRSIG FlexMotion file (waypoints location engine, frame ecef; lookat orientation engine).
+# DIRSIG's own sgp4 location engine is not used: it applies no UT1 - UTC and lands about 33 m from this track (BACKLOG).
+#
+# platforms/AurorNIRDetectorPass is AurorNIRDetector with two changes for a multi-frame pass: the image and the
+# GeoLocation truth collection are written once per capture (schedule capture: <base>-t<task>-c<capture>.img), and
+# that collection adds the Intersection collector (scene ENU hit point, distance), from which the independent
+# ground-track check recovers the platform position.
+#
+# The .scene hash is a placeholder (its geometry and materials sit beside it); the other refs are stamped by
+# scripts/stamp_hashes.py.
+
+origin:
+  kind: synthetic
+  engine: dirsig
+
+extras:
+  dirsig.atmosphere_db: jsims/AurorNewAtmosphere   # NewAtmosphere's HDF5 database, role dirsig:atmosphere_db (role R-6)
+  dirsig.weather_file: saw.wth
+
+engine:
+  generator: {tool: dirfm, revision: "<git-sha>", spec_schema: dirsig-engine/1}
+
+  scenes:
+    - ref: {name: scenes/tahoe/tahoe.scene, content_hash: "sha256:<hash>"}
+      offset: [0, 0, 0]
+
+  platform:
+    ref: {name: platforms/AurorNIRDetectorPass/AurorNIRDetectorPass.platform, content_hash: "sha256:6a4e4435a9f0deee2038d2b36ed289738fdca776fd9a65b7f22bf78ce57dc14c"}
+    library_entry: auror-nir-detector
+    output_prefix: auror_nir_
+    split_channels: false
+    integration_samples: 10
+
+  motion:
+    kind: orbit
+    orbit:
+      tle: {name: orbit/worldview2_35946.tle, content_hash: "sha256:3bfd197ff976c7a4dd3e990a696bf3e7544054900b2b0be9f7cb21680a5f4a90"}
+      propagator: skyfield_sgp4
+      earth_orientation: {name: orbit/iers.npz, content_hash: "sha256:c7d7536d898dfa9f8cd43e8044ff51e108cc8289675a13fee9822010a1c4935c"}   # skyfield 1.54's bundled tables, copied
+      window: {start: 0.0, duration: 120.0}   # seconds from descriptor.collection.epoch
+      waypoint_spacing: 1.0                   # seconds; propagated at a tenth of this and thinned
+    orientation:
+      kind: lookat
+      lookat: {frame: sceneenu, target: [-400.0, 400.0, 132.0], up: along_track}   # scenario point; terrain height from truth
+
+  tasks:
+    windows: [{start: 50.0, stop: 50.0}, {start: 60.0, stop: 60.0}, {start: 70.0, stop: 70.0}]   # culmination -10, 0, +10 s
+
+  atmosphere:
+    plugin: new_atmosphere             # proposed extension, as in tahoe_static_pose
+    database:
+      ref: {name: atmosphere/AurorNewAtmosphere, content_hash: "sha256:7bbaf61d8a26806d0f22818d5c2b816a62fe69b120e5f2c1ef81d334253b8168"}
+
+  weather:
+    source: library
+    file: {name: weather/saw.wth, content_hash: "sha256:7ab85eefcdbb14a945498f5156262d861ec6f933fb10742bde84852c96ef2676"}
+
+  ephemeris:
+    plugin: spice   # no inputs; reads the DIRSIG installation's kernels (A.6)
+
+  run:
+    seed: 42

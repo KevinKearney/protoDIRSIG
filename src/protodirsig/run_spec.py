@@ -22,8 +22,11 @@ What it drives: `engine.scenes`, `platform`, `atmosphere`, `weather`, `ephemeris
 `run.seed` name existing library files that the `scene_ref`, `platform_ref` and
 `atmosphere_patches` helpers reference as-is. `engine.motion` and `engine.tasks` are generated,
 not resolved: `AurorRun` carries their values, and `motion_tasks` writes the `.ppd` and `.tasks`
-files from them. Only `motion.kind: static` with a
-scene-frame position and a `sceneenu` Euler orientation is generated; anything else is refused.
+files from them. Two motion forms are generated: `kind: static` with a scene-frame position and a `sceneenu`
+Euler orientation (a `.ppd`), and `kind: orbit` (proposed): a TLE propagated over a window into ECEF waypoints,
+pointed by a LookAt at a scene ENU point with the along-track `up` (a FlexMotion `.motion`). Anything else is
+refused. The orbit form's TLE and Earth-orientation tables are library files under `config_repo` (`orbit/`),
+hash-verified like every other engine ref.
 
 Loading is a plain `yaml.safe_load`. `AV_MANIFOLD_Metadata_v02.md` §6.15 specifies a strict
 loader (duplicate-key rejection, canonical-JSON hashing, unknown-key rejection). That belongs to
@@ -106,6 +109,10 @@ class AurorRun:
     settings: list           # descriptor.settings: one member, for the sensor entry the job models
     sensor_library: Path     # resolution root for the sensor-spec and its spectral curves
     channel_response: str = "tabulated"   # engine.platform.channel_response: tabulated | native (platform_gen)
+    motion_kind: str = "static"           # engine.motion.kind: static | orbit
+    orbit: dict | None = None             # kind orbit: tle, earth_orientation (Paths), propagator, window_start,
+                                          # window_duration, waypoint_spacing (s), lookat_target (scene ENU, m),
+                                          # up ("along_track"), scene_origin (lat, lon deg, from the .scene)
 
     def atmosphere_plugin(self, db=None):
         """`NewAtmosphere` over `db`, or over the resolved library database if not given. Pass the job's
@@ -143,6 +150,16 @@ def _scene_file(config_repo, ref_name):
     # (Configuration_v02 A.8.3; guide §9), with geometry/, materials/ and maps/ beside it. No
     # fallback search: the earlier nested-then-flat guess against the received tree is gone.
     return _root_file(config_repo, ref_name, "scene")
+
+
+
+def _scene_origin(scene_path):
+    """(latitude, longitude) in degrees of the scene's `<sceneorigin>`: the origin of its ENU frame."""
+    loc = et.parse(str(scene_path)).getroot().find("sceneorigin/location")
+    if loc is None or loc.get("frame") != "geodetic":
+        raise RunSpecError(f"scene {scene_path.name}: no geodetic <sceneorigin><location>; an orbit's LookAt target "
+                           "and up vector are stated in the scene ENU frame, which needs it")
+    return float(loc.findtext("latitude")), float(loc.findtext("longitude"))
 
 
 def is_inline_sensor(sensor):
@@ -216,26 +233,28 @@ def resolve_auror_run(spec, run_spec_path, config_repo, sensor_library=None):
     if weather is None or weather.get("source") != "library":
         raise RunSpecError(f"engine.weather must be a library file for this tree, got {weather!r}")
 
-    # Motion and tasks are generated with dirfm's PlatformPosition and TASKS (motion_tasks), which
-    # write one static .ppd and one .tasks file. Schema-valid values they cannot express are refused.
+    # Motion and tasks are generated with dirfm (motion_tasks): PlatformPosition writes a static .ppd, FlexMotion an
+    # orbit's waypoint .motion, TASKS one .tasks file. Schema-valid values they cannot express are refused.
     motion = eng["motion"]
-    if motion.get("kind") != "static":
+    kind = motion.get("kind")
+    if kind == "static":
+        if motion.get("position", {}).get("frame") != "scene":
+            raise RunSpecError(f"engine.motion.position.frame is {motion.get('position', {}).get('frame')!r}; "
+                               "dirfm PlatformPosition writes only scene-frame locations ('scene')")
+        orient = motion.get("orientation", {})
+        if orient.get("kind") != "euler":
+            raise RunSpecError(f"engine.motion.orientation.kind is {orient.get('kind')!r}; static motion takes only "
+                               "'euler' here ('lookat' is generated, with dirfm FlexMotion, for kind 'orbit')")
+        euler = orient.get("euler", {})
+        if euler.get("frame") != "sceneenu":
+            raise RunSpecError(f"engine.motion.orientation.euler.frame is {euler.get('frame')!r}; dirfm "
+                               "PlatformPosition hardcodes rotationframe='sceneenu'")
+    elif kind == "orbit":
+        orbit_values = _resolve_orbit(motion, eng, config_repo)
+    else:
         raise RunSpecError(
-            f"engine.motion.kind is {motion.get('kind')!r}; this loader generates only 'static' motion "
-            "(dirfm PlatformPosition). 'waypoints' and 'orbit' need dirfm FlexMotion, a different "
-            "generator not built here; that work lives, unfinished, in protodirsig.orbit and "
-            "notebooks/dirfm_tutorials/tutorial_orbit_to_ground.ipynb.")
-    if motion.get("position", {}).get("frame") != "scene":
-        raise RunSpecError(f"engine.motion.position.frame is {motion.get('position', {}).get('frame')!r}; "
-                           "dirfm PlatformPosition writes only scene-frame locations ('scene')")
-    orient = motion.get("orientation", {})
-    if orient.get("kind") != "euler":
-        raise RunSpecError(f"engine.motion.orientation.kind is {orient.get('kind')!r}; only 'euler' is generated "
-                           "here ('lookat' needs dirfm FlexMotion, not built here)")
-    euler = orient.get("euler", {})
-    if euler.get("frame") != "sceneenu":
-        raise RunSpecError(f"engine.motion.orientation.euler.frame is {euler.get('frame')!r}; dirfm "
-                           "PlatformPosition hardcodes rotationframe='sceneenu'")
+            f"engine.motion.kind is {kind!r}; this loader generates 'static' (dirfm PlatformPosition) and 'orbit' "
+            "(a TLE propagated to ECEF waypoints, dirfm FlexMotion). 'waypoints' (authored samples) is not built.")
     epoch = datetime.fromisoformat(str(spec["descriptor"]["collection"]["epoch"]).replace("Z", "+00:00"))
     if epoch.tzinfo is None:                 # dirfm TASKS writes a malformed offset for a naive datetime
         raise RunSpecError(f"descriptor.collection.epoch {epoch.isoformat()!r} has no UTC offset")
@@ -277,15 +296,18 @@ def resolve_auror_run(spec, run_spec_path, config_repo, sensor_library=None):
         raise RunSpecError(f"descriptor.settings must have one member (one sensor entry per job); got {got}")
     _check_settings_roi(settings, sensor_doc)
     check_settings_black_level(settings)
+    scene_path = _scene_file(config_repo, scene["ref"]["name"])
+    if kind == "orbit":
+        orbit_values["scene_origin"] = _scene_origin(scene_path)
     return AurorRun(
         name=desc["meta"]["name"],
         origin=dict(desc["origin"]),
-        scene=_scene_file(config_repo, scene["ref"]["name"]),
+        scene=scene_path,
         scene_offset=list(scene.get("offset", [0, 0, 0])),
         platform=_root_file(config_repo, plat["ref"]["name"], "platform", plat["ref"]),
-        motion_position=[float(v) for v in motion["position"]["xyz"]],
+        motion_position=[float(v) for v in motion["position"]["xyz"]] if kind == "static" else None,
         motion_orientation={"order": euler["order"], "units": euler["units"],
-                            "angles": [float(v) for v in euler["angles"]]},
+                            "angles": [float(v) for v in euler["angles"]]} if kind == "static" else None,
         tasks_windows=[(float(w["start"]), float(w["stop"])) for w in eng["tasks"]["windows"]],
         epoch=epoch.astimezone(timezone.utc),
         output_prefix=plat["output_prefix"],
@@ -300,7 +322,63 @@ def resolve_auror_run(spec, run_spec_path, config_repo, sensor_library=None):
         settings=list(desc["settings"]),
         sensor_library=Path(sensor_library),
         channel_response=channel_response,
+        motion_kind=kind,
+        orbit=orbit_values if kind == "orbit" else None,
     )
+
+
+ORBIT_PROPAGATORS = ("skyfield_sgp4",)    # protodirsig.orbit.PROPAGATOR
+
+
+def _number(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def _resolve_orbit(motion, eng, config_repo):
+    """`engine.motion` of kind `orbit` (proposed): the TLE and Earth-orientation refs resolved and hash-verified
+    against `config_repo`, the window checked to cover every task window, the pointing law checked."""
+    o = motion.get("orbit")
+    if not isinstance(o, dict):
+        raise RunSpecError("engine.motion.orbit is missing: kind 'orbit' needs tle, propagator, earth_orientation, "
+                           "window and waypoint_spacing")
+    if o.get("propagator") not in ORBIT_PROPAGATORS:
+        raise RunSpecError(f"engine.motion.orbit.propagator is {o.get('propagator')!r}; expected one of "
+                           f"{list(ORBIT_PROPAGATORS)}")
+    refs = {}
+    for key, what in (("tle", "orbit TLE"), ("earth_orientation", "Earth-orientation tables")):
+        ref = o.get(key)
+        if not isinstance(ref, dict) or not isinstance(ref.get("name"), str):
+            raise RunSpecError(f"engine.motion.orbit.{key} must be a library ref {{name, content_hash}}, got {ref!r}")
+        refs[key] = _root_file(config_repo, ref["name"], what, ref)
+    w, dt = o.get("window"), o.get("waypoint_spacing")
+    if not (isinstance(w, dict) and _number(w.get("start")) and _number(w.get("duration")) and w["duration"] > 0):
+        raise RunSpecError(f"engine.motion.orbit.window must be {{start, duration}} in seconds, duration > 0; got {w!r}")
+    if not (_number(dt) and dt > 0):
+        raise RunSpecError(f"engine.motion.orbit.waypoint_spacing must be a positive number of seconds, got {dt!r}")
+    n = w["duration"] / dt
+    if abs(n - round(n)) > 1e-9:
+        raise RunSpecError(f"engine.motion.orbit.window.duration {w['duration']} is not a whole number of "
+                           f"waypoint_spacing {dt} steps")
+    lo, hi = float(w["start"]), float(w["start"]) + float(w["duration"])
+    for i, tw in enumerate(eng["tasks"]["windows"]):
+        if not lo <= float(tw["start"]) <= float(tw["stop"]) <= hi:
+            raise RunSpecError(f"engine.tasks.windows[{i}] [{tw['start']}, {tw['stop']}] is outside the orbit window "
+                               f"[{lo}, {hi}]: the platform has no waypoints there")
+    orient = motion.get("orientation", {})
+    look = orient.get("lookat", {}) if isinstance(orient, dict) else {}
+    if orient.get("kind") != "lookat":
+        raise RunSpecError(f"engine.motion.orientation.kind is {orient.get('kind')!r}; kind 'orbit' is pointed by "
+                           "'lookat' (a scene ENU target)")
+    target = look.get("target")
+    if look.get("frame") != "sceneenu" or not (isinstance(target, list) and len(target) == 3
+                                                and all(_number(v) for v in target)):
+        raise RunSpecError(f"engine.motion.orientation.lookat must be {{frame: sceneenu, target: [x, y, z]}}, got {look!r}")
+    if look.get("up") != "along_track":
+        raise RunSpecError(f"engine.motion.orientation.lookat.up is {look.get('up')!r}; only 'along_track' (the "
+                           "horizontal velocity direction at the window centre, held fixed) is generated")
+    return {"tle": refs["tle"], "earth_orientation": refs["earth_orientation"], "propagator": o["propagator"],
+            "window_start": lo, "window_duration": float(w["duration"]), "waypoint_spacing": float(dt),
+            "lookat_target": [float(v) for v in target], "up": "along_track"}
 
 
 def check_library_files(spec, run):
@@ -317,6 +395,10 @@ def check_library_files(spec, run):
     bad = check_template(run.platform)
     if bad:
         return bad
+    if run.orbit is not None:
+        bad = _check_orbit_files(run.orbit)
+        if bad:
+            return bad
     try:
         with TemporaryDirectory() as tmp:
             render_platform(run.platform, run.sensor, run.settings[0]["entry_id"], run.settings,
@@ -324,6 +406,27 @@ def check_library_files(spec, run):
     except (PlatformGenError, SpectralError, KeyError) as e:
         return [f"platform could not be rendered from the sensor-spec: {type(e).__name__}: {e}"]
     return []
+
+
+
+def _check_orbit_files(o):
+    """The orbit's TLE parses and passes its checksums; the Earth-orientation tables load and cover the window."""
+    import numpy as np
+
+    from protodirsig.orbit import read_tle
+    problems = []
+    try:
+        read_tle(o["tle"])
+    except (AssertionError, ValueError) as e:
+        problems.append(f"orbit TLE {o['tle'].name} is not a valid two-line element set: {e or 'checksum or format'}")
+    try:
+        arrays = np.load(o["earth_orientation"])
+        missing = {"tt_jd_minus_arange", "delta_t_1e7", "leap_dates", "leap_offsets"} - set(arrays.files)
+        if missing:
+            problems.append(f"Earth-orientation tables {o['earth_orientation'].name} lack {sorted(missing)}")
+    except (OSError, ValueError) as e:
+        problems.append(f"Earth-orientation tables {o['earth_orientation'].name} do not load: {e}")
+    return problems
 
 
 def derive_run_spec(spec, sensor_ref_name, entry_id, roi=None, name=None):

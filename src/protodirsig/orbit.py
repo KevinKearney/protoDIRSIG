@@ -265,6 +265,28 @@ def ecef_to_enu_matrix(lat_deg, lon_deg):
     return np.vstack([e, n, np.cross(e, n)])
 
 
+
+def recover_position(hits, distances, s0, iters=8):
+    """The sensor position S that best satisfies |S - P_i| = d_i (Gauss-Newton, least squares), from truth hit
+    points `hits` (N, 3, ECEF m) and sensor-to-hit distances `distances` (N,), started at `s0`. Non-finite rows
+    are dropped. Returns (S, rms residual m, covariance (3, 3) m^2, pixels used). Independent of the propagator:
+    it reads only what the engine rendered."""
+    P, d = np.asarray(hits, dtype=float), np.asarray(distances, dtype=float)
+    ok = np.all(np.isfinite(P), axis=1) & np.isfinite(d)
+    P, d = P[ok], d[ok]
+    s = np.array(s0, dtype=float)
+    for _ in range(iters):
+        diff = s - P
+        rng = np.linalg.norm(diff, axis=1)
+        J = diff / rng[:, None]
+        step, *_ = np.linalg.lstsq(J, -(rng - d), rcond=None)
+        s = s + step
+        if np.linalg.norm(step) < 1e-4:
+            break
+    r = np.linalg.norm(s - P, axis=1) - d
+    cov = np.linalg.inv(J.T @ J) * np.var(r)
+    return s, float(np.sqrt(np.mean(r**2))), cov, int(ok.sum())
+
 # --- LookAt up vector --------------------------------------------------------------------------
 
 def perp_unit(u, b):

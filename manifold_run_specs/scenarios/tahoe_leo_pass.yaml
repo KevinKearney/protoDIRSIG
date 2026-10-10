@@ -1,0 +1,28 @@
+# Scenario layer (compose/1): descriptor.collection for a sunlit LEO pass of WORLDVIEW-2 (NORAD 35946) over DIRSIG's
+# Tahoe scene. Companion to the protoDIRSIG CONOPS and Guide (docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md).
+#
+# The pass was chosen at authoring time with protodirsig.orbit.find_passes and choose_pass from the library TLE
+# (manifold_config_repo/orbit/worldview2_35946.tle, element-set epoch 2026-09-22 14:00:09 UTC) and a JPL ephemeris
+# (de421.bsp, used for the sun only; it is not a run input): over the point below, within 7 days of the element
+# set, minimum elevation 30 deg, sun at least 20 deg up, highest culmination. Culmination 2026-09-26 18:51:25 UTC,
+# maximum elevation 88.0 deg, sun elevation 47.3 deg. The epoch is the start of a 120 s window centred on it.
+#
+# The platform's position is not stated: it varies over the pass and the generator emits it (engine.motion, kind
+# orbit). Derived time-varying geometry (range and elevation extremes, closest approach, ground-track extent) is
+# not computed into the descriptor; whether MANIFOLD indexes it is an open question (CONOPS C-05).
+
+collection:
+  epoch: "2026-09-26T18:50:25Z"        # pass window start; culmination at +60 s; written as the .tasks reference datetime
+  platform:
+    class: satellite
+  geometry:
+    regime: orbital_nadir              # 88 deg elevation at culmination; 84-88 deg over the three frames
+    range: {value: 773060, provenance: modeled}   # slant range to the target point at culmination, from the TLE (one value; see header)
+  illumination:
+    regime: daylight
+  atmosphere:
+    regime: mid_latitude_summer        # vocabulary term; the engine profile's NewAtmosphere database models it
+  background:
+    regime: rural
+  targets:
+    - class: vehicle_air               # the scene's hypersonic bundle, as in tahoe_static_pose

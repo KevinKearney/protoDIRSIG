@@ -112,25 +112,10 @@ def band(truth, pattern):
 
 
 def recover_sensor(truth, s0, iters=8):
-    """Least-squares S with |S - P_i| = d_i over all pixels; returns S, rms residual, covariance."""
+    """Least-squares S with |S - P_i| = d_i over all pixels (orbit.recover_position); returns S, rms, covariance, n."""
     P = np.column_stack([band(truth, r"ecef\s*x").ravel(), band(truth, r"ecef\s*y").ravel(),
                          band(truth, r"ecef\s*z").ravel()])
-    d = band(truth, r"^distance").ravel()
-    ok = np.all(np.isfinite(P), axis=1) & np.isfinite(d)
-    P, d = P[ok], d[ok]
-    s = np.array(s0, float)
-    for _ in range(iters):
-        diff = s - P
-        rng = np.linalg.norm(diff, axis=1)
-        J = diff / rng[:, None]
-        r = rng - d
-        step, *_ = np.linalg.lstsq(J, -r, rcond=None)
-        s = s + step
-        if np.linalg.norm(step) < 1e-4:
-            break
-    r = np.linalg.norm(s - P, axis=1) - d
-    cov = np.linalg.inv(J.T @ J) * np.var(r)
-    return s, float(np.sqrt(np.mean(r**2))), cov, int(ok.sum())
+    return orbit.recover_position(P, band(truth, r"^distance").ravel(), s0, iters)
 
 
 def main():

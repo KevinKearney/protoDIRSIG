@@ -14,14 +14,15 @@ scope; the vehicle-not-appearing finding passes all three):
    (`sensor_system` and `entries`). A referenced file is not opened here.
 2. **Resolution**: `run_spec.resolve_auror_run` finds every engine asset in `config_repo`, loads
    the sensor ref in the sensor library as `sensor-spec/1`, and accepts the motion as one this
-   loader can generate (static, scene frame, `sceneenu` Euler) and an epoch with a UTC offset.
+   loader can generate (static, scene frame, `sceneenu` Euler; or orbit: a library TLE over a window, LookAt at a
+   scene ENU point) and an epoch with a UTC offset.
    `run_spec.check_library_files`
    finds the library platform template renderable from the sensor-spec and `settings`.
 3. **Execution**: the job is assembled (platform rendered by `platform_gen`, other library inputs copied, motion and tasks
    generated from the spec by `motion_tasks`) and DIRSIG is run with
    `--dry_run --log_info_filename=...`, which loads everything and schedules the captures without
    rendering. A nonzero exit or an `[error]` line on stderr fails it, and the JSON log must
-   describe the single capture the spec's task window implies.
+   describe one capture per task window of the spec.
 
 DIRSIG is invoked only through dirfm's `DIRSIG.run(**options)`, the one place a `dirsig5`
 command line is built; extra flags are passed through its `options`.
@@ -52,6 +53,9 @@ ENGINE_ENUMS = {
     ("generator", "spec_schema"): {"dirsig-engine/1"},
     ("motion", "kind"): {"static", "waypoints", "orbit"},
     ("motion", "orientation", "kind"): {"euler", "lookat"},
+    ("motion", "orbit", "propagator"): {"skyfield_sgp4"},           # the orbit form (proposed, CONOPS §3.2)
+    ("motion", "orientation", "lookat", "frame"): {"sceneenu"},
+    ("motion", "orientation", "lookat", "up"): {"along_track"},
     ("atmosphere", "plugin"): {"four_curve", "basic", "new_atmosphere"},
     ("weather", "source"): {"library", "install"},
     ("ephemeris", "plugin"): {"spice"},
@@ -75,13 +79,24 @@ class ConformanceResult:
 
 
 @dataclass
-class RunResult:
+class Frame:
+    """One capture of a run: its task, its time window relative to the epoch, and its image and truth files."""
+    task_index: int
+    time_window: list        # [start, stop], seconds relative to descriptor.collection.epoch
     image: Path
     truth: list[Path]
+
+
+@dataclass
+class RunResult:
+    image: Path              # the first capture's image (the only one for a single-window run)
+    truth: list[Path]        # the first capture's truth images
     output_dir: Path
     run_log: dict            # --run_info_filename: scenes (HDF, bounding box, MD5) and plugin inputs
     info_log: dict           # --log_info_filename: per-capture schedule, geometry and filenames
     warnings: list[str] = field(default_factory=list)
+    frames: list[Frame] = field(default_factory=list)   # every capture, in log order (one per task window)
+    propagator: dict | None = None                      # orbit motion: orbit.propagator_provenance(); never in a spec
 
 
 def _get(d, path):
@@ -143,6 +158,40 @@ def schema_errors(spec):
     seed = _get(eng, ("run", "seed"))
     if seed is not _MISSING and not (isinstance(seed, int) and not isinstance(seed, bool)):
         errs.append(f"engine.run.seed is {seed!r}, expected an integer")
+    if _get(eng, ("motion", "kind")) == "orbit":
+        errs += _orbit_schema_errors(eng["motion"])
+    return errs
+
+
+def _num(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def _orbit_schema_errors(motion):
+    """The `orbit` motion form (proposed): orbit {tle, earth_orientation refs; propagator; window {start, duration};
+    waypoint_spacing} and orientation {kind: lookat, lookat {frame: sceneenu, target [x, y, z], up: along_track}}."""
+    errs = []
+    for key in ("tle", "earth_orientation"):
+        if not isinstance(_get(motion, ("orbit", key, "name")), str):
+            errs.append(f"engine.motion.orbit.{key}.name is missing")
+    if _get(motion, ("orbit", "propagator")) is _MISSING:
+        errs.append("engine.motion.orbit.propagator is missing")
+    for key in ("start", "duration"):
+        if not _num(_get(motion, ("orbit", "window", key))):
+            errs.append(f"engine.motion.orbit.window.{key} is missing or not a number")
+    if _num(_get(motion, ("orbit", "window", "duration"))) and motion["orbit"]["window"]["duration"] <= 0:
+        errs.append("engine.motion.orbit.window.duration must be positive")
+    spacing = _get(motion, ("orbit", "waypoint_spacing"))
+    if not (_num(spacing) and spacing > 0):
+        errs.append(f"engine.motion.orbit.waypoint_spacing is {spacing!r}, expected a positive number of seconds")
+    if _get(motion, ("orientation", "kind")) != "lookat":
+        errs.append("engine.motion.orientation.kind must be 'lookat' for kind 'orbit'")
+    target = _get(motion, ("orientation", "lookat", "target"))
+    if not (isinstance(target, list) and len(target) == 3 and all(_num(v) for v in target)):
+        errs.append("engine.motion.orientation.lookat.target must be [x, y, z] in metres, scene ENU")
+    for key in ("frame", "up"):
+        if _get(motion, ("orientation", "lookat", key)) is _MISSING:
+            errs.append(f"engine.motion.orientation.lookat.{key} is missing")
     return errs
 
 
@@ -237,8 +286,8 @@ class Simulation:
         problems = []
         caps = log.get("capture_list", [])
         windows = self.spec["engine"]["tasks"]["windows"]
-        if len(caps) != 1:
-            problems.append(f"expected 1 capture, log lists {len(caps)}")
+        if len(caps) != len(windows):
+            problems.append(f"expected {len(windows)} capture(s), one per task window, log lists {len(caps)}")
         for c in caps:
             ti, t0 = c.get("task_index"), (c.get("relative_time_window") or [None])[0]
             if not (isinstance(ti, int) and 0 <= ti < len(windows)):
@@ -305,7 +354,15 @@ class Simulation:
         if err is not None:
             raise RuntimeError(err)
         info_log = json.loads(log_info.read_text())
-        data = info_log["capture_list"][0]["plugin_data"]
-        return RunResult(image=Path(data["filename"]), truth=[Path(t) for t in data["truth_filenames"] if t],
+        frames = [Frame(task_index=c["task_index"], time_window=list(c["relative_time_window"]),
+                        image=Path(c["plugin_data"]["filename"]),
+                        truth=[Path(t) for t in c["plugin_data"]["truth_filenames"] if t])
+                  for c in info_log["capture_list"]]
+        propagator = None
+        if self.auror_run.motion_kind == "orbit":
+            from protodirsig.orbit import propagator_provenance
+            propagator = propagator_provenance()
+        return RunResult(image=frames[0].image, truth=frames[0].truth,
                          output_dir=out_dir, run_log=json.loads(run_info.read_text()), info_log=info_log,
-                         warnings=[ln for ln in stderr if ln.lstrip().startswith("[warn]")])
+                         warnings=[ln for ln in stderr if ln.lstrip().startswith("[warn]")], frames=frames,
+                         propagator=propagator)
