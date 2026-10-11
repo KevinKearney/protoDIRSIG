@@ -19,8 +19,8 @@ PURE = ["manifold.core.compose", "manifold.core.run_spec", "manifold.sim.orbit",
         "manifold.core.dirhash", "manifold.core.problems", "manifold.core.errors", "manifold.core.admission",
         "manifold.sim.store", "manifold.sim.backend", "manifold.sim.library",
         "manifold.core.models", "manifold.sim.workspace",
-        "manifold.sim._dirsig.passthrough"]
-DIRFM_BOUND = {"manifold.sim._dirsig.registry", "manifold.sim._dirsig.simulation", "manifold.sim.worker"}   # worker: the engine side of LocalBackend
+        "manifold.sim._dirsig.passthrough", "manifold.sim.worker"]
+DIRFM_BOUND = {"manifold.sim._dirsig.registry", "manifold.sim._dirsig.simulation"}
 
 
 def _loaded(module):

@@ -122,6 +122,17 @@ class BackendConformance:
         return {(p.name if kind == "sensor" else p.stem): hashlib.sha256(p.read_bytes()).hexdigest()
                 for p in folder.glob("*.yaml")}
 
+    def test_list_engines_lists_every_registered_engine(self, backend):
+        """`list_engines` (proposed): an `engine_list` document, sorted by engine id, each id once; an available engine
+        names its modes, an unavailable one its reason."""
+        doc = backend.list_engines()
+        assert schema_errors("engine_list", doc) == []
+        ids = [e["engine_id"] for e in doc["items"]]
+        assert ids == sorted(ids) and len(ids) == len(set(ids)) and ids
+        assert all(e["modes"] for e in doc["items"] if e["available"])
+        assert all(e["reason"] for e in doc["items"] if not e["available"])
+        assert any(e["available"] for e in doc["items"])
+
     @pytest.mark.parametrize("kind", ["sensor", "scenario", "engine_profile", "recipe"])
     def test_the_library_lists_every_resource(self, backend, library, kind):
         listed = backend.list_resources(kind)

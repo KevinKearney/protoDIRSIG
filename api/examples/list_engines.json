@@ -1,0 +1,34 @@
+{
+  "summary": "List the engines the backend can run (proposed).",
+  "description": "Real data: the engines registered in this environment's `manifold.engines` entry-point group, as `LocalBackend.list_engines` lists them.",
+  "request": {
+    "method": "GET",
+    "path": "/engines"
+  },
+  "response": {
+    "status": 200,
+    "media_type": "application/json",
+    "body": {
+      "items": [
+        {
+          "engine_id": "dirsig",
+          "available": true,
+          "adapter_version": "0.0.1",
+          "modes": [
+            "layered",
+            "passthrough"
+          ],
+          "contracts": [
+            "dirsig-engine/1"
+          ],
+          "reason": null,
+          "source": "eoptic-manifold-sim 0.0.1 (manifold.sim._dirsig.adapter:DirsigAdapter)",
+          "resources": null,
+          "assets": []
+        }
+      ]
+    },
+    "schema": "schemas/engine_list.schema.json"
+  },
+  "operation": "list_engines"
+}

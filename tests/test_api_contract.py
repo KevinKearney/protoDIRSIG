@@ -98,7 +98,7 @@ def test_the_schemas_the_contract_names_exist():
     assert {p.name.removesuffix(".schema.json") for p in SCHEMAS} == {
         "artifact_ref", "run_status", "sweep_status", "compose_request", "compose_response", "validate_request",
         "validate_response", "problem", "library_list", "library_document", "sensor_document", "submit_run_request",
-        "submit_sweep_request", "artifact_list", "run_spec_document"}
+        "submit_sweep_request", "artifact_list", "run_spec_document", "engine_list"}
 
 
 def _refs(node):

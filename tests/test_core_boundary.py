@@ -137,6 +137,12 @@ ALLOWLIST = {
         'the DIRSIG interpreter (resolve_run, plugin builders, engine-bound aliases) lives in core; moves to manifold.engines.dirsig (step 4)',
     ('packages/core/src/manifold/core/run_spec.py', 'import', 'manifold.sim._dirsig.platform_ref'):
         'the DIRSIG interpreter (resolve_run, plugin builders, engine-bound aliases) lives in core; moves to manifold.engines.dirsig (step 4)',
+    ('packages/sim/src/manifold/sim/_dirsig/adapter.py', 'import', 'dirfm'):
+        'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
+    ('packages/sim/src/manifold/sim/_dirsig/adapter.py', 'import', 'manifold.sim._dirsig.passthrough'):
+        'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
+    ('packages/sim/src/manifold/sim/_dirsig/adapter.py', 'import', 'manifold.sim._dirsig.simulation'):
+        'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
     ('packages/sim/src/manifold/sim/_dirsig/atmosphere_patches.py', 'import', 'dirfm.atmosphere'):
         'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
     ('packages/sim/src/manifold/sim/_dirsig/motion_tasks.py', 'import', 'dirfm'):
@@ -153,6 +159,8 @@ ALLOWLIST = {
         'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
     ('packages/sim/src/manifold/sim/_dirsig/registry.py', 'import', 'manifold.sim._dirsig.simulation'):
         'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
+    ('packages/sim/src/manifold/sim/_dirsig/runner.py', 'import', 'manifold.sim._dirsig.adapter'):
+        'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
     ('packages/sim/src/manifold/sim/_dirsig/sensors.py', 'import', 'dirfm'):
         'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
     ('packages/sim/src/manifold/sim/_dirsig/simulation.py', 'import', 'dirfm'):
@@ -167,20 +175,8 @@ ALLOWLIST = {
         'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
     ('packages/sim/src/manifold/sim/_dirsig/simulation.py', 'import', 'manifold.sim._dirsig.scene_ref'):
         'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
-    ('packages/sim/src/manifold/sim/backend.py', 'import', 'manifold.sim._dirsig.passthrough'):
-        'module-level and call-time imports of the DIRSIG pass-through runner and Simulation; replaced by registry calls (step 3)',
-    ('packages/sim/src/manifold/sim/backend.py', 'import', 'manifold.sim._dirsig.simulation'):
-        'module-level and call-time imports of the DIRSIG pass-through runner and Simulation; replaced by registry calls (step 3)',
-    ('packages/sim/src/manifold/sim/engines.py', 'import', 'manifold.sim._dirsig.adapter'):
-        'registers the in-tree DIRSIG adapter directly until engines are discovered through entry points (step 3) and extracted (step 4)',
     ('packages/sim/src/manifold/sim/orbit.py', 'import', 'dirfm'):
         'orbit.lookat_motion builds a dirfm FlexMotion; moves to the DIRSIG engine (step 4)',
-    ('packages/sim/src/manifold/sim/worker.py', 'import', 'dirfm'):
-        'imports Simulation, the pass-through runner and dirfm; replaced by the adapter protocol (step 3)',
-    ('packages/sim/src/manifold/sim/worker.py', 'import', 'manifold.sim._dirsig.passthrough'):
-        'imports Simulation, the pass-through runner and dirfm; replaced by the adapter protocol (step 3)',
-    ('packages/sim/src/manifold/sim/worker.py', 'import', 'manifold.sim._dirsig.simulation'):
-        'imports Simulation, the pass-through runner and dirfm; replaced by the adapter protocol (step 3)',
 }
 
 

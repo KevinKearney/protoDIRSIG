@@ -27,11 +27,11 @@ MODULES = {                                     # former protodirsig submodule -
     "problems": "manifold.core.problems",
     "run_spec": "manifold.core.run_spec",
     "spectral": "manifold.core.spectral",
-    "backend": "manifold.sim.backend",
+    "backend": "protodirsig._split.backend",                   # names split between sim and the DIRSIG engine
     "library": "manifold.sim.library",
     "orbit": "manifold.sim.orbit",
     "store": "manifold.sim.store",
-    "worker": "manifold.sim.worker",
+    "worker": "protodirsig._split.worker",                   # names split between sim and the DIRSIG engine
     "workspace": "manifold.sim.workspace",
     "atmosphere_patches": "manifold.sim._dirsig.atmosphere_patches",
     "motion_tasks": "manifold.sim._dirsig.motion_tasks",

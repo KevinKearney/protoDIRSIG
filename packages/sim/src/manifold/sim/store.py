@@ -86,6 +86,17 @@ def artifact_ref(path, name=None, frame=None):
     return ref
 
 
+def check_artifact_names(refs):
+    """ArtifactError when a name is outside the `artifact_ref` pattern or used twice."""
+    names = [r["name"] for r in refs]
+    bad = sorted({n for n in names if not NAME.match(n)})
+    dup = sorted({n for n in names if names.count(n) > 1})
+    if bad or dup:
+        raise ArtifactError(f"artifact names {'not matching ' + NAME.pattern + ': ' + str(bad) if bad else ''}"
+                            f"{'; ' if bad and dup else ''}{'used twice: ' + str(dup) if dup else ''}")
+    return refs
+
+
 def _write_json(path, doc):
     """Write by temporary file and `os.replace`, so a reader sees the old or the new document, never half of one."""
     tmp = path.with_name(f".{path.name}.{uuid.uuid4().hex}")

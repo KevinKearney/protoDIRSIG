@@ -23,6 +23,9 @@ dependencies = [
 orbit = ["skyfield", "sgp4"]        # imported inside the propagator functions only
 dev = ["pytest", "ruff", "jupyter", "openapi-spec-validator"]
 
+[project.entry-points."manifold.engines"]
+dirsig = "manifold.sim._dirsig.adapter:DirsigAdapter"   # transitional: the DIRSIG engine still ships inside sim
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["manifold.sim*"]    # `manifold` is a PEP 420 namespace: no distribution ships manifold/__init__.py

@@ -129,6 +129,14 @@ def ok(body, schema, code=200, media_type="application/json"):
     return {"status": code, "media_type": media_type, "body": body, "schema": schema}
 
 
+def engine_listing():
+    """The engine list of this environment, as `LocalBackend.list_engines` gives it (no run store needed)."""
+    from manifold.sim import engines
+    from manifold.sim.backend import engine_entry
+    reg = engines.registry()
+    return {"items": [engine_entry(st, reg.find(st.engine_id) if st.available else None) for st in reg.listing()]}
+
+
 def examples():
     ex = {}
     kinds = {"sensors": ("sensor", "/sensors"), "scenarios": ("scenario", "/scenarios"),
@@ -283,6 +291,12 @@ def examples():
         "request": get(f"/runs/{pid}/artifacts"),
         "response": ok({"run_id": pid, "artifacts": [spec_artifact(pid)] + logs + frames},
                        "schemas/artifact_list.schema.json")}
+    ex["list_engines"] = {
+        "summary": "List the engines the backend can run (proposed).",
+        "description": "Real data: the engines registered in this environment's `manifold.engines` entry-point group, as "
+                       "`LocalBackend.list_engines` lists them.",
+        "request": get("/engines"),
+        "response": ok(engine_listing(), "schemas/engine_list.schema.json")}
     for k, v in ex.items():
         v["operation"] = k.split(".")[0]
     return ex

@@ -9,7 +9,7 @@ from __future__ import annotations
 import dataclasses
 from typing import Literal
 
-__all__ = ['ArtifactList', 'ArtifactRef', 'ComposeRequest', 'ComposeResponse', 'ComposeResponseRecipe', 'ComposeResponseRun', 'ComposeResponseRunProvenanceEntry', 'LibraryDocument', 'LibraryList', 'LibraryListItem', 'Problem', 'ProblemErrorEntry', 'RunStatus', 'SensorDocument', 'SubmitRunRequest', 'SubmitSweepRequest', 'SweepStatus', 'SweepStatusRecipe', 'ValidateRequest', 'ValidateResponse', 'ValidateResponseRun', 'ValidateResponseRunCheck']
+__all__ = ['ArtifactList', 'ArtifactRef', 'ComposeRequest', 'ComposeResponse', 'ComposeResponseRecipe', 'ComposeResponseRun', 'ComposeResponseRunProvenanceEntry', 'EngineList', 'EngineListItem', 'LibraryDocument', 'LibraryList', 'LibraryListItem', 'Problem', 'ProblemErrorEntry', 'RunStatus', 'SensorDocument', 'SubmitRunRequest', 'SubmitSweepRequest', 'SweepStatus', 'SweepStatusRecipe', 'ValidateRequest', 'ValidateResponse', 'ValidateResponseRun', 'ValidateResponseRunCheck']
 
 class _Absent:
     """Marker for a key that was not present."""
@@ -252,6 +252,24 @@ class ComposeResponse(_Model):
         ('recipe', 'recipe', ('model', 'ComposeResponseRecipe'), True, False),
         ('is_sweep', 'is_sweep', ('scalar', ('boolean',), None), True, False),
         ('runs', 'runs', ('array', ('model', 'ComposeResponseRun')), True, False),
+    )
+    _CLOSED = True
+
+
+@dataclasses.dataclass(frozen=True)
+class EngineList(_Model):
+    """Proposed. The engines registered with the backend: each engine id an adapter serves, whether its adapter is
+    available, and what it declares. An engine is added by installing a distribution that registers an adapter;
+    nothing else in the SDK names it.
+
+    Attributes
+    ----------
+    items : tuple[EngineListItem, ...]
+        One entry per registered engine, sorted by engine id.
+    """
+    items: tuple[EngineListItem, ...]
+    _FIELDS = (
+        ('items', 'items', ('array', ('model', 'EngineListItem')), True, False),
     )
     _CLOSED = True
 
@@ -605,6 +623,58 @@ class ComposeResponseRun(_Model):
         ('sensor', 'sensor', ('nullable', ('scalar', ('string',), None)), True, True),
         ('run_spec', 'run_spec', ('dict',), True, False),
         ('provenance', 'provenance', ('map', ('model', 'ComposeResponseRunProvenanceEntry')), True, False),
+    )
+    _CLOSED = True
+
+
+@dataclasses.dataclass(frozen=True)
+class EngineListItem(_Model):
+    """One registered engine.
+
+    Attributes
+    ----------
+    engine_id : str
+        The engine id a run spec names in `descriptor.origin.engine`.
+    available : bool
+        Whether the adapter loaded: an unavailable engine is listed with the reason, and a run naming it is refused
+        at admission.
+    adapter_version : str | None
+        The adapter's version, or null when it did not load.
+    modes : tuple[str, ...]
+        The engine-block modes the adapter serves, for example `layered` and `passthrough`; empty when it did not
+        load.
+    contracts : tuple[str, ...]
+        The engine-block contracts the adapter reads, for example `dirsig-engine/1`; empty when it did not load.
+    reason : str | None
+        Why the engine is unavailable, or null.
+    source : str | None
+        The distribution that registered the adapter, as the backend identifies it, or null.
+    resources : dict | None
+        The resource slots the adapter declares for a run (proposed: CPU threads, memory, GPUs, scratch space,
+        network, assets, an external interpreter), or null when it declares none or did not load.
+    assets : tuple[dict, ...]
+        The external assets the adapter requires, each named with its library reference and content digest
+        (proposed); empty when it requires none.
+    """
+    engine_id: str
+    available: bool
+    adapter_version: str | None
+    modes: tuple[str, ...]
+    contracts: tuple[str, ...]
+    reason: str | None
+    source: str | None
+    resources: dict | None
+    assets: tuple[dict, ...]
+    _FIELDS = (
+        ('engine_id', 'engine_id', ('scalar', ('string',), None), True, False),
+        ('available', 'available', ('scalar', ('boolean',), None), True, False),
+        ('adapter_version', 'adapter_version', ('nullable', ('scalar', ('string',), None)), True, True),
+        ('modes', 'modes', ('array', ('scalar', ('string',), None)), True, False),
+        ('contracts', 'contracts', ('array', ('scalar', ('string',), None)), True, False),
+        ('reason', 'reason', ('nullable', ('scalar', ('string',), None)), True, True),
+        ('source', 'source', ('nullable', ('scalar', ('string',), None)), True, True),
+        ('resources', 'resources', ('nullable', ('dict',)), True, True),
+        ('assets', 'assets', ('array', ('dict',)), True, False),
     )
     _CLOSED = True
 

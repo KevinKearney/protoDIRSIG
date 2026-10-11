@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Engine list",
+  "description": "Proposed. The engines registered with the backend: each engine id an adapter serves, whether its adapter is available, and what it declares. An engine is added by installing a distribution that registers an adapter; nothing else in the SDK names it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "items"
+  ],
+  "properties": {
+    "items": {
+      "description": "One entry per registered engine, sorted by engine id.",
+      "type": "array",
+      "items": {
+        "description": "One registered engine.",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "engine_id",
+          "available",
+          "adapter_version",
+          "modes",
+          "contracts",
+          "reason",
+          "source",
+          "resources",
+          "assets"
+        ],
+        "properties": {
+          "engine_id": {
+            "description": "The engine id a run spec names in `descriptor.origin.engine`.",
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "available": {
+            "description": "Whether the adapter loaded: an unavailable engine is listed with the reason, and a run naming it is refused at admission.",
+            "type": "boolean"
+          },
+          "adapter_version": {
+            "description": "The adapter's version, or null when it did not load.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "modes": {
+            "description": "The engine-block modes the adapter serves, for example `layered` and `passthrough`; empty when it did not load.",
+            "type": "array",
+            "items": {
+              "description": "A mode.",
+              "type": "string"
+            }
+          },
+          "contracts": {
+            "description": "The engine-block contracts the adapter reads, for example `dirsig-engine/1`; empty when it did not load.",
+            "type": "array",
+            "items": {
+              "description": "A contract id.",
+              "type": "string"
+            }
+          },
+          "reason": {
+            "description": "Why the engine is unavailable, or null.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "description": "The distribution that registered the adapter, as the backend identifies it, or null.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resources": {
+            "description": "The resource slots the adapter declares for a run (proposed: CPU threads, memory, GPUs, scratch space, network, assets, an external interpreter), or null when it declares none or did not load.",
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "assets": {
+            "description": "The external assets the adapter requires, each named with its library reference and content digest (proposed); empty when it requires none.",
+            "type": "array",
+            "items": {
+              "description": "One required asset.",
+              "type": "object"
+            }
+          }
+        }
+      }
+    }
+  }
+}

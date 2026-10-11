@@ -252,6 +252,28 @@ class Workspace:
         """
         return self._list("recipe")
 
+    def list_engines(self):
+        """The engines the backend can run (proposed): each registered engine id, whether its adapter is available
+        (and why not), its adapter version, the modes and engine-block contracts it serves, and the resources and
+        external assets it declares.
+
+        Returns
+        -------
+        manifold.core.models.EngineList
+            One item per registered engine, sorted by engine id.
+        """
+        return models.EngineList.from_dict(self.backend.list_engines())
+
+    def engines(self):
+        """The engines the backend can run (alias of `list_engines`).
+
+        Returns
+        -------
+        manifold.core.models.EngineList
+            One item per registered engine, sorted by engine id.
+        """
+        return self.list_engines()
+
     def get_sensor(self, name):
         """One library sensor as authored: a `sensor-spec/1` document.
 

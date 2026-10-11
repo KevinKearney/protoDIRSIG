@@ -22,6 +22,8 @@ tags:
     description: Pure operations on recipes and run specs.
   - name: runs
     description: Submission, state, cancellation and artifacts.
+  - name: engines
+    description: The engines the backend can run (proposed). An engine is added by installing a distribution that registers an adapter.
 
 paths:
   /sensors:
@@ -321,6 +323,19 @@ paths:
             application/json:
               schema: {$ref: "schemas/sweep_status.schema.json"}
         "404": {$ref: "#/components/responses/NotFound"}
+
+  /engines:
+    get:
+      operationId: list_engines
+      tags: [engines]
+      summary: List the engines (proposed).
+      description: Every engine registered with the backend, available or not, with its adapter version, the engine-block modes and contracts it serves, the reason an unavailable one cannot be used, and the resources and external assets it declares. A run spec whose `descriptor.origin.engine` is not an available engine here is refused at admission.
+      responses:
+        "200":
+          description: The engines.
+          content:
+            application/json:
+              schema: {$ref: "schemas/engine_list.schema.json"}
 
 components:
   parameters:

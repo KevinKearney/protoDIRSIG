@@ -36,7 +36,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import compare_outputs  # noqa: E402
 import sweep_demos  # noqa: E402
 from manifold.sim._dirsig.passthrough import PassthroughRun, run_engine  # noqa: E402
-from manifold.sim.worker import locate_dirsig  # noqa: E402
+from manifold.sim._dirsig.adapter import locate_dirsig  # noqa: E402
 
 CONDITIONS = {"C0": "default", "C1": "one thread", "C2": "explicit seed"}
 

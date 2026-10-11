@@ -32,12 +32,10 @@ POSIX only (`fcntl`, process groups).
 """
 import hashlib
 import os
-import shutil
 import signal
 import subprocess
 import sys
 import time
-import uuid
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
@@ -46,12 +44,13 @@ import yaml
 from manifold.core import identity, problems
 from manifold.core import _names
 from manifold.core.admission import validate_spec
-from manifold.core.compose import MAX_RUNS, ComposeError, compose_sweep, compose_sweep_document, dump
+from manifold.core.compose import MAX_RUNS, ComposeError, compose_sweep, compose_sweep_document
 from manifold.core.compose import default_sensor_library as recipe_sensor_library
 from manifold.core.contract import schema_violations, semantic_errors
+from manifold.core.engine import engine_id_of
 from manifold.core.errors import AdmissionError, InvalidRequestError, NotFoundError
+from manifold.sim import engines
 from manifold.sim.library import LibraryReader
-from manifold.sim._dirsig.passthrough import is_passthrough, run_engine
 from manifold.core.run_spec import RunSpecError, default_sensor_library, load_run_spec
 from manifold.sim.store import ACTIVE, FINAL, RunStore, process_start, utc_now
 
@@ -84,6 +83,26 @@ class Backend(Protocol):
 
     def get_artifact(self, run_id, name) -> tuple: ...
 
+    def list_engines(self) -> dict: ...
+
+
+def engine_entry(status, adapter=None):
+    """One `engine_list` item (proposed) from a registry `EngineStatus` and, when it is available, its adapter."""
+    from dataclasses import asdict, is_dataclass
+    info = status.info
+    resources, assets = None, []
+    if adapter is not None:
+        try:
+            declared = adapter.resources()
+            resources = asdict(declared) if is_dataclass(declared) else declared
+            assets = list(getattr(adapter, "assets", lambda: [])())
+        except Exception:  # noqa: BLE001 -- a listing never fails on one engine
+            resources = None
+    return {"engine_id": status.engine_id, "available": status.available,
+            "adapter_version": info.adapter_version if info else None,
+            "modes": list(info.modes) if info else [], "contracts": list(info.contracts) if info else [],
+            "reason": status.reason, "source": status.source, "resources": resources, "assets": assets}
+
 
 def _sha256_file(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
@@ -102,7 +121,8 @@ class LocalBackend:
     or run spec would use by default (the sibling `manifold_sensors/`). `library` is the layer root the library
     family reads (default: the repository's `manifold_run_specs/`)."""
 
-    def __init__(self, work_root, config_repo, *, max_parallel=1, sensor_library=None, library=None, engine=None):
+    def __init__(self, work_root, config_repo, *, max_parallel=1, sensor_library=None, library=None, engine=None,
+                 registry=None):
         if int(max_parallel) < 1:
             raise ValueError("max_parallel must be at least 1")
         self.store = RunStore(work_root)
@@ -111,7 +131,8 @@ class LocalBackend:
         self.sensor_library = Path(sensor_library).resolve() if sensor_library is not None else None
         self._children = []
         self.library = LibraryReader(library, self.sensor_library)
-        self.engine = str(Path(engine).resolve()) if engine is not None else None   # dirsig5 for pass-through runs
+        self.engine = str(Path(engine).resolve()) if engine is not None else None   # an engine executable override
+        self.registry = registry if registry is not None else engines.registry()
 
     # --- inputs -------------------------------------------------------------------------------------------------
 
@@ -153,10 +174,11 @@ class LocalBackend:
             if path is None:
                 library = self.sensor_library or self.library.sensor_library
                 sweep = compose_sweep_document(document, self.library.root, inline_sensor=inline_sensor,
-                                               sensor_library=library, max_runs=max_runs)
+                                               sensor_library=library, max_runs=max_runs, registry=self.registry)
             else:
                 library = self.sensor_library or recipe_sensor_library(path)
-                sweep = compose_sweep(path, inline_sensor=inline_sensor, sensor_library=library, max_runs=max_runs)
+                sweep = compose_sweep(path, inline_sensor=inline_sensor, sensor_library=library, max_runs=max_runs,
+                                      registry=self.registry)
         except ComposeError as e:
             raise error(problems.from_compose_error(e)) from e
         return sweep, library, self._recipe_ref(document, path), (document if path is None else path)
@@ -183,7 +205,7 @@ class LocalBackend:
                                   "run-spec/1)")
 
     def _report(self, run):
-        return validate_spec(run.spec, run.path, self.config_repo, run.library)
+        return validate_spec(run.spec, run.path, self.config_repo, run.library, registry=self.registry)
 
     # --- the library ---------------------------------------------------------------------------------------------
 
@@ -213,12 +235,12 @@ class LocalBackend:
         """The `checks` of a validate_response run, as problem details located by layer file and field."""
         spec, src, recipe = run.spec, run.sources, run.recipe
         schema = []
-        violations = schema_violations(spec) if isinstance(spec, dict) else [{"path": "", "message": "not a mapping",
+        violations = schema_violations(spec, self.registry) if isinstance(spec, dict) else [{"path": "", "message": "not a mapping",
                                                                                 "at": ""}]
         if violations:
             schema.append(problems.from_schema_violations(spec if isinstance(spec, dict) else {}, src, violations,
                                                           recipe=recipe))
-        schema += [problems.admission(m) for m in (semantic_errors(spec) if isinstance(spec, dict) else [])]
+        schema += [problems.admission(m) for m in (semantic_errors(spec, self.registry) if isinstance(spec, dict) else [])]
         checks = [{"check": "schema", "passed": not schema, "errors": schema}]
         exc = report.resolve_exception
         pointer = getattr(exc, "pointer", None) or ""
@@ -262,56 +284,39 @@ class LocalBackend:
         return {"engine_check": engine_check, "runs": out}
 
     def _engine(self):
-        """The engine executable for pass-through runs: the `engine` given, else the `dirsig5` of the DIRSIG
-        installation found on PATH, at `$DIRSIG_HOME` or under `~/DIRSIG`; None if there is none."""
-        if self.engine:
-            return self.engine
-        from manifold.sim.worker import locate_dirsig
-        home = locate_dirsig()["home"]
-        return str(Path(home) / "bin" / "dirsig5") if home else None
+        """The engine executable passed to the adapter: the `engine` given, else `auto` (the adapter locates its own
+        engine); None means none is available."""
+        return self.engine or "auto"
 
     def _dry_run(self, run, report):
-        """(passed, engine_checked, problems) of a DIRSIG dry run of one run spec, in a scratch directory."""
+        """(passed, engine_checked, problems) of the engine's own dry run of one run spec, through its adapter, in a
+        scratch directory under the work root."""
         if not report.valid:
             return False, False, [problems.admission("not attempted: the engine-free checks did not pass")]
-        if is_passthrough(run.spec):
-            engine = self._engine()
-            if engine is None:
-                return False, False, [problems.admission("not performed: no DIRSIG installation was found")]
-            scratch = self.store.root / "validate" / uuid.uuid4().hex
-            try:
-                result = run_engine(report.run, scratch, engine, dry_run=True, log=None)
-                ok = result["returncode"] == 0
-                return ok, True, [] if ok else [problems.admission(
-                    f"DIRSIG did not accept the pass-through simulation in a dry run (--dry_run): exit status "
-                    f"{result['returncode']}")]
-            finally:
-                shutil.rmtree(scratch, ignore_errors=True)
-        from manifold.sim._dirsig.simulation import Simulation
-        from manifold.sim.worker import locate_dirsig
-        if locate_dirsig()["home"] is None:
-            return False, False, [problems.admission("not performed: no DIRSIG installation was found (dirsig5 on "
-                                                     "PATH, $DIRSIG_HOME or ~/DIRSIG/<pinned version>)")]
-        scratch = self.store.root / "validate" / uuid.uuid4().hex
-        scratch.mkdir(parents=True)
-        try:
-            path = scratch / "run_spec.yaml"
-            path.write_text(dump(run.spec, run.name))
-            c = Simulation.from_run_spec(path, self.config_repo, scratch, run.library).validate("dry_run")
-            errors = [] if c.execution_ok else [problems.admission(f"DIRSIG did not accept the job in a dry run: "
-                                                                    f"{c.execution_error}")]
-            return c.execution_ok, c.engine_checked, errors
-        finally:
-            shutil.rmtree(scratch, ignore_errors=True)
+        adapter = self.registry.find(engine_id_of(run.spec))
+        if adapter is None or not hasattr(adapter, "dry_run"):
+            return False, False, [problems.admission("not performed: the engine offers no dry run")]
+        ok, checked, messages = adapter.dry_run(run.spec, report.run, self.store.root / "validate",
+                                                {"engine": self._engine(), "config_repo": self.config_repo,
+                                                 "sensor_library": run.library})
+        return ok, checked, [problems.admission(m) for m in messages]
+
+    # --- engines ------------------------------------------------------------------------------------------------
+
+    def list_engines(self):
+        """The `engine_list` document (proposed): every engine registered in this environment, available or not."""
+        return {"items": [engine_entry(st, self.registry.find(st.engine_id) if st.available else None)
+                          for st in self.registry.listing()]}
+
+    def engines(self):
+        """The engines (alias of `list_engines`)."""
+        return self.list_engines()
 
     # --- submission ---------------------------------------------------------------------------------------------
 
     def _job(self, run):
-        job = {"config_repo": str(self.config_repo), "sensor_library": str(Path(run.library).resolve()),
-               "max_parallel": self.max_parallel}
-        if is_passthrough(run.spec):
-            job["engine"] = self._engine()
-        return job
+        return {"config_repo": str(self.config_repo), "sensor_library": str(Path(run.library).resolve()),
+                "max_parallel": self.max_parallel, "engine": self._engine()}
 
     def _start_worker(self, run_id):
         run_dir = self.store.run_dir(run_id)

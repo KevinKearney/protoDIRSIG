@@ -95,11 +95,12 @@ class RunContext:
 
 @dataclass(frozen=True)
 class CollectedArtifact:
-    """One output the adapter reports: a path (under the run folder), its role and, for a product of one capture,
-    its zero-based frame index."""
+    """One output the adapter reports: a path (under the run folder), its role, for a product of one capture its
+    zero-based frame index, and the artifact name when it is not the file's base name."""
     path: Any
     role: str
     frame: int | None = None
+    name: str | None = None
 
 
 @dataclass(frozen=True)
