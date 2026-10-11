@@ -36,6 +36,7 @@ VECTORS = ROOT / "manifold_contracts" / "vectors"
 DIGESTS = ROOT / "docs" / "data" / "demo_sweep_digests.jsonl.gz"
 sys.path[:0] = [str(ROOT / "packages" / d / "src") for d in ("core", "sim")]   # the manifold namespace, uninstalled
 
+import manifold.sim  # noqa: E402,F401  (installs the engine registry compose and validation use)
 from manifold.core import identity                                           # noqa: E402
 from manifold.core.compose import ComposeError, compose_sweep               # noqa: E402
 from manifold.core.dirhash import directory_digest                          # noqa: E402

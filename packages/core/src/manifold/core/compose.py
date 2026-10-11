@@ -46,7 +46,8 @@ import yaml
 
 from manifold.core import identity
 from manifold.core.errors import COMPOSE
-from manifold.core.run_spec import RunSpecError, _check_settings_roi, black_level_problem, load_sensor_spec
+from manifold.core.engine import resolve_registry
+from manifold.core.run_spec import RunSpecError, _check_settings_roi, load_sensor_spec
 from manifold.core.spectral import sha256_file
 
 RULES = "compose/1"
@@ -211,10 +212,10 @@ def default_sensor_library(recipe_path):
     return sensor_library_for_root(Path(recipe_path).resolve().parent.parent)
 
 
-def sweep_id(recipe_path):
+def sweep_id(recipe_path, *, registry=None):
     """The sweep id of a recipe: 64 hex digits, the sha256 of the canonical JSON of the sorted run ids it composes to
     (identity.sweep_id_from_runs). Composes the recipe; a recipe that does not compose raises ComposeError."""
-    return compose_sweep(recipe_path).sweep_id
+    return compose_sweep(recipe_path, registry=registry).sweep_id
 
 
 def _sensor_list(recipe, rel, max_runs):
@@ -271,7 +272,7 @@ def _settings_by_sensor(recipe, rel, sensors, docs):
 DOCUMENT_LAYER = "(recipe document)"                               # the `layer` of an error in a recipe given as a dict
 
 
-def compose_sweep(recipe_path, *, inline_sensor=False, sensor_library=None, max_runs=MAX_RUNS):
+def compose_sweep(recipe_path, *, inline_sensor=False, sensor_library=None, max_runs=MAX_RUNS, registry=None):
     """Every run the recipe composes to: one for a `sensor` recipe, one per listed sensor for a `sensors` recipe.
     Returns a `ComposedSweep` (runs in sensor-list order, the sweep id, file stems, provenance)."""
     recipe_path = Path(recipe_path).resolve()
@@ -280,10 +281,11 @@ def compose_sweep(recipe_path, *, inline_sensor=False, sensor_library=None, max_
     recipe = _load_layer(recipe_path, recipe_rel)
     library = Path(sensor_library).resolve() if sensor_library is not None else default_sensor_library(recipe_path)
     return _compose(recipe, root, recipe_rel, recipe_path.stem, sha256_file(recipe_path), library, inline_sensor,
-                    max_runs)
+                    max_runs, registry)
 
 
-def compose_sweep_document(document, library_root, *, inline_sensor=False, sensor_library=None, max_runs=MAX_RUNS):
+def compose_sweep_document(document, library_root, *, inline_sensor=False, sensor_library=None, max_runs=MAX_RUNS,
+                           registry=None):
     """`compose_sweep` for a recipe given as a parsed document (a dict) against a layer root (the folder holding
     `scenarios/` and `engine_profiles/`): the same rules, errors and outputs. An error in the document itself names
     the layer `(recipe document)` and the field; its provenance hash is `sha256:` + the digest of its RFC 8785
@@ -298,19 +300,21 @@ def compose_sweep_document(document, library_root, *, inline_sensor=False, senso
         raise ComposeError(DOCUMENT_LAYER, None, f"is not a JSON document: {e}") from e
     name = (document.get("meta") or {}).get("name") if isinstance(document.get("meta"), dict) else None
     stem = name if isinstance(name, str) and name else "recipe"
-    return _compose(copy.deepcopy(document), root, DOCUMENT_LAYER, stem, digest, library, inline_sensor, max_runs)
+    return _compose(copy.deepcopy(document), root, DOCUMENT_LAYER, stem, digest, library, inline_sensor, max_runs,
+                    registry)
 
 
-def compose_document(document, library_root, *, inline_sensor=False, sensor_library=None):
+def compose_document(document, library_root, *, inline_sensor=False, sensor_library=None, registry=None):
     """`compose` for a recipe given as a parsed document: the one run spec of a one-sensor recipe document."""
-    sweep = compose_sweep_document(document, library_root, inline_sensor=inline_sensor, sensor_library=sensor_library)
+    sweep = compose_sweep_document(document, library_root, inline_sensor=inline_sensor, sensor_library=sensor_library,
+                                   registry=registry)
     if sweep.is_sweep:
         raise ComposeError(sweep.recipe, "sensors", "a sweep recipe composes several runs; use compose_sweep_document")
     (name,) = sweep.runs
     return sweep.runs[name]
 
 
-def _compose(recipe, root, recipe_rel, recipe_stem, recipe_hash, library, inline_sensor, max_runs):
+def _compose(recipe, root, recipe_rel, recipe_stem, recipe_hash, library, inline_sensor, max_runs, registry=None):
     """The one composition path: a parsed recipe, its layer root, the label and hash its provenance records."""
     rel = lambda p: p.relative_to(root).as_posix()                  # noqa: E731
     if "passthrough" in recipe:
@@ -332,11 +336,11 @@ def _compose(recipe, root, recipe_rel, recipe_stem, recipe_hash, library, inline
         except RunSpecError as e:
             raise ComposeError(recipe_rel, f"{key}[{j}]" if is_sweep else key, str(e)) from e
     by_sensor, by_entry = _settings_by_sensor(recipe, recipe_rel, sensors, docs)
-    if (layers["engine_profile"][1].get("origin") or {}).get("engine") == "dirsig":
-        for i, m in enumerate(recipe["settings"]):
-            problem = black_level_problem(m)
-            if problem:
-                raise ComposeError(recipe_rel, f"settings[{i}].black_level", problem)
+    engine_id = (layers["engine_profile"][1].get("origin") or {}).get("engine")
+    adapter = resolve_registry(registry).find(engine_id) if isinstance(engine_id, str) else None
+    if adapter is not None:                        # the engine's composition rules; unknown engines fail at admission
+        for member, problem in adapter.compose_problems(recipe["settings"]):
+            raise ComposeError(recipe_rel, member, problem)
     per_sensor = recipe.get("fidelity_by_sensor") or {}
     if not isinstance(per_sensor, dict):
         raise ComposeError(recipe_rel, "fidelity_by_sensor", "must map sensor files to fidelity blocks")
@@ -437,25 +441,25 @@ def _compose_passthrough(recipe, root, recipe_rel, recipe_stem, recipe_hash, lib
     return out
 
 
-def _single(recipe_path, inline_sensor, sensor_library):
-    sweep = compose_sweep(recipe_path, inline_sensor=inline_sensor, sensor_library=sensor_library)
+def _single(recipe_path, inline_sensor, sensor_library, registry=None):
+    sweep = compose_sweep(recipe_path, inline_sensor=inline_sensor, sensor_library=sensor_library, registry=registry)
     if sweep.is_sweep:
         raise ComposeError(sweep.recipe, "sensors", "a sweep recipe composes several runs; use compose_sweep")
     (name,) = sweep.runs
     return sweep.runs[name], sweep.sources[name]
 
 
-def compose(recipe_path, *, inline_sensor=False, sensor_library=None):
+def compose(recipe_path, *, inline_sensor=False, sensor_library=None, registry=None):
     """The `run-spec/1` dict a one-run recipe composes to. `descriptor.sensor` is `{ref: {name, content_hash}}` (the
     hash of the sensor file's bytes), or the sensor-spec's `sensor` block in place with `inline_sensor`. A sweep
     recipe (`sensors`) raises; use `compose_sweep`."""
-    return _single(recipe_path, inline_sensor, sensor_library)[0]
+    return _single(recipe_path, inline_sensor, sensor_library, registry)[0]
 
 
-def explain(recipe_path, *, sensor_library=None):
+def explain(recipe_path, *, sensor_library=None, registry=None):
     """Each member of a one-run recipe's spec with the layer file it came from and that file's sha256:
     `{member: {"layer": <root-relative file>, "content_hash": ...}}`. For a sweep, `compose_sweep(...).sources`."""
-    return _single(recipe_path, False, sensor_library)[1]
+    return _single(recipe_path, False, sensor_library, registry)[1]
 
 
 def dump(spec, recipe_rel):

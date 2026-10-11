@@ -1,25 +1,27 @@
-"""The published contract schemas, applied: `run-spec/1`, `dirsig-engine/1` and `sensor-spec/1` from `manifold_contracts/`.
+"""The published contract schemas, applied: `run-spec/1` and `sensor-spec/1` from `manifold_contracts/`, and the
+engine block through the registered engine's adapter.
 
-`schema_violations(spec)` validates a parsed run spec against `manifold_contracts/run-spec-1.schema.json` (which
-references the engine and sensor-spec schemas) and returns every violation as `{path, message, at}`, `path` and `at`
-RFC 6901 JSON Pointers into the spec. `simulation.schema_errors` formats these as its schema-check messages, so admission
-enforces the schemas.
+`schema_violations(spec, registry=None)` validates a parsed run spec against `manifold_contracts/run-spec-1.schema.json`
+(which leaves the engine block an open object, proposed) and then the engine block against the schema the adapter
+registered for `descriptor.origin.engine` gives (`EngineAdapter.engine_schema`), and returns every violation as
+`{path, message, at}`, `path` and `at` RFC 6901 JSON Pointers into the spec (engine-block pointers start `/engine`).
+An engine id that no adapter serves is not a schema violation: `semantic_errors` reports it, naming the registered
+engines. `schema_errors` formats both as the admission's schema-check messages.
 
 The schemas are read from the first of: the folder named by the environment variable `MANIFOLD_CONTRACTS` (the legacy
 `PROTODIRSIG_CONTRACTS` is read, with a `DeprecationWarning`, when it is not set); the copy packaged with the library,
-`manifold/core/_contracts/` (found with `importlib.resources`; the build copies the three files there from
+`manifold/core/_contracts/` (found with `importlib.resources`; the build copies the files there from
 `manifold_contracts/`, see `packages/core/setup.py`, and a checkout or editable install has none); the repository's
-`manifold_contracts/` folder, at the repository root above `packages/` (as `run_spec.default_sensor_library` locates
-`manifold_sensors/`). `manifold_contracts/` is the one tracked copy. Each schema's `$id` is an absolute URI under https://schemas.manifold.example/contracts/, a base
-that does not resolve on the network; references between the three schemas are sibling file names resolved against it,
-and a `referencing` registry holds each file under its `$id` (and retrieves by file name), so everything resolves offline.
+`manifold_contracts/` folder, at the repository root above `packages/`. `manifold_contracts/` is the one tracked copy.
+Each schema's `$id` is an absolute URI under https://schemas.manifold.example/contracts/, a base that does not resolve
+on the network; a `referencing` registry holds each file under its `$id` (and retrieves by file name), so everything
+resolves offline. `load_schema(name)` reads any schema of the contracts folder by file name.
 
 `schema_errors(spec)` is the SDK's schema check: each violation as `"<JSON Pointer>: <message>"`, then
-`semantic_errors(spec)`, the rules the schemas cannot express. It lives here, with the constants `DESCRIPTOR_REQUIRED`,
-`ENGINE_REQUIRED` and `ENGINE_ENUMS`, so engine-free validation (`admission`) needs no engine package; `simulation`
-re-exports them.
+`semantic_errors(spec)`, the rules the schemas cannot express (the engine-neutral ones here, the engine's own from its
+adapter's `semantic_rules`).
 
-Imports: the standard library, `jsonschema` and `referencing` only; no engine package and nothing from `simulation`.
+Imports: the standard library, `jsonschema` and `referencing`, and `manifold.core.engine`; no engine package.
 """
 import json
 from functools import lru_cache
@@ -32,8 +34,9 @@ from referencing import Registry, Resource
 from referencing.jsonschema import DRAFT202012
 
 from manifold.core import _names
+from manifold.core.engine import engine_id_of, resolve_registry
 
-SCHEMA_FILES = ("run-spec-1.schema.json", "dirsig-engine-1.schema.json", "sensor-spec-1.schema.json")
+SCHEMA_FILES = ("run-spec-1.schema.json", "sensor-spec-1.schema.json")
 ROOT_SCHEMA = "run-spec-1.schema.json"
 MAX_MESSAGE = 200
 
@@ -81,6 +84,38 @@ def _validator(folder, root_schema=ROOT_SCHEMA):
 def validator():
     """The run-spec/1 validator over the current contracts folder (cached per folder)."""
     return _validator(str(contracts_dir()))
+
+
+def load_schema(name):
+    """A schema of the contracts folder, parsed, by file name."""
+    return json.loads((contracts_dir() / name).read_text())
+
+
+@lru_cache(maxsize=16)
+def _block_validator(schema_json):
+    doc = json.loads(schema_json)
+    resource = Resource.from_contents(doc, default_specification=DRAFT202012)
+    return Draft202012Validator(doc, registry=Registry().with_resource(doc.get("$id", "urn:engine-block"), resource))
+
+
+def _adapter(spec, registry):
+    engine_id = engine_id_of(spec)
+    return resolve_registry(registry).find(engine_id) if engine_id is not None else None
+
+
+def engine_block_violations(spec, registry=None):
+    """The engine block's violations of its adapter's schema, as `schema_violations` gives them (pointers under
+    `/engine`); empty when the engine is not registered, the adapter gives no schema, or there is no engine block."""
+    eng = spec.get("engine") if isinstance(spec, dict) else None
+    adapter = _adapter(spec, registry)
+    if adapter is None or not isinstance(eng, dict):
+        return []
+    schema = adapter.engine_schema(eng)
+    if not schema:
+        return []
+    v = _block_validator(json.dumps(schema, sort_keys=True))
+    return sorted({(pointer(["engine", *e.absolute_path]), _message(e), pointer(["engine", *_at(e)]))
+                   for e in v.iter_errors(eng)})
 
 
 def sensor_spec_violations(doc):
@@ -132,38 +167,23 @@ def _message(error):
     return msg[:MAX_MESSAGE] + "..."
 
 
-def schema_violations(spec):
-    """Every violation of run-spec/1 (and, through it, dirsig-engine/1 and sensor-spec/1) in a parsed spec, as
-    `[{"path": <JSON Pointer>, "message": <text>, "at": <JSON Pointer>}]`, sorted by path then message. Empty means
-    the spec conforms. `path` is where the validator reports the violation; `at` is the deepest location its message
-    names (the same, except under a oneOf/anyOf, where it is the closest alternative's location), the pointer
-    `problems.locate` attributes to a layer file and field."""
+def schema_violations(spec, registry=None):
+    """Every violation of run-spec/1 (and, through it, sensor-spec/1) and of the engine block's adapter schema in a
+    parsed spec, as `[{"path": <JSON Pointer>, "message": <text>, "at": <JSON Pointer>}]`, sorted by path then message.
+    Empty means the spec conforms. `path` is where the validator reports the violation; `at` is the deepest location
+    its message names (the same, except under a oneOf/anyOf, where it is the closest alternative's location), the
+    pointer `problems.locate` attributes to a layer file and field."""
     found = {(pointer(e.absolute_path), _message(e), pointer(_at(e))) for e in validator().iter_errors(spec)}
+    found |= set(engine_block_violations(spec, registry))
     return [{"path": p, "message": m, "at": a} for p, m, a in sorted(found)]
 
 
-def conforms(spec):
-    return validator().is_valid(spec)
+def conforms(spec, registry=None):
+    return not schema_violations(spec, registry)
 
 
-# Required members and enumerations as the schemas in manifold_contracts/ state them (Metadata_v02 §6, Configuration_v02
-# A.8.1); kept for callers and tests. The schema check itself is schema_violations.
+# Required descriptor members as run-spec-1.schema.json states them (Metadata_v02 §6); kept for callers and tests.
 DESCRIPTOR_REQUIRED = ("meta", "origin", "collection", "sensor", "settings", "fidelity")
-ENGINE_REQUIRED = ("generator", "scenes", "platform", "motion", "tasks", "atmosphere")
-# Enumerated engine fields (A.8.2-A.8.7). `new_atmosphere` is the documented, non-adopted
-# extension (CONOPS and Guide §10); A.8.7 adopts only `four_curve` and `basic`.
-ENGINE_ENUMS = {
-    ("generator", "tool"): {"dirfm"},
-    ("generator", "spec_schema"): {"dirsig-engine/1"},
-    ("motion", "kind"): {"static", "waypoints", "orbit"},
-    ("motion", "orientation", "kind"): {"euler", "lookat"},
-    ("motion", "orbit", "propagator"): {"skyfield_sgp4"},           # the orbit form (proposed, CONOPS §3.2)
-    ("motion", "orientation", "lookat", "frame"): {"sceneenu"},
-    ("motion", "orientation", "lookat", "up"): {"along_track"},
-    ("atmosphere", "plugin"): {"four_curve", "basic", "new_atmosphere"},
-    ("weather", "source"): {"library", "install"},
-    ("ephemeris", "plugin"): {"spice"},
-}
 _MISSING = object()
 
 
@@ -175,42 +195,40 @@ def _get(d, path):
     return d
 
 
-def schema_errors(spec):
+def schema_errors(spec, registry=None):
     """Every schema violation in a parsed run spec (empty list = conformant). See module docstring.
 
-    The published schemas (`manifold_contracts/run-spec-1.schema.json` with `dirsig-engine-1.schema.json` and
-    `sensor-spec-1.schema.json`, applied by `contract.schema_violations`) as `"<JSON Pointer>: <message>"`, in
-    pointer order, then `semantic_errors(spec)`: the rules the schemas cannot express. Duplicates removed.
+    The published schemas and the engine block's adapter schema (`schema_violations`) as `"<JSON Pointer>: <message>"`,
+    in pointer order, then `semantic_errors(spec)`: the rules the schemas cannot express. Duplicates removed.
     """
-    msgs = [f"{v['path'] or '/'}: {v['message']}" for v in schema_violations(spec)]
-    return list(dict.fromkeys(msgs + semantic_errors(spec)))
+    msgs = [f"{v['path'] or '/'}: {v['message']}" for v in schema_violations(spec, registry)]
+    return list(dict.fromkeys(msgs + semantic_errors(spec, registry)))
 
 
-def semantic_errors(spec):
-    """The schema-check rules JSON Schema cannot express (the loader enforces the others at resolution):
+def semantic_errors(spec, registry=None):
+    """The schema-check rules JSON Schema cannot express:
 
-    - an integer member read from YAML as a float (`engine.run.seed`, `engine.platform.integration_samples`):
-      JSON Schema's `integer` accepts 42.0, the generator needs an integer;
-    - `descriptor.origin.engine` other than `dirsig`: the schemas type the engine block only for dirsig, and this SDK
-      checks and executes only `dirsig-engine/1` runs;
-    - `descriptor.opaque` without `engine.mode: passthrough`, or the reverse (the two schemas cannot see each other).
+    - `descriptor.origin.engine` that no registered adapter serves (or whose adapter failed to load), naming the
+      registered engines: the engine block cannot be checked or executed;
+    - `descriptor.opaque` without `engine.mode: passthrough`, or the reverse (the two schemas cannot see each other);
+    - the engine's own rules (`EngineAdapter.semantic_rules`), for example an integer member read from YAML as a float.
     """
     errs = []
-    eng = spec.get("engine") if isinstance(spec, dict) else None
-    if isinstance(eng, dict):
-        seed = _get(eng, ("run", "seed"))
-        if isinstance(seed, float):
-            errs.append(f"engine.run.seed is {seed!r}, expected an integer")
-        samples = _get(eng, ("platform", "integration_samples"))
-        if isinstance(samples, float):
-            errs.append(f"engine.platform.integration_samples is {samples!r}, expected an integer >= 1")
-    opaque = _get(spec, ("descriptor", "opaque")) if isinstance(spec, dict) else _MISSING
-    mode = _get(spec, ("engine", "mode")) if isinstance(spec, dict) else _MISSING
+    if not isinstance(spec, dict):
+        return errs
+    engine_id = engine_id_of(spec)
+    reg = resolve_registry(registry)
+    adapter = reg.find(engine_id) if engine_id is not None else None
+    if adapter is not None:
+        errs += list(adapter.semantic_rules(spec))
+    opaque = _get(spec, ("descriptor", "opaque"))
+    mode = _get(spec, ("engine", "mode"))
     if (opaque is not _MISSING) != (mode == "passthrough"):
         errs.append("descriptor.opaque and engine.mode: passthrough go together (an opaque descriptor describes a "
                     "pass-through run, and a pass-through run has an opaque descriptor)")
-    origin = _get(spec, ("descriptor", "origin", "engine")) if isinstance(spec, dict) else _MISSING
-    if origin is not _MISSING and origin in ("satsim", "usd", "field"):
-        errs.append(f"descriptor.origin.engine is {origin!r}; this SDK checks and executes only dirsig runs "
-                    "(dirsig-engine/1)")
+    if engine_id is not None and adapter is None:
+        status = "is not a registered engine" if engine_id not in reg.ids() else \
+            f"is unavailable ({reg.status(engine_id).reason})"
+        errs.append(f"/descriptor/origin/engine: {engine_id!r} {status}; registered engines: "
+                    f"{', '.join(reg.ids()) or 'none'}")
     return errs

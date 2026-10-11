@@ -39,10 +39,16 @@ def _retrieve(uri):
 
 REGISTRY = Registry(retrieve=_retrieve)
 VALIDATOR = Draft202012Validator({"$ref": (CONTRACTS / "run-spec-1.schema.json").as_uri()}, registry=REGISTRY)
+ENGINE_VALIDATOR = Draft202012Validator({"$ref": (CONTRACTS / "dirsig-engine-1.schema.json").as_uri()}, registry=REGISTRY)
 
 
 def schema_ok(spec):
-    return VALIDATOR.is_valid(spec)
+    """The published run-spec schema (engine block open), and, as the engine registry selects it for a dirsig run, the
+    engine block against dirsig-engine-1."""
+    origin = ((spec.get("descriptor") or {}).get("origin") or {}) if isinstance(spec, dict) else {}
+    engine_ok = not (isinstance(origin, dict) and origin.get("engine") == "dirsig" and isinstance(spec.get("engine"), dict)) \
+        or ENGINE_VALIDATOR.is_valid(spec["engine"])
+    return VALIDATOR.is_valid(spec) and engine_ok
 
 
 @pytest.mark.parametrize("name", SCHEMAS)
@@ -136,7 +142,6 @@ for name, base, path in (
         ("lookat_frame", O, ("engine", "motion", "orientation", "lookat", "frame")),
         ("lookat_up", O, ("engine", "motion", "orientation", "lookat", "up")),
         ("origin_kind", S, ("descriptor", "origin", "kind")),
-        ("origin_engine", S, ("descriptor", "origin", "engine")),
         ("quantity_provenance", S, ("descriptor", "settings", 0, "exposure_time", "provenance"))):
     MUTATIONS[f"invalid_{name}"] = (base, _set(path, "bogus"))
 MUTATIONS["seed_is_a_string"] = (S, _set(("engine", "run", "seed"), "42"))
@@ -162,7 +167,7 @@ def mutated(name):
 
 
 def test_the_corpus_covers_the_stated_mutations():
-    assert len(MUTATIONS) == 43
+    assert len(MUTATIONS) == 42
     assert BASES[S]["engine"]["motion"]["kind"] == "static" and BASES[O]["engine"]["motion"]["kind"] == "orbit"
     assert schema_ok(BASES[S]) and schema_ok(BASES[O])
     assert BASES[S]["descriptor"]["collection"]["targets"]                   # targets_without_range is meaningful
@@ -183,7 +188,9 @@ SEMANTIC = {
     "integration_samples_is_a_float": (S, _set(("engine", "platform", "integration_samples"), 10.0),
                                        "JSON Schema's integer accepts 10.0; the generator needs an integer"),
     "origin_engine_satsim": (S, _set(("descriptor", "origin", "engine"), "satsim"),
-                             "the schemas type the engine block only for dirsig; this SDK executes only dirsig runs"),
+                             "satsim is not a registered engine here: no adapter checks or executes its engine block"),
+    "invalid_origin_engine": (S, _set(("descriptor", "origin", "engine"), "bogus"),
+                              "origin.engine is an open id in the published schema; only a registered engine is admitted"),
 }
 
 

@@ -19,6 +19,10 @@ _LAZY = {"Workspace": "manifold.sim.workspace", "Backend": "manifold.sim.backend
          "LibraryReader": "manifold.sim.library", "LocalRegistry": "manifold.sim._dirsig.registry"}
 __all__ = [*_LAZY, "__version__"]
 
+from manifold.sim import engines as _engines     # noqa: E402
+
+_engines.registry()                                # install the engine registry as manifold.core's default (no engine loads)
+
 
 def __getattr__(name):
     if name in _LAZY:

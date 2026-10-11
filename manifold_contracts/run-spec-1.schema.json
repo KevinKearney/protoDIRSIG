@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.manifold.example/contracts/run-spec-1.schema.json",
   "title": "run-spec/1 (proposed; Metadata_v02 section 6 as read by protoDIRSIG)",
-  "description": "One run: an engine-independent descriptor (registered, searched, hashed into the provenance record) and, for a synthetic run, the origin-specific engine block the generator consumes. Unknown keys are rejected everywhere except descriptor.extras. This schema is the SDK's reading of the MANIFOLD metadata document, not a MANIFOLD artefact. Rules this schema cannot express, enforced at admission by the loader: a stamped content_hash (the sensor reference, every engine reference) must equal the sha256 of the referenced file and the file must exist; settings.entry_id must name an entry of the sensor, once; the SDK renders one sensor entry (one settings member) per run; black_level must be 0 (the generator cannot apply a bias); the placeholder sha256:<hash> marks an unstamped reference and is not verified; and the engine block's own admission rules (see dirsig-engine-1.schema.json). The $id is an absolute URI under a base that does not resolve on the network (https://schemas.manifold.example/contracts/); references between the three contract schemas are sibling file names, which resolve against it, so a validator maps the base to this folder.",
+  "description": "One run: an engine-independent descriptor (registered, searched, hashed into the provenance record) and, for a synthetic run, the origin-specific engine block the generator consumes. Unknown keys are rejected everywhere except descriptor.extras. This schema is the SDK's reading of the MANIFOLD metadata document, not a MANIFOLD artefact. Rules this schema cannot express, enforced at admission by the loader: a stamped content_hash (the sensor reference, every engine reference) must equal the sha256 of the referenced file and the file must exist; settings.entry_id must name an entry of the sensor, once; the SDK renders one sensor entry (one settings member) per run; black_level must be 0 (the generator cannot apply a bias); the placeholder sha256:<hash> marks an unstamped reference and is not verified; and the engine block's own admission rules, which its engine's adapter states. The engine block is an open object here (proposed): admission validates it against the schema of the adapter registered for descriptor.origin.engine (for dirsig, dirsig-engine-1.schema.json), and refuses an engine id no registered adapter serves. The $id is an absolute URI under a base that does not resolve on the network (https://schemas.manifold.example/contracts/); references between the contract schemas are sibling file names, which resolve against it, so a validator maps the base to this folder.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -18,7 +18,7 @@
       "$ref": "#/$defs/descriptor"
     },
     "engine": {
-      "description": "The origin-specific generator input: dirsig-engine/1 when descriptor.origin.engine is dirsig; absent for field data.",
+      "description": "The origin-specific generator input, required for a synthetic run and absent for field data. Open here (proposed): validated at admission against the schema of the engine adapter registered for descriptor.origin.engine (dirsig: dirsig-engine-1.schema.json).",
       "type": "object"
     }
   },
@@ -30,12 +30,12 @@
             "properties": {
               "origin": {
                 "properties": {
-                  "engine": {
-                    "const": "dirsig"
+                  "kind": {
+                    "const": "synthetic"
                   }
                 },
                 "required": [
-                  "engine"
+                  "kind"
                 ]
               }
             },
@@ -51,12 +51,7 @@
       "then": {
         "required": [
           "engine"
-        ],
-        "properties": {
-          "engine": {
-            "$ref": "dirsig-engine-1.schema.json"
-          }
-        }
+        ]
       }
     },
     {
@@ -212,13 +207,9 @@
               ]
             },
             "engine": {
-              "description": "The engine that renders a synthetic run, or field.",
-              "enum": [
-                "dirsig",
-                "satsim",
-                "usd",
-                "field"
-              ]
+              "description": "The engine that renders a synthetic run (an engine id, for example dirsig, satsim or usd), or field. Proposed: an open identifier rather than an enumeration; admission accepts an engine id only when an adapter for it is registered (the SDK's engine registry), so adding an engine changes no schema.",
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*$"
             }
           },
           "allOf": [

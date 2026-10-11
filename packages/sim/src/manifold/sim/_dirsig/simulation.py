@@ -38,8 +38,9 @@ from dirfm.weather import ThermWeatherFilePlugin
 # The schema check moved to contract (pure, no engine package); re-exported so `from manifold.sim._dirsig.simulation import
 # schema_errors` keeps working.
 from manifold.core import _names
-from manifold.core.contract import (DESCRIPTOR_REQUIRED, ENGINE_ENUMS, ENGINE_REQUIRED, _MISSING, _get,  # noqa: F401
+from manifold.core.contract import (DESCRIPTOR_REQUIRED, _MISSING, _get,  # noqa: F401
                                   schema_errors, schema_violations, semantic_errors)
+from manifold.sim._dirsig.adapter import ENGINE_ENUMS, ENGINE_REQUIRED  # noqa: F401  (re-exported)
 from manifold.core.admission import validate_spec
 from manifold.core.platform_gen import render_platform
 from manifold.sim._dirsig.platform_ref import PlatformFilesPlugin

@@ -26,6 +26,7 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "packages" / d / "src") for d in ("core", "sim")]   # the manifold namespace, uninstalled
 
+import manifold.sim  # noqa: E402,F401  (installs the engine registry compose and validation use)
 from manifold.core import _names, problems                                # noqa: E402
 from manifold.core.errors import ADMISSION                                 # noqa: E402
 from manifold.core.compose import ComposeError, compose, compose_sweep   # noqa: E402

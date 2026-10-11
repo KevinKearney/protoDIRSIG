@@ -129,22 +129,6 @@ def _rel(p):
 
 # Today's violations: (file, rule, detail) -> reason. Each entry is removed by the step that fixes it.
 ALLOWLIST = {
-    ('packages/core/src/manifold/core/compose.py', 'engine-id-literal', 'dirsig'):
-        "black-level rule applied only when origin.engine is dirsig; moves to the DIRSIG adapter's compose rule (step 2)",
-    ('packages/core/src/manifold/core/contract.py', 'engine-id-literal', 'field'):
-        'the hardcoded DIRSIG engine-block schema, generator constraints and satsim/usd/field refusal; replaced by the adapter registry (step 2) and moved to the DIRSIG engine (step 4)',
-    ('packages/core/src/manifold/core/contract.py', 'engine-id-literal', 'satsim'):
-        'the hardcoded DIRSIG engine-block schema, generator constraints and satsim/usd/field refusal; replaced by the adapter registry (step 2) and moved to the DIRSIG engine (step 4)',
-    ('packages/core/src/manifold/core/contract.py', 'engine-id-literal', 'usd'):
-        'the hardcoded DIRSIG engine-block schema, generator constraints and satsim/usd/field refusal; replaced by the adapter registry (step 2) and moved to the DIRSIG engine (step 4)',
-    ('packages/core/src/manifold/core/contract.py', 'generator-literal', '; this SDK checks and executes only d...'):
-        'the hardcoded DIRSIG engine-block schema, generator constraints and satsim/usd/field refusal; replaced by the adapter registry (step 2) and moved to the DIRSIG engine (step 4)',
-    ('packages/core/src/manifold/core/contract.py', 'generator-literal', 'dirfm'):
-        'the hardcoded DIRSIG engine-block schema, generator constraints and satsim/usd/field refusal; replaced by the adapter registry (step 2) and moved to the DIRSIG engine (step 4)',
-    ('packages/core/src/manifold/core/contract.py', 'generator-literal', 'dirsig-engine-1.schema.json'):
-        'the hardcoded DIRSIG engine-block schema, generator constraints and satsim/usd/field refusal; replaced by the adapter registry (step 2) and moved to the DIRSIG engine (step 4)',
-    ('packages/core/src/manifold/core/contract.py', 'generator-literal', 'dirsig-engine/1'):
-        'the hardcoded DIRSIG engine-block schema, generator constraints and satsim/usd/field refusal; replaced by the adapter registry (step 2) and moved to the DIRSIG engine (step 4)',
     ('packages/core/src/manifold/core/run_spec.py', 'dynamic-import', 'non-literal module name'):
         'the DIRSIG interpreter (resolve_run, plugin builders, engine-bound aliases) lives in core; moves to manifold.engines.dirsig (step 4)',
     ('packages/core/src/manifold/core/run_spec.py', 'generator-literal', "; this loader handles only 'new_atmos..."):
@@ -175,6 +159,8 @@ ALLOWLIST = {
         'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
     ('packages/sim/src/manifold/sim/_dirsig/simulation.py', 'import', 'dirfm.weather'):
         'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
+    ('packages/sim/src/manifold/sim/_dirsig/simulation.py', 'import', 'manifold.sim._dirsig.adapter'):
+        'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
     ('packages/sim/src/manifold/sim/_dirsig/simulation.py', 'import', 'manifold.sim._dirsig.motion_tasks'):
         'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
     ('packages/sim/src/manifold/sim/_dirsig/simulation.py', 'import', 'manifold.sim._dirsig.platform_ref'):
@@ -185,6 +171,8 @@ ALLOWLIST = {
         'module-level and call-time imports of the DIRSIG pass-through runner and Simulation; replaced by registry calls (step 3)',
     ('packages/sim/src/manifold/sim/backend.py', 'import', 'manifold.sim._dirsig.simulation'):
         'module-level and call-time imports of the DIRSIG pass-through runner and Simulation; replaced by registry calls (step 3)',
+    ('packages/sim/src/manifold/sim/engines.py', 'import', 'manifold.sim._dirsig.adapter'):
+        'registers the in-tree DIRSIG adapter directly until engines are discovered through entry points (step 3) and extracted (step 4)',
     ('packages/sim/src/manifold/sim/orbit.py', 'import', 'dirfm'):
         'orbit.lookat_motion builds a dirfm FlexMotion; moves to the DIRSIG engine (step 4)',
     ('packages/sim/src/manifold/sim/worker.py', 'import', 'dirfm'):
@@ -193,10 +181,6 @@ ALLOWLIST = {
         'imports Simulation, the pass-through runner and dirfm; replaced by the adapter protocol (step 3)',
     ('packages/sim/src/manifold/sim/worker.py', 'import', 'manifold.sim._dirsig.simulation'):
         'imports Simulation, the pass-through runner and dirfm; replaced by the adapter protocol (step 3)',
-    ('manifold_contracts/run-spec-1.schema.json', 'engine-enum', 'descriptor.origin.engine'):
-        'the published run-spec schema enumerates engine ids and selects the dirsig-engine/1 schema; opened in step 2 (proposed, MANIFOLD question)',
-    ('manifold_contracts/run-spec-1.schema.json', 'engine-schema-selection', 'allOf'):
-        'the published run-spec schema enumerates engine ids and selects the dirsig-engine/1 schema; opened in step 2 (proposed, MANIFOLD question)',
 }
 
 

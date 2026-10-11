@@ -65,6 +65,7 @@ try:
     raise SystemExit("dirfm imported despite the block")
 except ImportError:
     pass
+import manifold.sim
 from manifold.core.compose import compose
 from manifold.core.run_spec import load_sensor_spec, RunSpecError
 spec = compose({str(recipe)!r})
@@ -90,6 +91,7 @@ def test_engine_free_validation_runs_with_the_engine_packages_unimportable():
     code = BLOCKED + f"""
 import json, yaml
 from pathlib import Path
+import manifold.sim
 from manifold.core import identity
 from manifold.core.admission import validate_spec
 out = {{}}

@@ -19,6 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / "packages" / d / "src") for d in ("core", "sim")]   # the manifold namespace, uninstalled
 
+import manifold.sim  # noqa: E402,F401  (installs the engine registry compose and validation use)
 from manifold.core.compose import HEADER, compose, compose_sweep, dump  # noqa: E402
 
 RUN_SPECS = ROOT / "manifold_run_specs"

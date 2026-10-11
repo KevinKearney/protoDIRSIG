@@ -16,9 +16,9 @@ import warnings
 REPLACEMENT = "manifold.core and manifold.sim"
 
 MODULES = {                                     # former protodirsig submodule -> its replacement
-    "admission": "manifold.core.admission",
-    "compose": "manifold.core.compose",
-    "contract": "manifold.core.contract",
+    "admission": "protodirsig._split.admission",                # names split between core and the DIRSIG engine
+    "compose": "protodirsig._split.compose",                # names split between core and the DIRSIG engine
+    "contract": "protodirsig._split.contract",                # names split between core and the DIRSIG engine
     "dirhash": "manifold.core.dirhash",
     "errors": "manifold.core.errors",
     "identity": "manifold.core.identity",

@@ -30,9 +30,9 @@ folder = contract.contracts_dir()
 assert str(folder).startswith(site) and folder == contract.packaged_contracts_dir(), folder
 spec = yaml.safe_load(open(spec_path).read())
 assert contract.schema_violations(spec) == [], contract.schema_violations(spec)
-spec["engine"]["motion"]["kind"] = "bogus"
+spec["descriptor"]["origin"]["kind"] = "bogus"
 bad = contract.schema_violations(spec)
-assert [v["path"] for v in bad] == ["/engine/motion/kind"], bad
+assert [v["path"] for v in bad] == ["/descriptor/origin/kind"], bad
 print("ok", folder)
 """
 
