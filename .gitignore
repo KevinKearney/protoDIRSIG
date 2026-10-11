@@ -9,6 +9,7 @@ __pycache__/
 /build/
 /packages/*/build/
 /packages/core/src/manifold/core/_contracts/
+/packages/engine-dirsig/src/manifold/engines/dirsig/_contracts/
 .ipynb_checkpoints/
 .pytest_cache/
 .ruff_cache/

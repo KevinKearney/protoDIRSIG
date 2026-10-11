@@ -41,10 +41,10 @@ def test_the_table_covers_every_former_submodule_and_nothing_else():
 
 
 def test_the_former_package_names_and_the_auror_era_aliases():
-    from manifold.core import run_spec
+    from manifold.engines.dirsig import run_spec
     from manifold.sim import Workspace
-    from manifold.sim._dirsig.registry import LocalRegistry
-    from manifold.sim._dirsig.simulation import Simulation
+    from manifold.engines.dirsig.registry import LocalRegistry
+    from manifold.engines.dirsig.simulation import Simulation
     from protodirsig import LocalRegistry as old_registry, Workspace as old_workspace
     from protodirsig.run_spec import AUROR_ATMOSPHERE_BACKEND, AurorRun, resolve_auror_run
     from protodirsig.simulation import Simulation as old_simulation, resolve_auror_run as sim_resolve

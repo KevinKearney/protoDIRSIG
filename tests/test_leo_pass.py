@@ -15,10 +15,10 @@ from pathlib import Path
 import numpy as np
 import yaml
 
-from manifold.sim import orbit
+from manifold.core import orbit
 from manifold.core.compose import HEADER, compose, dump
-from manifold.sim._dirsig.motion_tasks import orbit_waypoints
-from manifold.sim._dirsig.simulation import schema_errors
+from manifold.engines.dirsig.motion_tasks import orbit_waypoints
+from manifold.engines.dirsig.simulation import schema_errors
 from test_simulation import needs_dirsig
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -82,7 +82,7 @@ def _truth(path):
 
 def ground_track_check(work_dir):
     """Render the pass and return the independent checks' numbers (also used by the stage notebook)."""
-    from manifold.sim._dirsig.registry import LocalRegistry
+    from manifold.engines.dirsig.registry import LocalRegistry
     sub = LocalRegistry().submit(GENERATED, CONFIG_REPO, work_dir)
     assert sub.accepted, sub.reasons
     res = sub.simulation.run()

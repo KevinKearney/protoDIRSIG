@@ -1,6 +1,6 @@
 """The pass-through engine form's run-spec side (proposed): recognizing the form and resolving its directory and
 simulation file against the engine-asset library, which admission does without running anything. Running the form is
-`manifold.sim._dirsig.passthrough`, which re-exports these names.
+`manifold.engines.dirsig.passthrough`, which re-exports these names.
 
 `resolve_passthrough(spec, config_repo)` is admission's resolution for the form: it refuses a missing directory, a stamped
 digest that does not match, a directory `dirhash/1` cannot hash (a symbolic link or another non-regular file inside it),

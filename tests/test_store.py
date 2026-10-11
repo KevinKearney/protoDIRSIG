@@ -20,7 +20,8 @@ from manifold.core import identity
 from manifold.sim import store as store_mod, worker
 from manifold.core.compose import compose
 from manifold.core.errors import NotFoundError
-from manifold.sim.store import ArtifactError, RunStore, artifacts_for
+from manifold.sim.store import ArtifactError, RunStore
+from manifold.engines.dirsig.artifacts import artifacts_for
 
 ROOT = Path(__file__).resolve().parents[1]
 SENSORS = ROOT / "manifold_sensors"

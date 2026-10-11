@@ -167,7 +167,7 @@ def test_every_model_has_a_docstring_with_attributes():
 
 
 def test_local_registry_is_deprecated():
-    from manifold.sim._dirsig.registry import LocalRegistry
+    from manifold.engines.dirsig.registry import LocalRegistry
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         LocalRegistry()

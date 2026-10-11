@@ -26,7 +26,7 @@ import pytest
 import yaml
 from scipy.constants import c, h
 
-from manifold.core.platform_gen import render_platform
+from manifold.engines.dirsig.platform_gen import render_platform
 from manifold.core.run_spec import load_run_spec, load_sensor_spec
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -56,8 +56,8 @@ def render_plane(work, sensor, entry_id, E, rho, zenith, n=8):
     from dirfm.platform_motion import PlatformPosition
     from dirfm.tasks import TASKS
 
-    from manifold.sim._dirsig.platform_ref import PlatformFilesPlugin
-    from manifold.sim._dirsig.simulation import _run_dirsig
+    from manifold.engines.dirsig.platform_ref import PlatformFilesPlugin
+    from manifold.engines.dirsig.simulation import _run_dirsig
 
     inp = work / "input"
     inp.mkdir(parents=True)

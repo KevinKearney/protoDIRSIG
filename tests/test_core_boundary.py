@@ -9,7 +9,7 @@ non-literal argument to those is forbidden too: it cannot be checked); a string 
 (a mapping key, a subscript, the name argument of `get`/`pop`/`setdefault`/`getattr`/`hasattr`/`setattr`, the name
 columns of a generated model's `_FIELDS` table): `field` is also the problem-details member that names an authored
 file's field; and the generator strings of dirfm and `dirsig-engine/1` (any literal naming `dirsig-engine`). Forbidden in `packages/sim`: importing
-`manifold.engines.*`, `dirfm` or the transitional `manifold.sim._dirsig` (statically or by a literal module path). Engine packages (`packages/engine-*`) may import `manifold.core` but not `manifold.sim`.
+`manifold.engines.*`, `dirfm` or the transitional `manifold.engines.dirsig` (statically or by a literal module path). Engine packages (`packages/engine-*`) may import `manifold.core` but not `manifold.sim`.
 
 `ALLOWLIST` names today's violations, each with its reason; it shrinks as the round removes them and is empty at the
 end (`test_the_allowlist_is_empty_or_explained`).
@@ -27,7 +27,7 @@ SIM = ROOT / "packages" / "sim" / "src"
 ENGINES = sorted((ROOT / "packages").glob("engine-*/src"))
 KNOWN_ENGINE_IDS = {"dirsig", "satsim", "usd", "field"}          # the origin values named by the MANIFOLD documents
 GENERATOR_STRINGS = {"dirfm", "dirsig-engine/1"}
-SIM_ROOTS = ("manifold.engines", "dirfm", "manifold.sim._dirsig")
+SIM_ROOTS = ("manifold.engines", "dirfm", "manifold.engines.dirsig")
 
 
 def engine_ids():
@@ -129,54 +129,6 @@ def _rel(p):
 
 # Today's violations: (file, rule, detail) -> reason. Each entry is removed by the step that fixes it.
 ALLOWLIST = {
-    ('packages/core/src/manifold/core/run_spec.py', 'dynamic-import', 'non-literal module name'):
-        'the DIRSIG interpreter (resolve_run, plugin builders, engine-bound aliases) lives in core; moves to manifold.engines.dirsig (step 4)',
-    ('packages/core/src/manifold/core/run_spec.py', 'generator-literal', "; this loader handles only 'new_atmos..."):
-        'the DIRSIG interpreter (resolve_run, plugin builders, engine-bound aliases) lives in core; moves to manifold.engines.dirsig (step 4)',
-    ('packages/core/src/manifold/core/run_spec.py', 'import', 'manifold.sim._dirsig.atmosphere_patches'):
-        'the DIRSIG interpreter (resolve_run, plugin builders, engine-bound aliases) lives in core; moves to manifold.engines.dirsig (step 4)',
-    ('packages/core/src/manifold/core/run_spec.py', 'import', 'manifold.sim._dirsig.platform_ref'):
-        'the DIRSIG interpreter (resolve_run, plugin builders, engine-bound aliases) lives in core; moves to manifold.engines.dirsig (step 4)',
-    ('packages/sim/src/manifold/sim/_dirsig/adapter.py', 'import', 'dirfm'):
-        'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
-    ('packages/sim/src/manifold/sim/_dirsig/adapter.py', 'import', 'manifold.sim._dirsig.passthrough'):
-        'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
-    ('packages/sim/src/manifold/sim/_dirsig/adapter.py', 'import', 'manifold.sim._dirsig.simulation'):
-        'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
-    ('packages/sim/src/manifold/sim/_dirsig/atmosphere_patches.py', 'import', 'dirfm.atmosphere'):
-        'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
-    ('packages/sim/src/manifold/sim/_dirsig/motion_tasks.py', 'import', 'dirfm'):
-        'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
-    ('packages/sim/src/manifold/sim/_dirsig/motion_tasks.py', 'import', 'dirfm.platform_motion'):
-        'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
-    ('packages/sim/src/manifold/sim/_dirsig/motion_tasks.py', 'import', 'dirfm.tasks'):
-        'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
-    ('packages/sim/src/manifold/sim/_dirsig/platform_ref.py', 'import', 'dirfm.ephemeris'):
-        'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
-    ('packages/sim/src/manifold/sim/_dirsig/platform_ref.py', 'import', 'dirfm.platform_sensor'):
-        'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
-    ('packages/sim/src/manifold/sim/_dirsig/platform_ref.py', 'import', 'dirfm.utilities.paths'):
-        'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
-    ('packages/sim/src/manifold/sim/_dirsig/registry.py', 'import', 'manifold.sim._dirsig.simulation'):
-        'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
-    ('packages/sim/src/manifold/sim/_dirsig/runner.py', 'import', 'manifold.sim._dirsig.adapter'):
-        'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
-    ('packages/sim/src/manifold/sim/_dirsig/sensors.py', 'import', 'dirfm'):
-        'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
-    ('packages/sim/src/manifold/sim/_dirsig/simulation.py', 'import', 'dirfm'):
-        'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
-    ('packages/sim/src/manifold/sim/_dirsig/simulation.py', 'import', 'dirfm.weather'):
-        'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
-    ('packages/sim/src/manifold/sim/_dirsig/simulation.py', 'import', 'manifold.sim._dirsig.adapter'):
-        'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
-    ('packages/sim/src/manifold/sim/_dirsig/simulation.py', 'import', 'manifold.sim._dirsig.motion_tasks'):
-        'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
-    ('packages/sim/src/manifold/sim/_dirsig/simulation.py', 'import', 'manifold.sim._dirsig.platform_ref'):
-        'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
-    ('packages/sim/src/manifold/sim/_dirsig/simulation.py', 'import', 'manifold.sim._dirsig.scene_ref'):
-        'the transitional DIRSIG package inside sim; extracted to manifold.engines.dirsig (step 4)',
-    ('packages/sim/src/manifold/sim/orbit.py', 'import', 'dirfm'):
-        'orbit.lookat_motion builds a dirfm FlexMotion; moves to the DIRSIG engine (step 4)',
 }
 
 

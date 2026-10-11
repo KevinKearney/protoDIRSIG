@@ -7,17 +7,17 @@ import re
 import pytest
 
 from manifold.core import run_spec
-from manifold.sim._dirsig import simulation
-from manifold.sim._dirsig.simulation import Simulation
+from manifold.engines.dirsig import simulation
+from manifold.engines.dirsig.simulation import Simulation
 
 ALIASES = {("run_spec", "resolve_auror_run"): ("run_spec", "resolve_run"),
            ("run_spec", "AurorRun"): ("run_spec", "ResolvedRun"),
            ("run_spec", "AUROR_ATMOSPHERE_BACKEND"): ("run_spec", "NEW_ATMOSPHERE_BACKEND"),
            ("simulation", "resolve_auror_run"): ("run_spec", "resolve_run")}
 MODULES = ("run_spec", "simulation", "registry", "backend", "store", "worker", "admission")
-PATHS = {"run_spec": "manifold.core.run_spec", "admission": "manifold.core.admission", "backend": "manifold.sim.backend",
-         "store": "manifold.sim.store", "worker": "manifold.sim.worker", "simulation": "manifold.sim._dirsig.simulation",
-         "registry": "manifold.sim._dirsig.registry"}
+PATHS = {"run_spec": "manifold.engines.dirsig.run_spec", "admission": "manifold.core.admission", "backend": "manifold.sim.backend",
+         "store": "manifold.sim.store", "worker": "manifold.sim.worker", "simulation": "manifold.engines.dirsig.simulation",
+         "registry": "manifold.engines.dirsig.registry"}
 
 
 @pytest.mark.parametrize("old, new", ALIASES.items(), ids=lambda x: ".".join(x) if isinstance(x, tuple) else x)

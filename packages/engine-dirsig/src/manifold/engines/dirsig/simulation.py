@@ -35,20 +35,36 @@ from pathlib import Path
 from dirfm import DIRSIG, SCENE
 from dirfm.weather import ThermWeatherFilePlugin
 
-# The schema check moved to contract (pure, no engine package); re-exported so `from manifold.sim._dirsig.simulation import
-# schema_errors` keeps working.
+# The schema check is contract's (pure, no engine package), applied through a registry that serves DIRSIG
+# (`adapter.registry()`), so `from manifold.engines.dirsig.simulation import schema_errors` works in any process.
 from manifold.core import _names
-from manifold.core.contract import (DESCRIPTOR_REQUIRED, _MISSING, _get,  # noqa: F401
-                                  schema_errors, schema_violations, semantic_errors)
-from manifold.sim._dirsig.adapter import ENGINE_ENUMS, ENGINE_REQUIRED  # noqa: F401  (re-exported)
+from manifold.core import contract as _contract
+from manifold.core.contract import DESCRIPTOR_REQUIRED, _MISSING, _get  # noqa: F401
+from manifold.engines.dirsig.adapter import ENGINE_ENUMS, ENGINE_REQUIRED  # noqa: F401  (re-exported)
+from manifold.engines.dirsig.adapter import registry as _registry
 from manifold.core.admission import validate_spec
-from manifold.core.platform_gen import render_platform
-from manifold.sim._dirsig.platform_ref import PlatformFilesPlugin
-from manifold.sim._dirsig.motion_tasks import generate_motion, generate_tasks
-from manifold.core.run_spec import (RunSpecError, check_library_files, is_inline_sensor, load_run_spec,  # noqa: F401
-                                 resolve_run, unstamped_refs)
-from manifold.core.run_spec import resolve_run as resolve_auror_run  # noqa: F401 -- deprecated alias, for the notebooks
-from manifold.sim._dirsig.scene_ref import copy_input, reference_scene
+from manifold.engines.dirsig.platform_gen import render_platform
+from manifold.engines.dirsig.platform_ref import PlatformFilesPlugin
+from manifold.engines.dirsig.motion_tasks import generate_motion, generate_tasks
+from manifold.core.run_spec import RunSpecError, is_inline_sensor, load_run_spec, unstamped_refs  # noqa: F401
+from manifold.engines.dirsig.run_spec import check_library_files, resolve_run  # noqa: F401
+from manifold.engines.dirsig.run_spec import resolve_run as resolve_auror_run  # noqa: F401 -- deprecated alias, for the notebooks
+from manifold.engines.dirsig.scene_ref import copy_input, reference_scene
+
+
+def schema_errors(spec, registry=None):
+    """`contract.schema_errors` through a registry that serves DIRSIG."""
+    return _contract.schema_errors(spec, registry or _registry())
+
+
+def schema_violations(spec, registry=None):
+    """`contract.schema_violations` through a registry that serves DIRSIG."""
+    return _contract.schema_violations(spec, registry or _registry())
+
+
+def semantic_errors(spec, registry=None):
+    """`contract.semantic_errors` through a registry that serves DIRSIG."""
+    return _contract.semantic_errors(spec, registry or _registry())
 
 
 
@@ -221,7 +237,7 @@ class Simulation:
                                      False, ["not checked: run spec did not load"],
                                      False, None, "not attempted: run spec did not load")
         report = validate_spec(self.spec, self.run_spec_path, self.config_repo, self.sensor_library,
-                               resolved=(self.resolved, self.resolve_exception))
+                               resolved=(self.resolved, self.resolve_exception), registry=_registry())
         schema, mismatches = report.schema_errors, report.resolution_mismatches
 
         exec_log = exec_err = None
@@ -273,7 +289,7 @@ class Simulation:
                   for c in info_log["capture_list"]]
         propagator = None
         if self.resolved.motion_kind == "orbit":
-            from manifold.sim.orbit import propagator_provenance
+            from manifold.core.orbit import propagator_provenance
             propagator = propagator_provenance()
         return RunResult(image=frames[0].image, truth=frames[0].truth,
                          output_dir=out_dir, run_log=json.loads(run_info.read_text()), info_log=info_log,

@@ -6,6 +6,7 @@
 #   pip install -e /home/kevin-kearney/dev/dirsig-file-maker
 #   pip install --no-build-isolation --no-deps -e packages/core
 #   pip install --no-build-isolation --no-deps -e packages/sim
+#   pip install --no-build-isolation --no-deps -e packages/engine-dirsig
 name: protodirsig
 channels:
   - conda-forge

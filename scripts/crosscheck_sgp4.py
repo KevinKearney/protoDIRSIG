@@ -1,8 +1,8 @@
-"""Phase 4a: cross-check manifold.sim.orbit (skyfield SGP4 -> ITRS waypoints) against DIRSIG's
+"""Phase 4a: cross-check manifold.core.orbit (skyfield SGP4 -> ITRS waypoints) against DIRSIG's
 own `<locationengine type="sgp4">`, on tutorial_tacoma_scene.ipynb's WorldView-2-over-Tacoma pass.
 
 Two renders that differ ONLY in the location engine:
-  A  "skyfield": ECEF waypoints from manifold.sim.orbit (exactly what the Tacoma notebook uses)
+  A  "skyfield": ECEF waypoints from manifold.core.orbit (exactly what the Tacoma notebook uses)
   B  "native"  : the same TLE lines handed to DIRSIG's built-in SGP4 engine
 Same scene reference, sensor, atmosphere, TASKS (PASS_EPOCH, one frame at t = 60 s), same LookAt
 orientation. The sensor adds the Geolocation truth collector (ECEF hit points) to the notebook's
@@ -38,9 +38,10 @@ from dirfm import flexible_motion as fm                   # noqa: E402
 from skyfield.api import wgs84                            # noqa: E402
 from spectral import open_image                           # noqa: E402
 
-from manifold.sim import orbit                    # noqa: E402
-from manifold.sim._dirsig import sensors
-from manifold.sim._dirsig.scene_ref import fingerprint, reference_scene  # noqa: E402
+from manifold.core import orbit  # noqa: E402
+from manifold.engines.dirsig import sensors  # noqa: E402
+from manifold.engines.dirsig.motion_tasks import lookat_motion  # noqa: E402
+from manifold.engines.dirsig.scene_ref import fingerprint, reference_scene  # noqa: E402
 
 TACOMA = DIRSIG_HOME / "Tacoma-08-Apr-2022" / "Tacoma"
 WORK = PROJECT / "outputs" / "sgp4_check"
@@ -63,7 +64,7 @@ class Sgp4LocationEngine(fm.LocationEngine):
 
 
 def tacoma_pass():
-    """The Tacoma notebook's Stage 1, via the same manifold.sim.orbit calls and parameters."""
+    """The Tacoma notebook's Stage 1, via the same manifold.core.orbit calls and parameters."""
     scene_xml = et.parse(str(TACOMA / "tacoma.scene")).getroot()
     loc = scene_xml.find("sceneorigin/location")
     lat0, lon0 = float(loc.findtext("latitude")), float(loc.findtext("longitude"))
@@ -126,7 +127,7 @@ def main():
     t_wp, pos_wp, _ = orbit.thin(p["t"], p["pos"], DENSE_DT, 1.0)
 
     runs = {
-        "skyfield": render("skyfield", orbit.lookat_motion(t_wp, pos_wp, frames.ENUFrame(*p["aim"]), p["up"]), p, ref_file),
+        "skyfield": render("skyfield", lookat_motion(t_wp, pos_wp, frames.ENUFrame(*p["aim"]), p["up"]), p, ref_file),
         "native": render("native", fm.FlexMotion(Sgp4LocationEngine(p["l1"], p["l2"]),
                                                  fm.LookAtOrientationEngine(fm.FixedLocationEngine(frames.ENUFrame(*p["aim"])), up=p["up"])),
                          p, ref_file),

@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 import test_spectral_curves
 
-from manifold.core.platform_gen import PlatformGenError, render_platform
+from manifold.engines.dirsig.platform_gen import PlatformGenError, render_platform
 from manifold.core.run_spec import load_run_spec, load_sensor_spec
 from manifold.core.spectral import read_curve
 

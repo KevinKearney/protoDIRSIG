@@ -20,7 +20,7 @@ from manifold.core.compose import ComposeError, compose_sweep
 from manifold.core.contract import schema_errors
 from manifold.core.dirhash import directory_digest
 from manifold.core.errors import AdmissionError
-from manifold.sim._dirsig.passthrough import resolve_passthrough
+from manifold.engines.dirsig.passthrough import resolve_passthrough
 from manifold.core.problems import locate
 from manifold.core.run_spec import RunSpecError, unstamped_refs
 
@@ -323,7 +323,7 @@ import hashlib  # noqa: E402
 def test_scenes_are_compiled_before_the_engine_runs(tmp_path, library):
     """With a `scene2hdf` beside the engine, every scene the simulation names is compiled in the copy first; the
     compiled file stays in the copy and is not an output."""
-    from manifold.sim._dirsig.passthrough import resolve_passthrough, run_engine, scenes_of
+    from manifold.engines.dirsig.passthrough import resolve_passthrough, run_engine, scenes_of
     bindir = tmp_path / "bin"
     bindir.mkdir()
     engine = stub_engine(bindir)
@@ -339,7 +339,7 @@ def test_scenes_are_compiled_before_the_engine_runs(tmp_path, library):
 
 
 def test_scenes_of_a_legacy_sim(tmp_path):
-    from manifold.sim._dirsig.passthrough import scenes_of
+    from manifold.engines.dirsig.passthrough import scenes_of
     sim = tmp_path / "demo.sim"
     sim.write_text('<simulation><scene externalfile="./a.scene"/><scene externalfile="b.scene"/></simulation>')
     assert scenes_of(sim) == ["./a.scene", "b.scene"]
@@ -434,7 +434,7 @@ def _zones(root, temps_c):
 
 
 def test_the_thermal_sampler_reads_the_maximum_over_zones(tmp_path):
-    from manifold.sim._dirsig.passthrough import ThermalSampler, max_zone_temp_c
+    from manifold.engines.dirsig.passthrough import ThermalSampler, max_zone_temp_c
     root = _zones(tmp_path / "thermal", [41.5, 63.0, 20.0])
     assert max_zone_temp_c(root) == 63.0
     assert max_zone_temp_c(tmp_path / "none") is None
@@ -470,7 +470,7 @@ def _cpus(root, cur_khz, max_khz=4_200_000):
 
 
 def test_cpu_frequency_and_the_throttle_rule(tmp_path):
-    from manifold.sim._dirsig.passthrough import ThermalSampler, cpu_freq_khz, throttle_suspect
+    from manifold.engines.dirsig.passthrough import ThermalSampler, cpu_freq_khz, throttle_suspect
     root = _cpus(tmp_path / "cpu", [3_000_000, 4_100_000])
     assert cpu_freq_khz(root) == {"min": 3_000_000, "max": 4_100_000, "cpuinfo_max": 4_200_000}
     assert cpu_freq_khz(tmp_path / "none") is None

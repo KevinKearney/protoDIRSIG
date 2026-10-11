@@ -94,7 +94,7 @@ The pass template is the AUROR NIR template with per-capture image and truth sch
 ### Remove the `protodirsig` compatibility shim
 `packages/compat-protodirsig` maps the pre-rename import paths to `manifold.core` and `manifold.sim` and warns on import. Keep it for one release after MANIFOLD adopts the `manifold` packages, then delete the distribution, `tests/test_compat_shim.py` and `tests/data/protodirsig_public_names.json`, and the legacy fallbacks in `manifold.core._names` (the `PROTODIRSIG_*` environment variables, the pre-rename state directory warning, the `protodirsig.worker` command line the store still recognizes in old run records).
 
-### `manifold.sim._dirsig` to a separate engine distribution (round 18)
+### `manifold.engines.dirsig` to a separate engine distribution (round 18)
 Move the DIRSIG-bound modules to a `manifold.engines.dirsig` distribution behind an engine adapter protocol, so `manifold.sim` runs any engine through the protocol and depends on no engine distribution. What the move must also take: `ResolvedRun.atmosphere_plugin` and `ephemeris_plugin` and the `dirfm`-bound aliases of `run_spec` (today the only references from `manifold.core` to `manifold.sim`, at call time); `platform_gen` (DIRSIG's `.platform` format, in core only because admission's library-files check renders it, which makes that check engine-specific); `orbit.lookat_motion` (builds a `dirfm` FlexMotion); the worker's direct import of `simulation`; `LocalBackend`'s import of `passthrough.run_engine`.
 
 ### Publishing and the internal index policy

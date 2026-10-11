@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eoptic-manifold-engine-dirsig"
+version = "0.0.1"
+description = "The DIRSIG engine for MANIFOLD run specs: the dirsig-engine/1 adapter (layered through dirfm, and the pass-through form), registered in the manifold.engines entry-point group"
+requires-python = ">=3.10"
+dependencies = [
+    "eoptic-manifold-core==0.0.1",   # lockstep versions; an engine depends on core only
+    "dirfm",                         # RIT's DIRSIG file maker; not on PyPI: install it editable from its checkout
+    "pyyaml",
+    "lxml",
+    "numpy",
+]
+
+[project.entry-points."manifold.engines"]
+dirsig = "manifold.engines.dirsig.adapter:DirsigAdapter"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["manifold.engines.dirsig*"]   # `manifold` and `manifold.engines` are PEP 420 namespaces: no __init__ shipped
+namespaces = true
+
+[tool.setuptools.package-data]
+"manifold.engines.dirsig" = ["_contracts/*.json"]   # copied from manifold_contracts/ at build time (setup.py); not tracked

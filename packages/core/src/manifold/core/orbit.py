@@ -8,15 +8,22 @@ The propagator is a seam. Only `propagate`, `find_passes`, `propagator_provenanc
 skyfield, and they import it inside the function; every public function takes and returns numpy arrays and plain
 Python values, so no skyfield type crosses the module boundary and the propagator can be replaced behind
 `propagate`. A replacement must reproduce `manifold_contracts/vectors/orbit/` within its tolerance.
+
+Engine-neutral (in `manifold.core`): numpy is imported inside the functions that compute with it, so importing this
+module loads none; the DIRSIG FlexMotion builder that used to live here (`lookat_motion`) is the DIRSIG engine's
+(`manifold.engines.dirsig.motion_tasks`).
 """
+from __future__ import annotations
+
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from importlib.metadata import version
 from pathlib import Path
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
-import numpy as np
+if TYPE_CHECKING:                                   # annotations only
+    import numpy as np
 
 from manifold.core.tle import read_tle, tle_checksum_ok  # noqa: F401  (re-exported)
 
@@ -60,6 +67,7 @@ def propagator_provenance():
 def _timescale(eop=None):
     """A skyfield timescale. `eop` None: skyfield's bundled Earth-orientation tables (no network). `eop` a path
     to a copy of those tables (`iers.npz`, the same arrays) so they can be a hashed library file."""
+    import numpy as np
     from skyfield.api import Loader
     if eop is None:
         return Loader(".", verbose=False).timescale(builtin=True)
@@ -91,6 +99,7 @@ def propagate(line1, line2, epoch, t, eop=None):
     """SGP4 for the TLE (`line1`, `line2`) at `epoch + t` seconds; `epoch` a UTC datetime or ISO-8601 string.
 
     The propagation entry point: the one function that turns a TLE into positions. `eop` as in `_timescale`."""
+    import numpy as np
     from skyfield.api import EarthSatellite
     from skyfield.framelib import itrs
     from skyfield.sgp4lib import TEME
@@ -156,6 +165,7 @@ def pass_epoch(culmination_s, duration):
 
 def gmst82(ut1_jd):
     """IAU-1982 Greenwich mean sidereal time (rad) from a UT1 Julian date. Check only."""
+    import numpy as np
     tu = (ut1_jd - 2451545.0) / 36525.0
     sec = 67310.54841 + (876600 * 3600 + 8640184.812866) * tu + 0.093104 * tu**2 - 6.2e-6 * tu**3
     return np.radians((sec % 86400.0) / 240.0)
@@ -163,6 +173,7 @@ def gmst82(ut1_jd):
 
 def check_teme_to_itrs(pos, pos_teme, ut1_jd, t):
     """The three independent checks on the propagator's TEME -> ITRS rotation; asserts, returns the numbers."""
+    import numpy as np
     rot = np.unwrap(np.arctan2(pos_teme[:, 1], pos_teme[:, 0]) - np.arctan2(pos[:, 1], pos[:, 0]))
     rot_err = np.angle(np.exp(1j * (rot - gmst82(ut1_jd))))
     res = {
@@ -180,6 +191,7 @@ def check_teme_to_itrs(pos, pos_teme, ut1_jd, t):
 
 def teme_to_itrs_gmst82(pos_teme, ut1_jd):
     """TEME -> ITRS by the GMST-1982 rotation about z alone (no polar motion): the second, hand-written path."""
+    import numpy as np
     g = gmst82(np.asarray(ut1_jd, dtype=float))
     c, s = np.cos(g), np.sin(g)
     x, y, z = np.asarray(pos_teme, dtype=float).T
@@ -197,6 +209,7 @@ def itrs_by_sgp4_gmst82(line1, line2, epoch, t, eop=None):
     """The second, independent path to the trajectory: the `sgp4` package directly, then `teme_to_itrs_gmst82`
     with UT1 interpolated linearly from the Earth-orientation arrays (`eop`, default the bundled `iers.npz`).
     Shares no code with `propagate` beyond the SGP4 theory and the data. Returns (pos_teme, pos_itrs, ut1_jd)."""
+    import numpy as np
     from sgp4.api import Satrec, jday
     if isinstance(epoch, str):
         epoch = datetime.fromisoformat(epoch.replace("Z", "+00:00"))
@@ -219,6 +232,7 @@ def itrs_by_sgp4_gmst82(line1, line2, epoch, t, eop=None):
 
 def ecef_to_geodetic(xyz, iters=6):
     """ECEF (m) -> (lat deg, lon deg, height m) on WGS-84, by fixed-point iteration on latitude."""
+    import numpy as np
     x, y, z = np.asarray(xyz, dtype=float).T
     lon = np.arctan2(y, x)
     p = np.hypot(x, y)
@@ -234,12 +248,14 @@ def ecef_to_geodetic(xyz, iters=6):
 
 def ground_km(lat1, lon1, lat2, lon2):
     """Great-circle distance (km, spherical Earth) — adequate for a sanity check."""
+    import numpy as np
     p1, p2, dl = np.radians(lat1), np.radians(lat2), np.radians(lon2 - lon1)
     return 6371.0 * np.arccos(np.clip(np.sin(p1) * np.sin(p2) + np.cos(p1) * np.cos(p2) * np.cos(dl), -1, 1))
 
 
 def ecef_to_enu_matrix(lat_deg, lon_deg):
     """Rows are the local East, North, Up unit vectors in ECEF at (lat, lon): v_enu = M @ v_ecef."""
+    import numpy as np
     phi, lam = np.radians(lat_deg), np.radians(lon_deg)
     e = np.array([-np.sin(lam), np.cos(lam), 0.0])
     n = np.array([-np.sin(phi) * np.cos(lam), -np.sin(phi) * np.sin(lam), np.cos(phi)])
@@ -252,6 +268,7 @@ def recover_position(hits, distances, s0, iters=8):
     points `hits` (N, 3, ECEF m) and sensor-to-hit distances `distances` (N,), started at `s0`. Non-finite rows
     are dropped. Returns (S, rms residual m, covariance (3, 3) m^2, pixels used). Independent of the propagator:
     it reads only what the engine rendered."""
+    import numpy as np
     P, d = np.asarray(hits, dtype=float), np.asarray(distances, dtype=float)
     ok = np.all(np.isfinite(P), axis=1) & np.isfinite(d)
     P, d = P[ok], d[ok]
@@ -272,12 +289,14 @@ def recover_position(hits, distances, s0, iters=8):
 
 def perp_unit(u, b):
     """Component of u perpendicular to unit vector(s) b, normalised."""
+    import numpy as np
     p = u - np.sum(u * b, axis=-1, keepdims=True) * b
     return p / np.linalg.norm(p, axis=-1, keepdims=True)
 
 
 def along_track_up(vel_enu, i):
     """The fixed along-track up: horizontal (E, N) direction of the velocity at sample i, rounded."""
+    import numpy as np
     along = np.array(vel_enu[i], dtype=float)
     along[2] = 0.0
     along /= np.linalg.norm(along)
@@ -291,6 +310,7 @@ def up_vector_check(up, bore_enu, vel_enu):
     velocity in the same frame. Roll is measured after projecting both references onto the
     plane perpendicular to the boresight, which is what actually fixes the image roll.
     """
+    import numpy as np
     up = np.array(up, float) / np.linalg.norm(up)
     ang = np.degrees(np.arccos(np.clip(bore_enu @ up, -1, 1)))
     vel_up = perp_unit(vel_enu / np.linalg.norm(vel_enu, axis=1, keepdims=True), bore_enu)
@@ -303,23 +323,10 @@ def up_vector_check(up, bore_enu, vel_enu):
 
 def thin(t, pos, dense_dt, waypoint_dt):
     """Thin a dense track to `waypoint_dt` spacing; returns (t_wp, pos_wp, max linear-interp error m)."""
+    import numpy as np
     step = int(round(waypoint_dt / dense_dt))
     idx = np.arange(0, len(t), step)
     assert idx[-1] == len(t) - 1, "thinning must keep the final sample"
     t_wp, pos_wp = t[idx], pos[idx]
     interp = np.column_stack([np.interp(t, t_wp, pos_wp[:, k]) for k in range(3)])
     return t_wp, pos_wp, float(np.linalg.norm(interp - pos, axis=1).max())
-
-
-def lookat_motion(t_wp, pos_wp, look_at, up):
-    """dirfm FlexMotion: ECEF waypoints (relative seconds) + LookAt at `look_at` with a fixed `up`.
-
-    `look_at` is a dirfm Frame: ECEFFrame(0, 0, 0) for nadir, or ENUFrame(x, y, z) to stare at a
-    scene point.
-    """
-    from dirfm import flexible_motion as fm
-    location = fm.WaypointsLocationEngine(frame="ecef")
-    for ti, p in zip(t_wp, pos_wp):
-        location.add_point(round(float(ti), 6), [float(v) for v in p])
-    orientation = fm.LookAtOrientationEngine(fm.FixedLocationEngine(look_at), up=up)
-    return fm.FlexMotion(location, orientation)

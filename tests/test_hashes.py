@@ -5,7 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from manifold.core.run_spec import RunSpecError, load_run_spec, resolve_run
+from manifold.core.run_spec import RunSpecError, load_run_spec
+from manifold.engines.dirsig.run_spec import resolve_run
 from manifold.core.spectral import SpectralError, read_curve, resolve_curve
 
 ROOT = Path(__file__).resolve().parents[1]

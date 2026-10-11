@@ -1,9 +1,10 @@
 """manifold.sim: running MANIFOLD run specs: the `Workspace` facade, the `Backend` protocol and `LocalBackend`, the run
-store, the worker, `LibraryReader`, the orbit propagation, and the deprecated `LocalRegistry`.
+store, the worker, `LibraryReader`, and engine discovery (`engines`).
 
-`manifold.sim._dirsig` holds the DIRSIG-bound modules; it is private and transitional (a separate engine distribution
-behind an engine adapter protocol replaces it). Importing the package loads nothing heavy: each public name is imported
-on first use (PEP 562), and no engine package loads until a run is submitted.
+Engines are separate distributions (for DIRSIG, `eoptic-manifold-engine-dirsig`, `manifold.engines.dirsig`) reached
+only through the registry `engines.registry()` builds from the installed distributions' entry points. Importing the
+package loads nothing heavy: each public name is imported on first use (PEP 562), and no engine package loads until a
+run is submitted.
 """
 from importlib.metadata import PackageNotFoundError, version
 
@@ -16,7 +17,7 @@ except PackageNotFoundError:
 
 _LAZY = {"Workspace": "manifold.sim.workspace", "Backend": "manifold.sim.backend",
          "LocalBackend": "manifold.sim.backend", "RunStore": "manifold.sim.store",
-         "LibraryReader": "manifold.sim.library", "LocalRegistry": "manifold.sim._dirsig.registry"}
+         "LibraryReader": "manifold.sim.library"}
 __all__ = [*_LAZY, "__version__"]
 
 from manifold.sim import engines as _engines     # noqa: E402

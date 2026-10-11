@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 from manifold.core.dirhash import directory_digest, directory_manifest, is_directory_ref
-from manifold.sim._dirsig.simulation import Simulation
+from manifold.engines.dirsig.simulation import Simulation
 from test_simulation import CONFIG_REPO, SPEC, needs_dirsig
 
 PROJECT = Path(__file__).resolve().parents[1]

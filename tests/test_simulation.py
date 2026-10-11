@@ -1,4 +1,4 @@
-"""manifold.sim._dirsig.simulation's three conformance checks must pass on the real AUROR_ref run spec and
+"""manifold.engines.dirsig.simulation's three conformance checks must pass on the real AUROR_ref run spec and
 report a broken spec as a failed check, not an exception.
 
 Reads manifold_run_specs/auror_ref.yaml and manifold_config_repo READ-ONLY; the execution check generates motion and
@@ -12,8 +12,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from manifold.sim._dirsig.scene_ref import fingerprint
-from manifold.sim._dirsig.simulation import Simulation, schema_errors
+from manifold.engines.dirsig.scene_ref import fingerprint
+from manifold.engines.dirsig.simulation import Simulation, schema_errors
 
 PROJECT = Path(__file__).resolve().parents[1]
 SPEC = PROJECT / "manifold_run_specs" / "auror_ref.yaml"

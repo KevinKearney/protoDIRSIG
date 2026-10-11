@@ -168,6 +168,12 @@ def main(run_dir, hook=None):
             if collection.record:
                 store.update_record(run_id, dict(collection.record))
             if collection.verdict != "complete":
+                try:                                                  # what the engine left, listed for the user
+                    store.write_artifacts(run_id, check_artifact_names(
+                        [artifact_ref(run_dir / "run_spec.json")] +
+                        [artifact_ref(a.path, name=a.name, frame=a.frame) for a in collection.artifacts]))
+                except (ArtifactError, OSError):
+                    pass
                 why = collection.message or "the engine did not finish"
                 _fail(store, run_id, name, why if returncode in (None, 0) else f"{why} (exit status {returncode})",
                       run_dir)

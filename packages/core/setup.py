@@ -12,7 +12,7 @@ from setuptools.command.build_py import build_py
 
 ROOT = Path(__file__).resolve().parent
 CONTRACTS = ROOT.parents[1] / "manifold_contracts"     # packages/core/ -> the repository's canonical folder
-SCHEMAS = ("run-spec-1.schema.json", "dirsig-engine-1.schema.json", "sensor-spec-1.schema.json")
+SCHEMAS = ("run-spec-1.schema.json", "sensor-spec-1.schema.json")
 
 
 class build_py_with_contracts(build_py):

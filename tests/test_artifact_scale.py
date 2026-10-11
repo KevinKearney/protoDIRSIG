@@ -11,7 +11,7 @@ from manifold.core import identity
 from manifold.sim import store as store_mod
 from manifold.sim.backend import LocalBackend
 from manifold.core.compose import compose
-from manifold.sim.store import passthrough_artifacts
+from manifold.engines.dirsig.artifacts import passthrough_artifacts
 
 ROOT = Path(__file__).resolve().parents[1]
 SENSORS = ROOT / "manifold_sensors"
@@ -33,7 +33,6 @@ def test_listing_2000_artifacts_reads_the_record_and_does_not_hash(tmp_path, mon
     def no_hashing(*a, **kw):
         raise AssertionError("an artifact was hashed after completion")
     monkeypatch.setattr(store_mod, "artifact_ref", no_hashing)
-    monkeypatch.setattr(store_mod, "artifacts_for", no_hashing)
     t = time.perf_counter()
     listed = backend.list_artifacts(run_id)["artifacts"]
     elapsed = time.perf_counter() - t

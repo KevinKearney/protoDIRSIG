@@ -104,7 +104,7 @@ def _orbit():
     folder = VECTORS / "orbit"
     out = {p.name: _sha256_file(p) for p in sorted(folder.iterdir()) if p.is_file() and p.suffix != ".md"}   # data, not prose
     want = json.loads((folder / "expected.json").read_text())
-    from manifold.sim import orbit                                          # skyfield, sgp4: imported here only
+    from manifold.core import orbit  # skyfield, sgp4: imported here only
     _, _, l1, l2 = orbit.read_tle(folder / want["tle_file"], 35946)
     traj = orbit.propagate(l1, l2, want["epoch_utc"], want["t_s"])
     mm = [[int(round(float(v) * 1000)) for v in row] for row in traj.pos_itrs]

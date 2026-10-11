@@ -33,8 +33,9 @@ from manifold.core.compose import ComposeError, compose, compose_sweep   # noqa:
 from manifold.core.contract import schema_violations                       # noqa: E402
 from manifold.sim.library import LibraryReader                            # noqa: E402
 from manifold.core.identity import run_id as compute_run_id                  # noqa: E402
-from manifold.core.run_spec import check_library_files, load_run_spec, resolve_run   # noqa: E402
-from manifold.sim._dirsig.simulation import schema_errors   # noqa: E402
+from manifold.engines.dirsig.run_spec import check_library_files, resolve_run  # noqa: E402
+from manifold.core.run_spec import load_run_spec
+from manifold.engines.dirsig.simulation import schema_errors  # noqa: E402
 
 OUT = ROOT / "api" / "examples"
 LAYERS = ROOT / "manifold_run_specs"

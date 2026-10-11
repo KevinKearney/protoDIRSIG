@@ -17,6 +17,7 @@ engine's `log_info.json`, with `frame`, after the run-level logs; pass-through: 
 installation and version, the execution record's `dirfm` and `dirsig` members. `dry_run` runs DIRSIG's own dry run in a
 scratch directory. Importing this module loads no engine package (dirfm loads only when a job is built).
 """
+import importlib.util
 import json
 import os
 import shutil
@@ -25,14 +26,15 @@ import traceback
 import uuid
 from pathlib import Path
 
-from manifold.core.contract import load_schema
-from manifold.core.engine import CollectedArtifact, Collection, EngineInfo, EnvironmentPolicy, LaunchPlan, ResolveContext
-from manifold.core.passthrough_spec import is_passthrough, resolve_passthrough
-from manifold.core.run_spec import black_level_problem, check_library_files, resolve_run
+from manifold.core.contract import contracts_dir
+from manifold.engines.dirsig.artifacts import RUN_LEVEL, _frames, _header
+from manifold.core.engine import (CollectedArtifact, Collection, EngineInfo, EnvironmentPolicy, LaunchPlan, Registry,
+                                  ResolveContext, default_registry)
+from manifold.engines.dirsig.passthrough_spec import is_passthrough, resolve_passthrough
+from manifold.engines.dirsig.run_spec import black_level_problem, check_library_files, resolve_run
 
-REPOSITORY = Path(__file__).resolve().parents[6]    # packages/sim/src/manifold/sim/_dirsig/
+REPOSITORY = Path(__file__).resolve().parents[6]    # packages/engine-dirsig/src/manifold/engines/dirsig/
 RESULT = "engine_result.json"                     # written by `execute` into the run directory
-RUN_LEVEL = ("run_info.json", "log_info.json")    # engine logs: the run as a whole, no frame
 ENGINE_ID = "dirsig"
 CONTRACT = "dirsig-engine/1"
 SCHEMA_FILE = "dirsig-engine-1.schema.json"
@@ -53,10 +55,29 @@ ENGINE_ENUMS = {
 }
 
 
+def registry():
+    """A registry that serves this engine: the default one when it already does (a process that imported
+    `manifold.sim`), else a registry holding only this adapter. The engine's own modules (the runner, `Simulation`,
+    `LocalRegistry`) validate and compose through it, so they work in a process that never imported `manifold.sim`."""
+    reg = default_registry()
+    if ENGINE_ID in reg.ids():
+        return reg
+    own = Registry()
+    own.register(ENGINE_ID, DirsigAdapter, source=__name__)
+    return own
+
+
+def schema_path():
+    """`dirsig-engine-1.schema.json`: the copy packaged with this distribution (`_contracts/`, written by the build), else
+    the contract folder `manifold.core.contract.contracts_dir` names (a checkout or an editable install)."""
+    packaged = Path(__file__).resolve().parent / "_contracts" / SCHEMA_FILE
+    return packaged if packaged.is_file() else contracts_dir() / SCHEMA_FILE
+
+
 def _version():
     from importlib.metadata import PackageNotFoundError, version
     try:
-        return version("eoptic-manifold-sim")
+        return version("eoptic-manifold-engine-dirsig")
     except PackageNotFoundError:
         return "0+unknown"
 
@@ -77,7 +98,16 @@ class DirsigAdapter:
                           "DIRSIG 5 through dirfm (layered) or a library demo directory run as authored (pass-through)")
 
     def engine_schema(self, engine_block):
-        return load_schema(SCHEMA_FILE)
+        return json.loads(schema_path().read_text())
+
+    def availability(self):
+        """None when the engine can run here, else why not: `dirfm` must be importable (checked without importing it)."""
+        try:
+            if importlib.util.find_spec("dirfm") is None:
+                return "dirfm is not installed (pip install -e <dirsig-file-maker checkout>)"
+        except (ImportError, ValueError) as e:
+            return f"dirfm cannot be imported: {e}"
+        return None
 
     def compose_problems(self, settings):
         """(field, message) for each recipe settings member the engine cannot apply."""
@@ -142,7 +172,8 @@ class DirsigAdapter:
             return Collection((), "incomplete", "the engine process stopped before it finished (no engine_result.json)")
         result = json.loads(path.read_text())
         if result.get("outcome") != "rendered":
-            return Collection((), "failed", result.get("message") or "the engine run failed", result.get("record", {}))
+            logs = tuple(CollectedArtifact(Path(output_dir) / n, "log") for n in RUN_LEVEL if (Path(output_dir) / n).is_file())
+            return Collection(logs, "failed", result.get("message") or "the engine run failed", result.get("record", {}))
         out = Path(output_dir)
         if result.get("mode") == "passthrough":
             files = sorted(p for p in out.rglob("*") if p.is_file()) if out.is_dir() else []
@@ -184,7 +215,7 @@ class DirsigAdapter:
         if is_passthrough(spec):
             if engine is None:
                 return False, False, ["not performed: no DIRSIG installation was found"]
-            from manifold.sim._dirsig.passthrough import run_engine
+            from manifold.engines.dirsig.passthrough import run_engine
             try:
                 result = run_engine(resolved, scratch, engine, dry_run=True, log=None)
                 ok = result["returncode"] == 0
@@ -196,7 +227,7 @@ class DirsigAdapter:
             return False, False, ["not performed: no DIRSIG installation was found (dirsig5 on PATH, $DIRSIG_HOME or "
                                   "~/DIRSIG/<pinned version>)"]
         from manifold.core.compose import dump
-        from manifold.sim._dirsig.simulation import Simulation
+        from manifold.engines.dirsig.simulation import Simulation
         scratch.mkdir(parents=True)
         try:
             path = scratch / "run_spec.yaml"
@@ -293,7 +324,7 @@ def _engine_path(option):
 
 
 def _simulation(run_spec_path, config_repo, work_dir, sensor_library):
-    from manifold.sim._dirsig.simulation import Simulation
+    from manifold.engines.dirsig.simulation import Simulation
     return Simulation.from_run_spec(run_spec_path, config_repo, work_dir, sensor_library)
 
 
@@ -313,7 +344,7 @@ def _execute_layered(context, factory):
 
 
 def _execute_passthrough(context):
-    from manifold.sim._dirsig.passthrough import cache_state, run_engine, throttle_suspect, tool_version
+    from manifold.engines.dirsig.passthrough import cache_state, run_engine, throttle_suspect, tool_version
     run_dir = Path(context.run_dir)
     run = resolve_passthrough(context.spec, Path(context.config_repo))   # the digest is verified again here
     engine = _engine_path((context.options or {}).get("engine", "auto"))
@@ -338,25 +369,3 @@ def _execute_passthrough(context):
         return {"outcome": "failed", "mode": "passthrough", "record": record,
                 "message": f"the engine exited with status {result['returncode']} (see worker.log)"}
     return {"outcome": "rendered", "mode": "passthrough", "record": record}
-
-
-def _frames(run_dir):
-    """[(frame, image path, truth paths)] from the engine's log_info.json, in task order (task, then capture)."""
-    log = Path(run_dir) / "output" / "log_info.json"
-    if not log.is_file():
-        return []
-    caps = json.loads(log.read_text()).get("capture_list", [])
-    caps = sorted(caps, key=lambda c: (c.get("task_index", 0), c.get("capture_index", 0)))
-    out = []
-    for i, c in enumerate(caps):
-        data = c.get("plugin_data", {})
-        resolve = lambda p: Path(p) if Path(p).is_absolute() else Path(run_dir) / "output" / p      # noqa: E731
-        out.append((i, resolve(data["filename"]), [resolve(t) for t in data.get("truth_filenames", []) if t]))
-    return out
-
-
-def _header(image):
-    for h in (image.with_name(image.name + ".hdr"), image.with_suffix(".hdr")):
-        if h.is_file():
-            return h
-    return None

@@ -9,7 +9,7 @@ Conditions: `C0` DIRSIG's defaults (as the sweep ran); `C1` one thread (`dirsig5
 `<work>/bin` that adds the option, since the engine contract has no thread count); `C2` an explicit seed (`--seed`,
 default 1, passed as the run's seed, `--random_seed`). Each demo is extracted from its zip once into
 `<work>/demos/<Name>` (the demo is not modified), and each render runs the SDK's pass-through runner
-(`manifold.sim._dirsig.passthrough.run_engine`: scene compile, the engine, a per-run `HOME`) on the simulation file the sweep
+(`manifold.engines.dirsig.passthrough.run_engine`: scene compile, the engine, a per-run `HOME`) on the simulation file the sweep
 rendered, in its own fresh directory `<work>/runs/<Name>/<condition>-<rep>`; the copy of the demo is deleted after the
 render and `output/` is kept. One render at a time. A line per render is appended to `<work>/probe.jsonl` (demo,
 simulation, condition, rep, return code, wall time, outputs with size and sha256, maximum CPU temperature, CPU
@@ -35,8 +35,8 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import compare_outputs  # noqa: E402
 import sweep_demos  # noqa: E402
-from manifold.sim._dirsig.passthrough import PassthroughRun, run_engine  # noqa: E402
-from manifold.sim._dirsig.adapter import locate_dirsig  # noqa: E402
+from manifold.engines.dirsig.passthrough import PassthroughRun, run_engine  # noqa: E402
+from manifold.engines.dirsig.adapter import locate_dirsig  # noqa: E402
 
 CONDITIONS = {"C0": "default", "C1": "one thread", "C2": "explicit seed"}
 

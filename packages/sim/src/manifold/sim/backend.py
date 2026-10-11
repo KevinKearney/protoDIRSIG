@@ -333,6 +333,17 @@ class LocalBackend:
         """Collect exited worker processes this backend started (so none lingers as a zombie)."""
         self._children = [p for p in self._children if p.poll() is None]
 
+    def _execution_problem(self, run, instance=None):
+        """An admission problem when this backend cannot execute the run although it is valid: its engine is
+        registered but unavailable here (the adapter's `availability`). None otherwise."""
+        engine_id = engine_id_of(run.spec)
+        if engine_id is None or engine_id not in self.registry.ids():
+            return None
+        status = self.registry.status(engine_id)
+        if status.available:
+            return None
+        return problems.admission(f"engine {engine_id!r} is unavailable on this backend: {status.reason}", instance)
+
     def _create(self, run):
         resolved = identity.resolved_run_spec(run.spec, run.library)
         run_id, created = self.store.create_run(resolved, run.name, self._job(run))
@@ -350,7 +361,8 @@ class LocalBackend:
                                       "submit it with submit_sweep", "/runs")
         run = runs[0]
         report = self._report(run)
-        problem = problems.from_validation(report, run.sources, run.recipe, "/runs")
+        problem = problems.from_validation(report, run.sources, run.recipe, "/runs") or self._execution_problem(run,
+                                                                                                                "/runs")
         if problem is not None:
             raise AdmissionError(problem)
         run_id, _ = self._create(run)
@@ -366,7 +378,7 @@ class LocalBackend:
             raise InvalidRequestError("a run spec, not a recipe; submit it with submit_run", "/sweeps")
         failing = []
         for run in runs:
-            p = problems.from_validation(self._report(run), run.sources, run.recipe)
+            p = problems.from_validation(self._report(run), run.sources, run.recipe) or self._execution_problem(run)
             if p is not None:
                 failing.append({"run": run.name, "detail": p["detail"], "layer": p["layer"], "field": p["field"]})
         if failing:

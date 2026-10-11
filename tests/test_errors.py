@@ -16,8 +16,9 @@ from jsonschema import Draft202012Validator
 from manifold.core import problems
 from manifold.core.compose import compose_sweep, dump
 from manifold.core.errors import AdmissionError, InvalidRequestError, NotFoundError, ProblemError
-from manifold.sim._dirsig.registry import LocalRegistry
-from manifold.core.run_spec import RunSpecError, load_run_spec, resolve_run
+from manifold.engines.dirsig.registry import LocalRegistry
+from manifold.core.run_spec import RunSpecError, load_run_spec
+from manifold.engines.dirsig.run_spec import resolve_run
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_REPO = ROOT / "manifold_config_repo"

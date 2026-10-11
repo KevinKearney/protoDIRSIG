@@ -43,58 +43,19 @@ from pathlib import Path
 import yaml
 
 from manifold.core import _names, identity, problems
+from manifold.core.artifacts import (MEDIA_TYPES, NAME, ArtifactError, artifact_ref, check_artifact_names,  # noqa: F401
+                                     media_type, sha256_bytes_of)
 from manifold.core.errors import NotFoundError
 
 STATES = ("accepted", "running", "rendered", "failed", "cancelled")
 FINAL = ("rendered", "failed", "cancelled")
 ACTIVE = ("accepted", "running")
-NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")               # artifact_ref.schema.json `name`
 ID = re.compile(r"^[0-9a-f]{64}$")
-MEDIA_TYPES = {".img": "application/octet-stream", ".hdr": "text/plain", ".log": "text/plain", ".txt": "text/plain",
-               ".json": "application/json", ".png": "image/png"}
-RUN_LEVEL = ("run_info.json", "log_info.json")                  # engine logs: the run as a whole, no frame
 WORKER_GRACE_S = 60                                             # an active run with no worker pid this old is dead
-
-
-class ArtifactError(ValueError):
-    """Artifact names that collide or do not match the `artifact_ref` pattern: recorded as a failed run."""
 
 
 def utc_now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
-
-
-def media_type(path):
-    return MEDIA_TYPES.get(Path(path).suffix.lower(), "application/octet-stream")
-
-
-def sha256_bytes_of(path):
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for block in iter(lambda: f.read(1 << 20), b""):
-            h.update(block)
-    return h.hexdigest()
-
-
-def artifact_ref(path, name=None, frame=None):
-    """An `artifact_ref` document for a file: name (its base name), sha256 of the bytes, media type, `file://` URI."""
-    path = Path(path).resolve()
-    ref = {"name": name or path.name, "sha256": sha256_bytes_of(path), "media_type": media_type(path),
-           "uri": path.as_uri()}
-    if frame is not None:
-        ref["frame"] = frame
-    return ref
-
-
-def check_artifact_names(refs):
-    """ArtifactError when a name is outside the `artifact_ref` pattern or used twice."""
-    names = [r["name"] for r in refs]
-    bad = sorted({n for n in names if not NAME.match(n)})
-    dup = sorted({n for n in names if names.count(n) > 1})
-    if bad or dup:
-        raise ArtifactError(f"artifact names {'not matching ' + NAME.pattern + ': ' + str(bad) if bad else ''}"
-                            f"{'; ' if bad and dup else ''}{'used twice: ' + str(dup) if dup else ''}")
-    return refs
 
 
 def _write_json(path, doc):
@@ -106,70 +67,6 @@ def _write_json(path, doc):
 
 def _read_json(path):
     return json.loads(Path(path).read_text())
-
-
-def _frames(run_dir):
-    """[(frame, image path, truth paths)] from the engine's log_info.json, in task order (task, then capture)."""
-    log = run_dir / "output" / "log_info.json"
-    if not log.is_file():
-        return []
-    caps = _read_json(log).get("capture_list", [])
-    caps = sorted(caps, key=lambda c: (c.get("task_index", 0), c.get("capture_index", 0)))
-    out = []
-    for i, c in enumerate(caps):
-        data = c.get("plugin_data", {})
-        resolve = lambda p: Path(p) if Path(p).is_absolute() else run_dir / "output" / p      # noqa: E731
-        out.append((i, resolve(data["filename"]), [resolve(t) for t in data.get("truth_filenames", []) if t]))
-    return out
-
-
-def _header(image):
-    for h in (image.with_name(image.name + ".hdr"), image.with_suffix(".hdr")):
-        if h.is_file():
-            return h
-    return None
-
-
-def artifacts_for(run_dir, final=False):
-    """The artifact references of a run: `run_spec.json`; `run_info.json` and `log_info.json` once written; and, for a
-    rendered run (`final`), every capture's image, its ENVI header if present and its truth products and their
-    headers, each with `frame`, the capture's zero-based index in task order. Names are file base names; a collision or
-    a name outside the `artifact_ref` pattern raises ArtifactError (the run is failed, nothing is renamed)."""
-    run_dir = Path(run_dir)
-    refs = [artifact_ref(run_dir / "run_spec.json")]
-    refs += [artifact_ref(run_dir / "output" / n) for n in RUN_LEVEL if (run_dir / "output" / n).is_file()]
-    if final:
-        for frame, image, truth in _frames(run_dir):
-            for p in [image, _header(image)] + [x for t in truth for x in (t, _header(t))]:
-                if p is not None:
-                    if not p.is_file():
-                        raise ArtifactError(f"capture {frame}: {p.name} is named by the engine log but was not written")
-                    refs.append(artifact_ref(p, frame=frame))
-    names = [r["name"] for r in refs]
-    bad = sorted({n for n in names if not NAME.match(n)})
-    dup = sorted({n for n in names if names.count(n) > 1})
-    if bad or dup:
-        raise ArtifactError(f"artifact names {'not matching ' + NAME.pattern + ': ' + str(bad) if bad else ''}"
-                            f"{'; ' if bad and dup else ''}{'used twice: ' + str(dup) if dup else ''}")
-    return refs
-
-
-def passthrough_artifacts(run_dir):
-    """The artifact references of a rendered pass-through run: `run_spec.json`, then every file the engine wrote into
-    `output/`, sorted by name, with no frame. A file in a subfolder of `output/` is named by its path with `/` replaced
-    by `_`; names are checked like `artifacts_for`'s."""
-    run_dir = Path(run_dir)
-    out = run_dir / "output"
-    refs = [artifact_ref(run_dir / "run_spec.json")]
-    files = sorted(p for p in out.rglob("*") if p.is_file()) if out.is_dir() else []
-    refs += [artifact_ref(p, name=p.relative_to(out).as_posix().replace("/", "_")) for p in files]
-    names = [r["name"] for r in refs]
-    bad = sorted({n for n in names if not NAME.match(n)})
-    dup = sorted({n for n in names if names.count(n) > 1})
-    if bad or dup:
-        raise ArtifactError(f"artifact names {'not matching ' + NAME.pattern + ': ' + str(bad) if bad else ''}"
-                            f"{'; ' if bad and dup else ''}{'used twice: ' + str(dup) if dup else ''}")
-    return refs
 
 
 def _boot_time():
@@ -355,14 +252,15 @@ class RunStore:
         return ids
 
     def artifacts(self, run_id):
-        """A rendered run's cached references (`artifacts.json`); otherwise `run_spec.json` and the engine logs that
-        exist, hashed now."""
+        """The run's cached references (`artifacts.json`, written by the worker when execution ends: every artifact of
+        a rendered run, and what the engine's adapter collected from one that did not finish); before that,
+        `run_spec.json` alone."""
         d = self.run_dir(run_id)
-        status = self.read_status(run_id)
+        self.read_status(run_id)                                     # NotFoundError for an unknown run; reaps
         cached = d / "artifacts.json"
-        if status["state"] == "rendered" and cached.is_file():
+        if cached.is_file():
             return _read_json(cached)
-        return artifacts_for(d, final=False)
+        return [artifact_ref(d / "run_spec.json")]
 
     def write_artifacts(self, run_id, refs):
         _write_json(self.run_dir(run_id) / "artifacts.json", refs)

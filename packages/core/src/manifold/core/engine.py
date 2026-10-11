@@ -17,7 +17,9 @@ dataclasses:
   verdict that does not rely on the exit status alone);
 - provenance: `fingerprint(spec)`, the external dependencies recorded in the execution record (tool versions, hashed
   assets, interpreter identity);
-- resources: `resources(spec)`, the typed slots the run needs (`resources.ResourceRequest`).
+- resources: `resources(spec)`, the typed slots the run needs (`resources.ResourceRequest`);
+- optional: `availability()` (None, or why the engine's runtime cannot run here; listed by `Registry.status`) and
+  `dry_run(spec, resolved, scratch_root, options)` (the engine's own dry run).
 
 `Registry` holds adapters by engine id, loads them lazily (a loader that raises leaves the engine listed as unavailable
 with the reason; the others are unaffected) and lists them deterministically. `default_registry()` is the registry
@@ -172,8 +174,9 @@ class Registry:
             raise ValueError("an engine id is a non-empty string")
         if engine_id in self._entries and not replace:
             raise ValueError(f"engine {engine_id!r} is already registered ({self._entries[engine_id]['source']})")
-        loader = adapter_or_loader if (callable(adapter_or_loader) and not isinstance(adapter_or_loader, EngineAdapter)) \
-            else (lambda a=adapter_or_loader: a)
+        is_factory = isinstance(adapter_or_loader, type) or (callable(adapter_or_loader)
+                                                              and not isinstance(adapter_or_loader, EngineAdapter))
+        loader = adapter_or_loader if is_factory else (lambda a=adapter_or_loader: a)
         self._entries[engine_id] = {"loader": loader, "adapter": None, "error": None, "loaded": False,
                                     "source": source}
 
@@ -215,9 +218,21 @@ class Registry:
             return None
 
     def status(self, engine_id):
+        """The engine's `EngineStatus`: available when its adapter loaded and its optional `availability()` (the
+        engine's runtime: its packages, tools) reports nothing missing; otherwise the reason. An adapter that loaded
+        still serves validation (`get`, `find`) even when its runtime is unavailable."""
         e = self._load(engine_id)
-        info = e["adapter"].info() if e["adapter"] is not None else None
-        return EngineStatus(engine_id, e["adapter"] is not None, info, e["error"], e["source"])
+        adapter = e["adapter"]
+        if adapter is None:
+            return EngineStatus(engine_id, False, None, e["error"], e["source"])
+        reason = None
+        check = getattr(adapter, "availability", None)
+        if callable(check):
+            try:
+                reason = check()
+            except Exception as exc:  # noqa: BLE001
+                reason = f"{type(exc).__name__}: {exc}"
+        return EngineStatus(engine_id, reason is None, adapter.info(), reason, e["source"])
 
     def listing(self):
         """Every registered engine's `EngineStatus`, sorted by engine id (loads each adapter once)."""

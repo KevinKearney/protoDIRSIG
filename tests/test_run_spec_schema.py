@@ -16,7 +16,7 @@ from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
 from referencing.jsonschema import DRAFT202012
 
-from manifold.sim._dirsig.simulation import schema_errors
+from manifold.engines.dirsig.simulation import schema_errors
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACTS = ROOT / "manifold_contracts"
@@ -229,6 +229,6 @@ def test_schema_errors_enforces_the_schema_and_only_named_semantic_rules_beyond_
 
 @pytest.mark.parametrize("name", sorted(SEMANTIC))
 def test_each_semantic_case_is_caught_by_semantic_errors(name):
-    from manifold.sim._dirsig.simulation import semantic_errors
+    from manifold.engines.dirsig.simulation import semantic_errors
     spec = _semantic(name)
     assert schema_ok(spec) and semantic_errors(spec), name

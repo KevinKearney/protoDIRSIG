@@ -13,7 +13,7 @@ from manifold.core.engine import RunContext
 
 
 def main(run_dir):
-    from manifold.sim._dirsig.adapter import DirsigAdapter
+    from manifold.engines.dirsig.adapter import DirsigAdapter
     run_dir = Path(run_dir).resolve()
     job = json.loads((run_dir / "job.json").read_text())
     spec = yaml.safe_load((run_dir / "run_spec.yaml").read_text())

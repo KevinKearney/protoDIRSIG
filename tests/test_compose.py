@@ -13,8 +13,9 @@ import pytest
 import yaml
 
 from manifold.core.compose import MAX_RUNS, OVERRIDABLE, ComposeError, compose, compose_sweep, dump, explain, sweep_id
-from manifold.core.run_spec import check_library_files, load_run_spec, resolve_run
-from manifold.sim._dirsig.simulation import schema_errors
+from manifold.engines.dirsig.run_spec import check_library_files, resolve_run
+from manifold.core.run_spec import load_run_spec
+from manifold.engines.dirsig.simulation import schema_errors
 from test_simulation import needs_dirsig
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -284,7 +285,7 @@ def test_stamp_hashes_verifies_generated_specs(tmp_path):
 @pytest.mark.parametrize("recipe", _resolvable(RECIPES), ids=lambda p: p.stem)
 def test_inline_and_ref_sensor_render_the_same_platform(tmp_path, recipe):
     """The resolver accepts both forms of descriptor.sensor and renders the same .platform from each."""
-    from manifold.core.platform_gen import render_platform
+    from manifold.engines.dirsig.platform_gen import render_platform
     out = {}
     for inline in (False, True):
         spec = compose(recipe, inline_sensor=inline)
@@ -299,7 +300,7 @@ def test_inline_and_ref_sensor_render_the_same_platform(tmp_path, recipe):
 
 @needs_dirsig
 def test_submit_recipe_accepts_and_rejects(tmp_path):
-    from manifold.sim._dirsig.registry import LocalRegistry
+    from manifold.engines.dirsig.registry import LocalRegistry
     r = LocalRegistry().submit_recipe(RUN_SPECS / "recipes" / "synthetic_vis.yaml", CONFIG_REPO, tmp_path / "ok")
     assert r.accepted and r.checks == {"compose": True, "schema": True, "resolution": True, "execution": True,
                                        "stamped": True}
@@ -314,7 +315,7 @@ def test_submit_recipe_accepts_and_rejects(tmp_path):
 def test_submit_and_run_sweep_keep_each_run_independent(tmp_path, monkeypatch):
     """One run rejected at submission (its QE curve is missing) and one failing at render: the third still
     renders, and each run reports its own state. 16 x 16 windows."""
-    from manifold.sim._dirsig.registry import LocalRegistry
+    from manifold.engines.dirsig.registry import LocalRegistry
     root = _layers(tmp_path)
     recipe = root / "recipes" / SWEEP.name
     recipe.write_text(SWEEP.read_text().replace("Width: 32, Height: 32", "Width: 16, Height: 16"))
@@ -338,7 +339,7 @@ def test_submit_and_run_sweep_keep_each_run_independent(tmp_path, monkeypatch):
 
 
 def test_submit_sweep_reports_a_recipe_that_does_not_compose(tmp_path):
-    from manifold.sim._dirsig.registry import LocalRegistry
+    from manifold.engines.dirsig.registry import LocalRegistry
     bad = _recipe(VECTORS / "sweep_sensor_without_settings")
     sub = LocalRegistry().submit_sweep(bad, CONFIG_REPO, tmp_path)
     assert sub.runs == {} and sub.sweep_id == ""                          # no runs, so no content-addressed id
@@ -351,8 +352,8 @@ def test_run_sweep_renders_each_run_as_it_renders_alone(tmp_path):
     values; seeded, so byte for byte), and the two sensors' images differ. 16 x 16 windows."""
     import numpy as np
 
-    from manifold.sim._dirsig.registry import LocalRegistry
-    from manifold.sim._dirsig.simulation import Simulation
+    from manifold.engines.dirsig.registry import LocalRegistry
+    from manifold.engines.dirsig.simulation import Simulation
     root = _layers(tmp_path)
     doc = yaml.safe_load(SWEEP.read_text())
     keep = ["auror-nir.yaml", "synthetic_600_200_vis_1920.yaml"]

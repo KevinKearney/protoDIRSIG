@@ -11,8 +11,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from manifold.core.run_spec import (RunSpecError, _check_settings_roi, derive_run_spec, check_library_files, load_run_spec, load_sensor_spec,
-                                  resolve_run)
+from manifold.core.run_spec import RunSpecError, _check_settings_roi, load_run_spec, load_sensor_spec
+from manifold.engines.dirsig.run_spec import derive_run_spec, check_library_files, resolve_run
 
 PROJECT = Path(__file__).resolve().parents[1]
 SPEC = PROJECT / "manifold_run_specs" / "auror_ref.yaml"
@@ -287,7 +287,7 @@ def _two_of(lib, what):
 def test_rejects_sensor_shapes_it_does_not_generate(tmp_path, what, settings, match):
     """One sensor entry, one focal plane and one settings member per job; anything else fails at resolution,
     so `Simulation` never assembles or renders it."""
-    from manifold.sim._dirsig.simulation import Simulation
+    from manifold.engines.dirsig.simulation import Simulation
     lib = tmp_path / "manifold_sensors"
     if what:
         _two_of(lib, what)

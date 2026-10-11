@@ -8,10 +8,10 @@ import copy
 import pytest
 
 from manifold.core import identity
-from manifold.sim._dirsig import simulation
+from manifold.engines.dirsig import simulation
 from manifold.core.admission import validate_spec
 from manifold.core.run_spec import load_run_spec
-from manifold.sim._dirsig.simulation import Simulation
+from manifold.engines.dirsig.simulation import Simulation
 from test_simulation import CONFIG_REPO, SENSORS, SPEC, needs_dirsig
 
 needs_config_repo = pytest.mark.skipif(not (CONFIG_REPO / "scenes" / "tahoe" / "tahoe.scene").is_file(),

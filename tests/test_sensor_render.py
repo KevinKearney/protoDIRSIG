@@ -20,8 +20,9 @@ import numpy as np
 import pytest
 import yaml
 
-from manifold.core.run_spec import derive_run_spec, load_run_spec
-from manifold.sim._dirsig.simulation import Simulation
+from manifold.engines.dirsig.run_spec import derive_run_spec
+from manifold.core.run_spec import load_run_spec
+from manifold.engines.dirsig.simulation import Simulation
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = ROOT / "manifold_run_specs" / "auror_ref.yaml"

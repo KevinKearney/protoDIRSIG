@@ -32,7 +32,8 @@ import threading
 from pathlib import Path, PurePosixPath
 
 from manifold.core import _names
-from manifold.core.passthrough_spec import OPAQUE, POINTER, PassthroughRun, is_passthrough, resolve_passthrough  # noqa: F401  (re-exported)
+from manifold.engines.dirsig.passthrough_spec import (OPAQUE, POINTER, PassthroughRun, is_passthrough,  # noqa: F401  (re-exported)
+                                                      resolve_passthrough)
 from manifold.core.dirhash import directory_digest  # noqa: F401  (importable here before the split)
 from manifold.core.run_spec import PLACEHOLDER, RunSpecError  # noqa: F401  (importable here before the split)
 

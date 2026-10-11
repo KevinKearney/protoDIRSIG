@@ -1,5 +1,5 @@
 """Two-line element sets read from a file and validated: the TLE checks admission runs on an orbit run's library
-file, without the propagator. `manifold.sim.orbit` re-exports both functions and adds `fetch_tle` and the propagator.
+file, without the propagator. `manifold.core.orbit` re-exports both functions and adds `fetch_tle` and the propagator.
 
 Imports: the standard library only.
 """

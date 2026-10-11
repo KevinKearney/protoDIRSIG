@@ -1,4 +1,4 @@
-"""manifold.sim._dirsig.registry.LocalRegistry must accept the real AUROR_ref run spec and reject a broken
+"""manifold.engines.dirsig.registry.LocalRegistry must accept the real AUROR_ref run spec and reject a broken
 one with a reason naming the failed check.
 
 Reads manifold_run_specs/auror_ref.yaml and manifold_config_repo READ-ONLY; runs a DIRSIG dry run;
@@ -6,7 +6,7 @@ writes only to pytest's tmp_path.
 """
 import pytest
 
-from manifold.sim._dirsig.registry import LocalRegistry
+from manifold.engines.dirsig.registry import LocalRegistry
 from test_simulation import CONFIG_REPO, SENSORS, SPEC, broken_spec, needs_dirsig
 
 

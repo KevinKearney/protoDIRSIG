@@ -1,10 +1,10 @@
-"""manifold.sim._dirsig.atmosphere_patches must make dirfm's NewAtmosphere plugin emit the jsim stanza
+"""manifold.engines.dirsig.atmosphere_patches must make dirfm's NewAtmosphere plugin emit the jsim stanza
 DIRSIG expects. Writes only to pytest's tmp_path.
 """
 import pytest
 
 from dirfm.atmosphere import ModtranTapeBackend
-from manifold.sim._dirsig.atmosphere_patches import PatchedModtranTapeBackend, PatchedNewAtmospherePlugin
+from manifold.engines.dirsig.atmosphere_patches import PatchedModtranTapeBackend, PatchedNewAtmospherePlugin
 
 
 def test_unpatched_setters_still_fail():

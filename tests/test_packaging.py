@@ -16,7 +16,7 @@ import pytest
 from manifold.core import contract
 
 ROOT = Path(__file__).resolve().parents[1]
-SCHEMAS = ("run-spec-1.schema.json", "dirsig-engine-1.schema.json", "sensor-spec-1.schema.json")
+SCHEMAS = ("run-spec-1.schema.json", "sensor-spec-1.schema.json")   # the engine-block schema is the engine's wheel's
 VALID = ROOT / "manifold_run_specs" / "auror_ref.yaml"
 
 CHECK = """
@@ -85,3 +85,30 @@ def test_the_checkout_has_no_packaged_copy_and_reads_manifold_contracts(monkeypa
 def test_the_environment_variable_comes_first(monkeypatch, tmp_path):
     monkeypatch.setenv("MANIFOLD_CONTRACTS", str(tmp_path))
     assert contract.contracts_dir() == tmp_path
+
+
+def test_the_engine_wheel_carries_its_schema_and_registers_its_adapter(tmp_path_factory):
+    """eoptic-manifold-engine-dirsig builds offline into a wheel with `dirsig-engine-1.schema.json` under
+    `manifold/engines/dirsig/_contracts/`, the `manifold.engines` entry point `dirsig`, and no namespace `__init__`."""
+    repo = tmp_path_factory.mktemp("engine_inputs")
+    src = repo / "packages" / "engine-dirsig"
+    src.mkdir(parents=True)
+    for name in ("pyproject.toml", "setup.py"):
+        shutil.copy2(ROOT / "packages" / "engine-dirsig" / name, src)
+    shutil.copytree(ROOT / "packages" / "engine-dirsig" / "src", src / "src",
+                    ignore=shutil.ignore_patterns("__pycache__", "_contracts", "*.egg-info"))
+    (repo / "manifold_contracts").mkdir()
+    shutil.copy2(ROOT / "manifold_contracts" / "dirsig-engine-1.schema.json", repo / "manifold_contracts")
+    out = tmp_path_factory.mktemp("engine_wheel")
+    r = subprocess.run([sys.executable, "-m", "pip", "wheel", ".", "--no-deps", "--no-build-isolation", "-w", str(out)],
+                       cwd=src, capture_output=True, text=True)
+    if r.returncode != 0:
+        pytest.skip(f"a wheel cannot be built offline here: {(r.stderr or r.stdout).strip().splitlines()[-1:]}")
+    (whl,) = out.glob("eoptic_manifold_engine_dirsig-*.whl")
+    with zipfile.ZipFile(whl) as z:
+        names = z.namelist()
+        schema = z.read("manifold/engines/dirsig/_contracts/dirsig-engine-1.schema.json")
+        eps = z.read(next(n for n in names if n.endswith("entry_points.txt"))).decode()
+    assert schema == (ROOT / "manifold_contracts" / "dirsig-engine-1.schema.json").read_bytes()
+    assert "[manifold.engines]" in eps and "dirsig = manifold.engines.dirsig.adapter:DirsigAdapter" in eps
+    assert "manifold/__init__.py" not in names and "manifold/engines/__init__.py" not in names

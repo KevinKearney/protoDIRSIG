@@ -15,12 +15,12 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 PROPAGATOR = ("skyfield", "sgp4")
 ENGINE = ("dirfm",)
-PURE = ["manifold.core.compose", "manifold.core.run_spec", "manifold.sim.orbit", "manifold.core.contract", "manifold.core.identity",
+PURE = ["manifold.core.compose", "manifold.core.run_spec", "manifold.core.orbit", "manifold.core.contract", "manifold.core.identity",
         "manifold.core.dirhash", "manifold.core.problems", "manifold.core.errors", "manifold.core.admission",
         "manifold.sim.store", "manifold.sim.backend", "manifold.sim.library",
         "manifold.core.models", "manifold.sim.workspace",
-        "manifold.sim._dirsig.passthrough", "manifold.sim.worker"]
-DIRFM_BOUND = {"manifold.sim._dirsig.registry", "manifold.sim._dirsig.simulation"}
+        "manifold.engines.dirsig.passthrough", "manifold.sim.worker"]
+DIRFM_BOUND = {"manifold.engines.dirsig.registry", "manifold.engines.dirsig.simulation"}
 
 
 def _loaded(module):
@@ -154,3 +154,30 @@ def test_no_distribution_ships_the_namespace_init():
         assert not (dist / "src" / "manifold" / "engines" / "__init__.py").exists(), dist.name
     import manifold
     assert getattr(manifold, "__file__", None) is None and len(list(manifold.__path__)) >= 2
+
+
+def test_without_dirfm_the_sdk_imports_and_lists_dirsig_unavailable(tmp_path):
+    """dirfm made unimportable by a meta-path blocker: `manifold.core` and `manifold.sim` import, `list_engines` lists
+    dirsig as unavailable with the reason, validation still runs engine-free, and a submission is refused at admission."""
+    code = BLOCKED.replace('("dirfm", "skyfield", "sgp4")', '("dirfm",)') + f"""
+import json
+import manifold.core, manifold.sim
+from manifold.sim.backend import LocalBackend
+from manifold.core.errors import AdmissionError
+b = LocalBackend({str(tmp_path / "work")!r}, {str(ROOT / "manifold_config_repo")!r})
+items = b.list_engines()["items"]
+valid = b.validate({str(ROOT / "manifold_run_specs" / "auror_ref.yaml")!r})["runs"][0]["valid"]
+try:
+    b.submit_run({str(ROOT / "manifold_run_specs" / "auror_ref.yaml")!r})
+    refused = None
+except AdmissionError as e:
+    refused = e.problem["detail"]
+print(json.dumps({{"items": items, "valid": valid, "refused": refused, "dirfm": "dirfm" in sys.modules}}))
+"""
+    res = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    assert res.returncode == 0, res.stderr
+    got = json.loads(res.stdout)
+    (dirsig,) = [e for e in got["items"] if e["engine_id"] == "dirsig"]
+    assert dirsig["available"] is False and "dirfm" in dirsig["reason"]
+    assert got["valid"] is True and got["dirfm"] is False
+    assert got["refused"] and "unavailable" in got["refused"] and "dirfm" in got["refused"]

@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 import yaml
 
-from manifold.core.platform_gen import PlatformGenError, check_template, render_platform
+from manifold.engines.dirsig.platform_gen import PlatformGenError, check_template, render_platform
 from manifold.core.run_spec import load_run_spec, load_sensor_spec
 from manifold.core.spectral import read_curve, srf_model_values
 

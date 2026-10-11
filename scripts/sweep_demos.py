@@ -52,7 +52,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / "packages" / d / "src") for d in ("core", "sim")]   # the manifold namespace, uninstalled
 
 from manifold.core.dirhash import directory_digest                  # noqa: E402
-from manifold.sim._dirsig.passthrough import max_zone_temp_c, throttle_suspect   # noqa: E402
+from manifold.engines.dirsig.passthrough import max_zone_temp_c, throttle_suspect  # noqa: E402
 
 DIRSIG4 = ("MoonSat1", "Ssa2", "Ssa3")
 DIRSIG4_NOTE = "flagged DIRSIG 4 only by the online demo page, which the user read"

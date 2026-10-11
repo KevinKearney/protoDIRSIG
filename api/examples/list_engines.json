@@ -22,7 +22,7 @@
             "dirsig-engine/1"
           ],
           "reason": null,
-          "source": "eoptic-manifold-sim 0.0.1 (manifold.sim._dirsig.adapter:DirsigAdapter)",
+          "source": "eoptic-manifold-engine-dirsig 0.0.1 (manifold.engines.dirsig.adapter:DirsigAdapter)",
           "resources": null,
           "assets": []
         }

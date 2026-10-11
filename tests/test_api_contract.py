@@ -19,7 +19,7 @@ from referencing.jsonschema import DRAFT202012
 
 import manifold.core
 import manifold.sim
-import manifold.sim._dirsig
+import manifold.engines.dirsig
 from manifold.core.compose import ComposeError, compose_sweep
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -248,9 +248,9 @@ def test_admission_problem_example_names_the_edited_engine_profile_field():
 
 def _symbol(dotted):
     """Resolve `module.name`, `Class.method`, `Class.field` (a dataclass field) or `module.Class` against the
-    modules of manifold.core, manifold.sim and manifold.sim._dirsig."""
+    modules of manifold.core, manifold.sim and manifold.engines.dirsig."""
     first, *rest = dotted.split(".")
-    mods = [importlib.import_module(f"{pkg.__name__}.{m.name}") for pkg in (manifold.core, manifold.sim, manifold.sim._dirsig)
+    mods = [importlib.import_module(f"{pkg.__name__}.{m.name}") for pkg in (manifold.core, manifold.sim, manifold.engines.dirsig)
             for m in pkgutil.iter_modules(pkg.__path__)]
     for start in [m for m in mods if m.__name__.rsplit(".", 1)[1] == first] + \
                  [getattr(m, first) for m in mods if hasattr(m, first)]:

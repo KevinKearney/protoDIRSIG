@@ -23,29 +23,29 @@ MODULES = {                                     # former protodirsig submodule -
     "errors": "manifold.core.errors",
     "identity": "manifold.core.identity",
     "models": "manifold.core.models",
-    "platform_gen": "manifold.core.platform_gen",
+    "platform_gen": "manifold.engines.dirsig.platform_gen",
     "problems": "manifold.core.problems",
-    "run_spec": "manifold.core.run_spec",
+    "run_spec": "manifold.engines.dirsig.run_spec",         # the interpreter, with the core loader re-exported
     "spectral": "manifold.core.spectral",
     "backend": "protodirsig._split.backend",                   # names split between sim and the DIRSIG engine
     "library": "manifold.sim.library",
-    "orbit": "manifold.sim.orbit",
-    "store": "manifold.sim.store",
+    "orbit": "protodirsig._split.orbit",                    # orbit moved to core, lookat_motion to the DIRSIG engine
+    "store": "protodirsig._split.store",                    # artifacts_for, passthrough_artifacts moved to the engine
     "worker": "protodirsig._split.worker",                   # names split between sim and the DIRSIG engine
     "workspace": "manifold.sim.workspace",
-    "atmosphere_patches": "manifold.sim._dirsig.atmosphere_patches",
-    "motion_tasks": "manifold.sim._dirsig.motion_tasks",
-    "passthrough": "manifold.sim._dirsig.passthrough",
-    "platform_ref": "manifold.sim._dirsig.platform_ref",
-    "registry": "manifold.sim._dirsig.registry",
-    "scene_coverage": "manifold.sim._dirsig.scene_coverage",
-    "scene_ref": "manifold.sim._dirsig.scene_ref",
-    "sensors": "manifold.sim._dirsig.sensors",
-    "simulation": "manifold.sim._dirsig.simulation",
+    "atmosphere_patches": "manifold.engines.dirsig.atmosphere_patches",
+    "motion_tasks": "manifold.engines.dirsig.motion_tasks",
+    "passthrough": "manifold.engines.dirsig.passthrough",
+    "platform_ref": "manifold.engines.dirsig.platform_ref",
+    "registry": "manifold.engines.dirsig.registry",
+    "scene_coverage": "manifold.engines.dirsig.scene_coverage",
+    "scene_ref": "manifold.engines.dirsig.scene_ref",
+    "sensors": "manifold.engines.dirsig.sensors",
+    "simulation": "manifold.engines.dirsig.simulation",
 }
 NAMES = {                                       # former package-level names -> the module that holds them
     "Workspace": "manifold.sim.workspace",
-    "LocalRegistry": "manifold.sim._dirsig.registry",
+    "LocalRegistry": "manifold.engines.dirsig.registry",
 }
 
 warnings.warn(f"the protodirsig package is deprecated; import from {REPLACEMENT} instead", DeprecationWarning,

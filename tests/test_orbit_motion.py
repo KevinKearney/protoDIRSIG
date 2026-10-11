@@ -13,10 +13,11 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from manifold.sim import orbit
-from manifold.sim._dirsig.motion_tasks import generate_motion, orbit_waypoints
-from manifold.core.run_spec import RunSpecError, _check_orbit_files, check_library_files, load_run_spec, resolve_run
-from manifold.sim._dirsig.simulation import schema_errors
+from manifold.core import orbit
+from manifold.engines.dirsig.motion_tasks import generate_motion, orbit_waypoints
+from manifold.core.run_spec import RunSpecError, load_run_spec
+from manifold.engines.dirsig.run_spec import _check_orbit_files, check_library_files, resolve_run
+from manifold.engines.dirsig.simulation import schema_errors
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = ROOT / "manifold_run_specs" / "leo_pass_tahoe.yaml"

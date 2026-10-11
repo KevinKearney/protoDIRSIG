@@ -26,7 +26,7 @@ def orbit_waypoints(run):
     scene ENU, the largest linear-interpolation error of the thinned track against the dense one, in metres)."""
     import numpy as np
 
-    from manifold.sim import orbit
+    from manifold.core import orbit
     o = run.orbit
     _, _, line1, line2 = orbit.read_tle(o["tle"])
     dt = o["waypoint_spacing"] / DENSE_PER_WAYPOINT
@@ -47,9 +47,8 @@ def generate_motion(run, motion_dir, name=None):
     if run.motion_kind == "orbit":
         from dirfm import frames
 
-        from manifold.sim import orbit
         t_wp, pos_wp, up, _ = orbit_waypoints(run)
-        motion = orbit.lookat_motion(t_wp, pos_wp, frames.ENUFrame(*run.orbit["lookat_target"]), up)
+        motion = lookat_motion(t_wp, pos_wp, frames.ENUFrame(*run.orbit["lookat_target"]), up)
         motion.write({"root": motion_dir}, name=name or "motion.motion")
         return motion_dir / (name or "motion.motion")
     name = name or "motion.ppd"
@@ -67,3 +66,17 @@ def generate_tasks(run, tasks_dir, name="tasks.tasks"):
         t.add_start_stop(start, stop)
     t.write({"root": tasks_dir}, name=name)                  # returns None
     return tasks_dir / name
+
+
+def lookat_motion(t_wp, pos_wp, look_at, up):
+    """dirfm FlexMotion: ECEF waypoints (relative seconds) + LookAt at `look_at` with a fixed `up`.
+
+    `look_at` is a dirfm Frame: ECEFFrame(0, 0, 0) for nadir, or ENUFrame(x, y, z) to stare at a
+    scene point.
+    """
+    from dirfm import flexible_motion as fm
+    location = fm.WaypointsLocationEngine(frame="ecef")
+    for ti, p in zip(t_wp, pos_wp):
+        location.add_point(round(float(ti), 6), [float(v) for v in p])
+    orientation = fm.LookAtOrientationEngine(fm.FixedLocationEngine(look_at), up=up)
+    return fm.FlexMotion(location, orientation)

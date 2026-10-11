@@ -9,7 +9,7 @@ from pathlib import Path
 
 import numpy as np
 
-from manifold.sim import orbit
+from manifold.core import orbit
 
 VECTOR = Path(__file__).resolve().parents[1] / "manifold_contracts" / "vectors" / "orbit"
 WANT = json.loads((VECTOR / "expected.json").read_text())

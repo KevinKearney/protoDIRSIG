@@ -25,7 +25,8 @@ from manifold.core.compose import (MAX_RUNS, ComposeError, compose, compose_swee
                                  explain, sweep_id)
 from manifold.core.run_spec import RunSpecError
 from manifold.core.run_spec import default_sensor_library as run_spec_default_library
-from manifold.sim._dirsig.simulation import Simulation
+from manifold.engines.dirsig.adapter import registry as _registry
+from manifold.engines.dirsig.simulation import Simulation
 
 
 @dataclass
@@ -90,7 +91,7 @@ class LocalRegistry:
         library = default_sensor_library(recipe_path)
         result = SweepResult("", recipe_path)
         try:
-            sweep = compose_sweep(recipe_path, sensor_library=library, max_runs=max_runs)
+            sweep = compose_sweep(recipe_path, sensor_library=library, max_runs=max_runs, registry=_registry())
         except ComposeError as e:
             result.errors.append(f"Composition failed: {e}")
             return result
@@ -133,7 +134,7 @@ class LocalRegistry:
         recipe_path = Path(recipe_path).resolve()
         library = default_sensor_library(recipe_path)
         try:
-            spec = compose(recipe_path, sensor_library=library)
+            spec = compose(recipe_path, sensor_library=library, registry=_registry())
         except ComposeError as e:
             return SubmissionResult(verdict="rejected", reasons=[f"Composition failed: {e}"], compose_error=e,
                                     checks={"compose": False, "schema": False, "resolution": False, "execution": False,
