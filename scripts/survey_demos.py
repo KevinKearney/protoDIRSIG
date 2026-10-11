@@ -3,6 +3,7 @@
 
     python scripts/survey_demos.py --out docs/DIRSIG_demo_coverage.md
     python scripts/survey_demos.py --demos DIR --out FILE
+    python scripts/survey_demos.py --check                 exit 1 if the committed table differs from a fresh survey
 
 Reads every `<Name>.zip` under `--demos` (default `external/dirsig/demos/zips`, the DIRSIG install this repository
 links) in place with `zipfile`; nothing is extracted. For each demo it parses the simulation file (a DIRSIG5 `.jsim`, or
@@ -451,6 +452,8 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--demos", default=str(DEMOS))
     ap.add_argument("--out", default=None)
+    ap.add_argument("--check", action="store_true",
+                    help="exit 1 if --out (default docs/DIRSIG_demo_coverage.md) differs from a fresh survey")
     args = ap.parse_args(argv)
     folder = Path(args.demos)
     if not folder.is_dir():
@@ -463,6 +466,14 @@ def main(argv=None):
     if folder.resolve() == DEMOS.resolve():
         label = "external/dirsig/demos/zips"
     text = render(survey_all(folder), label)
+    if args.check:
+        out = Path(args.out) if args.out else OUT
+        old = out.read_text() if out.is_file() else ""
+        want = text + ("\n" + old[old.index(KEPT):] if KEPT in old else "")
+        if old != want:
+            print(f"stale: {out} (regenerate with scripts/survey_demos.py --out {out})")
+            return 1
+        return 0
     if args.out:
         out = Path(args.out)
         old = out.read_text() if out.is_file() else ""

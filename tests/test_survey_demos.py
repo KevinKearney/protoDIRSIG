@@ -150,3 +150,16 @@ def test_the_real_install_survey_matches_the_committed_table():
     fresh = survey.render(records, "external/dirsig/demos/zips")
     kept = committed[committed.index(survey.KEPT):] if survey.KEPT in committed else ""
     assert committed == fresh + ("\n" + kept if kept else ""), "run python scripts/survey_demos.py --out docs/DIRSIG_demo_coverage.md"
+
+
+def test_check_reports_a_stale_table(tmp_path):
+    demos = tmp_path / "demos"
+    demos.mkdir()
+    make(demos, "Ready1", jsim=jsim())
+    out = tmp_path / "coverage.md"
+    assert survey.main(["--demos", str(demos), "--out", str(out)]) == 0
+    assert survey.main(["--demos", str(demos), "--out", str(out), "--check"]) == 0
+    out.write_text(out.read_text() + "\n" + survey.KEPT + "\n\n1. kept\n")
+    assert survey.main(["--demos", str(demos), "--out", str(out), "--check"]) == 0      # the kept section is not stale
+    make(demos, "Near1", jsim=jsim(weather=None))
+    assert survey.main(["--demos", str(demos), "--out", str(out), "--check"]) == 1

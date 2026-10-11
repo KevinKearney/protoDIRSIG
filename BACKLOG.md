@@ -142,23 +142,22 @@ A layer file whose header comment (its text before the first blank line) contain
 ### Library assets: what remains after the manifest
 `manifold_config_repo/assets.json` and `scripts/bootstrap.py assets` place and verify assets from zip members of the linked DIRSIG install (the demos). Remaining: decide LFS versus a content-addressed store for assets that are not demos (acquired scenes and databases over about 50 MB); source kinds beyond `zip` (a directory in the install, such as the Tacoma and HarvardForest scenes, and an artifact store URL for acquired assets); a gitignored layer overlay for demo values that cannot be committed (sensor, pose, epoch: see the coverage document's first-demo findings). Each new scene also needs a matched atmosphere database, weather file and platform.
 
-### Loader: BasicAtmosphere `.atm` with uniform radiative transfer (unlocks 31 demos)
-Accept `engine.atmosphere.plugin: basic` naming a library `.atm` file (uniform weather inside it) whose radiative transfer is `uniformradiativetransfer`, with a schema form for `basic`. The most common single gap in the demo survey (`docs/DIRSIG_demo_coverage.md`): 31 `near` demos need only this, 50 demos need it.
+### Pass-through follow-ups (proposed form)
+The pass-through form runs a demo directory as authored (CONOPS section 3.2). Follow-ups: the `dry_run` level runs `dirsig5 --dry_run` on a copy of the directory, which still compiles the scene and builds caches, so it is not cheap (Brdf1's attempt spent most of 210 s there); decide whether validation should stop after the scene compile. The opaque descriptor (C-25) carries nothing indexable; decide with MANIFOLD whether a pass-through run is registrable, or whether a descriptor can be extracted from the demo's files at bootstrap (licensing permitting). Artifact media types come from extensions only (ENVI `.img` is `application/octet-stream`); a header-aware type would help viewers. Frames are absent: a pass-through output is not split per capture; extracting frames would need the DIRSIG log (`--log_info_filename`), which the runner does not request yet. DIRSIG writes material caches to the user's DIRSIG cache directory, outside the run directory; set `DIRSIG_CACHE_DIR` per run if a run must not share state. A demo whose inputs are not all in its archive (Brdf1's NewAtmosphere database) fails as authored; record such demos rather than patching them.
 
-### Loader: BasicAtmosphere `.atm` with simple radiative transfer (unlocks 26 demos)
-The same loader feature for `simpleradiativetransfer`: 26 `near` demos need only this, 78 need it (the most needed feature overall).
+### Licensed-value overlay (not built)
+Expressing a demo in layers needs its camera, epoch and pose, which live only in its licensed files: the planned overlay (`scripts/derive_demo_layers.py` writing a gitignored `demo-<name>.licensed.yaml` scenario at bootstrap) was not built this round, because its first user, Brdf1, has no reference run. Limits known in advance: only values stated mechanically in the demo's XML can be derived; a committed recipe that names a gitignored scenario does not compose in a fresh clone until bootstrap runs, so it stays marked "does not validate yet" there; and the overlay's digests change if DIRSIG ships a different demo.
 
-### Loader: BasicAtmosphere `.atm` with classic radiative transfer (unlocks 5 demos)
-The same for `classicradiativetransfer`: 5 `near` demos, 11 in all. The three radiative-transfer kinds are best built as one feature with three forms.
+### Loader features for demos, ranked by what the reference runs showed
+1. BasicAtmosphere `.atm` with uniform radiative transfer: unlocks 31 `near` demos (50 need it), and PointCollectors2, which needs it, now has a cheap deterministic reference run (about 6 s, identical digests twice), so a layered PointCollectors2 can be compared pixel for pixel as soon as this and a platform form exist.
+2. A platform form for demo platforms: a demo's own `.platform` is not a platform_gen template (PointCollectors2's lacks `temporalintegration`); either a template-compatible variant or a pass-through-platform mode in the layered form.
+3. BasicAtmosphere `.atm` with simple radiative transfer: 26 `near` demos, 78 need it.
+4. BasicAtmosphere `.atm` with classic radiative transfer: 5 `near`, 11 in all. Items 1, 3 and 4 are one loader feature with three forms.
+5. FourCurveAtmosphere: 3 `near`, 5 in all.
+6. Uniform weather without a ThermWeather file: 2 `near`, 5 in all. Dropped from second place: its leading demo, Brdf1, has no reference (its NewAtmosphere database is missing from the archive), so a layered Brdf1 could not be compared.
 
-### Loader: `FourCurveAtmosphere` (unlocks 3 demos)
-Accept `engine.atmosphere.plugin: four_curve` (the adopted A.8.7 plugin) with its database and conditions inputs: 3 `near` demos, 5 in all.
-
-### Loader: uniform weather without a ThermWeather file (unlocks 2 demos)
-A `new_atmosphere` run whose weather is not a library ThermWeather file (today `engine.weather` must be one): 2 `near` demos (including `Brdf1`, the second recommendation), 5 in all; the `.atm` features above need the same weather form.
-
-### Regenerate the recommended three demos and compare to their references
-Regenerate `PointCollectors2`, `Brdf1` and `NormalMap1` through the SDK once their features land, and compare with DIRSIG's own run of the demo: the pass criterion is byte equality at the same seed, region of interest and DIRSIG version, or a stated pixel tolerance where the SDK's generated files legitimately differ; the reference run is made once at full size and cached outside git (licensed output).
+### Compare layered demos with their pass-through references
+For each demo with a pass-through reference (`docs/DIRSIG_demo_reference_runs.md`; today PointCollectors2), render the layered recipe at the demo's native size and compare with the reference: shape, per-band mean, maximum absolute difference and the fraction of pixels differing, listing every known input difference (platform template, sensor stand-ins, atmosphere, seed). The pass criterion stays byte equality at the same seed, region of interest and DIRSIG version, or a stated tolerance; the reference is the pass-through run, kept outside git.
 
 ### CI job
 Run `scripts/bootstrap.py status`, then the test suite, on a clean clone. Needs a runner with a DIRSIG install or a container image that has one.

@@ -41,5 +41,6 @@ Transitions: `accepted` to `running`; `running` to `rendered` or `failed`; `acce
 - There is no REST form yet: `openapi.yaml` describes it, but the server and `RemoteBackend` are not built, so every operation exists only as a Python method (`Workspace`, over `LocalBackend`).
 - `LocalRegistry` and `Simulation` keep the older shapes for the notebooks: a rejected submission is a state (`SubmissionResult.verdict`, `RunStatus.state` `rejected`), `LocalRegistry.submit_sweep` admits each run on its own, results are paths in memory, `run`/`run_sweep` block until DIRSIG finishes, and `LocalRegistry.submit` validates (with the dry run) and executes in one object. `LocalRegistry` is deprecated in favour of `Workspace`.
 - `get_artifact` reads the whole file into memory; there is no streaming for large artifacts.
+- A pass-through run (proposed) has an opaque descriptor and lists its outputs as the engine wrote them, without `frame`; its `compose` run has a null `sensor`. It cannot be swept or parameterized from the run spec.
 - `LocalBackend` runs on POSIX hosts only: the run store and the worker use `fcntl` locks and process groups.
 - Re-executing an identical run spec, for example to check that a seeded render reproduces, is not part of `sdk-api/1`: resubmission returns the existing run. A later version may add it.
