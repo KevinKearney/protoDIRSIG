@@ -263,3 +263,58 @@ def test_dry_run_without_an_engine_is_not_engine_checked(tmp_path, library, laye
     monkeypatch.setattr(backend, "_engine", lambda: None)
     run = backend.validate("synthetic_passthrough", "dry_run")["runs"][0]
     assert not run["engine_checked"] and not run["valid"] and "no DIRSIG" in run["checks"][-1]["errors"][0]["detail"]
+
+
+# --- execution (the worker subprocess with the stub engine; no DIRSIG) -------------------------------------------
+
+def _submit(tmp_path, library, layers, monkeypatch=None):
+    from backend_conformance import wait_for
+    backend = _backend(tmp_path, library, layers, stub_engine(tmp_path))
+    status = backend.submit_run("synthetic_passthrough")
+    return backend, wait_for(backend, status["run_id"], ("rendered", "failed", "cancelled"), timeout=120)
+
+
+def test_a_passthrough_run_renders_with_the_stub_engine(tmp_path, library, layers):
+    from api_schema import errors as schema_errors
+    backend, final = _submit(tmp_path, library, layers)
+    assert final["state"] == "rendered", final["errors"]
+    assert schema_errors("run_status", final) == []
+    names = {a["name"]: a for a in final["artifacts"]}
+    assert set(names) == {"run_spec.json", "demo-t0000-c0000.img", "demo-t0000-c0000.img.hdr", "demo.weird",
+                          "demo.scene.hdf", "stub_engine_args.json"}            # the last two: written beside the sim
+    assert names["demo.weird"]["media_type"] == "application/octet-stream" and names["demo-t0000-c0000.img.hdr"]["media_type"] == "text/plain"
+    assert all("frame" not in a for a in final["artifacts"])
+    for a in final["artifacts"]:
+        data, media = backend.get_artifact(final["run_id"], a["name"])
+        assert hashlib.sha256(data).hexdigest() == a["sha256"] and a["uri"].startswith("file://")
+    rec = backend.store.read_record(final["run_id"])
+    assert rec["mode"] == "passthrough" and rec["engine"]["version"].startswith("stub-engine") and rec["engine_exit_status"] == 0
+    assert rec["passthrough"]["simulation"] == "demo.jsim" and "--output_folder=" in " ".join(rec["engine_command"])
+    assert "demo.scene.hdf" in rec["moved_from_input"]                       # written beside the simulation file
+    lib_dir = library / "demo_dirs" / "PassthroughVector"
+    assert directory_digest(lib_dir) == EXPECTED["digest"] and not list(lib_dir.rglob("*.hdf"))   # library untouched
+    args = json.loads((backend.store.run_dir(final["run_id"]) / "output" / "stub_engine_args.json").read_text())
+    assert args["sim_exists"] and args["args"][-1] == "demo.jsim" and "--random_seed=1" in args["args"]
+
+
+def test_an_engine_failure_fails_the_run(tmp_path, library, layers, monkeypatch):
+    monkeypatch.setenv("STUB_ENGINE_EXIT", "7")
+    backend, final = _submit(tmp_path, library, layers)
+    assert final["state"] == "failed" and final["errors"][0]["type"] == "urn:protodirsig:problem:execution"
+    assert "status 7" in final["errors"][0]["detail"]
+
+
+def test_a_tampered_library_directory_fails_at_execution(tmp_path, library, layers, monkeypatch):
+    """Admitted, then edited before the worker runs: the worker verifies the digest again."""
+    from backend_conformance import wait_for
+    backend = _backend(tmp_path, library, layers, stub_engine(tmp_path))
+    with open(backend.store.slots / "slot-0.lock", "a") as held:
+        import fcntl
+        fcntl.flock(held, fcntl.LOCK_EX)
+        run_id = backend.submit_run("synthetic_passthrough")["run_id"]
+        (library / "demo_dirs" / "PassthroughVector" / "demo.scene").write_text("<scene>changed</scene>\n")
+    final = wait_for(backend, run_id, ("rendered", "failed"), timeout=120)
+    assert final["state"] == "failed" and "does not match" in final["errors"][0]["detail"]
+
+
+import hashlib  # noqa: E402

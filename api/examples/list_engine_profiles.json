@@ -11,6 +11,10 @@
     "body": {
       "items": [
         {
+          "name": "passthrough_runtime",
+          "sha256": "420a8b320d55e43edef8a6657dccc63a1e9dc3aec343b2f02a7a4b5a802a514d"
+        },
+        {
           "name": "pointcollectors2_demo",
           "sha256": "eb2528ca40b3da49dacc0f17cc40c83058f82a4f526e9dbba61d013fbefb438c",
           "status": "does-not-validate-yet"

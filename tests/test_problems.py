@@ -21,6 +21,7 @@ from test_simulation import CONFIG_REPO, needs_dirsig
 ROOT = Path(__file__).resolve().parents[1]
 RUN_SPECS = ROOT / "manifold_run_specs"
 RECIPES = sorted((RUN_SPECS / "recipes").glob("*.yaml"))
+LAYERED = [r for r in RECIPES if "passthrough" not in yaml.safe_load(r.read_text())]   # pass-through: no collection, motion
 PROBLEM = Draft202012Validator(json.loads((ROOT / "api" / "schemas" / "problem.schema.json").read_text()))
 
 
@@ -40,14 +41,14 @@ def test_locate_agrees_with_the_composers_provenance_for_every_member(recipe):
     for name, spec in sweep.runs.items():
         for member, src in sweep.sources[name].items():
             layer, field = problems.locate(_pointer(member), sweep.sources[name], spec=spec, recipe=recipe)
-            if member == "spec_version":                     # set by the rules (`rules compose/1`), not by a file
+            if src["layer"].startswith("rules "):              # set by the rules (spec_version, an opaque descriptor)
                 assert (layer, field) == (None, None)
                 continue
             assert layer == src["layer"], (name, member)
             assert field, (name, member)
 
 
-@pytest.mark.parametrize("recipe", RECIPES, ids=lambda p: p.stem)
+@pytest.mark.parametrize("recipe", LAYERED, ids=lambda p: p.stem)
 def test_locate_names_the_field_in_the_layers_own_layout(recipe):
     sweep = compose_sweep(recipe)
     doc = yaml.safe_load(recipe.read_text())

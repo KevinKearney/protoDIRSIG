@@ -87,6 +87,11 @@ class BackendConformance:
         """Another instance over the same state."""
         pytest.skip("second_backend not supported by this backend")
 
+    def passthrough_backend(self, tmp_path, library):
+        """`(backend, recipe document)`: a backend over the same library whose engine is a stub and whose asset library
+        holds a pass-through directory, and a pass-through recipe naming it."""
+        pytest.skip("this backend cannot supply a stub engine for a pass-through run")
+
     def sensor_library(self, library):
         return library.parent / "manifold_sensors"
 
@@ -372,6 +377,18 @@ class BackendConformance:
             backend.submit_run(library / "recipes" / "sensor_sweep_tahoe.yaml")
         assert_problem(e.value, 422, "invalid-request")
         assert "submit_sweep" in e.value.problem["detail"]
+
+    def test_a_passthrough_run_renders_with_a_stub_engine(self, library, tmp_path):
+        pt_backend, recipe = self.passthrough_backend(tmp_path, library)
+        status = pt_backend.submit_run(recipe)
+        assert status["state"] == "accepted" and schema_errors("run_status", status) == []
+        final = wait_for(pt_backend, status["run_id"], ("rendered", "failed", "cancelled"), timeout=120)
+        assert final["state"] == "rendered", final["errors"]
+        assert schema_errors("run_status", final) == [] and all("frame" not in a for a in final["artifacts"])
+        assert len(final["artifacts"]) > 1
+        spec_bytes, _ = pt_backend.get_artifact(status["run_id"], "run_spec.json")
+        assert hashlib.sha256(spec_bytes).hexdigest() == status["run_id"]
+        assert pt_backend.submit_run(recipe)["run_id"] == status["run_id"]
 
     def test_copying_the_spec_does_not_change_its_id(self, backend, library):
         recipe = library / "recipes" / "auror_ref.yaml"

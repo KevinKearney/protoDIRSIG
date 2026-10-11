@@ -1,0 +1,11 @@
+# Engine profile for pass-through recipes (proposed form): runtime members only. A pass-through run's DIRSIG input is a
+# library demo directory run as authored, so this profile carries the generator record and nothing the directory
+# supplies (no scene, platform, motion, tasks, atmosphere, weather or ephemeris). No `run.seed`: DIRSIG runs the
+# simulation file as authored, with its own default seed.
+
+origin:
+  kind: synthetic
+  engine: dirsig
+
+engine:
+  generator: {tool: dirfm, revision: "93195cee1ccc4f31a214e114d94c493a1d4cc22f", spec_schema: dirsig-engine/1}

@@ -306,8 +306,11 @@ class LocalBackend:
     # --- submission ---------------------------------------------------------------------------------------------
 
     def _job(self, run):
-        return {"config_repo": str(self.config_repo), "sensor_library": str(Path(run.library).resolve()),
-                "max_parallel": self.max_parallel}
+        job = {"config_repo": str(self.config_repo), "sensor_library": str(Path(run.library).resolve()),
+               "max_parallel": self.max_parallel}
+        if is_passthrough(run.spec):
+            job["engine"] = self._engine()
+        return job
 
     def _start_worker(self, run_id):
         run_dir = self.store.run_dir(run_id)

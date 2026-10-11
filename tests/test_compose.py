@@ -29,7 +29,7 @@ def _resolvable(recipes):
             if NOT_YET in r.read_text().split("\n\n", 1)[0] else r for r in recipes]
 
 
-RECIPES = [r for r in ALL_RECIPES if "sensors" not in yaml.safe_load(r.read_text())]     # one-run recipes
+RECIPES = [r for r in ALL_RECIPES if not {"sensors", "passthrough"} & set(yaml.safe_load(r.read_text()))]  # one-run, layered
 SWEEP = RUN_SPECS / "recipes" / "sensor_sweep_tahoe.yaml"
 VECTORS = ROOT / "manifold_contracts" / "vectors" / "compose"
 CASES = sorted(p for p in VECTORS.iterdir() if p.is_dir() and p.name != "manifold_sensors")

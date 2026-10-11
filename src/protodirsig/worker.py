@@ -13,6 +13,11 @@ The execution record (`execution.json`) gains: `started_at`, `finished_at`, `wor
 `protodirsig` version, the `dirfm` revision in use and whether it equals the spec's `engine.generator.revision`, the
 DIRSIG installation and version, the propagator of an orbit run, and `max_parallel`. It is never part of a run id.
 
+A pass-through run (`engine.mode: passthrough`, proposed) skips the layered job: the engine (`job.json` `engine`, else
+the located `dirsig5`) runs the demo directory's simulation file on a copy of the directory under `<run_dir>/input/`,
+with `--output_folder <run_dir>/output`; every file in `output/` is an artifact (no frames), and the execution record
+gains `mode: passthrough`, the engine's path and version, its exit status and command.
+
 Engine-bound: imports `protodirsig.simulation` (dirfm). The state machine is `main(run_dir, simulation_factory)`; tests
 call it in-process with a stub factory.
 """
@@ -30,7 +35,8 @@ from pathlib import Path
 
 from protodirsig import problems
 from protodirsig.simulation import Simulation
-from protodirsig.store import ArtifactError, RunStore, artifacts_for, utc_now
+from protodirsig.passthrough import is_passthrough, resolve_passthrough, run_engine
+from protodirsig.store import ArtifactError, RunStore, artifacts_for, passthrough_artifacts, utc_now
 
 REPOSITORY = Path(__file__).resolve().parents[2]
 POLL_S = 1.0
@@ -123,6 +129,49 @@ def _fail(store, run_id, name, message, run_dir):
     return updated
 
 
+def engine_version(engine):
+    """The first line `<engine> --version` prints, or None."""
+    try:
+        out = subprocess.run([str(engine), "--version"], capture_output=True, text=True, timeout=60)
+        text = (out.stdout or out.stderr).strip()
+        return text.splitlines()[0] if text else None
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+
+
+def _run_passthrough(store, run_id, name, run_dir, job, spec):
+    """A pass-through run: the engine runs the demo directory's simulation file on a copy under `<run_dir>/input/`,
+    writing into `<run_dir>/output/`; every file there is an artifact (no frames)."""
+    try:
+        run = resolve_passthrough(spec, Path(job["config_repo"]))        # the digest is verified again here
+        engine = job.get("engine")
+        if not engine:
+            home = locate_dirsig()["home"]
+            engine = str(Path(home) / "bin" / "dirsig5") if home else None
+        if not engine:
+            _fail(store, run_id, name, "no DIRSIG installation was found for the pass-through run", run_dir)
+            return
+        store.update_record(run_id, {"mode": "passthrough",
+                                     "engine": {"path": str(engine), "version": engine_version(engine)},
+                                     "passthrough": {"directory": str(run.directory), "simulation": run.simulation_rel}})
+        result = run_engine(run, run_dir, engine, log=run_dir / "worker.log")
+        store.update_record(run_id, {"engine_exit_status": result["returncode"],
+                                     "engine_command": [Path(result["command"][0]).name, *result["command"][1:]],
+                                     "moved_from_input": result["moved"]})
+        if result["returncode"] != 0:
+            _fail(store, run_id, name, f"the engine exited with status {result['returncode']} (see worker.log)", run_dir)
+            return
+        refs = passthrough_artifacts(run_dir)
+        store.write_artifacts(run_id, refs)
+        updated, status = store.update_status(run_id, ("running",), {"state": "rendered", "artifacts": refs})
+        _log(run_dir, f"rendered: {len(refs)} artifacts" if updated else f"rendered, but the run is {status['state']}")
+    except ArtifactError as e:
+        _fail(store, run_id, name, f"artifact references could not be built: {e}", run_dir)
+    except Exception as e:  # noqa: BLE001 -- any failure of an accepted run is an execution problem
+        _log(run_dir, traceback.format_exc().rstrip())
+        _fail(store, run_id, name, f"{type(e).__name__}: {e}", run_dir)
+
+
 def main(run_dir, simulation_factory=_simulation):
     """Run one run to a final state. Returns the process exit code (0 unless the worker itself could not start)."""
     run_dir = Path(run_dir).resolve()
@@ -157,6 +206,9 @@ def main(run_dir, simulation_factory=_simulation):
                                                "generator_revision_matches": dirfm["revision"] == spec_revision},
                                      "dirsig": dirsig})
         _log(run_dir, "running")
+        if spec is not None and is_passthrough(spec):
+            _run_passthrough(store, run_id, name, run_dir, job, spec)
+            return 0
         try:
             sim = simulation_factory(run_dir / "run_spec.yaml", Path(job["config_repo"]), run_dir,
                                      Path(job["sensor_library"]) if job.get("sensor_library") else None)

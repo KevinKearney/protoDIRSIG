@@ -29,3 +29,5 @@ external/*
 
 # Library assets materialized by scripts/bootstrap.py assets from manifold_config_repo/assets.json (DIRSIG demos: licensed, not committed)
 /manifold_config_repo/demos/
+# Whole DIRSIG demo directories run by the pass-through form, materialized by scripts/bootstrap.py assets
+/manifold_config_repo/demo_dirs/

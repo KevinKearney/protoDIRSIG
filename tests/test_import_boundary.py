@@ -81,8 +81,12 @@ def test_engine_free_validation_runs_with_the_engine_packages_unimportable():
     def recipe_header(spec):                      # the generated header names the recipe the spec came from
         recipe = spec.read_text().splitlines()[0].split(" from ", 1)[1].split(" - ", 1)[0]
         return (ROOT / "manifold_run_specs" / recipe).read_text().split("\n\n", 1)[0]
+    def directory_present(spec):                  # a pass-through spec needs its demo directory placed (bootstrap)
+        doc = __import__("yaml").safe_load(spec.read_text())
+        block = (doc.get("engine") or {}).get("passthrough")
+        return block is None or (ROOT / "manifold_config_repo" / block["directory"]["name"]).is_dir()
     specs = sorted(str(p) for p in (ROOT / "manifold_run_specs").glob("*.yaml")
-                   if "does not validate yet" not in recipe_header(p))      # placed demos: findings, not runs
+                   if "does not validate yet" not in recipe_header(p) and directory_present(p))
     code = BLOCKED + f"""
 import json, yaml
 from pathlib import Path
@@ -99,7 +103,7 @@ print(json.dumps({{"runs": out, "engine": sorted(m for m in ("dirfm", "skyfield"
     res = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
     assert res.returncode == 0, res.stderr
     got = json.loads(res.stdout)
-    assert got["engine"] == [] and len(got["runs"]) == len(specs) == 6
+    assert got["engine"] == [] and len(got["runs"]) == len(specs) >= 6
     for name, (valid, checked, unstamped, same_id, errors) in got["runs"].items():
         assert (valid, checked, unstamped, same_id) == (True, False, [], True), (name, errors)
 

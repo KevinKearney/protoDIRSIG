@@ -1,0 +1,26 @@
+# Recipe (pass-through form, proposed): the DIRSIG install demo Brdf1 run as authored, its simulation file demo.jsim.
+# The directory is materialized at manifold_config_repo/demo_dirs/Brdf1/ by `scripts/bootstrap.py assets` from the
+# demo archive in the DIRSIG installation (manifold_config_repo/assets.json); it is gitignored, and only its name and
+# dirhash/1 digest appear here. The descriptor is opaque: the demo's collection, sensor and settings are not stated.
+
+compose: compose/1
+
+meta:
+  name: demo-brdf1-passthrough
+  tags: [dirsig-demo, brdf1, passthrough]
+  description: >
+    DIRSIG demo Brdf1 run unchanged through the SDK's run store, admission, worker and Workspace: the reference that a
+    layered re-expression of the demo is compared against.
+
+passthrough:
+  directory: {name: demo_dirs/Brdf1, content_hash: "sha256:1d5b259d3d428c2678acdf1a28c0a48cb0fa9f39e9ca496b47adbcaadf8f13dd"}
+  simulation: demo.jsim
+
+engine_profile: passthrough_runtime
+
+fidelity:
+  modeled: [whatever the demo models, as authored]
+  approximated: []
+  absent: []
+  valid_for: >
+    A reference run of the demo as shipped with the DIRSIG installation.

@@ -139,6 +139,24 @@ def artifacts_for(run_dir, final=False):
     return refs
 
 
+def passthrough_artifacts(run_dir):
+    """The artifact references of a rendered pass-through run: `run_spec.json`, then every file the engine wrote into
+    `output/`, sorted by name, with no frame. A file in a subfolder of `output/` is named by its path with `/` replaced
+    by `_`; names are checked like `artifacts_for`'s."""
+    run_dir = Path(run_dir)
+    out = run_dir / "output"
+    refs = [artifact_ref(run_dir / "run_spec.json")]
+    files = sorted(p for p in out.rglob("*") if p.is_file()) if out.is_dir() else []
+    refs += [artifact_ref(p, name=p.relative_to(out).as_posix().replace("/", "_")) for p in files]
+    names = [r["name"] for r in refs]
+    bad = sorted({n for n in names if not NAME.match(n)})
+    dup = sorted({n for n in names if names.count(n) > 1})
+    if bad or dup:
+        raise ArtifactError(f"artifact names {'not matching ' + NAME.pattern + ': ' + str(bad) if bad else ''}"
+                            f"{'; ' if bad and dup else ''}{'used twice: ' + str(dup) if dup else ''}")
+    return refs
+
+
 def _pid_is_worker(pid):
     """The process exists, is not a zombie, and is a protodirsig worker (by its command line, where /proc exists)."""
     try:

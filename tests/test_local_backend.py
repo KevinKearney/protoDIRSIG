@@ -96,6 +96,21 @@ class TestLocalBackend(BackendConformance):
         pgid = (backend.store.read_record(run_id).get("worker") or {}).get("pgid")
         return _pgid_members(pgid) if pgid else []
 
+    def passthrough_backend(self, tmp_path, library):
+        import json as _json
+
+        from test_passthrough import EXPECTED, VECTOR, stub_engine
+        assets = tmp_path / "config_repo"
+        shutil.copytree(VECTOR / "tree", assets / "demo_dirs" / "PassthroughVector")
+        backend = LocalBackend(tmp_path / "work", assets, library=library, engine=stub_engine(tmp_path))
+        recipe = {"compose": "compose/1", "meta": {"name": "conformance-passthrough"},
+                  "passthrough": {"directory": {"name": "demo_dirs/PassthroughVector", "content_hash": EXPECTED["digest"]},
+                                  "simulation": "demo.jsim"},
+                  "engine_profile": "passthrough_runtime",
+                  "fidelity": {"modeled": [], "approximated": [], "absent": [], "valid_for": "a conformance case"}}
+        _json.dumps(recipe)
+        return backend, recipe
+
     def second_backend(self, backend):
         return LocalBackend(backend.store.root, CONFIG_REPO, max_parallel=backend.max_parallel)
 

@@ -38,6 +38,28 @@
     "archive": "{dirsig}/demos/zips/PointCollectors2.zip",
     "prefix": "PointCollectors2/uniform.atm"
    }
+  },
+  {
+   "path": "demo_dirs/Brdf1",
+   "kind": "directory",
+   "digest": "sha256:1d5b259d3d428c2678acdf1a28c0a48cb0fa9f39e9ca496b47adbcaadf8f13dd",
+   "size": 2309614,
+   "source": {
+    "kind": "zip",
+    "archive": "{dirsig}/demos/zips/Brdf1.zip",
+    "prefix": "Brdf1"
+   }
+  },
+  {
+   "path": "demo_dirs/PointCollectors2",
+   "kind": "directory",
+   "digest": "sha256:05de03a4105e18e0b176576e71bdab1750558fc274d586dd024c2e81855bb62e",
+   "size": 278340,
+   "source": {
+    "kind": "zip",
+    "archive": "{dirsig}/demos/zips/PointCollectors2.zip",
+    "prefix": "PointCollectors2"
+   }
   }
  ]
 }

@@ -15,6 +15,14 @@
           "sha256": "308393983b5b5a3871b232dcad387803123c3dc6bc8ed56ad17b486801cb3cb1"
         },
         {
+          "name": "demo_brdf1_passthrough",
+          "sha256": "ef52171559d3f921fba309d719019a112b48fda8e244273bd90c5ba5c86b271e"
+        },
+        {
+          "name": "demo_pointcollectors2_passthrough",
+          "sha256": "406e96eeab9f4e5972d2fe74dc56096e74e3435fdb426488aaf2694f7c0c090e"
+        },
+        {
           "name": "leo_pass_tahoe",
           "sha256": "e3965f41fdaccc746898bef3a708aac2e17bf2502a6f636055c3305e927dce1d"
         },

@@ -82,7 +82,7 @@ REFINEMENT = {"required", "properties", "not", "minItems", "const"}     # a then
 
 
 def test_the_valid_corpus_is_what_the_repository_produces():
-    assert len(VALID) == 16                                       # 7 generated specs (one a placed demo), 9 vector specs
+    assert len(VALID) == 18                                       # 9 generated specs (one placed demo, two pass-through), 9 vectors
 
 
 @pytest.mark.parametrize("path", VALID, ids=lambda p: str(p.relative_to(ROOT)))
