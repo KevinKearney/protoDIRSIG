@@ -14,11 +14,23 @@ Identity: a slot that can change a run's result (`cpu_threads`, `gpu`, `assets`,
 when the run spec states it; a slot that cannot (`memory_bytes`, `scratch_bytes`, `network`) is not (`ID_SLOTS`,
 `identity_view`). A run spec without `resources` has the id it had before the slots existed.
 
-Imports: the standard library only.
+Assets and network (proposed): external data an engine needs (an ephemeris, Earth-orientation tables, a catalog, an
+atmosphere database) is a named asset, a library reference with a file's sha256 or a directory's `dirhash/1` digest,
+declared by the adapter (`ResourceDeclaration.assets`) or requested by the run (`resources.assets`, which supplies or
+replaces the reference of a declared name). `asset_problems` is the admission rule: an unstamped, missing or
+mismatched asset refuses the run. The engine sees each asset read-only at a path the backend stages. A run has no
+network access unless its engine declares network use and the request allows it and the admitting site allows it
+(`check`).
+
+Imports: the standard library and `manifold.core.dirhash`.
 """
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, field
+from pathlib import Path
+
+from manifold.core.dirhash import directory_digest
 
 SLOTS = ("cpu_threads", "memory_bytes", "gpu", "scratch_bytes", "network", "assets", "interpreter")
 ID_SLOTS = ("cpu_threads", "gpu", "assets", "interpreter")          # slots that can change the result
@@ -225,3 +237,53 @@ def as_dict(obj):
     """A declaration, request, grant or capacity as plain JSON-ready data."""
     from dataclasses import asdict, is_dataclass
     return asdict(obj) if is_dataclass(obj) else obj
+
+
+PLACEHOLDER = "<"                                  # `sha256:<hash>`: an unstamped reference
+
+
+def assets_for(declaration, request):
+    """`[(name, ref, env)]`: the assets a run needs, the declared ones with a requested reference replacing the
+    declared one of the same name, then requested names the engine did not declare (env None)."""
+    requested = {a["name"]: a.get("ref") for a in request.assets}
+    out = [(d.name, requested.pop(d.name, d.ref), d.env) for d in declaration.assets]
+    out += [(name, ref, None) for name, ref in requested.items()]
+    return out
+
+
+def asset_problems(assets, library):
+    """Admission problems (strings) for the assets `assets_for` gives, resolved against the engine-asset library:
+    an asset with no reference, an unstamped one, one that is missing, one whose digest does not match."""
+    out = []
+    for name, ref, _ in assets:
+        if not isinstance(ref, dict) or not isinstance(ref.get("name"), str):
+            out.append(f"asset {name!r} has no library reference {{name, content_hash}}")
+            continue
+        want = ref.get("content_hash")
+        if not isinstance(want, str) or PLACEHOLDER in want:
+            out.append(f"asset {name!r} ({ref['name']}) is unstamped: its content_hash is the placeholder")
+            continue
+        path = Path(library) / ref["name"]
+        if not path.exists():
+            out.append(f"asset {name!r}: {ref['name']} not found in the library ({path})")
+            continue
+        try:
+            got = asset_digest(path)
+        except ValueError as e:
+            out.append(f"asset {name!r}: {ref['name']} cannot be hashed: {e}")
+            continue
+        if got != want:
+            out.append(f"asset {name!r}: content_hash {want[:19]}... does not match {ref['name']} ({got[:19]}...)")
+    return out
+
+
+def asset_digest(path):
+    """`sha256:<hex>` of a file's bytes, or the `dirhash/1` digest of a directory."""
+    path = Path(path)
+    if path.is_dir():
+        return directory_digest(path)
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            h.update(block)
+    return "sha256:" + h.hexdigest()

@@ -51,6 +51,17 @@ class ValidationReport:
         return self.schema_ok and self.resolution_ok
 
 
+def _asset_problems(adapter, spec, config_repo):
+    """The asset rule (`resources.asset_problems`) for the assets the adapter declares and the run requests."""
+    from manifold.core import resources
+    try:
+        declared = adapter.resources(spec) or resources.ResourceDeclaration()
+        request = resources.parse_request(spec.get("resources"))
+    except ValueError:
+        return []                                           # a malformed request is the schema check's to report
+    return resources.asset_problems(resources.assets_for(declared, request), config_repo)
+
+
 def validate_spec(spec, run_spec_path=None, config_repo=None, sensor_library=None, *, resolved=None, registry=None):
     """The engine-free checks of one parsed run spec; never raises for a bad spec.
 
@@ -90,6 +101,8 @@ def validate_spec(spec, run_spec_path=None, config_repo=None, sensor_library=Non
             mismatches = list(adapter.library_problems(spec, run)) if adapter is not None else []
         except Exception as e:  # noqa: BLE001
             mismatches = [f"library files could not be compared: {type(e).__name__}: {e}"]
+        if adapter is not None:
+            mismatches += _asset_problems(adapter, spec, config_repo)
     library = Path(sensor_library) if sensor_library is not None else path.resolve().parent.parent / "manifold_sensors"
     try:
         run_id = identity.run_id(spec, library)

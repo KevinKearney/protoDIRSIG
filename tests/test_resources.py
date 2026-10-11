@@ -131,3 +131,26 @@ def test_a_granted_thread_count_reaches_the_engine_and_the_record(tmp_path, libr
     assert json.loads((backend.store.slots / "resources.json").read_text()) == {}      # released
     stored = json.loads((run_dir / "run_spec.json").read_text())
     assert stored["resources"] == {"cpu_threads": 2}                    # memory is not part of the run id
+
+
+def test_the_asset_rule_refuses_unstamped_missing_and_mismatched_assets(tmp_path):
+    from manifold.core.dirhash import directory_digest
+    from manifold.core.resources import AssetDecl, asset_digest, asset_problems, assets_for
+    lib = tmp_path / "library"
+    (lib / "ephemeris").mkdir(parents=True)
+    (lib / "ephemeris" / "de.bsp").write_bytes(b"planets")
+    (lib / "catalog").mkdir()
+    (lib / "catalog" / "a.txt").write_text("stars")
+    good_file = {"name": "ephemeris/de.bsp", "content_hash": asset_digest(lib / "ephemeris" / "de.bsp")}
+    good_dir = {"name": "catalog", "content_hash": directory_digest(lib / "catalog")}
+    decl = ResourceDeclaration(assets=(AssetDecl("ephemeris", good_file, "EPHEMERIS"),
+                                       AssetDecl("catalog", {"name": "catalog", "content_hash": "sha256:<hash>"})))
+    request = parse_request({"assets": [{"name": "catalog", "ref": good_dir}]})
+    assets = assets_for(decl, request)
+    assert assets == [("ephemeris", good_file, "EPHEMERIS"), ("catalog", good_dir, None)]   # the request supplies it
+    assert asset_problems(assets, lib) == []
+    assert "unstamped" in asset_problems(assets_for(decl, parse_request({})), lib)[0]
+    assert "not found" in asset_problems([("x", {"name": "nope", "content_hash": good_file["content_hash"]}, None)], lib)[0]
+    (lib / "ephemeris" / "de.bsp").write_bytes(b"changed")
+    assert "does not match" in asset_problems(assets, lib)[0]
+    assert "no library reference" in asset_problems([("x", None, None)], lib)[0]

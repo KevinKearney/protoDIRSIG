@@ -15,7 +15,9 @@ The execution record (`execution.json`) gains: `started_at`, `finished_at`, `wor
 `boot_time`), `python`, the `eoptic-manifold-sim` version (under the key `protodirsig_version`,
 `_names.RECORD_VERSION_KEY`), `adapter` (`engine_id`, `version`, `source`), the adapter's fingerprint members (for
 DIRSIG `dirfm` and `dirsig`), `resources` (the run's requests, the engine's declaration and the grant reserved in the
-work root's resource ledger, released when the run ends), the members the adapter's collection adds (for a pass-through run the engine, its tools,
+work root's resource ledger, released when the run ends), `assets` (each staged read-only under `<run_dir>/assets/`
+after its digest is verified again) and `network` (a run whose engine could use the network but which may not runs
+with its proxy variables pointed at a closed port; LocalBackend has no network sandbox), the members the adapter's collection adds (for a pass-through run the engine, its tools,
 exit status, cache and thermal measurements), `artifact_roles` and `max_parallel`. It is never part of a run id.
 
 Engine-free: the worker imports no engine package; the engine runs in the process the plan describes. `main(run_dir,
@@ -98,7 +100,28 @@ def command(plan):
     return [str(a) for a in plan.argv]
 
 
-def environment(plan, run_dir, threads=None, gpu_ids=()):
+NO_NETWORK = {"HTTP_PROXY": "http://127.0.0.1:9", "HTTPS_PROXY": "http://127.0.0.1:9", "http_proxy": "http://127.0.0.1:9",
+              "https_proxy": "http://127.0.0.1:9", "ALL_PROXY": "http://127.0.0.1:9", "NO_PROXY": "", "no_proxy": ""}
+
+
+def stage(run_dir, name, source):
+    """Make `source` visible read-only to the engine as `<run_dir>/assets/<name>`: a file is copied and made read-only,
+    a directory linked (the library is read-only at run time). Returns the staged path."""
+    import shutil
+    dst = Path(run_dir) / "assets" / name
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    if dst.exists() or dst.is_symlink():
+        return dst
+    source = Path(source)
+    if source.is_dir():
+        dst.symlink_to(source.resolve(), target_is_directory=True)
+    else:
+        shutil.copy2(source, dst)
+        dst.chmod(0o444)
+    return dst
+
+
+def environment(plan, run_dir, threads=None, gpu_ids=(), extra=None):
     """The launched process's environment: the worker's, with the plan's policy applied (the granted thread count in
     its thread variables, the granted GPU ids in its GPU variable)."""
     env = dict(os.environ)
@@ -114,15 +137,16 @@ def environment(plan, run_dir, threads=None, gpu_ids=()):
             env[var] = str(threads)
     if plan.env.gpu_variable:
         env[plan.env.gpu_variable] = ",".join(gpu_ids)
+    env.update(extra or {})
     return env
 
 
-def launch(plan, run_dir, threads=None, gpu_ids=()):
+def launch(plan, run_dir, threads=None, gpu_ids=(), extra=None):
     """Run the plan to completion; its stdout and stderr go to `worker.log`. Returns the exit status."""
     run_dir = Path(run_dir)
     with open(run_dir / "worker.log", "ab") as log:
         proc = subprocess.Popen(command(plan), cwd=str(plan.cwd or run_dir),
-                                env=environment(plan, run_dir, threads, gpu_ids),
+                                env=environment(plan, run_dir, threads, gpu_ids, extra),
                                 stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT)
         return proc.wait()
 
@@ -233,15 +257,32 @@ def main(run_dir, hook=None):
                                                    "declared": resources.as_dict(declared),
                                                    "granted": resources.as_dict(grant)}})
         (run_dir / "grant.json").write_text(json.dumps(resources.as_dict(grant), sort_keys=True))
+        assets = resources.assets_for(declared, request)
+        bad = resources.asset_problems(assets, job["config_repo"])     # verified again: the library may have changed
+        if bad:
+            _fail(store, run_id, name, "; ".join(bad), run_dir)
+            return 0
+        staged = {n: stage(run_dir, n, Path(job["config_repo"]) / ref["name"]) for n, ref, _ in assets}
+        extra = {env_var: str(staged[n]) for n, _, env_var in assets if env_var}
+        guarded = request.network != "allow" and declared.network != "none"
+        if guarded:                                         # the engine could reach the network; this run may not
+            extra.update(NO_NETWORK)
+        store.update_record(run_id, {"assets": [{"name": n, "ref": ref, "staged": f"assets/{n}"} for n, ref, _ in assets],
+                                     "network": {"requested": request.network, "declared": declared.network,
+                                                 "guard": "proxy variables" if guarded else None}})
         _log(run_dir, "running")
         try:
             context = RunContext(run_dir, spec, job["config_repo"], job.get("sensor_library"), run_dir / "output",
-                                 {"engine": job.get("engine", "auto"), "grant": resources.as_dict(grant)})
+                                 {"engine": job.get("engine", "auto"), "grant": resources.as_dict(grant),
+                                  "assets": {n: str(p) for n, p in staged.items()}})
             returncode = None
             if hook is not None:
                 adapter.execute(context, hook)
             else:
-                returncode = launch(adapter.plan(context), run_dir, grant.cpu_threads, grant.gpu_ids)
+                plan = adapter.plan(context)
+                for n, src in plan.stage.items():
+                    stage(run_dir, n, src)
+                returncode = launch(plan, run_dir, grant.cpu_threads, grant.gpu_ids, extra)
             collection = adapter.collect(run_dir / "output", run_dir)
             if collection.record:
                 store.update_record(run_id, dict(collection.record))
