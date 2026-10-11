@@ -99,7 +99,9 @@ def resolve_passthrough(spec, config_repo):
 
 def scenes_of(simulation):
     """The `.scene` files a simulation file names, relative to its folder: a `.jsim`'s `scene_list[].inputs`, a `.sim`'s
-    `<scene externalfile>`. Unreadable files give an empty list."""
+    `<scene externalfile>` (whitespace allowed around `=`, either quote). A reference to a compiled scene,
+    `<name>.scene.hdf`, stands for `<name>.scene`, the file `scene2hdf` compiles into it. Unreadable files give an empty
+    list."""
     import json
     text = Path(simulation).read_text(errors="replace")
     found = []
@@ -111,12 +113,13 @@ def scenes_of(simulation):
         for entry in doc if isinstance(doc, list) else [doc]:
             for s in (entry.get("scene_list") or []) if isinstance(entry, dict) else []:
                 ref = s.get("inputs") if isinstance(s, dict) else s
-                if isinstance(ref, str) and ref.endswith(".scene"):
+                if isinstance(ref, str):
                     found.append(ref)
     else:
         import re
-        found = re.findall(r"<scene[^>]*externalfile=\"([^\"]+\.scene)\"", text)
-    return list(dict.fromkeys(found))
+        found = re.findall(r"<scene\b[^>]*?externalfile\s*=\s*[\"']([^\"']+)[\"']", text)
+    scenes = [ref[:-len(".hdf")] if ref.endswith(".scene.hdf") else ref for ref in found]
+    return list(dict.fromkeys(ref for ref in scenes if ref.endswith(".scene")))
 
 
 def compile_scenes(simulation, engine, timeout=None, log=None, env=None):

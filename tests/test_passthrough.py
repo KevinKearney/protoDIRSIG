@@ -343,6 +343,12 @@ def test_scenes_of_a_legacy_sim(tmp_path):
     sim = tmp_path / "demo.sim"
     sim.write_text('<simulation><scene externalfile="./a.scene"/><scene externalfile="b.scene"/></simulation>')
     assert scenes_of(sim) == ["./a.scene", "b.scene"]
+    sim.write_text('<simulation>\n  <scene externalfile                 = "./demo.scene" />\n'
+                   "  <scene\texternalfile='c.scene'/>\n</simulation>")
+    assert scenes_of(sim) == ["./demo.scene", "c.scene"]                  # whitespace around '=', single quotes
+    (tmp_path / "hdf.jsim").write_text(json.dumps([{"scene_list": [{"inputs": "./demo.scene.hdf"},
+                                                                   {"inputs": "./demo.scene"}, {"inputs": "x.glist"}]}]))
+    assert scenes_of(tmp_path / "hdf.jsim") == ["./demo.scene"]           # a compiled scene stands for its .scene
     (tmp_path / "bad.jsim").write_text("[{not json")
     assert scenes_of(tmp_path / "bad.jsim") == []
 
