@@ -329,7 +329,8 @@ class LocalBackend:
     def _job(self, run):
         return {"config_repo": str(self.config_repo), "sensor_library": str(Path(run.library).resolve()),
                 "max_parallel": self.max_parallel, "engine": self._engine(), "capacity": resources.as_dict(self.capacity),
-                "resources": run.spec.get("resources")}         # every request; the stored run spec keeps the id slots
+                "resources": run.spec.get("resources"),
+                "engines": self.registry.describe()}             # the worker rebuilds exactly this engine set         # every request; the stored run spec keeps the id slots
 
     def _start_worker(self, run_id):
         run_dir = self.store.run_dir(run_id)

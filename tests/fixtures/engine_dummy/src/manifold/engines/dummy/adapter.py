@@ -60,9 +60,6 @@ class DummyAdapter:
                           env=EnvironmentPolicy(isolate_home=True, thread_variables=("DUMMY_THREADS",)),
                           expected_outputs=("DONE",))
 
-    def execute(self, context, hook=None):
-        raise NotImplementedError("the dummy engine runs only as its launch plan")
-
     def collect(self, output_dir, run_dir):
         out = Path(output_dir)
         frames = sorted(out.glob("frame-*.txt")) if out.is_dir() else []

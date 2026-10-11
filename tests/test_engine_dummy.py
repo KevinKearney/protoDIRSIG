@@ -203,3 +203,32 @@ def test_the_backend_conformance_suite_passes_with_the_dummy_installed(site):
     probe = subprocess.run([sys.executable, "-c", "import manifold.sim\nfrom manifold.sim import engines\n"
                             "print(engines.registry().ids())"], capture_output=True, text=True, env=env, cwd=ROOT)
     assert "dummy" in probe.stdout                                   # the suite ran with the dummy registered
+
+
+ONLY_DUMMY = """
+import json, sys
+sys.path.insert(0, 'tests')
+import manifold.sim
+from pathlib import Path
+from manifold.core.engine import Registry
+from manifold.sim import engines
+from manifold.sim.backend import LocalBackend
+from backend_conformance import wait_for
+top = Path({top!r})
+reg = Registry()
+reg.register("dummy", engines.load_target("manifold.engines.dummy.adapter:DummyAdapter"))
+b = LocalBackend(top / "work_only", top / "assets", library=top / "manifold_run_specs", registry=reg)
+final = wait_for(b, b.submit_run("dummy_quick")["run_id"], ("rendered", "failed"), timeout=120)
+job = json.loads((b.store.run_dir(final["run_id"]) / "job.json").read_text())
+print(json.dumps({{"discovered": engines.registry().ids(), "listed": [e["engine_id"] for e in b.list_engines()["items"]],
+                  "state": final["state"], "errors": final["errors"], "job_engines": [e["engine_id"] for e in job["engines"]]}}))
+"""
+
+
+def test_a_backend_given_a_custom_registry_runs_with_exactly_that_engine_set(site, library):
+    """Discovery finds DIRSIG and the dummy; a backend given a registry holding only the dummy lists, admits and runs
+    with that set alone, and its worker rebuilds the same set from job.json rather than discovering."""
+    got = _run(ONLY_DUMMY.format(top=str(library)), site)
+    assert got["discovered"] == ["dirsig", "dummy"]
+    assert got["listed"] == ["dummy"] and got["job_engines"] == ["dummy"]
+    assert got["state"] == "rendered", got["errors"]

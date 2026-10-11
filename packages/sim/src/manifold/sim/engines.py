@@ -43,7 +43,7 @@ def build_registry(group=GROUP):
         by_id.setdefault(ep.name, []).append(ep)
     for engine_id, eps in sorted(by_id.items()):
         if len(eps) == 1:
-            reg.register(engine_id, _loader(eps[0]), source=_source(eps[0]))
+            reg.register(engine_id, _loader(eps[0]), source=_source(eps[0]), target=eps[0].value)
         else:
             reg.register(engine_id, _conflict([_source(e) for e in eps]), source="; ".join(_source(e) for e in eps))
     return reg
@@ -56,6 +56,17 @@ def registry():
         _REGISTRY = build_registry()
         set_default_registry(_REGISTRY)
     return _REGISTRY
+
+
+def load_target(target):
+    """The object a `module:attribute` target names (the entry-point form), imported here: `manifold.core` imports
+    nothing by name, so a worker rebuilding an engine set (`Registry.from_description`) passes this as its loader."""
+    import importlib
+    module, _, attr = target.partition(":")
+    obj = importlib.import_module(module)
+    for part in attr.split("."):
+        obj = getattr(obj, part)
+    return obj
 
 
 def reset():

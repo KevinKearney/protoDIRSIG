@@ -139,7 +139,7 @@ class Workspace:
     # --- constructors ---------------------------------------------------------------------------------------------
 
     @classmethod
-    def local(cls, library=None, config_repo=None, work=None, max_parallel=1, sensor_library=None):
+    def local(cls, library=None, config_repo=None, work=None, max_parallel=1, sensor_library=None, registry=None):
         """A workspace over a `LocalBackend` on this machine.
 
         Parameters
@@ -158,6 +158,9 @@ class Workspace:
             How many runs render at once (default 1).
         sensor_library : str or pathlib.Path, optional
             The sensor library; default the `manifold_sensors/` beside `library`.
+        registry : manifold.core.engine.Registry, optional
+            The engines this workspace may run; default the ones discovered from the installed distributions. Its
+            workers rebuild exactly this set.
 
         Returns
         -------
@@ -175,7 +178,7 @@ class Workspace:
         default = work is None
         work = default_work_root() if default else Path(work)
         backend = LocalBackend(work, config_repo, max_parallel=max_parallel, sensor_library=sensor_library,
-                               library=library)
+                               library=library, registry=registry)
         if default:
             _warn_about_former_root(work)       # after the store exists, so the move command fits what is on disk
         return cls(backend)

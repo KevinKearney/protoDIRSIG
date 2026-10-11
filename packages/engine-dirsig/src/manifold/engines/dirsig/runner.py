@@ -1,6 +1,6 @@
 """The DIRSIG engine process: `python -m <package>.runner <run_dir>`, launched by the worker from the adapter's plan.
 
-Reads `job.json` and `run_spec.yaml` from the run directory, calls `DirsigAdapter.execute` (which writes
+Reads `job.json` and `run_spec.yaml` from the run directory, calls `DirsigAdapter._execute` (which writes
 `engine_result.json`) and exits 0; the worker reads the outcome through `DirsigAdapter.collect`.
 """
 import json
@@ -20,7 +20,7 @@ def main(run_dir):
     grant = json.loads((run_dir / "grant.json").read_text()) if (run_dir / "grant.json").is_file() else {}
     context = RunContext(run_dir, spec, job["config_repo"], job.get("sensor_library"), run_dir / "output",
                          {"engine": job.get("engine", "auto"), "grant": grant})
-    DirsigAdapter().execute(context)
+    DirsigAdapter()._execute(context)
     return 0
 
 

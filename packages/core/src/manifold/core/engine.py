@@ -12,9 +12,10 @@ dataclasses:
   verified; returns the engine's resolved run or raises `run_spec.RunSpecError`), `library_problems(spec, resolved)`
   (checks that need the resolved files);
 - execution: `plan(context)` returns a `LaunchPlan` (argv, working folder, environment policy, interpreter, files to
-  stage, expected outputs) that `manifold.sim` runs as a subprocess; `execute(context, hook)` is what that subprocess
-  runs (engine side); `collect(output_dir, run_dir)` returns a `Collection` (artifacts with roles and a completeness
-  verdict that does not rely on the exit status alone);
+  stage, expected outputs) that `manifold.sim` runs as a subprocess; `collect(output_dir, run_dir)` returns a
+  `Collection` (artifacts with roles and a completeness verdict that does not rely on the exit status alone). What the
+  launched process runs is the engine's own business (an adapter may expose a private `_execute(context, hook)` for
+  tests that run it in-process; it is not part of the protocol);
 - provenance: `fingerprint(spec)`, the external dependencies recorded in the execution record (tool versions, hashed
   assets, interpreter identity);
 - resources: `resources(spec)`, the typed slots the run needs (`resources.ResourceRequest`);
@@ -22,10 +23,13 @@ dataclasses:
   `dry_run(spec, resolved, scratch_root, options)` (the engine's own dry run).
 
 `Registry` holds adapters by engine id, loads them lazily (a loader that raises leaves the engine listed as unavailable
-with the reason; the others are unaffected) and lists them deterministically. `default_registry()` is the registry
-`compose`, `validate` and admission use when none is passed; it is empty until a caller installs one with
-`set_default_registry` (`manifold.sim` installs the registry it discovers from installed distributions), so a process
-that uses `manifold.core` alone passes a registry explicitly.
+with the reason; the others are unaffected) and lists them deterministically. Each registration remembers its import
+target (`module:attribute`), so `describe()` gives the engine set in a form another process rebuilds exactly
+(`Registry.from_description`): the backend writes it into `job.json` and the worker rebuilds that set, never another.
+`compose`, `validate` and admission take a `registry` argument; `default_registry()` is the convenience they fall back
+to when none is passed, and it raises `RegistryNotConfigured` ("no engine registry configured; pass registry= or import
+manifold.sim") until a caller installs one with `set_default_registry` (`manifold.sim` installs the registry it discovers
+from installed distributions). A process that uses `manifold.core` alone passes a registry.
 
 Imports: the standard library only.
 """
@@ -135,8 +139,6 @@ class EngineAdapter(Protocol):
 
     def plan(self, context: RunContext) -> LaunchPlan: ...
 
-    def execute(self, context: RunContext, hook=None) -> Mapping: ...
-
     def collect(self, output_dir, run_dir) -> Collection: ...
 
     def fingerprint(self, spec=None) -> Mapping: ...
@@ -163,15 +165,33 @@ class EngineUnavailable(LookupError):
         self.engine_id, self.reason, self.registered = engine_id, reason, tuple(registered)
 
 
+class RegistryNotConfigured(LookupError):
+    """No registry was passed and none is configured as the default."""
+
+    MESSAGE = "no engine registry configured; pass registry= or import manifold.sim"
+
+    def __init__(self):
+        super().__init__(self.MESSAGE)
+
+
+def _target_of(obj):
+    """`module:qualname` of a class or function, or None (a lambda, a local object or an instance)."""
+    module, name = getattr(obj, "__module__", None), getattr(obj, "__qualname__", None)
+    if not module or not name or "<" in name:
+        return None
+    return f"{module}:{name}"
+
+
 class Registry:
-    """Adapters by engine id. `register(engine_id, loader_or_adapter, source=...)`: a loader (a callable returning an
-    adapter) is called on first use; if it raises, the engine stays listed as unavailable with the reason and every
-    other engine is unaffected. Pure: no discovery here."""
+    """Adapters by engine id. `register(engine_id, loader_or_adapter, source=..., target=...)`: a loader (a class or a
+    callable returning an adapter) is called on first use; if it raises, the engine stays listed as unavailable with
+    the reason and every other engine is unaffected. `target` (`module:attribute`, derived from a class or function
+    when not given) lets another process rebuild the registration. Pure: no discovery here."""
 
     def __init__(self):
         self._entries = {}
 
-    def register(self, engine_id, adapter_or_loader, *, source=None, replace=False):
+    def register(self, engine_id, adapter_or_loader, *, source=None, target=None, replace=False):
         if not isinstance(engine_id, str) or not engine_id:
             raise ValueError("an engine id is a non-empty string")
         if engine_id in self._entries and not replace:
@@ -179,8 +199,10 @@ class Registry:
         is_factory = isinstance(adapter_or_loader, type) or (callable(adapter_or_loader)
                                                               and not isinstance(adapter_or_loader, EngineAdapter))
         loader = adapter_or_loader if is_factory else (lambda a=adapter_or_loader: a)
+        if target is None:
+            target = _target_of(adapter_or_loader if is_factory else type(adapter_or_loader))
         self._entries[engine_id] = {"loader": loader, "adapter": None, "error": None, "loaded": False,
-                                    "source": source}
+                                    "source": source, "target": target}
 
     def unregister(self, engine_id):
         self._entries.pop(engine_id, None)
@@ -240,12 +262,51 @@ class Registry:
         """Every registered engine's `EngineStatus`, sorted by engine id (loads each adapter once)."""
         return [self.status(i) for i in self.ids()]
 
+    def describe(self):
+        """The engine set as data another process rebuilds (`from_description`): per engine its id, import target,
+        source, whether the adapter loaded and its version (loads each adapter once)."""
+        out = []
+        for engine_id in self.ids():
+            e = self._load(engine_id)
+            info = e["adapter"].info() if e["adapter"] is not None else None
+            out.append({"engine_id": engine_id, "target": e["target"], "source": e["source"],
+                        "loaded": e["adapter"] is not None,
+                        "adapter_version": info.adapter_version if info else None})
+        return out
 
-_DEFAULT = Registry()
+    @classmethod
+    def from_description(cls, description, load):
+        """A registry of exactly the engines `describe()` gave, each loaded from its import target by `load(target)`
+        (the importing is the caller's: `manifold.sim.engines.load_target`; core imports nothing by name)."""
+        reg = cls()
+        for d in description:
+            target = d.get("target")
+            if target:
+                loader = (lambda t=target: _instantiate(load(t)))
+            else:
+                loader = (lambda d=d: (_ for _ in ()).throw(LookupError(
+                    f"engine {d['engine_id']!r} was registered without an import target")))
+            reg.register(d["engine_id"], loader, source=d.get("source"), target=target)
+        return reg
+
+
+def _instantiate(obj):
+    """An adapter from what an import target names: a class or factory is called, an adapter object returned as is."""
+    return obj() if isinstance(obj, type) or (callable(obj) and not isinstance(obj, EngineAdapter)) else obj
+
+
+_DEFAULT = None
 
 
 def default_registry():
-    """The registry used when a caller passes none (empty until `set_default_registry`)."""
+    """The registry used when a caller passes none; `RegistryNotConfigured` until `set_default_registry`."""
+    if _DEFAULT is None:
+        raise RegistryNotConfigured()
+    return _DEFAULT
+
+
+def configured_registry():
+    """The default registry, or None when none is configured (never raises)."""
     return _DEFAULT
 
 

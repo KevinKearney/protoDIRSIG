@@ -79,19 +79,27 @@ def _profile(layers, resources):
     path.write_text(yaml.safe_dump(doc, sort_keys=False))
 
 
-def test_a_gpu_request_is_refused_here_and_admitted_on_a_backend_that_advertises_gpus(tmp_path, library, layers):
+def test_a_gpu_request_is_refused_here_and_admitted_on_a_backend_that_advertises_gpus(tmp_path, library, layers,
+                                                                                       monkeypatch):
     """An engine that declares one GPU (the DIRSIG adapter with that declaration, in an explicit registry): refused at
     admission on this backend, which advertises none; admitted on a stub backend advertising two, which grants a
     device. DIRSIG itself declares no GPU, so its runs are refused by the declaration."""
     from backend_conformance import wait_for
     from manifold.core.compose import compose_sweep
     from manifold.core.engine import Registry
-    from manifold.engines.dirsig.adapter import DirsigAdapter
     from manifold.sim.backend import LocalBackend
 
-    class OneGpu(DirsigAdapter):
-        def resources(self, spec=None):
-            return ResourceDeclaration(gpu=GpuSlot(maximum=1))
+    mod = tmp_path / "pymods"                      # importable by the worker, which rebuilds the backend's engine set
+    mod.mkdir()
+    (mod / "one_gpu_adapter.py").write_text(
+        "from manifold.core.resources import GpuSlot, ResourceDeclaration\n"
+        "from manifold.engines.dirsig.adapter import DirsigAdapter\n\n\n"
+        "class OneGpu(DirsigAdapter):\n"
+        "    def resources(self, spec=None):\n"
+        "        return ResourceDeclaration(gpu=GpuSlot(maximum=1))\n")
+    monkeypatch.syspath_prepend(str(mod))
+    monkeypatch.setenv("PYTHONPATH", str(mod))
+    from one_gpu_adapter import OneGpu
     reg = Registry()
     reg.register("dirsig", OneGpu, source="test")
     _profile(layers, {"gpu": {"count": 1}})

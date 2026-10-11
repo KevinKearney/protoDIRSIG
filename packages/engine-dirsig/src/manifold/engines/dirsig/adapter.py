@@ -8,7 +8,7 @@ layered block, `resolve_passthrough` for `mode: passthrough`; the library-file c
 (`run_spec.check_library_files`).
 
 Execution: `plan` launches `python -m <this package>.runner <run_dir>` in the SDK's own interpreter; the runner calls
-`execute`, which builds the job with dirfm and runs the DIRSIG dry run and the render (layered), or runs `scene2hdf` and
+`_execute`, which builds the job with dirfm and runs the DIRSIG dry run and the render (layered), or runs `scene2hdf` and
 `dirsig5` on a copy of the demo directory with a per-run `HOME` (pass-through), and writes `engine_result.json`.
 `collect` reads it: no result file means the process stopped before it finished (`incomplete`); a failed outcome is
 `failed`; a rendered one lists the artifacts (layered: each capture's image, header and truth products from the
@@ -30,12 +30,12 @@ from manifold.core.contract import contracts_dir
 from manifold.core.resources import CpuThreads, GpuSlot, ResourceDeclaration
 from manifold.engines.dirsig.artifacts import RUN_LEVEL, _frames, _header
 from manifold.core.engine import (CollectedArtifact, Collection, EngineInfo, EnvironmentPolicy, LaunchPlan, Registry,
-                                  ResolveContext, default_registry)
+                                  ResolveContext, configured_registry)
 from manifold.engines.dirsig.passthrough_spec import is_passthrough, resolve_passthrough
 from manifold.engines.dirsig.run_spec import black_level_problem, check_library_files, resolve_run
 
 REPOSITORY = Path(__file__).resolve().parents[6]    # packages/engine-dirsig/src/manifold/engines/dirsig/
-RESULT = "engine_result.json"                     # written by `execute` into the run directory
+RESULT = "engine_result.json"                     # written by `_execute` into the run directory
 ENGINE_ID = "dirsig"
 CONTRACT = "dirsig-engine/1"
 SCHEMA_FILE = "dirsig-engine-1.schema.json"
@@ -60,11 +60,11 @@ def registry():
     """A registry that serves this engine: the default one when it already does (a process that imported
     `manifold.sim`), else a registry holding only this adapter. The engine's own modules (the runner, `Simulation`,
     `LocalRegistry`) validate and compose through it, so they work in a process that never imported `manifold.sim`."""
-    reg = default_registry()
-    if ENGINE_ID in reg.ids():
+    reg = configured_registry()
+    if reg is not None and ENGINE_ID in reg.ids():
         return reg
     own = Registry()
-    own.register(ENGINE_ID, DirsigAdapter, source=__name__)
+    own.register(ENGINE_ID, DirsigAdapter, source=__name__, target=f"{__name__}:DirsigAdapter")
     return own
 
 
@@ -151,7 +151,7 @@ class DirsigAdapter:
                           python_module=__name__.rsplit(".", 1)[0] + ".runner", env=EnvironmentPolicy(),
                           expected_outputs=())
 
-    def execute(self, context, hook=None):
+    def _execute(self, context, hook=None):
         """Run one run to an outcome, write `engine_result.json` and return it. `hook`, for tests, replaces the
         Simulation factory `(run_spec_path, config_repo, work_dir, sensor_library) -> Simulation`."""
         run_dir = Path(context.run_dir)

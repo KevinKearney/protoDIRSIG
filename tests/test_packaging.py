@@ -25,13 +25,15 @@ site, spec_path = sys.argv[1], sys.argv[2]
 sys.path.insert(0, site)
 import yaml
 from manifold.core import contract
+from manifold.core.engine import Registry
+empty = Registry()                     # core alone, no engine installed: the run-spec schema only, said explicitly
 assert contract.__file__.startswith(site), contract.__file__
 folder = contract.contracts_dir()
 assert str(folder).startswith(site) and folder == contract.packaged_contracts_dir(), folder
 spec = yaml.safe_load(open(spec_path).read())
-assert contract.schema_violations(spec) == [], contract.schema_violations(spec)
+assert contract.schema_violations(spec, empty) == [], contract.schema_violations(spec, empty)
 spec["descriptor"]["origin"]["kind"] = "bogus"
-bad = contract.schema_violations(spec)
+bad = contract.schema_violations(spec, empty)
 assert [v["path"] for v in bad] == ["/descriptor/origin/kind"], bad
 print("ok", folder)
 """

@@ -21,7 +21,8 @@ with its proxy variables pointed at a closed port; LocalBackend has no network s
 exit status, cache and thermal measurements), `artifact_roles` and `max_parallel`. It is never part of a run id.
 
 Engine-free: the worker imports no engine package; the engine runs in the process the plan describes. `main(run_dir,
-hook)` with a `hook` (tests) calls the adapter's `execute(context, hook)` in this process instead of launching the plan.
+hook)` with a `hook` (tests) calls the adapter's private `_execute(context, hook)` in this process instead of launching
+the plan.
 """
 import fcntl
 import json
@@ -35,7 +36,7 @@ from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 from manifold.core import _names, problems, resources
-from manifold.core.engine import EngineUnavailable, RunContext, engine_id_of
+from manifold.core.engine import EngineUnavailable, Registry, RunContext, engine_id_of
 from manifold.core.errors import NotFoundError
 from manifold.sim import engines
 from manifold.sim.store import FINAL, ArtifactError, RunStore, artifact_ref, check_artifact_names, process_start, utc_now
@@ -154,6 +155,29 @@ def launch(plan, run_dir, threads=None, gpu_ids=(), extra=None):
 LEDGER, LEDGER_LOCK = "resources.json", "resources.lock"
 
 
+class EngineSetMismatch(RuntimeError):
+    """The worker cannot rebuild the engine set the backend admitted the run with."""
+
+
+def engine_set(job):
+    """The registry the backend used, rebuilt from `job.json`'s `engines` (each adapter loaded from its import target);
+    `EngineSetMismatch` when an engine the backend loaded does not load here, or loads at another version, or the
+    reverse. A `job.json` from before the engine set was recorded falls back to discovery."""
+    described = job.get("engines")
+    if described is None:
+        return engines.registry()
+    reg = Registry.from_description(described, engines.load_target)
+    here = {d["engine_id"]: d for d in reg.describe()}
+    for d in described:
+        h = here[d["engine_id"]]
+        if d.get("loaded") != h["loaded"] or (d.get("loaded") and d.get("adapter_version") != h["adapter_version"]):
+            raise EngineSetMismatch(
+                f"engine set mismatch: the backend had {d['engine_id']!r} ({d.get('target')}) "
+                f"{'at version ' + str(d.get('adapter_version')) if d.get('loaded') else 'not loadable'}, the worker "
+                f"{'at version ' + str(h['adapter_version']) if h['loaded'] else 'cannot load it'}")
+    return reg
+
+
 def capacity_of(doc):
     """A `resources.Capacity` from its JSON form in `job.json` (absent: this host's CPUs, no GPU)."""
     if not doc:
@@ -232,14 +256,14 @@ def main(run_dir, hook=None):
         try:
             import yaml
             spec = yaml.safe_load((run_dir / "run_spec.yaml").read_text())
-            reg = engines.registry()
+            reg = engine_set(job)
             engine_id = engine_id_of(spec)
             adapter = reg.get(engine_id)
             info = adapter.info()
             store.update_record(run_id, {"adapter": {"engine_id": info.engine_id, "version": info.adapter_version,
                                                      "source": reg.status(engine_id).source},
                                          **dict(adapter.fingerprint(spec))})
-        except EngineUnavailable as e:
+        except (EngineUnavailable, EngineSetMismatch) as e:
             _fail(store, run_id, name, str(e), run_dir)
             return 0
         try:
@@ -277,7 +301,7 @@ def main(run_dir, hook=None):
                                   "assets": {n: str(p) for n, p in staged.items()}})
             returncode = None
             if hook is not None:
-                adapter.execute(context, hook)
+                adapter._execute(context, hook)
             else:
                 plan = adapter.plan(context)
                 for n, src in plan.stage.items():
