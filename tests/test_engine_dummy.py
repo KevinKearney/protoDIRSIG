@@ -11,7 +11,13 @@ admitted, executes through `LocalBackend` in another interpreter (`/usr/bin/pyth
 read-only and its granted thread count in its environment, is listed by `list_engines`, is cancellable (SIGTERM
 mid-run, after which its collector says `incomplete`), and the unmodified `tests/backend_conformance.py` suite (through
 `tests/test_local_backend.py`) still passes. Uninstalled, `list_engines` lists DIRSIG exactly as before and no dummy,
-and a dummy run spec is refused as an unregistered engine.
+and a dummy run spec is refused as an unregistered engine. A backend given a registry holding only the dummy runs with
+that set alone while discovery finds DIRSIG too.
+
+The folder install is the fast path. The real one is `test_the_dummy_installed_from_its_wheel_...`: the fixture is
+built into a wheel offline (`pip wheel --no-build-isolation --no-index`), installed with `pip install --no-index
+--no-deps` into a throwaway virtual environment layered on this one (`--system-site-packages`), and discovery, one run
+and `pip uninstall` are checked in a subprocess under that environment's interpreter.
 """
 import json
 import os
@@ -232,3 +238,80 @@ def test_a_backend_given_a_custom_registry_runs_with_exactly_that_engine_set(sit
     assert got["discovered"] == ["dirsig", "dummy"]
     assert got["listed"] == ["dummy"] and got["job_engines"] == ["dummy"]
     assert got["state"] == "rendered", got["errors"]
+
+
+@pytest.fixture(scope="module")
+def venv_with_wheel(tmp_path_factory):
+    """The dummy built as a wheel offline and installed with pip into a fresh virtual environment layered on this one
+    (`--system-site-packages`, so the SDK is the environment's own), with no index and no dependency resolution."""
+    src = tmp_path_factory.mktemp("dummy_src") / "engine_dummy"
+    shutil.copytree(FIXTURE, src, ignore=shutil.ignore_patterns("__pycache__", "build", "*.egg-info"))
+    out = tmp_path_factory.mktemp("dummy_wheel")
+    r = subprocess.run([sys.executable, "-m", "pip", "wheel", ".", "--no-deps", "--no-build-isolation", "--no-index",
+                        "-w", str(out)], cwd=src, capture_output=True, text=True, timeout=300)
+    if r.returncode != 0:
+        pytest.skip(f"the dummy wheel cannot be built offline here: {(r.stderr or r.stdout).strip().splitlines()[-1:]}")
+    (whl,) = out.glob("eoptic_manifold_engine_dummy-*.whl")
+    venv = tmp_path_factory.mktemp("dummy_venv") / "venv"
+    r = subprocess.run([sys.executable, "-m", "venv", "--system-site-packages", "--without-pip", str(venv)],
+                       capture_output=True, text=True, timeout=300)
+    if r.returncode != 0:
+        pytest.skip(f"a virtual environment cannot be created here: {(r.stderr or r.stdout).strip().splitlines()[-1:]}")
+    python = venv / "bin" / "python"
+    r = subprocess.run([str(python), "-m", "pip", "install", "--no-index", "--no-deps", str(whl)],
+                       capture_output=True, text=True, timeout=300)
+    assert r.returncode == 0, r.stderr[-2000:]
+    return python, whl
+
+
+WHEEL_RUN = """
+import json, sys
+sys.path.insert(0, 'tests')
+import manifold.sim
+from pathlib import Path
+from manifold.sim import engines
+from manifold.sim.backend import LocalBackend
+from backend_conformance import wait_for
+import manifold.engines.dummy.adapter as dummy
+top = Path({top!r})
+b = LocalBackend(top / "work_wheel", top / "assets", library=top / "manifold_run_specs")
+listed = {{e["engine_id"]: e for e in b.list_engines()["items"]}}
+final = wait_for(b, b.submit_run("dummy_quick")["run_id"], ("rendered", "failed"), timeout=120)
+print(json.dumps({{"prefix": sys.prefix, "dummy_file": dummy.__file__, "ids": sorted(listed),
+                  "source": listed["dummy"]["source"], "state": final["state"], "errors": final["errors"],
+                  "roles": sorted({{a["role"] for a in final["artifacts"]}})}}))
+"""
+
+WHEEL_LIST = """
+import json, sys
+import manifold.sim
+from manifold.sim import engines
+print(json.dumps({"prefix": sys.prefix, "ids": engines.registry().ids()}))
+"""
+
+
+def _in_venv(python, code):
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
+    env["MANIFOLD_DUMMY_PYTHON"] = str(SYSTEM_PYTHON)
+    res = subprocess.run([str(python), "-c", code], capture_output=True, text=True, env=env, timeout=300, cwd=ROOT)
+    assert res.returncode == 0, res.stderr[-3000:]
+    return json.loads(res.stdout.strip().splitlines()[-1])
+
+
+def test_the_dummy_installed_from_its_wheel_is_discovered_runs_and_uninstalls(venv_with_wheel, library):
+    """A real install, not a folder on PYTHONPATH: pip puts the wheel's files and `.dist-info` (with its entry point)
+    into the virtual environment's site-packages; discovery finds it there, a run renders, and after `pip uninstall`
+    discovery finds DIRSIG alone. The folder tests above stay the fast path."""
+    python, whl = venv_with_wheel
+    venv = python.parent.parent
+    got = _in_venv(python, WHEEL_RUN.format(top=str(library)))
+    assert Path(got["prefix"]) == venv and Path(got["dummy_file"]).is_relative_to(venv)
+    assert got["ids"] == ["dirsig", "dummy"] and "eoptic-manifold-engine-dummy 0.0.1" in got["source"]
+    assert got["state"] == "rendered", got["errors"]
+    assert got["roles"] == ["config", "log", "product"]
+    r = subprocess.run([str(python), "-m", "pip", "uninstall", "-y", "eoptic-manifold-engine-dummy"],
+                       capture_output=True, text=True, timeout=300)
+    assert r.returncode == 0, r.stderr[-2000:]
+    after = _in_venv(python, WHEEL_LIST)
+    assert after["ids"] == ["dirsig"]
+    assert not list((venv / "lib").glob("python*/site-packages/manifold/engines/dummy"))
