@@ -15,13 +15,19 @@ digest is left to `run_spec.unstamped_refs` (validation lists it, submission ref
 the copy and are not artifacts), then runs the engine on a copy of the directory under `work_dir/input/`
 (the engine may write beside the simulation file, for example a compiled scene, and the library is never written),
 with `--output_folder <work_dir>/output` and the run's seed; files the engine writes into the copy instead of the output
-folder are moved into it. `engine` is the `dirsig5` executable (a stub in tests).
+folder are moved into it. `engine` is the `dirsig5` executable (a stub in tests). With `home`, both tools run with
+`HOME` set to that folder (created if missing) and every other variable, `DIRSIG_HOME` included, inherited: DIRSIG writes
+its material caches under `$HOME/Documents/DIRSIG/cache`, so a per-run home keeps them out of the user's cache and lets
+the run record them (`cache_state`). While the tools run, `ThermalSampler` reads the maximum temperature over
+`/sys/class/thermal/thermal_zone*/temp` (`$PROTODIRSIG_THERMAL_ZONES` overrides the folder) every 5 seconds (`max_cpu_temp_c` in the result, None without sensors).
+`tool_version` is a tool's version line as the tool prints it.
 
 Imports: the standard library, `protodirsig.run_spec` and `protodirsig.dirhash`; no engine package.
 """
 import os
 import shutil
 import subprocess
+import threading
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
@@ -30,6 +36,8 @@ from protodirsig.run_spec import PLACEHOLDER, RunSpecError
 
 POINTER = "/engine/passthrough"
 OPAQUE = {"source": "passthrough"}
+THERMAL_ZONES = os.environ.get("PROTODIRSIG_THERMAL_ZONES", "/sys/class/thermal")   # overridable for tests
+THROTTLE_SUSPECT_C = 90.0         # a run whose maximum reaches this is flagged throttle_suspect
 
 
 def is_passthrough(spec):
@@ -111,7 +119,7 @@ def scenes_of(simulation):
     return list(dict.fromkeys(found))
 
 
-def compile_scenes(simulation, engine, timeout=None, log=None):
+def compile_scenes(simulation, engine, timeout=None, log=None, env=None):
     """Compile every scene the simulation names with the `scene2hdf` beside `engine` (DIRSIG5 reads a scene's
     compiled HDF, `<scene>.hdf`, and does not compile it itself), in the scene's own folder. Returns
     `[(scene, exit status)]`, or None when there is no `scene2hdf` beside the engine (a stub engine)."""
@@ -123,18 +131,94 @@ def compile_scenes(simulation, engine, timeout=None, log=None):
         scene = (Path(simulation).parent / ref)
         with open(log, "ab") if log else open(os.devnull, "wb") as sink:
             proc = subprocess.run([str(tool), scene.name], cwd=scene.parent, stdout=sink, stderr=subprocess.STDOUT,
-                                  timeout=timeout)
+                                  timeout=timeout, env=env)
         results.append((ref, proc.returncode))
     return results
+
+
+def tool_version(tool):
+    """The version a DIRSIG tool prints for `--version`: the value of its `Version:` line, else its first non-empty
+    line; None when the tool is missing or prints nothing."""
+    if tool is None or not Path(tool).is_file():
+        return None
+    try:
+        out = subprocess.run([str(tool), "--version"], capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    lines = [ln.strip() for ln in (out.stdout or out.stderr or "").splitlines() if ln.strip()]
+    for ln in lines:
+        if ln.lower().startswith("version:"):
+            return ln.split(":", 1)[1].strip()
+    return lines[0] if lines else None
+
+
+def max_zone_temp_c(root=THERMAL_ZONES):
+    """The maximum temperature over `<root>/thermal_zone*/temp` in degrees C, or None when no zone can be read."""
+    temps = []
+    for f in Path(root).glob("thermal_zone*/temp"):
+        try:
+            temps.append(int(f.read_text().strip()) / 1000.0)
+        except (OSError, ValueError):
+            continue
+    return max(temps) if temps else None
+
+
+class ThermalSampler:
+    """Samples `max_zone_temp_c` at entry, every `interval` seconds while active, and at exit; `max_c` is the maximum
+    seen, None when the sensors are unavailable."""
+
+    def __init__(self, interval=5.0, root=THERMAL_ZONES):
+        self.interval, self.root, self.max_c = interval, root, None
+        self._stop = threading.Event()
+        self._thread = None
+
+    def _sample(self):
+        t = max_zone_temp_c(self.root)
+        if t is not None and (self.max_c is None or t > self.max_c):
+            self.max_c = t
+
+    def _loop(self):
+        while not self._stop.wait(self.interval):
+            self._sample()
+
+    def __enter__(self):
+        self._sample()
+        self._thread = threading.Thread(target=self._loop, daemon=True)
+        self._thread.start()
+        return self
+
+    def __exit__(self, *exc):
+        self._stop.set()
+        self._thread.join()
+        self._sample()
+        return False
+
+
+def cache_state(home):
+    """`{files, bytes}` of DIRSIG's cache folder under `home` (`Documents/DIRSIG/cache`)."""
+    folder = Path(home) / "Documents" / "DIRSIG" / "cache"
+    files = [p for p in folder.rglob("*") if p.is_file()] if folder.is_dir() else []
+    return {"files": len(files), "bytes": sum(p.stat().st_size for p in files)}
 
 
 def _snapshot(root):
     return {p.relative_to(root): (p.stat().st_size, p.stat().st_mtime_ns) for p in root.rglob("*") if p.is_file()}
 
 
-def run_engine(run, work_dir, engine, dry_run=False, timeout=None, log=None):
-    """Run `engine` on a copy of the run's directory. Returns `{returncode, command, moved, output}`: `moved` lists
-    files the engine wrote into the copy, which are moved into `<work_dir>/output/`. Never writes into the library."""
+def run_engine(run, work_dir, engine, dry_run=False, timeout=None, log=None, home=None):
+    """Run `engine` on a copy of the run's directory. Returns `{returncode, command, moved, output, compiled,
+    max_cpu_temp_c}`: `moved` lists files the engine wrote into the copy, which are moved into `<work_dir>/output/`.
+    Never writes into the library. `home`: the `HOME` both tools run with (None: inherited)."""
+    with ThermalSampler() as thermal:
+        result = _run_engine(run, work_dir, engine, dry_run, timeout, log, home)
+    return {**result, "max_cpu_temp_c": thermal.max_c}
+
+
+def _run_engine(run, work_dir, engine, dry_run, timeout, log, home):
+    env = None
+    if home is not None:
+        Path(home).mkdir(parents=True, exist_ok=True)
+        env = {**os.environ, "HOME": str(home)}
     work_dir = Path(work_dir)
     copy = work_dir / "input" / run.directory.name
     if copy.exists():
@@ -143,7 +227,7 @@ def run_engine(run, work_dir, engine, dry_run=False, timeout=None, log=None):
     shutil.copytree(run.directory, copy, symlinks=False)
     out = work_dir / ("validate_output" if dry_run else "output")
     out.mkdir(parents=True, exist_ok=True)
-    compiled = compile_scenes(copy / run.simulation_rel, engine, timeout, log)
+    compiled = compile_scenes(copy / run.simulation_rel, engine, timeout, log, env)
     if compiled and any(code != 0 for _, code in compiled):
         return {"returncode": next(code for _, code in compiled if code != 0), "command": ["scene2hdf"], "moved": [],
                 "output": out, "compiled": compiled}
@@ -156,7 +240,7 @@ def run_engine(run, work_dir, engine, dry_run=False, timeout=None, log=None):
     command.append(run.simulation_rel.rsplit("/", 1)[-1])
     cwd = copy / PurePosixPath(run.simulation_rel).parent
     with open(log, "ab") if log else open(os.devnull, "wb") as sink:
-        proc = subprocess.run(command, cwd=cwd, stdout=sink, stderr=subprocess.STDOUT, timeout=timeout)
+        proc = subprocess.run(command, cwd=cwd, stdout=sink, stderr=subprocess.STDOUT, timeout=timeout, env=env)
     moved = []
     for rel, stamp in sorted(_snapshot(copy).items()):
         if before.get(rel) != stamp:

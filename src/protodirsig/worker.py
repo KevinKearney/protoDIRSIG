@@ -15,8 +15,12 @@ DIRSIG installation and version, the propagator of an orbit run, and `max_parall
 
 A pass-through run (`engine.mode: passthrough`, proposed) skips the layered job: the engine (`job.json` `engine`, else
 the located `dirsig5`) runs the demo directory's simulation file on a copy of the directory under `<run_dir>/input/`,
-with `--output_folder <run_dir>/output`; every file in `output/` is an artifact (no frames), and the execution record
-gains `mode: passthrough`, the engine's path and version, its exit status and command.
+with `--output_folder <run_dir>/output` and `HOME` set to the per-run home `<run_dir>/home` (DIRSIG's material caches
+land under it, not in the user's `~/Documents/DIRSIG/cache`; `DIRSIG_HOME` is inherited); every file in `output/` is an
+artifact (no frames), and the execution record gains `mode: passthrough`, the engine's path and version, the
+`scene2hdf` beside it and its version (both as the tools print them), the engine's exit status and command, `cache`
+(`mode: per-run home`, the home, and the cache's file count and bytes after the run), `max_cpu_temp_c` (the maximum over
+the thermal zones while the tools ran, null without sensors) and `throttle_suspect` (that maximum at or above 90 C).
 
 Engine-bound: imports `protodirsig.simulation` (dirfm). The state machine is `main(run_dir, simulation_factory)`; tests
 call it in-process with a stub factory.
@@ -35,7 +39,8 @@ from pathlib import Path
 
 from protodirsig import problems
 from protodirsig.simulation import Simulation
-from protodirsig.passthrough import is_passthrough, resolve_passthrough, run_engine
+from protodirsig.passthrough import (THROTTLE_SUSPECT_C, cache_state, is_passthrough, resolve_passthrough, run_engine,
+                                     tool_version)
 from protodirsig.store import ArtifactError, RunStore, artifacts_for, passthrough_artifacts, utc_now
 
 REPOSITORY = Path(__file__).resolve().parents[2]
@@ -151,11 +156,19 @@ def _run_passthrough(store, run_id, name, run_dir, job, spec):
         if not engine:
             _fail(store, run_id, name, "no DIRSIG installation was found for the pass-through run", run_dir)
             return
+        scene2hdf = Path(engine).parent / "scene2hdf"
         store.update_record(run_id, {"mode": "passthrough",
                                      "engine": {"path": str(engine), "version": engine_version(engine)},
+                                     "scene2hdf": {"path": str(scene2hdf), "version": tool_version(scene2hdf)}
+                                     if scene2hdf.is_file() else None,
                                      "passthrough": {"directory": str(run.directory), "simulation": run.simulation_rel}})
-        result = run_engine(run, run_dir, engine, log=run_dir / "worker.log")
-        store.update_record(run_id, {"scene_compile": [{"scene": s, "exit_status": c} for s, c in result["compiled"]]
+        home = run_dir / "home"
+        result = run_engine(run, run_dir, engine, log=run_dir / "worker.log", home=home)
+        hot = result.get("max_cpu_temp_c")
+        store.update_record(run_id, {"cache": {"mode": "per-run home", "home": "home", **cache_state(home)},
+                                     "max_cpu_temp_c": hot,
+                                     "throttle_suspect": hot is not None and hot >= THROTTLE_SUSPECT_C,
+                                     "scene_compile": [{"scene": s, "exit_status": c} for s, c in result["compiled"]]
                                      if result.get("compiled") is not None else "no scene2hdf beside the engine",
                                      "engine_exit_status": result["returncode"],
                                      "engine_command": [Path(result["command"][0]).name, *result["command"][1:]],

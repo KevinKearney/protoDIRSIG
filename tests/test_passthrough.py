@@ -345,3 +345,109 @@ def test_scenes_of_a_legacy_sim(tmp_path):
     assert scenes_of(sim) == ["./a.scene", "b.scene"]
     (tmp_path / "bad.jsim").write_text("[{not json")
     assert scenes_of(tmp_path / "bad.jsim") == []
+
+
+# --- execution fixes (round 15): per-run home, no implicit engine check, tool versions, thermal record -----------------
+
+def _counting_bin(tmp_path):
+    """A bin folder with a counting wrapper around the stub engine and a counting `scene2hdf` beside it; both append
+    their arguments to `calls.log` and answer `--version`."""
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    calls = tmp_path / "calls.log"
+    (bindir / "dirsig5").write_text(f'#!/bin/sh\necho "dirsig5 $*" >> "{calls}"\nexec "{sys.executable}" "{STUB}" "$@"\n')
+    (bindir / "scene2hdf").write_text(f'#!/bin/sh\necho "scene2hdf $*" >> "{calls}"\n'
+                                      'if [ "$1" = "--version" ]; then printf "Stub Tools\\nVersion: stub-1.2 (abc123)\\n"; exit 0; fi\n'
+                                      'printf compiled > "$1.compiled"\n')
+    for f in bindir.iterdir():
+        f.chmod(0o755)
+    return bindir / "dirsig5", calls
+
+
+def _work_calls(calls):
+    """The calls that do work: every line but `--version` queries."""
+    return [ln for ln in calls.read_text().splitlines() if "--version" not in ln] if calls.exists() else []
+
+
+def test_submit_performs_no_engine_check_and_the_scene_is_compiled_once(tmp_path, library, layers):
+    """`Workspace.submit_run` (and the backend's) admits without running the engine; the worker compiles the scene once
+    and runs the engine once, without `--dry_run`."""
+    import fcntl
+    from backend_conformance import wait_for
+    from protodirsig import Workspace
+    engine, calls = _counting_bin(tmp_path)
+    backend = _backend(tmp_path, library, layers, engine)
+    with open(backend.store.slots / "slot-0.lock", "a") as held:
+        fcntl.flock(held, fcntl.LOCK_EX)                                       # the worker waits for the slot
+        run_id = Workspace(backend).submit_run("synthetic_passthrough").run_id
+        assert _work_calls(calls) == []                                        # admission ran no tool
+    final = wait_for(backend, run_id, ("rendered", "failed"), timeout=120)
+    assert final["state"] == "rendered", final["errors"]
+    work = _work_calls(calls)
+    assert [ln.split()[0] for ln in work] == ["scene2hdf", "dirsig5"]
+    assert "--dry_run" not in work[1]
+
+
+def test_the_execution_record_has_the_tool_versions(tmp_path, library, layers):
+    from backend_conformance import wait_for
+    engine, _ = _counting_bin(tmp_path)
+    backend = _backend(tmp_path, library, layers, engine)
+    final = wait_for(backend, backend.submit_run("synthetic_passthrough")["run_id"], ("rendered", "failed"), timeout=120)
+    rec = backend.store.read_record(final["run_id"])
+    assert rec["engine"]["version"].startswith("stub-engine")
+    assert rec["scene2hdf"] == {"path": str(engine.parent / "scene2hdf"), "version": "stub-1.2 (abc123)"}
+
+
+def test_a_stub_engine_without_scene2hdf_records_none(tmp_path, library, layers):
+    backend, final = _submit(tmp_path, library, layers)
+    rec = backend.store.read_record(final["run_id"])
+    assert rec["scene2hdf"] is None and rec["scene_compile"] == "no scene2hdf beside the engine"
+
+
+def test_the_engine_runs_with_a_per_run_home_that_receives_the_cache(tmp_path, library, layers, monkeypatch):
+    monkeypatch.setenv("STUB_ENGINE_CACHE", "1")
+    monkeypatch.setenv("DIRSIG_HOME", str(tmp_path / "an-install"))
+    real_home = os.environ["HOME"]
+    backend, final = _submit(tmp_path, library, layers)
+    assert final["state"] == "rendered", final["errors"]
+    run_dir = backend.store.run_dir(final["run_id"])
+    args = json.loads((run_dir / "output" / "stub_engine_args.json").read_text())
+    assert args["home"] == str(run_dir / "home") != real_home
+    assert args["dirsig_home"] == str(tmp_path / "an-install")                 # DIRSIG's own lookup is untouched
+    assert (run_dir / "home" / "Documents" / "DIRSIG" / "cache" / "mat_stub.sqt").is_file()
+    rec = backend.store.read_record(final["run_id"])
+    assert rec["cache"] == {"mode": "per-run home", "home": "home", "files": 1, "bytes": 50}
+    assert all(a["name"] != "mat_stub.sqt" for a in final["artifacts"])       # the cache is not an output
+
+
+def _zones(root, temps_c):
+    for i, t in enumerate(temps_c):
+        (root / f"thermal_zone{i}").mkdir(parents=True)
+        (root / f"thermal_zone{i}" / "temp").write_text(f"{int(t * 1000)}\n")
+    return root
+
+
+def test_the_thermal_sampler_reads_the_maximum_over_zones(tmp_path):
+    from protodirsig.passthrough import ThermalSampler, max_zone_temp_c
+    root = _zones(tmp_path / "thermal", [41.5, 63.0, 20.0])
+    assert max_zone_temp_c(root) == 63.0
+    assert max_zone_temp_c(tmp_path / "none") is None
+    with ThermalSampler(interval=0.01, root=root) as s:
+        (root / "thermal_zone2" / "temp").write_text("88000\n")
+        import time
+        time.sleep(0.1)
+    assert s.max_c == 88.0
+    with ThermalSampler(interval=0.01, root=tmp_path / "none") as s:
+        pass
+    assert s.max_c is None
+
+
+@pytest.mark.parametrize("temps, flagged", [([95.0, 40.0], True), ([89.9], False), ([], False)])
+def test_the_execution_record_has_the_maximum_temperature_and_the_throttle_flag(tmp_path, library, layers, monkeypatch,
+                                                                                temps, flagged):
+    root = _zones(tmp_path / "thermal", temps)
+    monkeypatch.setenv("PROTODIRSIG_THERMAL_ZONES", str(root))
+    backend, final = _submit(tmp_path, library, layers)
+    rec = backend.store.read_record(final["run_id"])
+    assert rec["max_cpu_temp_c"] == (max(temps) if temps else None)
+    assert rec["throttle_suspect"] is flagged
