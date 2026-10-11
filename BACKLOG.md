@@ -157,6 +157,42 @@ Ranked by how many of the coverage survey's `near` demos each feature would make
 5. FourCurveAtmosphere: 3 / 3 / 2 (CurveMap1 at about 4 s).
 6. Uniform weather without a ThermWeather file: 2 / 1 / 1 (Brdf1 through `demo.sim`, 204 s; Brdf1's `demo.jsim` needs a missing database).
 
+### Tagged demos: loader gaps, ranked
+From `docs/DIRSIG_tagged_demo_features.md`, which reads the 18 tagged demos (URSO relevance and SDA) feature by feature. Ranked by the number of tagged demos that need each feature. First layered targets: Indoors1 for URSO (items 1 and 2 only; 8 s, deterministic, names `SpiceEphemeris`) and MoonSat2 for SDA (items 1, 2, 6 and 10; 4 s; radiance identical in every probe condition). Not built.
+
+#### 1. BasicAtmosphere `.atm` with uniform weather
+Needed by all 18 tagged demos (URSO 9, SDA 9): simple, uniform and classic radiative transfer with `turbulence` and uniform weather from an installation `.wth` (`run_spec.resolve_run` loads only `new_atmosphere` and a library ThermWeather file). The same feature as items 1 to 3 and 6 of "Loader features for demos".
+
+#### 2. Demo platform form
+Needed by 16 (URSO 9, SDA 7): a demo's `.platform` as authored, or a sensor-spec holding a demo camera's values with its radiance image units (`platform_gen` writes an electron image from a template plus a sensor-spec). Same as item 4 of "Loader features for demos" and the licensed-value overlay. With item 1 it makes Indoors1, Sources6, SubPixelObject1, SubPixelObject2 (and IESSources1, see 11) layered.
+
+#### 3. Simulation options file
+Needed by 6 (URSO 4: Sources1, Sources3, Sources4, Sources5; SDA 2: Ssa1, MoonSat1): the `<options>` file of a legacy `.sim` (secondary-source and atmosphere entries). No engine member carries it; decide between carrying the file and mapping its entries to `engine.run` options (some have `dirsig5` command-line counterparts). With 1 and 2 it completes the URSO set.
+
+#### 4. Fixed-site LookAt platform motion
+Needed by 3 SDA (Ssa1, EarthShine1, Ssa2): a platform at a fixed geodetic or ECEF location pointed by LookAt at a fixed location or at an `sgp4` target. `resolve_run` motion kinds are `static` (Euler) and `orbit` only.
+
+#### 5. `EarthGrid` and runs without a scene
+Needed by 3 SDA (EarthShine1, SpaceRendezVous1, StkImport1): the `EarthGrid` plugin (background image and grid lines), and StkImport1 has no scene file at all. No engine member adds a plugin, and one scene is required.
+
+#### 6. Tracking mount
+Needed by 2 SDA (MoonSat2, SpaceRendezVous1). `platform_gen._check_unwritten` generates only a fixed identity mount from a sensor-spec; whether a template's tracking mount passes through unchanged is untested and is the first thing to try for MoonSat2.
+
+#### 7. STK-format waypoint and quaternion motion
+Needed by 2 SDA (StkImport1, SpaceRendezVous1): platform `flexible` motion with `waypoints` location and `quaternions` orientation read from STK report files. Engine motion kind `waypoints` is open in the schema and refused by the loader.
+
+#### 8. Non-imaging instruments
+Needed by 2 SDA: StkImport1's `datarecorder` instrument and LightCurve1's `LightCurve` sensor plugin (SpaceRendezVous1's lidar is out of scope). One imaging sensor entry and one focal plane per job today.
+
+#### 9. LookAt at a moving target from an orbit
+Needed by 1 SDA (Ssa3, DIRSIG 4 only): a platform on an element-set orbit pointed at another orbiting object. The `orbit` kind points along track at a fixed scene point and propagates the element set itself rather than with DIRSIG's `sgp4` engine ("Ssa1 against the orbit form").
+
+#### 10. Ephemeris as authored
+MoonSat2 names no ephemeris plugin, and every legacy `.sim` (URSO 7, SDA 4) relies on DIRSIG's implicit one, while the layered job always adds `SpiceEphemeris`. Check whether that changes any output; if it does, allow a run without an ephemeris plugin. A check before it is a feature.
+
+#### 11. Scene files outside the linked folders
+IESSources1's IES files sit at the top of the demo folder; the scene reference copy links only `geometry/`, `materials/` and `maps/` (`scene_ref.ASSET_DIRS`). Test whether DIRSIG resolves the source-shape path from the copy; if not, link the files the scene names.
+
 ### Compare layered demos with their pass-through references
 For each demo with a pass-through reference (`docs/DIRSIG_demo_reference_runs.md` and the 131 demos the sweep rendered, `docs/DIRSIG_demo_sweep.md`; 62 of them are survey `near` demos), render the layered recipe at the demo's native size and compare with the reference: shape, per-band mean, maximum absolute difference and the fraction of pixels differing, listing every known input difference (platform template, sensor stand-ins, atmosphere, seed). The pass criterion stays byte equality at the same seed, region of interest and DIRSIG version, or a stated tolerance; the reference is the pass-through run, kept outside git.
 
