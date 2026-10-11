@@ -318,3 +318,30 @@ def test_a_tampered_library_directory_fails_at_execution(tmp_path, library, laye
 
 
 import hashlib  # noqa: E402
+
+
+def test_scenes_are_compiled_before_the_engine_runs(tmp_path, library):
+    """With a `scene2hdf` beside the engine, every scene the simulation names is compiled in the copy first; the
+    compiled file stays in the copy and is not an output."""
+    from protodirsig.passthrough import resolve_passthrough, run_engine, scenes_of
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    engine = stub_engine(bindir)
+    (bindir / "scene2hdf").write_text('#!/bin/sh\nprintf compiled > "$1.compiled"\n')   # a marker the stub never touches
+    (bindir / "scene2hdf").chmod(0o755)
+    run = resolve_passthrough(_spec(), library)
+    assert scenes_of(run.simulation) == ["./demo.scene"]
+    result = run_engine(run, tmp_path / "run", engine)
+    assert result["returncode"] == 0 and result["compiled"] == [("./demo.scene", 0)]
+    assert (tmp_path / "run" / "input" / "PassthroughVector" / "demo.scene.compiled").read_text() == "compiled"
+    assert "demo.scene.compiled" not in result["moved"]                  # written before the snapshot: not an output
+    assert not list((library / "demo_dirs" / "PassthroughVector").glob("*.compiled"))
+
+
+def test_scenes_of_a_legacy_sim(tmp_path):
+    from protodirsig.passthrough import scenes_of
+    sim = tmp_path / "demo.sim"
+    sim.write_text('<simulation><scene externalfile="./a.scene"/><scene externalfile="b.scene"/></simulation>')
+    assert scenes_of(sim) == ["./a.scene", "b.scene"]
+    (tmp_path / "bad.jsim").write_text("[{not json")
+    assert scenes_of(tmp_path / "bad.jsim") == []

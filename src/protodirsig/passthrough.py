@@ -10,7 +10,9 @@ digest that does not match, a directory `dirhash/1` cannot hash (a symbolic link
 and a simulation path that escapes the directory or names no file, each with a `RunSpecError.pointer`; an unstamped
 digest is left to `run_spec.unstamped_refs` (validation lists it, submission refuses it).
 
-`run_engine(run, work_dir, engine, dry_run=False)` runs the engine on a copy of the directory under `work_dir/input/`
+`run_engine(run, work_dir, engine, dry_run=False)` first compiles the scenes the simulation file names with the
+`scene2hdf` beside the engine (DIRSIG5 reads a compiled `<scene>.hdf` and does not compile it; the compiled files stay in
+the copy and are not artifacts), then runs the engine on a copy of the directory under `work_dir/input/`
 (the engine may write beside the simulation file, for example a compiled scene, and the library is never written),
 with `--output_folder <work_dir>/output` and the run's seed; files the engine writes into the copy instead of the output
 folder are moved into it. `engine` is the `dirsig5` executable (a stub in tests).
@@ -87,6 +89,45 @@ def resolve_passthrough(spec, config_repo):
     return PassthroughRun(name, directory, path, str(rel), seed if isinstance(seed, int) else None)
 
 
+def scenes_of(simulation):
+    """The `.scene` files a simulation file names, relative to its folder: a `.jsim`'s `scene_list[].inputs`, a `.sim`'s
+    `<scene externalfile>`. Unreadable files give an empty list."""
+    import json
+    text = Path(simulation).read_text(errors="replace")
+    found = []
+    if str(simulation).endswith(".jsim"):
+        try:
+            doc = json.loads(text)
+        except ValueError:
+            return []
+        for entry in doc if isinstance(doc, list) else [doc]:
+            for s in (entry.get("scene_list") or []) if isinstance(entry, dict) else []:
+                ref = s.get("inputs") if isinstance(s, dict) else s
+                if isinstance(ref, str) and ref.endswith(".scene"):
+                    found.append(ref)
+    else:
+        import re
+        found = re.findall(r"<scene[^>]*externalfile=\"([^\"]+\.scene)\"", text)
+    return list(dict.fromkeys(found))
+
+
+def compile_scenes(simulation, engine, timeout=None, log=None):
+    """Compile every scene the simulation names with the `scene2hdf` beside `engine` (DIRSIG5 reads a scene's
+    compiled HDF, `<scene>.hdf`, and does not compile it itself), in the scene's own folder. Returns
+    `[(scene, exit status)]`, or None when there is no `scene2hdf` beside the engine (a stub engine)."""
+    tool = Path(engine).parent / "scene2hdf"
+    if not tool.is_file():
+        return None
+    results = []
+    for ref in scenes_of(simulation):
+        scene = (Path(simulation).parent / ref)
+        with open(log, "ab") if log else open(os.devnull, "wb") as sink:
+            proc = subprocess.run([str(tool), scene.name], cwd=scene.parent, stdout=sink, stderr=subprocess.STDOUT,
+                                  timeout=timeout)
+        results.append((ref, proc.returncode))
+    return results
+
+
 def _snapshot(root):
     return {p.relative_to(root): (p.stat().st_size, p.stat().st_mtime_ns) for p in root.rglob("*") if p.is_file()}
 
@@ -102,6 +143,10 @@ def run_engine(run, work_dir, engine, dry_run=False, timeout=None, log=None):
     shutil.copytree(run.directory, copy, symlinks=False)
     out = work_dir / ("validate_output" if dry_run else "output")
     out.mkdir(parents=True, exist_ok=True)
+    compiled = compile_scenes(copy / run.simulation_rel, engine, timeout, log)
+    if compiled and any(code != 0 for _, code in compiled):
+        return {"returncode": next(code for _, code in compiled if code != 0), "command": ["scene2hdf"], "moved": [],
+                "output": out, "compiled": compiled}
     before = _snapshot(copy)
     command = [str(engine), f"--output_folder={out}"]
     if run.seed is not None:
@@ -118,4 +163,4 @@ def run_engine(run, work_dir, engine, dry_run=False, timeout=None, log=None):
             dest = out / rel.name if (out / rel.name).exists() is False else out / str(rel).replace("/", "_")
             shutil.move(str(copy / rel), dest)
             moved.append(dest.name)
-    return {"returncode": proc.returncode, "command": command, "moved": moved, "output": out}
+    return {"returncode": proc.returncode, "command": command, "moved": moved, "output": out, "compiled": compiled}

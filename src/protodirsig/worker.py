@@ -155,7 +155,9 @@ def _run_passthrough(store, run_id, name, run_dir, job, spec):
                                      "engine": {"path": str(engine), "version": engine_version(engine)},
                                      "passthrough": {"directory": str(run.directory), "simulation": run.simulation_rel}})
         result = run_engine(run, run_dir, engine, log=run_dir / "worker.log")
-        store.update_record(run_id, {"engine_exit_status": result["returncode"],
+        store.update_record(run_id, {"scene_compile": [{"scene": s, "exit_status": c} for s, c in result["compiled"]]
+                                     if result.get("compiled") is not None else "no scene2hdf beside the engine",
+                                     "engine_exit_status": result["returncode"],
                                      "engine_command": [Path(result["command"][0]).name, *result["command"][1:]],
                                      "moved_from_input": result["moved"]})
         if result["returncode"] != 0:
