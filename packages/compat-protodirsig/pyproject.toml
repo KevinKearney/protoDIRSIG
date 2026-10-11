@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "protodirsig"
+version = "0.0.1"
+description = "Deprecated compatibility shim: the old protodirsig import paths, mapped to manifold.core and manifold.sim; removed one release after MANIFOLD adopts the manifold packages"
+requires-python = ">=3.10"
+dependencies = [
+    "eoptic-manifold-core==0.0.1",
+    "eoptic-manifold-sim==0.0.1",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["protodirsig"]

@@ -275,6 +275,7 @@ manifold_contracts/             # schemas, vocabulary, validators (sensor-spec-1
 external/                       # pinned dirfm, agent-docs, DIRSIG link; gitignored (pins.json tracked)
 packages/core/                  # eoptic-manifold-core: pyproject.toml, setup.py (packages the schemas), src/manifold/core/
 packages/sim/                   # eoptic-manifold-sim: pyproject.toml, src/manifold/sim/ (and sim/_dirsig/)
+packages/compat-protodirsig/    # protodirsig: the deprecated compatibility shim (section 7.2)
 tests/  notebooks/
 scripts/                        # bootstrap, compose, stamp_hashes, import_curve, crosscheck_sgp4, survey_demos, run_demo, sweep_demos, summarize_sweep, export_sweep_digests, probe_determinism, compare_outputs, gen_models, id_snapshot
 tests/fixtures/auror_ref/       # motion and tasks files; compared with generated files only
@@ -414,7 +415,9 @@ Versions are in lockstep (both 0.0.1). Importing any `manifold.core` module load
 
 Two strings keep the old name on purpose: the execution record's key `protodirsig_version` (a record member; renaming it changes the record) and the worker command line `protodirsig.worker` that the store still recognizes in run records written before start times were recorded. No name-derived string reaches content that an id hashes: the old name appears in layer, sensor and vector files only in YAML comments, which are not parsed, so the rename changes no run id, sweep id or vector (`tests/test_id_snapshot.py` recomputes every id the repository derives). The repository directory itself is still named `protoDIRSIG`; renaming it is outside the code.
 
-**Install.** In the conda environment, with `dirfm` installed editable from its checkout: `pip install --no-build-isolation --no-deps -e packages/core`, then `pip install --no-build-isolation --no-deps -e packages/sim`. A wheel of either is built with `pip wheel packages/<dist> --no-deps --no-build-isolation`.
+**Compatibility shim** `deprecated`. `packages/compat-protodirsig` is the distribution `protodirsig`, import `protodirsig`, so code written before the rename keeps working: one table maps each former submodule to the module that replaced it, and a meta path finder makes `import protodirsig.compose` return `manifold.core.compose` itself (the same module object, so the AUROR-era aliases such as `run_spec.resolve_auror_run` and any monkeypatching are shared); `from protodirsig import Workspace, LocalRegistry` and `protodirsig.__version__` still work. Importing it emits one `DeprecationWarning` naming `manifold.core` and `manifold.sim`. `tests/test_compat_shim.py` imports every public name of the former package (recorded in `tests/data/protodirsig_public_names.json` from the last commit before the rename) through it. The repository's own code, scripts, notebooks and tests (apart from the shim's own) import only the `manifold` packages (`tests/test_notebook_imports.py` checks every notebook's imports without running it). Removal plan: the shim is kept for one release after MANIFOLD adopts the `manifold` packages, then deleted with its tests.
+
+**Install.** In the conda environment, with `dirfm` installed editable from its checkout: `pip install --no-build-isolation --no-deps -e packages/core`, then `pip install --no-build-isolation --no-deps -e packages/sim`, and, for code that still imports `protodirsig`, `pip install --no-build-isolation --no-deps -e packages/compat-protodirsig`. A wheel of either is built with `pip wheel packages/<dist> --no-deps --no-build-isolation`.
 
 ## 8. Notebooks
 
@@ -428,7 +431,7 @@ Two strings keep the old name on purpose: the execution record's key `protodirsi
 | `sidebars/vehicle_point_source` | distils the vehicle mesh to a radiant intensity; renders the emitter with thermal prediction forced |
 | `dev/` | local discovery logs; gitignored |
 
-`notebooks/README.md` describes each in detail.
+`notebooks/README.md` describes each in detail. Their code cells import from `manifold.core` and `manifold.sim` (the first cell falls back to the two source trees under `packages/` when the packages are not installed), checked without execution by `tests/test_notebook_imports.py`; they were last executed before the rename, so their saved outputs still show `protodirsig` paths.
 
 ## 9. DIRSIG behaviors that matter
 

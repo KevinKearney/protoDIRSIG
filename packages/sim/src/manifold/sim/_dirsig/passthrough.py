@@ -33,6 +33,8 @@ from pathlib import Path, PurePosixPath
 
 from manifold.core import _names
 from manifold.core.passthrough_spec import OPAQUE, POINTER, PassthroughRun, is_passthrough, resolve_passthrough  # noqa: F401  (re-exported)
+from manifold.core.dirhash import directory_digest  # noqa: F401  (importable here before the split)
+from manifold.core.run_spec import PLACEHOLDER, RunSpecError  # noqa: F401  (importable here before the split)
 
 THERMAL_ZONES = _names.getenv("THERMAL_ZONES", "/sys/class/thermal")   # overridable for tests
 CPU_FREQ = _names.getenv("CPUFREQ", "/sys/devices/system/cpu")             # overridable for tests
