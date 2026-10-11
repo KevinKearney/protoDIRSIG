@@ -1,4 +1,4 @@
-"""`protodirsig.compose`: the conformance vectors, the generated run specs, and the composer's own guarantees
+"""`manifold.core.compose`: the conformance vectors, the generated run specs, and the composer's own guarantees
 (deterministic bytes, `explain` naming each member's layer, errors naming layer file and field, both sensor forms
 accepted downstream).
 
@@ -12,9 +12,9 @@ from pathlib import Path
 import pytest
 import yaml
 
-from protodirsig.compose import MAX_RUNS, OVERRIDABLE, ComposeError, compose, compose_sweep, dump, explain, sweep_id
-from protodirsig.run_spec import check_library_files, load_run_spec, resolve_run
-from protodirsig.simulation import schema_errors
+from manifold.core.compose import MAX_RUNS, OVERRIDABLE, ComposeError, compose, compose_sweep, dump, explain, sweep_id
+from manifold.core.run_spec import check_library_files, load_run_spec, resolve_run
+from manifold.sim._dirsig.simulation import schema_errors
 from test_simulation import needs_dirsig
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -192,7 +192,7 @@ def test_sweep_composition_is_deterministic():
 
 
 def test_sweep_id_is_derived_from_the_run_ids_and_stays_out_of_the_specs(tmp_path):
-    from protodirsig.identity import sweep_id_from_runs
+    from manifold.core.identity import sweep_id_from_runs
     sweep = compose_sweep(SWEEP)
     assert sweep.sweep_id == sweep_id_from_runs(sweep.run_ids.values()) == sweep_id(SWEEP)
     assert len(sweep.sweep_id) == 64 and list(sweep.run_ids) == list(sweep.runs)
@@ -284,7 +284,7 @@ def test_stamp_hashes_verifies_generated_specs(tmp_path):
 @pytest.mark.parametrize("recipe", _resolvable(RECIPES), ids=lambda p: p.stem)
 def test_inline_and_ref_sensor_render_the_same_platform(tmp_path, recipe):
     """The resolver accepts both forms of descriptor.sensor and renders the same .platform from each."""
-    from protodirsig.platform_gen import render_platform
+    from manifold.core.platform_gen import render_platform
     out = {}
     for inline in (False, True):
         spec = compose(recipe, inline_sensor=inline)
@@ -299,7 +299,7 @@ def test_inline_and_ref_sensor_render_the_same_platform(tmp_path, recipe):
 
 @needs_dirsig
 def test_submit_recipe_accepts_and_rejects(tmp_path):
-    from protodirsig.registry import LocalRegistry
+    from manifold.sim._dirsig.registry import LocalRegistry
     r = LocalRegistry().submit_recipe(RUN_SPECS / "recipes" / "synthetic_vis.yaml", CONFIG_REPO, tmp_path / "ok")
     assert r.accepted and r.checks == {"compose": True, "schema": True, "resolution": True, "execution": True,
                                        "stamped": True}
@@ -314,7 +314,7 @@ def test_submit_recipe_accepts_and_rejects(tmp_path):
 def test_submit_and_run_sweep_keep_each_run_independent(tmp_path, monkeypatch):
     """One run rejected at submission (its QE curve is missing) and one failing at render: the third still
     renders, and each run reports its own state. 16 x 16 windows."""
-    from protodirsig.registry import LocalRegistry
+    from manifold.sim._dirsig.registry import LocalRegistry
     root = _layers(tmp_path)
     recipe = root / "recipes" / SWEEP.name
     recipe.write_text(SWEEP.read_text().replace("Width: 32, Height: 32", "Width: 16, Height: 16"))
@@ -338,7 +338,7 @@ def test_submit_and_run_sweep_keep_each_run_independent(tmp_path, monkeypatch):
 
 
 def test_submit_sweep_reports_a_recipe_that_does_not_compose(tmp_path):
-    from protodirsig.registry import LocalRegistry
+    from manifold.sim._dirsig.registry import LocalRegistry
     bad = _recipe(VECTORS / "sweep_sensor_without_settings")
     sub = LocalRegistry().submit_sweep(bad, CONFIG_REPO, tmp_path)
     assert sub.runs == {} and sub.sweep_id == ""                          # no runs, so no content-addressed id
@@ -351,8 +351,8 @@ def test_run_sweep_renders_each_run_as_it_renders_alone(tmp_path):
     values; seeded, so byte for byte), and the two sensors' images differ. 16 x 16 windows."""
     import numpy as np
 
-    from protodirsig.registry import LocalRegistry
-    from protodirsig.simulation import Simulation
+    from manifold.sim._dirsig.registry import LocalRegistry
+    from manifold.sim._dirsig.simulation import Simulation
     root = _layers(tmp_path)
     doc = yaml.safe_load(SWEEP.read_text())
     keep = ["auror-nir.yaml", "synthetic_600_200_vis_1920.yaml"]
@@ -379,7 +379,7 @@ def test_run_sweep_renders_each_run_as_it_renders_alone(tmp_path):
 
 @pytest.mark.parametrize("recipe", ALL_RECIPES, ids=lambda p: p.stem)
 def test_a_recipe_document_composes_like_its_file(recipe):
-    from protodirsig.compose import compose_sweep_document
+    from manifold.core.compose import compose_sweep_document
     by_file = compose_sweep(recipe)
     by_doc = compose_sweep_document(yaml.safe_load(recipe.read_text()), recipe.parent.parent)
     assert by_doc.runs == by_file.runs and by_doc.run_ids == by_file.run_ids and by_doc.sweep_id == by_file.sweep_id
@@ -390,7 +390,7 @@ def test_a_recipe_document_composes_like_its_file(recipe):
 
 
 def test_an_error_in_a_recipe_document_names_the_document():
-    from protodirsig.compose import compose_document, compose_sweep_document
+    from manifold.core.compose import compose_document, compose_sweep_document
     doc = yaml.safe_load((RUN_SPECS / "recipes" / "synthetic_vis.yaml").read_text())
     del doc["scenario"]
     with pytest.raises(ComposeError) as e:

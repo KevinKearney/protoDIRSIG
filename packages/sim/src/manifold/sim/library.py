@@ -24,10 +24,10 @@ from pathlib import Path
 
 import yaml
 
-from protodirsig import problems
-from protodirsig.compose import CONTROL, LAYER_DIR, OWNER, PASSTHROUGH_RECIPE, REQUIRED, sensor_library_for_root
-from protodirsig.contract import sensor_spec_violations
-from protodirsig.errors import AdmissionError, InvalidRequestError, NotFoundError
+from manifold.core import problems
+from manifold.core.compose import CONTROL, LAYER_DIR, OWNER, PASSTHROUGH_RECIPE, REQUIRED, sensor_library_for_root
+from manifold.core.contract import sensor_spec_violations
+from manifold.core.errors import AdmissionError, InvalidRequestError, NotFoundError
 
 KINDS = ("sensor", "scenario", "engine_profile", "recipe")
 NOT_YET = "does not validate yet"               # the marker, in a layer file's first comment paragraph
@@ -39,7 +39,7 @@ def file_status(text):
     "does not validate yet", else None. The marker is how a placed but not yet resolvable library entry (a DIRSIG
     demo's layers) is labelled; the tests that resolve every repository recipe skip such entries."""
     return STATUS_NOT_YET if NOT_YET in text.split("\n\n", 1)[0] else None
-REPOSITORY = Path(__file__).resolve().parents[2]
+REPOSITORY = Path(__file__).resolve().parents[5]   # packages/<dist>/src/manifold/<pkg>/
 
 
 class LibraryReader:

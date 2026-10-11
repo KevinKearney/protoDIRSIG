@@ -23,82 +23,21 @@ the run record them (`cache_state`). While the tools run, `ThermalSampler` reads
 (`cpu_freq_khz`, `$PROTODIRSIG_CPUFREQ` overrides `/sys/devices/system/cpu`).
 `tool_version` is a tool's version line as the tool prints it.
 
-Imports: the standard library, `protodirsig.run_spec` and `protodirsig.dirhash`; no engine package.
+Imports: the standard library, `manifold.core.run_spec` and `manifold.core.dirhash`; no engine package.
 """
 import os
 import shutil
 import subprocess
 import threading
-from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
-from protodirsig import _names
-from protodirsig.dirhash import directory_digest
-from protodirsig.run_spec import PLACEHOLDER, RunSpecError
+from manifold.core import _names
+from manifold.core.passthrough_spec import OPAQUE, POINTER, PassthroughRun, is_passthrough, resolve_passthrough  # noqa: F401  (re-exported)
 
-POINTER = "/engine/passthrough"
-OPAQUE = {"source": "passthrough"}
 THERMAL_ZONES = os.environ.get(_names.env("THERMAL_ZONES"), "/sys/class/thermal")   # overridable for tests
 CPU_FREQ = os.environ.get(_names.env("CPUFREQ"), "/sys/devices/system/cpu")             # overridable for tests
 THROTTLE_SUSPECT_C = 90.0         # a run is throttle_suspect at this maximum temperature ...
 THROTTLE_FREQ_FRACTION = 0.9      # ... with a core below this fraction of cpuinfo_max_freq
-
-
-def is_passthrough(spec):
-    """True for a spec whose engine block is the pass-through form."""
-    eng = spec.get("engine") if isinstance(spec, dict) else None
-    return isinstance(eng, dict) and eng.get("mode") == "passthrough"
-
-
-@dataclass
-class PassthroughRun:
-    """A resolved pass-through run: the library directory, the simulation file in it (absolute and relative), the
-    seed (None if the spec states none)."""
-    name: str
-    directory: Path
-    simulation: Path
-    simulation_rel: str
-    seed: int | None = None
-
-
-def resolve_passthrough(spec, config_repo):
-    """Resolve a pass-through spec against the engine-asset library; RunSpecError with a pointer on any refusal."""
-    eng = spec["engine"]
-    block = eng.get("passthrough")
-    if not isinstance(block, dict):
-        raise RunSpecError("engine.passthrough is missing: the pass-through form names a directory and a simulation "
-                           "file", pointer=POINTER)
-    ref = block.get("directory")
-    if not isinstance(ref, dict) or not isinstance(ref.get("name"), str):
-        raise RunSpecError(f"engine.passthrough.directory must be a library ref {{name, content_hash}}, got {ref!r}",
-                           pointer=f"{POINTER}/directory")
-    directory = Path(config_repo) / ref["name"]
-    if not directory.is_dir():
-        raise RunSpecError(f"pass-through directory {ref['name']!r} not found: {directory} is not a directory "
-                           "(run scripts/bootstrap.py assets to place a demo directory)",
-                           pointer=f"{POINTER}/directory/name")
-    want = ref.get("content_hash")
-    try:
-        got = directory_digest(directory) if isinstance(want, str) and PLACEHOLDER not in want else None
-    except ValueError as e:
-        raise RunSpecError(f"pass-through directory {ref['name']!r} cannot be hashed: {e}",
-                           pointer=f"{POINTER}/directory/name") from e
-    if got is not None and got != want:
-        raise RunSpecError(f"pass-through directory {ref['name']!r}: content_hash {want[:19]}... does not match the "
-                           f"directory ({got[:19]}...); run scripts/stamp_hashes.py after an intended edit",
-                           pointer=f"{POINTER}/directory/content_hash")
-    sim = block.get("simulation")
-    rel = PurePosixPath(sim) if isinstance(sim, str) and sim else None
-    if rel is None or rel.is_absolute() or ".." in rel.parts:
-        raise RunSpecError(f"engine.passthrough.simulation {sim!r} must be a relative path inside the directory",
-                           pointer=f"{POINTER}/simulation")
-    path = directory / rel
-    if not path.resolve().is_relative_to(directory.resolve()) or not path.is_file():
-        raise RunSpecError(f"engine.passthrough.simulation {sim!r} names no file in {ref['name']!r}",
-                           pointer=f"{POINTER}/simulation")
-    seed = (eng.get("run") or {}).get("seed")
-    name = ((spec.get("descriptor") or {}).get("meta") or {}).get("name") or directory.name
-    return PassthroughRun(name, directory, path, str(rel), seed if isinstance(seed, int) else None)
 
 
 def scenes_of(simulation):

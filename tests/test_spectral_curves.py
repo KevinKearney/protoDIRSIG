@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from protodirsig.spectral import (FWHM_PER_SIGMA, KINDS, SpectralError, band_grid, channel_response, read_curve,
+from manifold.core.spectral import (FWHM_PER_SIGMA, KINDS, SpectralError, band_grid, channel_response, read_curve,
                                   srf_model_values)
 
 SPECTRAL = Path(__file__).resolve().parents[1] / "manifold_sensors" / "spectral"

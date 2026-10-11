@@ -1,5 +1,5 @@
 """Resolution failures named by layer file and field (`RunSpecError.pointer`, `problems.from_resolution_error`), and the
-`ProblemError` exceptions (protodirsig.errors).
+`ProblemError` exceptions (manifold.core.errors).
 
 The temporary engine-asset library links `scenes/` and `atmosphere/` back to the real `manifold_config_repo` (read
 only; nothing large is copied) and copies the small `platforms/`, `weather/` and `orbit/` folders, so a referenced file
@@ -13,11 +13,11 @@ import pytest
 import yaml
 from jsonschema import Draft202012Validator
 
-from protodirsig import problems
-from protodirsig.compose import compose_sweep, dump
-from protodirsig.errors import AdmissionError, InvalidRequestError, NotFoundError, ProblemError
-from protodirsig.registry import LocalRegistry
-from protodirsig.run_spec import RunSpecError, load_run_spec, resolve_run
+from manifold.core import problems
+from manifold.core.compose import compose_sweep, dump
+from manifold.core.errors import AdmissionError, InvalidRequestError, NotFoundError, ProblemError
+from manifold.sim._dirsig.registry import LocalRegistry
+from manifold.core.run_spec import RunSpecError, load_run_spec, resolve_run
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_REPO = ROOT / "manifold_config_repo"
@@ -186,7 +186,7 @@ def test_problem_errors_carry_conforming_problems():
 # --- one exception family -------------------------------------------------------------------------------------------
 
 def _family():
-    from protodirsig.compose import ComposeError
+    from manifold.core.compose import ComposeError
     return [ComposeError("recipes/r.yaml", "fidelity", "missing"), RunSpecError("scene not found", pointer="/engine/x"),
             AdmissionError("the submission failed", layer="recipes/r.yaml", field="settings[0]"),
             AdmissionError(problems.admission("from a problem")), NotFoundError("run", "0" * 64),
@@ -202,7 +202,7 @@ def test_except_problem_error_catches_every_sdk_error(err):
 
 
 def test_the_built_problems_carry_class_type_and_members():
-    from protodirsig.compose import ComposeError
+    from manifold.core.compose import ComposeError
     c = ComposeError("recipes/r.yaml", "fidelity", "missing").problem
     assert (c["type"], c["status"], c["layer"], c["field"]) == ("urn:protodirsig:problem:compose", 422, "recipes/r.yaml",
                                                                 "fidelity")
@@ -238,7 +238,7 @@ def demo_library(tmp_path):
 
 
 def _demo_problem(library, tmp_path, check):
-    from protodirsig.workspace import Workspace
+    from manifold.sim.workspace import Workspace
     ws = Workspace.local(library=library, config_repo=CONFIG_REPO, work=tmp_path / "work")
     run = ws.validate("pointcollectors2_demo").runs[0]
     assert not run.valid

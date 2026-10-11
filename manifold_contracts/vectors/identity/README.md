@@ -1,6 +1,6 @@
 # vectors/identity/
 
-Conformance vectors for run ids and sweep ids: what another implementation of the identity rules (`protodirsig.identity`) must reproduce.
+Conformance vectors for run ids and sweep ids: what another implementation of the identity rules (`manifold.core.identity`) must reproduce.
 
 A run id is the sha256, 64 lowercase hex digits, of the RFC 8785 canonical JSON serialization (UTF-8) of the resolved run spec: the parsed `run-spec/1` document with its sensor reference `{ref: {name, content_hash}}` replaced by the referenced `sensor-spec/1` document's `sensor` block, after a stamped `content_hash` is verified. The generated file's header and the composition provenance are not part of the parsed document and are not hashed; each settings value's `provenance` label is part of it and is. A sweep id is the sha256 of the canonical JSON of the sorted list of its run ids.
 

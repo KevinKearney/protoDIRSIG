@@ -1,4 +1,4 @@
-"""Every module in src/protodirsig appears in the module table of the CONOPS and Guide (Part II, section 7)."""
+"""Every module under packages/*/src/manifold appears in the module table of the CONOPS and Guide (Part II, section 7)."""
 import re
 from pathlib import Path
 
@@ -19,7 +19,7 @@ def _table_modules():
 
 
 def test_every_module_is_in_the_conops_module_table():
-    modules = {p.stem for p in (ROOT / "src" / "protodirsig").glob("*.py") if p.stem != "__init__"}
+    modules = {p.stem for p in (ROOT / "packages").glob("*/src/manifold/**/*.py") if p.stem != "__init__"}
     table = _table_modules()
     assert sorted(modules - table) == [], "modules missing from the CONOPS section 7 table"
     assert sorted(table - modules) == [], "CONOPS section 7 table names modules that do not exist"

@@ -26,7 +26,7 @@ The pointers come from three places: a schema violation (`contract.schema_violat
 unstamped member (`run_spec.unstamped_refs`). An execution failure (`execution_failed`, status 500) and an unknown id
 (`not_found`, 404) name no authored file. `errors.ProblemError` and its subclasses carry these dicts as exceptions.
 
-Imports: the standard library, `yaml`, `protodirsig.contract`, `protodirsig.errors` and `protodirsig.run_spec` only; no
+Imports: the standard library, `yaml`, `manifold.core.contract`, `manifold.core.errors` and `manifold.core.run_spec` only; no
 engine package.
 """
 import re
@@ -34,12 +34,12 @@ from pathlib import Path
 
 import yaml
 
-from protodirsig.contract import schema_violations
+from manifold.core.contract import schema_violations
 # The plain constructors and the type URNs live in `errors` (which `run_spec` imports); re-exported here.
-from protodirsig.errors import (ADMISSION, COMPOSE, EXECUTION, INVALID_REQUEST, NO_LAYER, NOT_FOUND,  # noqa: F401
+from manifold.core.errors import (ADMISSION, COMPOSE, EXECUTION, INVALID_REQUEST, NO_LAYER, NOT_FOUND,  # noqa: F401
                                 TITLES, admission, execution_failed, from_compose_error, invalid_request, not_found)
-from protodirsig.errors import make_problem as _problem
-from protodirsig.run_spec import unstamped_refs
+from manifold.core.errors import make_problem as _problem
+from manifold.core.run_spec import unstamped_refs
 
 DESCRIPTOR_MEMBERS = ("meta", "origin", "collection", "sensor", "settings", "fidelity", "extras")
 

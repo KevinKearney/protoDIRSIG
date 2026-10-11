@@ -34,11 +34,11 @@ SENSORS = ROOT / "manifold_sensors"
 CONFIG = ROOT / "manifold_config_repo"
 VECTORS = ROOT / "manifold_contracts" / "vectors"
 DIGESTS = ROOT / "docs" / "data" / "demo_sweep_digests.jsonl.gz"
-sys.path.insert(0, str(ROOT / "src"))
+sys.path[:0] = [str(ROOT / "packages" / d / "src") for d in ("core", "sim")]   # the manifold namespace, uninstalled
 
-from protodirsig import identity                                           # noqa: E402
-from protodirsig.compose import ComposeError, compose_sweep               # noqa: E402
-from protodirsig.dirhash import directory_digest                          # noqa: E402
+from manifold.core import identity                                           # noqa: E402
+from manifold.core.compose import ComposeError, compose_sweep               # noqa: E402
+from manifold.core.dirhash import directory_digest                          # noqa: E402
 
 
 def _sha256_file(path):
@@ -103,7 +103,7 @@ def _orbit():
     folder = VECTORS / "orbit"
     out = {p.name: _sha256_file(p) for p in sorted(folder.iterdir()) if p.is_file() and p.suffix != ".md"}   # data, not prose
     want = json.loads((folder / "expected.json").read_text())
-    from protodirsig import orbit                                          # skyfield, sgp4: imported here only
+    from manifold.sim import orbit                                          # skyfield, sgp4: imported here only
     _, _, l1, l2 = orbit.read_tle(folder / want["tle_file"], 35946)
     traj = orbit.propagate(l1, l2, want["epoch_utc"], want["t_s"])
     mm = [[int(round(float(v) * 1000)) for v in row] for row in traj.pos_itrs]

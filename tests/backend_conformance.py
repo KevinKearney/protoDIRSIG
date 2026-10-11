@@ -1,4 +1,4 @@
-"""The Backend conformance suite: what any implementation of `protodirsig.backend.Backend` must do, as wire documents
+"""The Backend conformance suite: what any implementation of `manifold.sim.backend.Backend` must do, as wire documents
 that validate against api/schemas/ and errors that carry problem details.
 
 `BackendConformance` is a base class; a subclass supplies the fixtures `backend` (class-scoped, an empty work root)
@@ -17,10 +17,10 @@ import pytest
 import yaml
 
 from api_schema import errors as schema_errors
-from protodirsig import identity
-from protodirsig.backend import Backend
-from protodirsig.compose import compose
-from protodirsig.errors import AdmissionError, InvalidRequestError, NotFoundError, ProblemError
+from manifold.core import identity
+from manifold.sim.backend import Backend
+from manifold.core.compose import compose
+from manifold.core.errors import AdmissionError, InvalidRequestError, NotFoundError, ProblemError
 
 WAIT_S = 600
 UNKNOWN = "0" * 64

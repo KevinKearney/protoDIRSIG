@@ -1,4 +1,4 @@
-"""Library listing and reading (protodirsig.library.LibraryReader) over the repository library and temporary copies."""
+"""Library listing and reading (manifold.sim.library.LibraryReader) over the repository library and temporary copies."""
 import shutil
 from pathlib import Path
 
@@ -6,9 +6,9 @@ import pytest
 import yaml
 
 from api_schema import errors as schema_errors
-from protodirsig.errors import AdmissionError, InvalidRequestError, NotFoundError
-from protodirsig.library import KINDS, LibraryReader
-from protodirsig.spectral import sha256_file
+from manifold.core.errors import AdmissionError, InvalidRequestError, NotFoundError
+from manifold.sim.library import KINDS, LibraryReader
+from manifold.core.spectral import sha256_file
 
 ROOT = Path(__file__).resolve().parents[1]
 RUN_SPECS = ROOT / "manifold_run_specs"
@@ -103,12 +103,12 @@ def test_a_layer_marked_not_yet_valid_carries_its_status(kind, name):
     assert all("status" not in r for n, r in listed.items() if n != name)
     doc = reader.get(kind, name)
     assert doc["status"] == "does-not-validate-yet" and schema_errors("library_document", doc) == []
-    from protodirsig import models
+    from manifold.core import models
     assert models.LibraryDocument.from_dict(doc).status == "does-not-validate-yet"
     assert "status" not in reader.get(kind, "tahoe_static_pose" if kind != "recipe" else "auror_ref")
 
 
 def test_the_marker_is_read_from_the_header_only(tmp_path):
-    from protodirsig.library import file_status
+    from manifold.sim.library import file_status
     assert file_status("# Recipe (does not validate yet: see docs)\n\ncompose: compose/1\n") == "does-not-validate-yet"
     assert file_status("# Recipe\n\n# a later comment: does not validate yet\ncompose: compose/1\n") is None

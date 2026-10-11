@@ -1,4 +1,4 @@
-"""protodirsig.problems: errors caused by an authored file name the layer file and the field in it (R-08).
+"""manifold.core.problems: errors caused by an authored file name the layer file and the field in it (R-08).
 
 `locate` must agree with the composer's own provenance for every top-level member of every repository recipe, and a
 mutated copy of the library must give problems naming the edited file and field. Every constructor's output must
@@ -13,9 +13,9 @@ import pytest
 import yaml
 from jsonschema import Draft202012Validator
 
-from protodirsig import identity, problems
-from protodirsig.compose import ComposeError, compose, compose_sweep
-from protodirsig.contract import schema_violations
+from manifold.core import identity, problems
+from manifold.core.compose import ComposeError, compose, compose_sweep
+from manifold.core.contract import schema_violations
 from test_simulation import CONFIG_REPO, needs_dirsig
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -211,7 +211,7 @@ def test_a_spec_not_composed_here_gets_a_problem_without_a_layer():
 # --- through LocalRegistry ----------------------------------------------------------------------------------------
 
 def _submit_recipe(library, tmp_path, recipe="auror_ref.yaml"):
-    from protodirsig.registry import LocalRegistry
+    from manifold.sim._dirsig.registry import LocalRegistry
     return LocalRegistry().submit_recipe(library / "recipes" / recipe, CONFIG_REPO, tmp_path / "work")
 
 
@@ -248,14 +248,14 @@ def test_submission_problem_for_a_recipe_that_does_not_compose(library, tmp_path
 
 @needs_dirsig
 def test_accepted_submission_has_no_problem(tmp_path):
-    from protodirsig.registry import LocalRegistry
+    from manifold.sim._dirsig.registry import LocalRegistry
     r = LocalRegistry().submit_recipe(RUN_SPECS / "recipes" / "synthetic_vis.yaml", CONFIG_REPO, tmp_path / "w")
     assert r.accepted and r.problem is None and r.sources and r.recipe.name == "synthetic_vis.yaml"
 
 
 @needs_dirsig
 def test_sweep_runs_carry_their_sources_for_problems(library, tmp_path):
-    from protodirsig.registry import LocalRegistry
+    from manifold.sim._dirsig.registry import LocalRegistry
     recipe = library / "recipes" / "sensor_sweep_tahoe.yaml"
     doc = yaml.safe_load(recipe.read_text())
     j = [m["entry_id"] for m in doc["settings"]].index("auror-nir")

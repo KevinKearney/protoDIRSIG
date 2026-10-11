@@ -18,6 +18,8 @@ from typing import NamedTuple
 
 import numpy as np
 
+from manifold.core.tle import read_tle, tle_checksum_ok  # noqa: F401  (re-exported)
+
 OMEGA_EARTH = 7.2921150e-5           # rad/s, Earth sidereal rotation rate
 WGS84_A = 6378137.0                  # semi-major axis, m
 WGS84_F = 1 / 298.257223563
@@ -26,11 +28,8 @@ WGS84_E2 = WGS84_F * (2 - WGS84_F)   # first eccentricity squared
 
 # --- TLE -----------------------------------------------------------------------------------
 
-def tle_checksum_ok(line):
-    """TLE mod-10 checksum: digits count face value, '-' counts 1, everything else 0."""
-    s = sum(int(c) if c.isdigit() else (1 if c == "-" else 0) for c in line[:68])
-    return s % 10 == int(line[68])
-
+# `tle_checksum_ok` and `read_tle` are pure and live in `manifold.core.tle` (admission checks a TLE without the
+# propagator); re-exported here.
 
 def fetch_tle(norad_id, cache_dir, refresh=False, expect_name=None, expect_intl=None):
     """Celestrak GP TLE for `norad_id`, cached in `cache_dir`; validated before it is returned.
@@ -46,24 +45,6 @@ def fetch_tle(norad_id, cache_dir, refresh=False, expect_name=None, expect_intl=
         fetched = datetime.now(timezone.utc).isoformat(timespec="seconds")
         path.write_text(f"# fetched {fetched} from {url}\n{text.strip()}\n")
     return read_tle(path, norad_id, expect_name, expect_intl)
-
-
-def read_tle(path, norad_id=None, expect_name=None, expect_intl=None):
-    """A TLE file as `fetch_tle` writes it (comment line, name line, line 1, line 2), validated; no network.
-
-    Returns (comment, name, line1, line2). `norad_id`, if given, must match both lines' catalog number.
-    """
-    comment, name, line1, line2 = [ln.rstrip() for ln in Path(path).read_text().splitlines()]
-    assert line1.startswith("1 ") and line2.startswith("2 ") and len(line1) == len(line2) == 69
-    assert tle_checksum_ok(line1) and tle_checksum_ok(line2), "TLE checksum failure"
-    assert int(line1[2:7]) == int(line2[2:7])
-    if norad_id is not None:
-        assert int(line1[2:7]) == norad_id, f"{path}: catalog {int(line1[2:7])} != {norad_id}"
-    if expect_name:
-        assert expect_name.upper() in name.upper(), f"catalog {norad_id} is {name!r}, not {expect_name}"
-    if expect_intl:
-        assert line1[9:17].strip() == expect_intl, f"international designator {line1[9:17]!r} != {expect_intl}"
-    return comment, name, line1, line2
 
 
 # --- propagator seam --------------------------------------------------------------------------

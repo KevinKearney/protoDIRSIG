@@ -17,8 +17,10 @@ from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
 from referencing.jsonschema import DRAFT202012
 
-import protodirsig
-from protodirsig.compose import ComposeError, compose_sweep
+import manifold.core
+import manifold.sim
+import manifold.sim._dirsig
+from manifold.core.compose import ComposeError, compose_sweep
 
 ROOT = Path(__file__).resolve().parents[1]
 API = ROOT / "api"
@@ -230,7 +232,7 @@ def test_problem_example_names_the_layer_and_field_of_the_triggering_compose_err
 
 
 def test_admission_problem_example_names_the_edited_engine_profile_field():
-    """submit_run.problem.json is what protodirsig.problems gives for the mutation it describes, made in a temporary
+    """submit_run.problem.json is what manifold.core.problems gives for the mutation it describes, made in a temporary
     copy of the library: the edited layer file and the field in it, with each violation in `errors`."""
     ex = _load(API / "examples" / "submit_run.problem.json")
     body = ex["response"]["body"]
@@ -245,11 +247,12 @@ def test_admission_problem_example_names_the_edited_engine_profile_field():
 
 
 def _symbol(dotted):
-    """Resolve `module.name`, `Class.method`, `Class.field` (a dataclass field) or `module.Class` against protodirsig's
-    modules."""
+    """Resolve `module.name`, `Class.method`, `Class.field` (a dataclass field) or `module.Class` against the
+    modules of manifold.core, manifold.sim and manifold.sim._dirsig."""
     first, *rest = dotted.split(".")
-    mods = [importlib.import_module(f"protodirsig.{m.name}") for m in pkgutil.iter_modules(protodirsig.__path__)]
-    for start in [m for m in mods if m.__name__ == f"protodirsig.{first}"] + \
+    mods = [importlib.import_module(f"{pkg.__name__}.{m.name}") for pkg in (manifold.core, manifold.sim, manifold.sim._dirsig)
+            for m in pkgutil.iter_modules(pkg.__path__)]
+    for start in [m for m in mods if m.__name__.rsplit(".", 1)[1] == first] + \
                  [getattr(m, first) for m in mods if hasattr(m, first)]:
         obj = start
         try:
@@ -314,7 +317,7 @@ def _ids(node, where=""):
 
 
 def _library_ids():
-    from protodirsig.compose import compose_sweep
+    from manifold.core.compose import compose_sweep
     out = set()
     for recipe in sorted((ROOT / "manifold_run_specs" / "recipes").glob("*.yaml")):
         sweep = compose_sweep(recipe)
@@ -333,7 +336,7 @@ def test_example_ids_are_computed_not_placeholders(path):
 
 
 def test_compose_example_ids_equal_the_composed_ids():
-    from protodirsig.compose import compose_sweep
+    from manifold.core.compose import compose_sweep
     ex = _load(API / "examples" / "compose.json")
     sweep = compose_sweep(ROOT / "manifold_run_specs" / "recipes" / f"{ex['request']['body']['recipe_name']}.yaml")
     body = ex["response"]["body"]
@@ -342,7 +345,7 @@ def test_compose_example_ids_equal_the_composed_ids():
 
 
 def test_get_artifact_example_is_the_resolved_spec_and_hashes_to_its_run_id():
-    from protodirsig import identity
+    from manifold.core import identity
     ex = _load(API / "examples" / "get_artifact.json")
     rid = ex["request"]["path"].split("/")[2]
     spec = ex["response"]["body"]

@@ -6,18 +6,24 @@ Code builds these strings from the constants here rather than spelling the packa
 when a string literal holding the package name appears in source outside this module. Standard library only.
 """
 
-PACKAGE = "protodirsig"                       # the import root
-DISTRIBUTION = "protodirsig"                  # the distribution whose version the package reports
+PACKAGE = "manifold"                          # the import root: a PEP 420 namespace, no distribution ships its __init__
+CORE_PACKAGE = PACKAGE + ".core"              # distribution eoptic-manifold-core
+SIM_PACKAGE = PACKAGE + ".sim"                # distribution eoptic-manifold-sim
+DISTRIBUTION_CORE = "eoptic-manifold-core"    # distribution names carry the eoptic- prefix (a public PyPI "manifold"
+DISTRIBUTION_SIM = "eoptic-manifold-sim"      # project exists); the import name stays manifold
+DISTRIBUTION = DISTRIBUTION_SIM               # the distribution whose version the SDK reports
+WORKER_MODULE = SIM_PACKAGE + ".worker"       # python -m WORKER_MODULE <run_dir>
 ENV_PREFIX = "PROTODIRSIG_"                   # environment variables: ENV_PREFIX + "CONTRACTS", ...
 URN_PREFIX = "urn:protodirsig:problem:"       # problem types: URN_PREFIX + "compose", ...
 STATE_DIR_NAME = "protodirsig"                # $XDG_STATE_HOME/<STATE_DIR_NAME>/work
-LOGGER_NAME = PACKAGE                         # the logging.getLogger name
-TEMP_PREFIX = PACKAGE + "_"                   # tempfile.mkdtemp prefixes
+LOGGER_NAME = "protodirsig"                   # the logging.getLogger name
+TEMP_PREFIX = "protodirsig_"                  # tempfile.mkdtemp prefixes
 
 # Legacy aliases: the names a previous release used, still read (and warned about) where a reader may meet them.
 LEGACY_PACKAGE = "protodirsig"
 LEGACY_ENV_PREFIX = "PROTODIRSIG_"
 LEGACY_STATE_DIR_NAME = "protodirsig"
+LEGACY_WORKER_MODULE = LEGACY_PACKAGE + ".worker"   # the worker's command line in run records from before start times
 
 # Frozen identity strings: a name-derived string that reaches content an id hashes (a descriptor member, an engine
 # block member such as a generator name, a settings provenance label) would be part of the identity of existing runs
@@ -37,7 +43,7 @@ def env(name):
 
 
 def module(name):
-    """The dotted path of a submodule of the package (`"worker"` -> `"protodirsig.worker"`)."""
+    """The dotted path of a module under the import root (`"sim.worker"` -> `"manifold.sim.worker"`)."""
     return f"{PACKAGE}.{name}"
 
 

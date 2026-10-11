@@ -33,7 +33,7 @@ pointed by a LookAt at a scene ENU point with the along-track `up` (a FlexMotion
 refused. The orbit form's TLE and Earth-orientation tables are library files under `config_repo` (`orbit/`),
 hash-verified like every other engine ref.
 
-Imports: the standard library, `yaml`, `lxml`, `protodirsig.spectral`, `protodirsig.dirhash` and `protodirsig.errors` only. The `dirfm`-bound plugin classes
+Imports: the standard library, `yaml`, `lxml`, `manifold.core.spectral`, `manifold.core.dirhash` and `manifold.core.errors` only. The `dirfm`-bound plugin classes
 (`atmosphere_patches`, `platform_ref`) are imported inside `ResolvedRun.atmosphere_plugin` and `ephemeris_plugin`, the
 only places a job's plugins are built, so loading, resolving, checking and composing a run spec load no engine
 package (tests/test_import_boundary.py).
@@ -43,7 +43,7 @@ loader (duplicate-key rejection, canonical-JSON hashing, unknown-key rejection).
 MANIFOLD's registry side, which is not built yet, so it is not built here: a duplicated key in the
 YAML silently keeps the last value, and no `content_hash` is computed canonically. A stamped hash
 (`scripts/stamp_hashes.py`) is verified when the reference is resolved: on a file ref the sha256 of the file bytes, on
-a `.scene` ref the `dirhash/1` digest of the scene directory (`protodirsig.dirhash`), since the geometry and materials
+a `.scene` ref the `dirhash/1` digest of the scene directory (`manifold.core.dirhash`), since the geometry and materials
 sit beside the `.scene` file. The `sha256:<hash>` placeholder is not verified.
 """
 import copy
@@ -54,16 +54,18 @@ from pathlib import Path
 import lxml.etree as et
 import yaml
 
-from protodirsig import _names
-from protodirsig.dirhash import directory_digest
-from protodirsig.errors import ProblemError
-from protodirsig.spectral import PLACEHOLDER, sha256_file
+from manifold.core import _names
+from manifold.core.dirhash import directory_digest
+from manifold.core.errors import ProblemError
+from manifold.core.spectral import PLACEHOLDER, sha256_file
 
 # dirfm-bound names, imported only when a job is built (ResolvedRun.atmosphere_plugin, ephemeris_plugin), so loading,
-# resolving and composing a run spec needs no engine package. `from protodirsig.run_spec import <name>` still works.
-_ENGINE_BOUND = {"PatchedModtranTapeBackend": _names.module("atmosphere_patches"),
-                 "PatchedNewAtmospherePlugin": _names.module("atmosphere_patches"),
-                 "SpiceEphemerisPlugin": _names.module("platform_ref")}
+# resolving and composing a run spec needs no engine package. `from manifold.core.run_spec import <name>` still works.
+# They live in manifold.sim._dirsig: the only references from core to sim, at call time only, and transitional (the
+# engine adapter of round 18 takes the job-building methods).
+_ENGINE_BOUND = {"PatchedModtranTapeBackend": _names.module("sim._dirsig.atmosphere_patches"),
+                 "PatchedNewAtmospherePlugin": _names.module("sim._dirsig.atmosphere_patches"),
+                 "SpiceEphemerisPlugin": _names.module("sim._dirsig.platform_ref")}
 
 
 def __getattr__(name):                         # PEP 562: the engine-bound names, loaded on first use
@@ -151,7 +153,7 @@ class ResolvedRun:
     def atmosphere_plugin(self, db=None):
         """`NewAtmosphere` over `db`, or over the resolved library database if not given. Pass the job's
         copy of the database so the jsim references it rather than the read-only original."""
-        from protodirsig.atmosphere_patches import PatchedModtranTapeBackend, PatchedNewAtmospherePlugin
+        from manifold.sim._dirsig.atmosphere_patches import PatchedModtranTapeBackend, PatchedNewAtmospherePlugin
         b = NEW_ATMOSPHERE_BACKEND
         backend = (PatchedModtranTapeBackend().set_profile(b["profile"])
                    .set_atmospheric_model(b["atmospheric_model"])
@@ -161,7 +163,7 @@ class ResolvedRun:
                 .set_backend(backend).set_info("", "", "", ""))
 
     def ephemeris_plugin(self):
-        from protodirsig.platform_ref import SpiceEphemerisPlugin
+        from manifold.sim._dirsig.platform_ref import SpiceEphemerisPlugin
         return SpiceEphemerisPlugin()
 
 
@@ -219,7 +221,7 @@ def _scene_file(config_repo, ref_name, ref=None, pointer=None):
     # The ref names the `.scene` file itself in the library layout, `scenes/<scene>/<scene>.scene`
     # (Configuration_v02 A.8.3; guide §9), with geometry/, materials/ and maps/ beside it. No
     # fallback search: the earlier nested-then-flat guess against the received tree is gone. A stamped hash is the
-    # `dirhash/1` digest of the directory holding the `.scene` file (protodirsig.dirhash), verified here.
+    # `dirhash/1` digest of the directory holding the `.scene` file (manifold.core.dirhash), verified here.
     path = _root_file(config_repo, ref_name, "scene", pointer=pointer)
     _verify_directory_hash(path.parent, ref, "scene", pointer)
     return path
@@ -441,7 +443,7 @@ def resolve_run(spec, run_spec_path, config_repo, sensor_library=None):
     )
 
 
-ORBIT_PROPAGATORS = ("skyfield_sgp4",)    # protodirsig.orbit.PROPAGATOR
+ORBIT_PROPAGATORS = ("skyfield_sgp4",)    # manifold.sim.orbit.PROPAGATOR
 
 
 def _number(v):
@@ -505,8 +507,8 @@ def check_library_files(spec, run):
     """
     from tempfile import TemporaryDirectory
 
-    from protodirsig.platform_gen import PlatformGenError, check_template, render_platform
-    from protodirsig.spectral import SpectralError
+    from manifold.core.platform_gen import PlatformGenError, check_template, render_platform
+    from manifold.core.spectral import SpectralError
     bad = check_template(run.platform)
     if bad:
         return [LibraryProblem(b, "/engine/platform/ref") for b in bad]
@@ -528,7 +530,7 @@ def _check_orbit_files(o):
     """The orbit's TLE parses and passes its checksums; the Earth-orientation tables load and cover the window."""
     import numpy as np
 
-    from protodirsig.orbit import read_tle
+    from manifold.core.tle import read_tle
     problems = []
     try:
         read_tle(o["tle"])
@@ -554,7 +556,7 @@ def derive_run_spec(spec, sensor_ref_name, entry_id, roi=None, name=None):
     profile in memory, with `channel_response` removed (a derived sensor is rendered tabulated). The sensor ref
     carries the `sha256:<hash>` placeholder, since no sensor library is named here.
     """
-    from protodirsig.compose import RULES, merge
+    from manifold.core.compose import RULES, merge
     desc = spec["descriptor"]
     st = copy.deepcopy(desc["settings"][0])
     st["entry_id"] = entry_id

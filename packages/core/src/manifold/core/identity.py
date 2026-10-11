@@ -12,7 +12,7 @@ sweep is identified by the runs it contains, whatever the order of the recipe's 
 by the UTF-16 code units of their keys, no whitespace, strings with only the mandatory escapes, numbers in the
 ECMAScript `Number::toString` form of the IEEE-754 double. Conformance vectors: manifold_contracts/vectors/identity/.
 
-Imports: the standard library and `protodirsig.run_spec` (which loads no engine package).
+Imports: the standard library and `manifold.core.run_spec` (which loads no engine package).
 """
 import copy
 import hashlib
@@ -22,7 +22,7 @@ from decimal import Decimal
 
 from pathlib import Path
 
-from protodirsig.run_spec import RunSpecError, _verify_hash, is_inline_sensor, load_sensor_spec
+from manifold.core.run_spec import RunSpecError, _verify_hash, is_inline_sensor, load_sensor_spec
 
 _SHORT = {'"': '\\"', "\\": "\\\\", "\b": "\\b", "\f": "\\f", "\n": "\\n", "\r": "\\r", "\t": "\\t"}
 

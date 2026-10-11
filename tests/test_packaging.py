@@ -1,8 +1,8 @@
-"""The contract schemas are packaged with the library (`protodirsig/_contracts/`, copied by the build from
+"""The contract schemas are packaged with the library (`manifold/core/_contracts/`, copied by the build from
 manifold_contracts/), so an installed wheel validates without the repository.
 
 The wheel is built offline (`pip wheel . --no-deps --no-build-isolation`) from a temporary copy of the build inputs
-(pyproject.toml, setup.py, src/protodirsig, the three schemas), so no build/ or egg-info appears in the checkout.
+(packages/core: pyproject.toml, setup.py, src/manifold/core; the three schemas), so no build/ or egg-info appears in the checkout.
 """
 import os
 import shutil
@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from protodirsig import contract
+from manifold.core import contract
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMAS = ("run-spec-1.schema.json", "dirsig-engine-1.schema.json", "sensor-spec-1.schema.json")
@@ -24,7 +24,7 @@ import sys
 site, spec_path = sys.argv[1], sys.argv[2]
 sys.path.insert(0, site)
 import yaml
-from protodirsig import contract
+from manifold.core import contract
 assert contract.__file__.startswith(site), contract.__file__
 folder = contract.contracts_dir()
 assert str(folder).startswith(site) and folder == contract.packaged_contracts_dir(), folder
@@ -39,27 +39,29 @@ print("ok", folder)
 
 @pytest.fixture(scope="module")
 def wheel(tmp_path_factory):
-    src = tmp_path_factory.mktemp("build_inputs")
-    shutil.copy2(ROOT / "pyproject.toml", src)
-    shutil.copy2(ROOT / "setup.py", src)
-    shutil.copytree(ROOT / "src" / "protodirsig", src / "src" / "protodirsig",
+    repo = tmp_path_factory.mktemp("build_inputs")
+    src = repo / "packages" / "core"
+    src.mkdir(parents=True)
+    shutil.copy2(ROOT / "packages" / "core" / "pyproject.toml", src)
+    shutil.copy2(ROOT / "packages" / "core" / "setup.py", src)
+    shutil.copytree(ROOT / "packages" / "core" / "src" / "manifold" / "core", src / "src" / "manifold" / "core",
                     ignore=shutil.ignore_patterns("__pycache__", "_contracts"))
-    (src / "manifold_contracts").mkdir()
+    (repo / "manifold_contracts").mkdir()
     for name in SCHEMAS:
-        shutil.copy2(ROOT / "manifold_contracts" / name, src / "manifold_contracts")
+        shutil.copy2(ROOT / "manifold_contracts" / name, repo / "manifold_contracts")
     out = tmp_path_factory.mktemp("wheel")
     r = subprocess.run([sys.executable, "-m", "pip", "wheel", ".", "--no-deps", "--no-build-isolation", "-w", str(out)],
                        cwd=src, capture_output=True, text=True)
     if r.returncode != 0:
         pytest.skip(f"a wheel cannot be built offline here: {(r.stderr or r.stdout).strip().splitlines()[-1:]}")
-    (whl,) = out.glob("protodirsig-*.whl")
+    (whl,) = out.glob("eoptic_manifold_core-*.whl")
     return whl
 
 
 def test_the_wheel_carries_the_three_schemas(wheel):
     with zipfile.ZipFile(wheel) as z:
         for name in SCHEMAS:
-            assert z.read(f"protodirsig/_contracts/{name}") == (ROOT / "manifold_contracts" / name).read_bytes(), name
+            assert z.read(f"manifold/core/_contracts/{name}") == (ROOT / "manifold_contracts" / name).read_bytes(), name
 
 
 def test_an_installed_wheel_validates_without_the_repository(wheel, tmp_path):
@@ -75,7 +77,7 @@ def test_an_installed_wheel_validates_without_the_repository(wheel, tmp_path):
 
 def test_the_checkout_has_no_packaged_copy_and_reads_manifold_contracts(monkeypatch):
     monkeypatch.delenv("PROTODIRSIG_CONTRACTS", raising=False)
-    assert not (ROOT / "src" / "protodirsig" / "_contracts").exists()
+    assert not (ROOT / "packages" / "core" / "src" / "manifold" / "core" / "_contracts").exists()
     assert contract.packaged_contracts_dir() is None
     assert contract.contracts_dir() == ROOT / "manifold_contracts"
 

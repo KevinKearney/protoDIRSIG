@@ -19,7 +19,7 @@ thin shell over these calls.
 
 `LocalBackend` keeps every run in a `store.RunStore` under `work_root` (the store is the state: two instances on one
 work root see the same runs). Admission is the engine-free level (`admission.validate_spec`) and runs before a run
-exists; a sweep is admitted as a whole. A new run gets a worker process (`python -m protodirsig.worker <run_dir>`, its
+exists; a sweep is admitted as a whole. A new run gets a worker process (`python -m manifold.sim.worker <run_dir>`, its
 own session and process group) that waits for one of `max_parallel` slots, then dry-runs and renders it; the call
 returns at once, in state `accepted`. Resubmitting the same run spec returns the existing run and starts nothing.
 `cancel_run` moves an active run to `cancelled` first, then terminates the worker's process group. No engine package is
@@ -43,17 +43,17 @@ from typing import Protocol, runtime_checkable
 
 import yaml
 
-from protodirsig import identity, problems
-from protodirsig import _names
-from protodirsig.admission import validate_spec
-from protodirsig.compose import MAX_RUNS, ComposeError, compose_sweep, compose_sweep_document, dump
-from protodirsig.compose import default_sensor_library as recipe_sensor_library
-from protodirsig.contract import schema_violations, semantic_errors
-from protodirsig.errors import AdmissionError, InvalidRequestError, NotFoundError
-from protodirsig.library import LibraryReader
-from protodirsig.passthrough import is_passthrough, run_engine
-from protodirsig.run_spec import RunSpecError, default_sensor_library, load_run_spec
-from protodirsig.store import ACTIVE, FINAL, RunStore, process_start, utc_now
+from manifold.core import identity, problems
+from manifold.core import _names
+from manifold.core.admission import validate_spec
+from manifold.core.compose import MAX_RUNS, ComposeError, compose_sweep, compose_sweep_document, dump
+from manifold.core.compose import default_sensor_library as recipe_sensor_library
+from manifold.core.contract import schema_violations, semantic_errors
+from manifold.core.errors import AdmissionError, InvalidRequestError, NotFoundError
+from manifold.sim.library import LibraryReader
+from manifold.sim._dirsig.passthrough import is_passthrough, run_engine
+from manifold.core.run_spec import RunSpecError, default_sensor_library, load_run_spec
+from manifold.sim.store import ACTIVE, FINAL, RunStore, process_start, utc_now
 
 TERMINATE_WAIT_S = 10
 
@@ -266,7 +266,7 @@ class LocalBackend:
         installation found on PATH, at `$DIRSIG_HOME` or under `~/DIRSIG`; None if there is none."""
         if self.engine:
             return self.engine
-        from protodirsig.worker import locate_dirsig
+        from manifold.sim.worker import locate_dirsig
         home = locate_dirsig()["home"]
         return str(Path(home) / "bin" / "dirsig5") if home else None
 
@@ -287,8 +287,8 @@ class LocalBackend:
                     f"{result['returncode']}")]
             finally:
                 shutil.rmtree(scratch, ignore_errors=True)
-        from protodirsig.simulation import Simulation
-        from protodirsig.worker import locate_dirsig
+        from manifold.sim._dirsig.simulation import Simulation
+        from manifold.sim.worker import locate_dirsig
         if locate_dirsig()["home"] is None:
             return False, False, [problems.admission("not performed: no DIRSIG installation was found (dirsig5 on "
                                                      "PATH, $DIRSIG_HOME or ~/DIRSIG/<pinned version>)")]
@@ -316,7 +316,7 @@ class LocalBackend:
     def _start_worker(self, run_id):
         run_dir = self.store.run_dir(run_id)
         with open(run_dir / "worker.log", "ab") as log:
-            proc = subprocess.Popen([sys.executable, "-m", _names.module("worker"), str(run_dir)], cwd=run_dir,
+            proc = subprocess.Popen([sys.executable, "-m", _names.WORKER_MODULE, str(run_dir)], cwd=run_dir,
                                     stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
                                     start_new_session=True, close_fds=True)
         self._children.append(proc)

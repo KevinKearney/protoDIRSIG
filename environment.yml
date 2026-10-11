@@ -4,7 +4,8 @@
 #   conda env create -f environment.yml
 #   conda activate protodirsig
 #   pip install -e /home/kevin-kearney/dev/dirsig-file-maker
-#   pip install -e .
+#   pip install --no-build-isolation --no-deps -e packages/core
+#   pip install --no-build-isolation --no-deps -e packages/sim
 name: protodirsig
 channels:
   - conda-forge

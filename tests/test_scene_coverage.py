@@ -1,4 +1,4 @@
-"""protodirsig.scene_coverage must reproduce the hand-checked Tacoma result
+"""manifold.sim._dirsig.scene_coverage must reproduce the hand-checked Tacoma result
 and fail closed on material kinds it does not understand.
 
 Reads the Tacoma bundle in the DIRSIG install and manifold_config_repo's tahoe scene READ-ONLY (each
@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from protodirsig.scene_coverage import scene_coverage
+from manifold.sim._dirsig.scene_coverage import scene_coverage
 
 DIRSIG_HOME = Path(os.environ.get("DIRSIG_HOME", Path.home() / "DIRSIG" / "dirsig-2026.38.0.a020954-Linux-x86_64"))
 TACOMA_SCENE = DIRSIG_HOME / "Tacoma-08-Apr-2022" / "Tacoma" / "tacoma.scene"

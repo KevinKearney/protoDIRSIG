@@ -1,4 +1,4 @@
-"""Run ids and sweep ids (protodirsig.identity): RFC 8785 canonical JSON, the resolved run spec, and the ids'
+"""Run ids and sweep ids (manifold.core.identity): RFC 8785 canonical JSON, the resolved run spec, and the ids'
 invariances. Vectors: manifold_contracts/vectors/identity/."""
 import copy
 import json
@@ -11,9 +11,9 @@ from pathlib import Path
 import pytest
 import yaml
 
-from protodirsig import identity
-from protodirsig.compose import compose, compose_sweep
-from protodirsig.run_spec import RunSpecError
+from manifold.core import identity
+from manifold.core.compose import compose, compose_sweep
+from manifold.core.run_spec import RunSpecError
 
 ROOT = Path(__file__).resolve().parents[1]
 IDV = ROOT / "manifold_contracts" / "vectors" / "identity"

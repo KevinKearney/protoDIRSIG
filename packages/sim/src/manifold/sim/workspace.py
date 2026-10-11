@@ -1,7 +1,7 @@
 """`Workspace`: the SDK's user-facing class, a facade over any `backend.Backend`.
 
 Every method is an operation of the SDK API (`api/operations.md`, `sdk-api/1`) and returns the typed model generated
-from its schema (`protodirsig.models`); errors are the `errors.ProblemError` family, raised unchanged from the backend.
+from its schema (`manifold.core.models`); errors are the `errors.ProblemError` family, raised unchanged from the backend.
 `Workspace.local(...)` builds a `LocalBackend`; `Workspace.remote(...)` is phase 3. Two helpers, `wait` and
 `save_artifact`, are built only from the operations and are not part of the contract.
 
@@ -14,11 +14,11 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from protodirsig import _names, models
-from protodirsig.backend import Backend, LocalBackend
-from protodirsig.compose import MAX_RUNS
+from manifold.core import _names, models
+from manifold.sim.backend import Backend, LocalBackend
+from manifold.core.compose import MAX_RUNS
 
-REPOSITORY = Path(__file__).resolve().parents[2]
+REPOSITORY = Path(__file__).resolve().parents[5]   # packages/<dist>/src/manifold/<pkg>/
 FINAL_STATES = ("rendered", "failed", "cancelled")
 
 
@@ -81,7 +81,7 @@ class Workspace:
 
     Parameters
     ----------
-    backend : protodirsig.backend.Backend
+    backend : manifold.sim.backend.Backend
         Any backend: a `LocalBackend` (see `Workspace.local`) or, in phase 3, a remote one.
 
     Examples
@@ -176,7 +176,7 @@ class Workspace:
 
         Returns
         -------
-        protodirsig.models.LibraryList
+        manifold.core.models.LibraryList
             One item per sensor file, sorted by name.
         """
         return self._list("sensor")
@@ -186,7 +186,7 @@ class Workspace:
 
         Returns
         -------
-        protodirsig.models.LibraryList
+        manifold.core.models.LibraryList
             One item per scenario file, sorted by name.
         """
         return self._list("scenario")
@@ -196,7 +196,7 @@ class Workspace:
 
         Returns
         -------
-        protodirsig.models.LibraryList
+        manifold.core.models.LibraryList
             One item per engine profile file, sorted by name.
         """
         return self._list("engine_profile")
@@ -206,7 +206,7 @@ class Workspace:
 
         Returns
         -------
-        protodirsig.models.LibraryList
+        manifold.core.models.LibraryList
             One item per recipe file, sorted by name.
         """
         return self._list("recipe")
@@ -221,14 +221,14 @@ class Workspace:
 
         Returns
         -------
-        protodirsig.models.SensorDocument
+        manifold.core.models.SensorDocument
             Its name, the sha256 of its file and the parsed document.
 
         Raises
         ------
-        protodirsig.errors.NotFoundError
+        manifold.core.errors.NotFoundError
             No sensor of that name.
-        protodirsig.errors.AdmissionError
+        manifold.core.errors.AdmissionError
             The file does not parse or is not a `sensor-spec/1` document (the problem names the file).
         """
         return self._get("sensor", name)
@@ -243,14 +243,14 @@ class Workspace:
 
         Returns
         -------
-        protodirsig.models.LibraryDocument
+        manifold.core.models.LibraryDocument
             Its name, the sha256 of its file and the parsed document.
 
         Raises
         ------
-        protodirsig.errors.NotFoundError
+        manifold.core.errors.NotFoundError
             No scenario of that name.
-        protodirsig.errors.AdmissionError
+        manifold.core.errors.AdmissionError
             The file does not parse or is not a scenario (the problem names the file and key).
         """
         return self._get("scenario", name)
@@ -265,14 +265,14 @@ class Workspace:
 
         Returns
         -------
-        protodirsig.models.LibraryDocument
+        manifold.core.models.LibraryDocument
             Its name, the sha256 of its file and the parsed document.
 
         Raises
         ------
-        protodirsig.errors.NotFoundError
+        manifold.core.errors.NotFoundError
             No engine profile of that name.
-        protodirsig.errors.AdmissionError
+        manifold.core.errors.AdmissionError
             The file does not parse or is not an engine profile (the problem names the file and key).
         """
         return self._get("engine_profile", name)
@@ -287,14 +287,14 @@ class Workspace:
 
         Returns
         -------
-        protodirsig.models.LibraryDocument
+        manifold.core.models.LibraryDocument
             Its name, the sha256 of its file and the parsed document.
 
         Raises
         ------
-        protodirsig.errors.NotFoundError
+        manifold.core.errors.NotFoundError
             No recipe of that name.
-        protodirsig.errors.AdmissionError
+        manifold.core.errors.AdmissionError
             The file does not parse or is not a recipe (the problem names the file and key).
         """
         return self._get("recipe", name)
@@ -315,12 +315,12 @@ class Workspace:
 
         Returns
         -------
-        protodirsig.models.ComposeResponse
+        manifold.core.models.ComposeResponse
             The sweep id and, per run, its run id, name, sensor, run spec and provenance.
 
         Raises
         ------
-        protodirsig.errors.ProblemError
+        manifold.core.errors.ProblemError
             The recipe does not compose (the problem names the layer file and field), or is unknown.
 
         Examples
@@ -342,12 +342,12 @@ class Workspace:
 
         Returns
         -------
-        protodirsig.models.ValidateResponse
+        manifold.core.models.ValidateResponse
             Per run: `valid`, whether the engine was checked, and each check with its problems.
 
         Raises
         ------
-        protodirsig.errors.ProblemError
+        manifold.core.errors.ProblemError
             The recipe does not compose, or the target is unknown or not a recipe or run spec.
 
         Examples
@@ -367,14 +367,14 @@ class Workspace:
 
         Returns
         -------
-        protodirsig.models.RunStatus
+        manifold.core.models.RunStatus
             The run's status: `accepted` for a new run, the current state for one already submitted.
 
         Raises
         ------
-        protodirsig.errors.AdmissionError
+        manifold.core.errors.AdmissionError
             Admission failed (schema, resolution, library files, an unstamped reference); nothing was created.
-        protodirsig.errors.InvalidRequestError
+        manifold.core.errors.InvalidRequestError
             The recipe composes to several runs (use `submit_sweep`).
 
         Examples
@@ -395,12 +395,12 @@ class Workspace:
 
         Returns
         -------
-        protodirsig.models.SweepStatus
+        manifold.core.models.SweepStatus
             The sweep id, the recipe, and the status of each run in sensor-list order.
 
         Raises
         ------
-        protodirsig.errors.AdmissionError
+        manifold.core.errors.AdmissionError
             Any run failed admission; the problem lists every failing run and nothing was created.
         """
         return models.SweepStatus.from_dict(self.backend.submit_sweep(recipe))
@@ -417,12 +417,12 @@ class Workspace:
 
         Returns
         -------
-        protodirsig.models.RunStatus
+        manifold.core.models.RunStatus
             Its state, errors and artifacts.
 
         Raises
         ------
-        protodirsig.errors.NotFoundError
+        manifold.core.errors.NotFoundError
             No run of that id.
         """
         return models.RunStatus.from_dict(self.backend.get_run(run_id))
@@ -437,12 +437,12 @@ class Workspace:
 
         Returns
         -------
-        protodirsig.models.SweepStatus
+        manifold.core.models.SweepStatus
             The recipe and each run's status.
 
         Raises
         ------
-        protodirsig.errors.NotFoundError
+        manifold.core.errors.NotFoundError
             No sweep of that id.
         """
         return models.SweepStatus.from_dict(self.backend.get_sweep(sweep_id))
@@ -457,12 +457,12 @@ class Workspace:
 
         Returns
         -------
-        protodirsig.models.RunStatus
+        manifold.core.models.RunStatus
             The run's status after the call.
 
         Raises
         ------
-        protodirsig.errors.NotFoundError
+        manifold.core.errors.NotFoundError
             No run of that id.
         """
         return models.RunStatus.from_dict(self.backend.cancel_run(run_id))
@@ -477,13 +477,13 @@ class Workspace:
 
         Returns
         -------
-        protodirsig.models.ArtifactList
+        manifold.core.models.ArtifactList
             One reference per artifact (name, sha256, media type, `file://` URI, and `frame` for per-capture
             products).
 
         Raises
         ------
-        protodirsig.errors.NotFoundError
+        manifold.core.errors.NotFoundError
             No run of that id.
         """
         return models.ArtifactList.from_dict(self.backend.list_artifacts(run_id))
@@ -505,7 +505,7 @@ class Workspace:
 
         Raises
         ------
-        protodirsig.errors.NotFoundError
+        manifold.core.errors.NotFoundError
             No run of that id, or no artifact of that name.
         """
         content, media_type = self.backend.get_artifact(run_id, name)
@@ -527,14 +527,14 @@ class Workspace:
 
         Returns
         -------
-        protodirsig.models.RunStatus
+        manifold.core.models.RunStatus
             The run's final status (`rendered`, `failed` or `cancelled`).
 
         Raises
         ------
         TimeoutError
             The run was not final after `timeout` seconds.
-        protodirsig.errors.NotFoundError
+        manifold.core.errors.NotFoundError
             No run of that id.
 
         Examples
@@ -571,7 +571,7 @@ class Workspace:
 
         Raises
         ------
-        protodirsig.errors.NotFoundError
+        manifold.core.errors.NotFoundError
             No run of that id, or no artifact of that name.
         ValueError
             The bytes do not match the reference's sha256 (nothing is left at the destination).

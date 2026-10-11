@@ -27,7 +27,7 @@ sensor, a second member for one entry, a listed sensor with no member, and an `e
 sensors are errors. A sweep run's `meta.name` is `<meta.name>--<sensor file stem>`; tags and description are
 shared. `fidelity` is shared; `fidelity_by_sensor: {<sensor file>: {...}}` replaces it for that sensor, and
 `fidelity` may be omitted when every listed sensor has one. A sweep has at most `MAX_RUNS` runs, checked before
-anything else is loaded. Each run has a `run_id` and the sweep a `sweep_id` (`protodirsig.identity`): the sha256
+anything else is loaded. Each run has a `run_id` and the sweep a `sweep_id` (`manifold.core.identity`): the sha256
 of the RFC 8785 canonical JSON of the run spec with its sensor in place, and of the sorted list of run ids.
 
 The `roi` check of `run_spec` applies to each composed spec, and for a DIRSIG run the black-level check. No key is
@@ -35,7 +35,7 @@ added to the descriptor outside what the layers hold; layer provenance (file and
 are returned beside the specs, never written into them. Errors name the layer file and the field in it, never a
 path in the composed document.
 
-Imports: the standard library, `yaml`, `protodirsig.run_spec` and `protodirsig.spectral`, none of which loads an
+Imports: the standard library, `yaml`, `manifold.core.run_spec` and `manifold.core.spectral`, none of which loads an
 engine package, so composing needs no `dirfm`, skyfield or DIRSIG (tests/test_import_boundary.py).
 """
 import copy
@@ -44,10 +44,10 @@ from pathlib import Path
 
 import yaml
 
-from protodirsig import identity
-from protodirsig.errors import COMPOSE
-from protodirsig.run_spec import RunSpecError, _check_settings_roi, black_level_problem, load_sensor_spec
-from protodirsig.spectral import sha256_file
+from manifold.core import identity
+from manifold.core.errors import COMPOSE
+from manifold.core.run_spec import RunSpecError, _check_settings_roi, black_level_problem, load_sensor_spec
+from manifold.core.spectral import sha256_file
 
 RULES = "compose/1"
 SPEC_VERSION = "run-spec/1"

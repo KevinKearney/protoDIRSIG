@@ -1,8 +1,8 @@
-"""Phase 4a: cross-check protodirsig.orbit (skyfield SGP4 -> ITRS waypoints) against DIRSIG's
+"""Phase 4a: cross-check manifold.sim.orbit (skyfield SGP4 -> ITRS waypoints) against DIRSIG's
 own `<locationengine type="sgp4">`, on tutorial_tacoma_scene.ipynb's WorldView-2-over-Tacoma pass.
 
 Two renders that differ ONLY in the location engine:
-  A  "skyfield": ECEF waypoints from protodirsig.orbit (exactly what the Tacoma notebook uses)
+  A  "skyfield": ECEF waypoints from manifold.sim.orbit (exactly what the Tacoma notebook uses)
   B  "native"  : the same TLE lines handed to DIRSIG's built-in SGP4 engine
 Same scene reference, sensor, atmosphere, TASKS (PASS_EPOCH, one frame at t = 60 s), same LookAt
 orientation. The sensor adds the Geolocation truth collector (ECEF hit points) to the notebook's
@@ -27,7 +27,7 @@ from pathlib import Path
 import numpy as np
 
 PROJECT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT / "src"))
+sys.path[:0] = [str(PROJECT / "packages" / d / "src") for d in ("core", "sim")]
 DIRSIG_HOME = Path(os.environ.get("DIRSIG_HOME", Path.home() / "DIRSIG" / "dirsig-2026.38.0.a020954-Linux-x86_64"))
 os.environ["DIRSIG_HOME"] = str(DIRSIG_HOME)
 os.environ["PATH"] = f"{DIRSIG_HOME / 'bin'}{os.pathsep}" + os.environ.get("PATH", "")
@@ -38,8 +38,9 @@ from dirfm import flexible_motion as fm                   # noqa: E402
 from skyfield.api import wgs84                            # noqa: E402
 from spectral import open_image                           # noqa: E402
 
-from protodirsig import orbit, sensors                    # noqa: E402
-from protodirsig.scene_ref import fingerprint, reference_scene  # noqa: E402
+from manifold.sim import orbit                    # noqa: E402
+from manifold.sim._dirsig import sensors
+from manifold.sim._dirsig.scene_ref import fingerprint, reference_scene  # noqa: E402
 
 TACOMA = DIRSIG_HOME / "Tacoma-08-Apr-2022" / "Tacoma"
 WORK = PROJECT / "outputs" / "sgp4_check"
@@ -62,7 +63,7 @@ class Sgp4LocationEngine(fm.LocationEngine):
 
 
 def tacoma_pass():
-    """The Tacoma notebook's Stage 1, via the same protodirsig.orbit calls and parameters."""
+    """The Tacoma notebook's Stage 1, via the same manifold.sim.orbit calls and parameters."""
     scene_xml = et.parse(str(TACOMA / "tacoma.scene")).getroot()
     loc = scene_xml.find("sceneorigin/location")
     lat0, lon0 = float(loc.findtext("latitude")), float(loc.findtext("longitude"))

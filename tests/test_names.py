@@ -4,15 +4,11 @@ literals, and are not checked; imports are statements, not literals."""
 import ast
 from pathlib import Path
 
-from protodirsig import _names
+from manifold.core import _names
 
 ROOT = Path(__file__).resolve().parents[1]
 NAMES_MODULE = "_names.py"
-ALLOWLIST = {                                                    # root-relative path: why the literal stays
-    "scripts/bootstrap.py": "a source-layout path (the dirhash module loaded by file path, stdlib only)",
-    "scripts/stamp_hashes.py": "a source-layout path (the dirhash module loaded by file path, stdlib only)",
-    "scripts/gen_models.py": "a source-layout path (the generated models module it writes)",
-}
+ALLOWLIST = {}                                                   # root-relative path: why the literal stays
 SHIM_DIRS = ("packages/compat-protodirsig",)                     # the compatibility shim spells the legacy name
 
 

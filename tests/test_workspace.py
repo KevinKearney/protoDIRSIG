@@ -1,4 +1,4 @@
-"""The Workspace facade (protodirsig.workspace) over a LocalBackend: models out, ProblemError family raised, one
+"""The Workspace facade (manifold.sim.workspace) over a LocalBackend: models out, ProblemError family raised, one
 end-to-end 16 x 16 render and the three-frame pass. The library is a temporary copy of the small layer and sensor files;
 the engine assets are the real manifold_config_repo, read only. Each test has a 600 s limit."""
 import fcntl
@@ -12,11 +12,11 @@ from pathlib import Path
 import pytest
 import yaml
 
-import protodirsig
+import manifold.sim
 from backend_conformance import two_sensors, variant
-from protodirsig import models
-from protodirsig.errors import NotFoundError, ProblemError
-from protodirsig.workspace import ArtifactContent, Workspace, default_work_root
+from manifold.core import models
+from manifold.core.errors import NotFoundError, ProblemError
+from manifold.sim.workspace import ArtifactContent, Workspace, default_work_root
 from test_simulation import CONFIG_REPO, needs_dirsig
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -138,7 +138,7 @@ def test_a_workspace_needs_a_backend():
 
 
 def test_the_package_exports_workspace_and_version():
-    assert protodirsig.Workspace is Workspace and isinstance(protodirsig.__version__, str) and protodirsig.__version__
+    assert manifold.sim.Workspace is Workspace and isinstance(manifold.sim.__version__, str) and manifold.sim.__version__
     assert default_work_root().parts[-2:] == ("protodirsig", "work")
 
 
@@ -167,7 +167,7 @@ def test_every_model_has_a_docstring_with_attributes():
 
 
 def test_local_registry_is_deprecated():
-    from protodirsig.registry import LocalRegistry
+    from manifold.sim._dirsig.registry import LocalRegistry
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         LocalRegistry()
@@ -176,7 +176,7 @@ def test_local_registry_is_deprecated():
 
 def test_the_default_work_root_is_the_state_directory_and_the_former_one_is_named_once(tmp_path, monkeypatch, caplog):
     import logging
-    from protodirsig.workspace import former_work_root
+    from manifold.sim.workspace import former_work_root
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
     assert default_work_root() == tmp_path / "state" / "protodirsig" / "work"

@@ -1,4 +1,4 @@
-"""`dirhash/1` (protodirsig.dirhash): the directory digest a `.scene` reference carries.
+"""`dirhash/1` (manifold.core.dirhash): the directory digest a `.scene` reference carries.
 
 The fixture under manifold_contracts/vectors/identity/dirhash/ must give the recorded manifest and digest, and the
 shell pipeline of the definition must agree. Forbidden entries raise; any change to a file's bytes, name or presence
@@ -13,8 +13,8 @@ from pathlib import Path
 
 import pytest
 
-from protodirsig.dirhash import directory_digest, directory_manifest, is_directory_ref
-from protodirsig.simulation import Simulation
+from manifold.core.dirhash import directory_digest, directory_manifest, is_directory_ref
+from manifold.sim._dirsig.simulation import Simulation
 from test_simulation import CONFIG_REPO, SPEC, needs_dirsig
 
 PROJECT = Path(__file__).resolve().parents[1]

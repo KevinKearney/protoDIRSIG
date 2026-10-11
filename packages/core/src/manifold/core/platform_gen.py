@@ -35,8 +35,8 @@ from pathlib import Path
 
 import lxml.etree as et
 
-from protodirsig.spectral import FWHM_PER_SIGMA, SpectralError, band_grid, resolve_curve
-from protodirsig.spectral import channel_response as compose_response
+from manifold.core.spectral import FWHM_PER_SIGMA, SpectralError, band_grid, resolve_curve
+from manifold.core.spectral import channel_response as compose_response
 
 CLIP_LIMIT = 1e-3       # response fraction allowed outside the template bandpass
 X_OFFSET_SIGN = Y_OFFSET_SIGN = 1     # SFNC OffsetX/Y (from the full frame's first column/row) to DIRSIG array offset

@@ -20,7 +20,7 @@ This module also holds the plain problem constructors (`make_problem`, `admissio
 pointer in a composed spec. Imports: the standard library and `_names` only.
 """
 
-from protodirsig._names import problem
+from manifold.core._names import problem
 
 COMPOSE = problem("compose")
 ADMISSION = problem("admission")

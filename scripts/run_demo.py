@@ -28,12 +28,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+sys.path[:0] = [str(ROOT / "packages" / d / "src") for d in ("core", "sim")]   # the manifold namespace, uninstalled
 
-from protodirsig import Workspace                                 # noqa: E402
-from protodirsig.backend import LocalBackend                       # noqa: E402
-from protodirsig.errors import ProblemError                        # noqa: E402
-from protodirsig.workspace import default_work_root               # noqa: E402
+from manifold.sim import Workspace                                 # noqa: E402
+from manifold.sim.backend import LocalBackend                       # noqa: E402
+from manifold.core.errors import ProblemError                        # noqa: E402
+from manifold.sim.workspace import default_work_root               # noqa: E402
 
 BEGIN = "<!-- run_demo: generated between these markers by scripts/run_demo.py; edit outside them -->"
 END = "<!-- run_demo: end -->"

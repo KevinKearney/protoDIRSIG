@@ -1,4 +1,4 @@
-"""protodirsig.run_spec must resolve manifold_run_specs/auror_ref.yaml (engine assets against manifold_config_repo,
+"""manifold.core.run_spec must resolve manifold_run_specs/auror_ref.yaml (engine assets against manifold_config_repo,
 the sensor ref in the sensor library), carry the motion/tasks values the generator needs, and refuse
 what it is not built for.
 
@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from protodirsig.run_spec import (RunSpecError, _check_settings_roi, derive_run_spec, check_library_files, load_run_spec, load_sensor_spec,
+from manifold.core.run_spec import (RunSpecError, _check_settings_roi, derive_run_spec, check_library_files, load_run_spec, load_sensor_spec,
                                   resolve_run)
 
 PROJECT = Path(__file__).resolve().parents[1]
@@ -287,7 +287,7 @@ def _two_of(lib, what):
 def test_rejects_sensor_shapes_it_does_not_generate(tmp_path, what, settings, match):
     """One sensor entry, one focal plane and one settings member per job; anything else fails at resolution,
     so `Simulation` never assembles or renders it."""
-    from protodirsig.simulation import Simulation
+    from manifold.sim._dirsig.simulation import Simulation
     lib = tmp_path / "manifold_sensors"
     if what:
         _two_of(lib, what)

@@ -1,4 +1,4 @@
-"""The run worker: `python -m protodirsig.worker <run_dir>`, one process per run, started by `LocalBackend`.
+"""The run worker: `python -m manifold.sim.worker <run_dir>`, one process per run, started by `LocalBackend`.
 
 It loads `job.json`, records its pid and process group, waits for one of `max_parallel` slot locks
 (`<work_root>/slots/slot-<i>.lock`, polled every second) while the run stays `accepted`, then moves the run from
@@ -24,7 +24,7 @@ the thermal zones while the tools ran, null without sensors), `cpu_freq_khz` (`{
 frequency sampled with it and the largest `cpuinfo_max`, null when unavailable) and `throttle_suspect` (that maximum at
 or above 90 C with a core below 90 percent of `cpuinfo_max`; the temperature alone when the frequency is unknown).
 
-Engine-bound: imports `protodirsig.simulation` (dirfm). The state machine is `main(run_dir, simulation_factory)`; tests
+Engine-bound: imports `manifold.sim._dirsig.simulation` (dirfm). The state machine is `main(run_dir, simulation_factory)`; tests
 call it in-process with a stub factory.
 """
 import fcntl
@@ -39,14 +39,14 @@ import traceback
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
-from protodirsig import _names, problems
-from protodirsig.simulation import Simulation
-from protodirsig.passthrough import (cache_state, is_passthrough, resolve_passthrough, run_engine, throttle_suspect,
+from manifold.core import _names, problems
+from manifold.sim._dirsig.simulation import Simulation
+from manifold.sim._dirsig.passthrough import (cache_state, is_passthrough, resolve_passthrough, run_engine, throttle_suspect,
                                      tool_version)
-from protodirsig.store import (ArtifactError, RunStore, artifacts_for, passthrough_artifacts, process_start,
+from manifold.sim.store import (ArtifactError, RunStore, artifacts_for, passthrough_artifacts, process_start,
                                utc_now)
 
-REPOSITORY = Path(__file__).resolve().parents[2]
+REPOSITORY = Path(__file__).resolve().parents[5]   # packages/<dist>/src/manifold/<pkg>/
 POLL_S = 1.0
 
 
@@ -260,5 +260,5 @@ def main(run_dir, simulation_factory=_simulation):
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        sys.exit(f"usage: python -m {_names.module('worker')} <run_dir>")
+        sys.exit(f"usage: python -m {_names.WORKER_MODULE} <run_dir>")
     sys.exit(main(sys.argv[1]))

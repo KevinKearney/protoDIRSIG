@@ -18,7 +18,7 @@ archive (`{dirsig}` is the linked install, external/dirsig) into a gitignored pa
 link member and a name `dirhash/1` forbids are refused; an existing file that differs is reported and never
 overwritten. Each entry is extracted into a temporary directory and moved into place only after its digest verifies.
 `--status` classifies each entry as ok, missing, mismatch or no source, extracting nothing. Standard library only;
-`src/protodirsig/dirhash.py` is loaded by file path.
+`packages/core/src/manifold/core/dirhash.py` is loaded by file path.
 """
 import argparse
 import hashlib
@@ -36,7 +36,7 @@ from pathlib import Path, PurePosixPath
 ROOT = Path(__file__).resolve().parents[1]
 EXTERNAL = ROOT / "external"
 LIBRARY = ROOT / "manifold_config_repo"
-_spec = importlib.util.spec_from_file_location("_dirhash", ROOT / "src" / "protodirsig" / "dirhash.py")
+_spec = importlib.util.spec_from_file_location("_dirhash", ROOT / "packages" / "core" / "src" / "manifold" / "core" / "dirhash.py")
 dirhash = importlib.util.module_from_spec(_spec)             # by path: stdlib only, no package import
 _spec.loader.exec_module(dirhash)
 DIRS = {"dirfm": "dirsig-file-maker", "agent-docs": "agent-docs", "dirsig": "dirsig"}

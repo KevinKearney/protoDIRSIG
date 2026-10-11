@@ -6,20 +6,24 @@ import re
 
 import pytest
 
-from protodirsig import run_spec, simulation
-from protodirsig.simulation import Simulation
+from manifold.core import run_spec
+from manifold.sim._dirsig import simulation
+from manifold.sim._dirsig.simulation import Simulation
 
 ALIASES = {("run_spec", "resolve_auror_run"): ("run_spec", "resolve_run"),
            ("run_spec", "AurorRun"): ("run_spec", "ResolvedRun"),
            ("run_spec", "AUROR_ATMOSPHERE_BACKEND"): ("run_spec", "NEW_ATMOSPHERE_BACKEND"),
            ("simulation", "resolve_auror_run"): ("run_spec", "resolve_run")}
 MODULES = ("run_spec", "simulation", "registry", "backend", "store", "worker", "admission")
+PATHS = {"run_spec": "manifold.core.run_spec", "admission": "manifold.core.admission", "backend": "manifold.sim.backend",
+         "store": "manifold.sim.store", "worker": "manifold.sim.worker", "simulation": "manifold.sim._dirsig.simulation",
+         "registry": "manifold.sim._dirsig.registry"}
 
 
 @pytest.mark.parametrize("old, new", ALIASES.items(), ids=lambda x: ".".join(x) if isinstance(x, tuple) else x)
 def test_every_old_name_is_the_new_object(old, new):
-    mod_old = importlib.import_module(f"protodirsig.{old[0]}")
-    mod_new = importlib.import_module(f"protodirsig.{new[0]}")
+    mod_old = importlib.import_module(PATHS[old[0]])
+    mod_new = importlib.import_module(PATHS[new[0]])
     assert getattr(mod_old, old[1]) is getattr(mod_new, new[1])
 
 
@@ -36,7 +40,7 @@ def test_no_auror_specific_public_name_remains():
     allowed = {f"{m}.{n}" for m, n in ALIASES} | {"Simulation.auror_run"}
     found = []
     for m in MODULES:
-        mod = importlib.import_module(f"protodirsig.{m}")
+        mod = importlib.import_module(PATHS[m])
         for name, obj in vars(mod).items():
             if name.startswith("_"):
                 continue

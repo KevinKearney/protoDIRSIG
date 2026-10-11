@@ -7,9 +7,9 @@
 One file per operation, plus `compose.problem.json`, the problem produced by actually composing the
 `member_in_two_layers` conformance vector; `submit_run.problem.json`, the admission problem for a schema violation in
 an engine profile (edited in a temporary copy of the library, never in place), named by layer file and field with
-`protodirsig.problems`; and `list_artifacts.pass.json`, a multi-frame run. Library names,
+`manifold.core.problems`; and `list_artifacts.pass.json`, a multi-frame run. Library names,
 content hashes, documents, composed specs, provenance and validation outcomes are real; run ids and sweep ids are
-computed from the composed specs (`protodirsig.identity`), and the hash of `run_spec.json` is its run id (the
+computed from the composed specs (`manifold.core.identity`), and the hash of `run_spec.json` is its run id (the
 artifact is the canonical JSON of the resolved spec). Hashes of rendered files (images, headers, truth, logs) are
 marked placeholders, 64 zeros: no engine is run here. Large bodies are abbreviated, and each example's description
 says so.
@@ -24,16 +24,16 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "src"))
+sys.path[:0] = [str(ROOT / "packages" / d / "src") for d in ("core", "sim")]   # the manifold namespace, uninstalled
 
-from protodirsig import _names, problems                                # noqa: E402
-from protodirsig.errors import ADMISSION                                 # noqa: E402
-from protodirsig.compose import ComposeError, compose, compose_sweep   # noqa: E402
-from protodirsig.contract import schema_violations                       # noqa: E402
-from protodirsig.library import LibraryReader                            # noqa: E402
-from protodirsig.identity import run_id as compute_run_id                  # noqa: E402
-from protodirsig.run_spec import check_library_files, load_run_spec, resolve_run   # noqa: E402
-from protodirsig.simulation import schema_errors   # noqa: E402
+from manifold.core import _names, problems                                # noqa: E402
+from manifold.core.errors import ADMISSION                                 # noqa: E402
+from manifold.core.compose import ComposeError, compose, compose_sweep   # noqa: E402
+from manifold.core.contract import schema_violations                       # noqa: E402
+from manifold.sim.library import LibraryReader                            # noqa: E402
+from manifold.core.identity import run_id as compute_run_id                  # noqa: E402
+from manifold.core.run_spec import check_library_files, load_run_spec, resolve_run   # noqa: E402
+from manifold.sim._dirsig.simulation import schema_errors   # noqa: E402
 
 OUT = ROOT / "api" / "examples"
 LAYERS = ROOT / "manifold_run_specs"
@@ -53,7 +53,7 @@ PASS = "leo_pass_tahoe"
 _COMPOSED = {r: compose_sweep(LAYERS / "recipes" / f"{r}.yaml") for r in (SWEEP, SINGLE, PASS)}
 RUN_IDS = {n: i for c in _COMPOSED.values() for n, i in c.run_ids.items()}     # computed: identity.run_id
 SWEEP_ID = _COMPOSED[SWEEP].sweep_id                                           # computed: identity.sweep_id_from_runs
-RUN_DIR = f"file:///tmp/{_names.PACKAGE}/runs"
+RUN_DIR = f"file:///tmp/{_names.STATE_DIR_NAME}/runs"
 
 
 BOGUS_KIND = "bogus"

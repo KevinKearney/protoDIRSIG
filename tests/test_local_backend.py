@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 from backend_conformance import BackendConformance
-from protodirsig.backend import LocalBackend
+from manifold.sim.backend import LocalBackend
 from test_simulation import CONFIG_REPO, needs_dirsig
 
 ROOT = Path(__file__).resolve().parents[1]

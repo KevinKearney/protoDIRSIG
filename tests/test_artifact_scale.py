@@ -7,10 +7,11 @@ import hashlib
 import time
 from pathlib import Path
 
-from protodirsig import identity, store as store_mod
-from protodirsig.backend import LocalBackend
-from protodirsig.compose import compose
-from protodirsig.store import passthrough_artifacts
+from manifold.core import identity
+from manifold.sim import store as store_mod
+from manifold.sim.backend import LocalBackend
+from manifold.core.compose import compose
+from manifold.sim.store import passthrough_artifacts
 
 ROOT = Path(__file__).resolve().parents[1]
 SENSORS = ROOT / "manifold_sensors"

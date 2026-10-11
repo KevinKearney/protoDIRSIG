@@ -15,12 +15,12 @@ Imports: the standard library and pure `protodirsig` modules (`contract`, `ident
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from protodirsig import identity
-from protodirsig.contract import schema_errors
-from protodirsig.passthrough import is_passthrough, resolve_passthrough
-from protodirsig.run_spec import RunSpecError, check_library_files, resolve_run, unstamped_refs
+from manifold.core import identity
+from manifold.core.contract import schema_errors
+from manifold.core.passthrough_spec import is_passthrough, resolve_passthrough
+from manifold.core.run_spec import RunSpecError, check_library_files, resolve_run, unstamped_refs
 
-REPOSITORY = Path(__file__).resolve().parents[2]
+REPOSITORY = Path(__file__).resolve().parents[5]   # packages/<dist>/src/manifold/<pkg>/
 
 
 @dataclass

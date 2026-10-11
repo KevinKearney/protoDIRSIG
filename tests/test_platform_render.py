@@ -9,9 +9,9 @@ import numpy as np
 import pytest
 import yaml
 
-from protodirsig.platform_gen import PlatformGenError, check_template, render_platform
-from protodirsig.run_spec import load_run_spec, load_sensor_spec
-from protodirsig.spectral import read_curve, srf_model_values
+from manifold.core.platform_gen import PlatformGenError, check_template, render_platform
+from manifold.core.run_spec import load_run_spec, load_sensor_spec
+from manifold.core.spectral import read_curve, srf_model_values
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE = ROOT / "manifold_config_repo" / "platforms" / "AurorNIRDetector" / "AurorNIRDetector.platform"
@@ -138,7 +138,7 @@ def test_response_outside_bandpass_is_refused(tmp_path):
 def test_missing_curve_is_specific(tmp_path):
     doc = copy.deepcopy(load_sensor_spec(LIB, "deepscan_850_306_nir_1280.yaml"))
     doc["sensor"]["entries"][0]["focal_planes"][0]["channels"][0]["qe_reference"] = {"name": "spectral/qe/nope.csv"}
-    from protodirsig.spectral import SpectralError
+    from manifold.core.spectral import SpectralError
     with pytest.raises(SpectralError, match="not found"):
         render_platform(TEMPLATE, doc, "deepscan-850-306-nir-1280",
                         [{**SETTINGS[0], "entry_id": "deepscan-850-306-nir-1280"}], 10, LIB, tmp_path / "x.platform")

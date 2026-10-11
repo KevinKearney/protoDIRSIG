@@ -5,14 +5,21 @@ A channel's effective response is the product of three factors that Detector_v02
 (`optics.throughput_reference`, the channel's `srf_reference`/`srf_model`, `qe_reference`). DIRSIG
 holds one response per channel; with `fluxunits="electronspersecond"` it takes that response as
 quantum efficiency (basicplatform_plugin docs), so the product is the right single input.
+
+numpy is imported inside the functions that compute with it, so importing this module (which `run_spec` and `compose`
+do, for `PLACEHOLDER` and `sha256_file`) loads no numpy.
 """
+from __future__ import annotations
+
 import csv
 import hashlib
 import math
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-import numpy as np
+if TYPE_CHECKING:                                   # annotations only
+    import numpy as np
 
 FWHM_PER_SIGMA = 2.0 * math.sqrt(2.0 * math.log(2.0))
 KINDS = {"qe": "qe_absolute", "optics": "transmission", "filter": "transmission"}
@@ -32,6 +39,7 @@ class Curve:
 
     def at(self, wl):
         """Linear interpolation; a wavelength outside `range_um` is an error (`extrapolation: none`)."""
+        import numpy as np
         wl = np.asarray(wl, dtype=float)
         lo, hi = self.wavelength[0], self.wavelength[-1]
         if wl.min() < lo - 1e-12 or wl.max() > hi + 1e-12:
@@ -46,6 +54,7 @@ def sha256_file(path):
 
 def read_curve(path):
     """Parse a `spectral-curve/1` CSV. Raises `SpectralError` for a malformed file."""
+    import numpy as np
     path = Path(path)
     meta, key, lines = {}, None, path.read_text(encoding="utf-8").splitlines()
     body = None
@@ -91,6 +100,7 @@ def srf_model_values(model, wl):
     1/2, as in DIRSIG's native rectangular channel (CONOPS section 9). A single wavelength gets the inclusive
     indicator.
     """
+    import numpy as np
     wl = np.asarray(wl, dtype=float)
     kind = model["kind"]
     if kind == "gaussian":
@@ -110,6 +120,7 @@ def srf_model_values(model, wl):
 
 def band_grid(minimum, maximum, delta):
     """The DIRSIG `<bandpass>` grid, on integer multiples of `delta` so values do not drift."""
+    import numpy as np
     n0, n1 = round(minimum / delta), round(maximum / delta)
     return np.arange(n0, n1 + 1) * delta
 
@@ -122,6 +133,7 @@ def channel_response(band, channel, optics_curve=None, qe_curve=None, sensor_lib
     that responds where the job's spectral data end.
     """
     def total(wl):
+        import numpy as np
         r = np.ones_like(wl)
         if optics_curve is not None:
             r = r * optics_curve.at(wl)

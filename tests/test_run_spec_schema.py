@@ -16,7 +16,7 @@ from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
 from referencing.jsonschema import DRAFT202012
 
-from protodirsig.simulation import schema_errors
+from manifold.sim._dirsig.simulation import schema_errors
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACTS = ROOT / "manifold_contracts"
@@ -203,7 +203,7 @@ def _corpus():
 
 def test_contract_module_gives_the_schemas_own_verdict():
     """contract.schema_violations is the schema, applied: same verdict as an independent validator, on every document."""
-    from protodirsig import contract
+    from manifold.core import contract
     for name, spec in _corpus().items():
         assert (contract.schema_violations(spec) == []) == schema_ok(spec), name
         assert all(v["path"] == "" or v["path"].startswith("/") for v in contract.schema_violations(spec)), name
@@ -222,6 +222,6 @@ def test_schema_errors_enforces_the_schema_and_only_named_semantic_rules_beyond_
 
 @pytest.mark.parametrize("name", sorted(SEMANTIC))
 def test_each_semantic_case_is_caught_by_semantic_errors(name):
-    from protodirsig.simulation import semantic_errors
+    from manifold.sim._dirsig.simulation import semantic_errors
     spec = _semantic(name)
     assert schema_ok(spec) and semantic_errors(spec), name

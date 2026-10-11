@@ -1,4 +1,4 @@
-"""The typed models generated from the API schemas (scripts/gen_models.py -> src/protodirsig/models.py)."""
+"""The typed models generated from the API schemas (scripts/gen_models.py -> packages/core/src/manifold/core/models.py)."""
 import importlib.util
 import json
 import shutil
@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from api_schema import errors as schema_errors
-from protodirsig import models
+from manifold.core import models
 
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES = sorted((ROOT / "api" / "examples").glob("*.json"))

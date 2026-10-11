@@ -6,7 +6,7 @@ Lidar demos were run (by the sweep) and are not analyzed here: their `.bin` outp
 
 ## Method
 
-`scripts/probe_determinism.py` renders each chosen demo twice under each condition, each render in its own fresh directory outside the repository with a per-run `HOME`, through the SDK's pass-through runner (`protodirsig.passthrough.run_engine`: the demo copied, its scenes compiled with `scene2hdf`, then `dirsig5` on the simulation file the sweep rendered). `scripts/compare_outputs.py` compares two output directories file by file. Both scripts are in the repository; the outputs were deleted after the analysis.
+`scripts/probe_determinism.py` renders each chosen demo twice under each condition, each render in its own fresh directory outside the repository with a per-run `HOME`, through the SDK's pass-through runner (`manifold.sim._dirsig.passthrough.run_engine`: the demo copied, its scenes compiled with `scene2hdf`, then `dirsig5` on the simulation file the sweep rendered). `scripts/compare_outputs.py` compares two output directories file by file. Both scripts are in the repository; the outputs were deleted after the analysis.
 
 Conditions, from `dirsig5 --help` (DIRSIG 2026.38), which lists `-j/--threads` and `-s/--random_seed`:
 

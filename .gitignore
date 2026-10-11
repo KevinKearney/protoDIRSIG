@@ -7,7 +7,8 @@ __pycache__/
 *.egg-info/
 # Build products: setuptools' build directory and the contract schemas copied into the package (setup.py)
 /build/
-/src/protodirsig/_contracts/
+/packages/*/build/
+/packages/core/src/manifold/core/_contracts/
 .ipynb_checkpoints/
 .pytest_cache/
 .ruff_cache/

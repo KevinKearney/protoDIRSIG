@@ -10,9 +10,9 @@ import numpy as np
 import pytest
 import test_spectral_curves
 
-from protodirsig.platform_gen import PlatformGenError, render_platform
-from protodirsig.run_spec import load_run_spec, load_sensor_spec
-from protodirsig.spectral import read_curve
+from manifold.core.platform_gen import PlatformGenError, render_platform
+from manifold.core.run_spec import load_run_spec, load_sensor_spec
+from manifold.core.spectral import read_curve
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE = ROOT / "manifold_config_repo" / "platforms" / "AurorNIRDetector" / "AurorNIRDetector.platform"

@@ -14,15 +14,15 @@ from pathlib import Path
 import pytest
 import yaml
 
-from protodirsig import identity
-from protodirsig.admission import validate_spec
-from protodirsig.compose import ComposeError, compose_sweep
-from protodirsig.contract import schema_errors
-from protodirsig.dirhash import directory_digest
-from protodirsig.errors import AdmissionError
-from protodirsig.passthrough import resolve_passthrough
-from protodirsig.problems import locate
-from protodirsig.run_spec import RunSpecError, unstamped_refs
+from manifold.core import identity
+from manifold.core.admission import validate_spec
+from manifold.core.compose import ComposeError, compose_sweep
+from manifold.core.contract import schema_errors
+from manifold.core.dirhash import directory_digest
+from manifold.core.errors import AdmissionError
+from manifold.sim._dirsig.passthrough import resolve_passthrough
+from manifold.core.problems import locate
+from manifold.core.run_spec import RunSpecError, unstamped_refs
 
 ROOT = Path(__file__).resolve().parents[1]
 VECTOR = ROOT / "manifold_contracts" / "vectors" / "identity" / "passthrough"
@@ -140,7 +140,7 @@ def test_an_unstamped_digest_is_listed_and_refused_at_submission(library, tmp_pa
     assert unstamped_refs(spec) == ["/engine/passthrough/directory"]
     report = validate_spec(spec, None, library, ROOT / "manifold_sensors")
     assert report.valid and report.unstamped == ["/engine/passthrough/directory"]
-    from protodirsig.backend import LocalBackend
+    from manifold.sim.backend import LocalBackend
     backend = LocalBackend(tmp_path / "work", library, engine=stub_engine(tmp_path))
     with pytest.raises(AdmissionError) as e:
         backend.submit_run(spec)
@@ -210,7 +210,7 @@ def test_layer_ownership_stays_disjoint(layers, edit, layer, field):
 
 
 def test_the_library_reads_a_passthrough_recipe(layers):
-    from protodirsig.library import LibraryReader
+    from manifold.sim.library import LibraryReader
     doc = LibraryReader(layers).get("recipe", "synthetic_passthrough")
     assert doc["document"]["passthrough"]["simulation"] == "demo.jsim"
 
@@ -237,7 +237,7 @@ def test_stamp_hashes_stamps_and_checks_a_passthrough_directory(tmp_path, monkey
 # --- validation levels ----------------------------------------------------------------------------------------------
 
 def _backend(tmp_path, library, layers, engine):
-    from protodirsig.backend import LocalBackend
+    from manifold.sim.backend import LocalBackend
     (layers.parent / "manifold_sensors").mkdir(exist_ok=True)
     return LocalBackend(tmp_path / "work", library, library=layers, engine=engine)
 
@@ -323,7 +323,7 @@ import hashlib  # noqa: E402
 def test_scenes_are_compiled_before_the_engine_runs(tmp_path, library):
     """With a `scene2hdf` beside the engine, every scene the simulation names is compiled in the copy first; the
     compiled file stays in the copy and is not an output."""
-    from protodirsig.passthrough import resolve_passthrough, run_engine, scenes_of
+    from manifold.sim._dirsig.passthrough import resolve_passthrough, run_engine, scenes_of
     bindir = tmp_path / "bin"
     bindir.mkdir()
     engine = stub_engine(bindir)
@@ -339,7 +339,7 @@ def test_scenes_are_compiled_before_the_engine_runs(tmp_path, library):
 
 
 def test_scenes_of_a_legacy_sim(tmp_path):
-    from protodirsig.passthrough import scenes_of
+    from manifold.sim._dirsig.passthrough import scenes_of
     sim = tmp_path / "demo.sim"
     sim.write_text('<simulation><scene externalfile="./a.scene"/><scene externalfile="b.scene"/></simulation>')
     assert scenes_of(sim) == ["./a.scene", "b.scene"]
@@ -380,7 +380,7 @@ def test_submit_performs_no_engine_check_and_the_scene_is_compiled_once(tmp_path
     and runs the engine once, without `--dry_run`."""
     import fcntl
     from backend_conformance import wait_for
-    from protodirsig import Workspace
+    from manifold.sim import Workspace
     engine, calls = _counting_bin(tmp_path)
     backend = _backend(tmp_path, library, layers, engine)
     with open(backend.store.slots / "slot-0.lock", "a") as held:
@@ -434,7 +434,7 @@ def _zones(root, temps_c):
 
 
 def test_the_thermal_sampler_reads_the_maximum_over_zones(tmp_path):
-    from protodirsig.passthrough import ThermalSampler, max_zone_temp_c
+    from manifold.sim._dirsig.passthrough import ThermalSampler, max_zone_temp_c
     root = _zones(tmp_path / "thermal", [41.5, 63.0, 20.0])
     assert max_zone_temp_c(root) == 63.0
     assert max_zone_temp_c(tmp_path / "none") is None
@@ -470,7 +470,7 @@ def _cpus(root, cur_khz, max_khz=4_200_000):
 
 
 def test_cpu_frequency_and_the_throttle_rule(tmp_path):
-    from protodirsig.passthrough import ThermalSampler, cpu_freq_khz, throttle_suspect
+    from manifold.sim._dirsig.passthrough import ThermalSampler, cpu_freq_khz, throttle_suspect
     root = _cpus(tmp_path / "cpu", [3_000_000, 4_100_000])
     assert cpu_freq_khz(root) == {"min": 3_000_000, "max": 4_100_000, "cpuinfo_max": 4_200_000}
     assert cpu_freq_khz(tmp_path / "none") is None

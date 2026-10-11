@@ -1,4 +1,4 @@
-"""protodirsig.orbit must reproduce tutorial_orbit_to_ground.ipynb's verified Stage 1 results.
+"""manifold.sim.orbit must reproduce tutorial_orbit_to_ground.ipynb's verified Stage 1 results.
 
 Uses the TLE and ephemeris cached in outputs/_orbit_data/ (skipped if absent), so the pass is
 the same one the notebook chose: Rochester, 2026-09-25 16:07 UTC.
@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from protodirsig import orbit
+from manifold.sim import orbit
 
 DATA = Path(__file__).resolve().parents[1] / "outputs" / "_orbit_data"
 pytestmark = pytest.mark.skipif(not (DATA / "tle_35946.txt").exists() or not (DATA / "de421.bsp").exists(),

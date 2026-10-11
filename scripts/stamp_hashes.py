@@ -13,7 +13,7 @@ sensor-spec ref (`*.yaml` without a directory) and spectral curves against `mani
 against `manifold_config_repo/`. A file ref's hash is `sha256` of the file bytes. A `.scene` ref names a directory,
 the scene directory that holds the `.scene` file with its geometry and materials (`scenes/<scene>/<scene>.scene`), and
 its hash is the `dirhash/1` digest of that directory; so is a ref that names a directory of the library itself (a
-pass-through demo directory, `demo_dirs/<Name>`) (`src/protodirsig/dirhash.py`, defined in
+pass-through demo directory, `demo_dirs/<Name>`) (`packages/core/src/manifold/core/dirhash.py`, defined in
 `manifold_contracts/README.md`), since one file's hash would not identify the asset. MANIFOLD's canonical-JSON hash
 (Metadata_v02 §6.15) replaces the file hash when the registry is built.
 
@@ -29,7 +29,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-_spec = importlib.util.spec_from_file_location("_dirhash", ROOT / "src" / "protodirsig" / "dirhash.py")
+_spec = importlib.util.spec_from_file_location("_dirhash", ROOT / "packages" / "core" / "src" / "manifold" / "core" / "dirhash.py")
 dirhash = importlib.util.module_from_spec(_spec)             # by path: stdlib only, no package import
 _spec.loader.exec_module(dirhash)
 REF = re.compile(r'(\{name: )([^,}]+)(, content_hash: ")([^"]*)(")')

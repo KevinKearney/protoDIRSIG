@@ -1,4 +1,4 @@
-"""protodirsig.registry.LocalRegistry must accept the real AUROR_ref run spec and reject a broken
+"""manifold.sim._dirsig.registry.LocalRegistry must accept the real AUROR_ref run spec and reject a broken
 one with a reason naming the failed check.
 
 Reads manifold_run_specs/auror_ref.yaml and manifold_config_repo READ-ONLY; runs a DIRSIG dry run;
@@ -6,7 +6,7 @@ writes only to pytest's tmp_path.
 """
 import pytest
 
-from protodirsig.registry import LocalRegistry
+from manifold.sim._dirsig.registry import LocalRegistry
 from test_simulation import CONFIG_REPO, SENSORS, SPEC, broken_spec, needs_dirsig
 
 
@@ -57,8 +57,8 @@ def test_submissions_carry_their_run_ids(tmp_path):
     sweep the id derived from them."""
     import yaml
 
-    from protodirsig import identity
-    from protodirsig.compose import compose_sweep
+    from manifold.core import identity
+    from manifold.core.compose import compose_sweep
     r = LocalRegistry().submit(SPEC, CONFIG_REPO, tmp_path / "one", SENSORS)
     assert r.run_id == identity.run_id(yaml.safe_load(SPEC.read_text()), SENSORS) and len(r.run_id) == 64
     recipe = SPEC.parent / "recipes" / "sensor_sweep_tahoe.yaml"
@@ -99,7 +99,7 @@ def _unstamp(spec_path, keys, tmp_path):
 def test_unstamped_refs_of_the_generated_specs_are_empty():
     import yaml
 
-    from protodirsig.run_spec import unstamped_refs
+    from manifold.core.run_spec import unstamped_refs
     for path in sorted(SPEC.parent.glob("*.yaml")):
         spec = yaml.safe_load(path.read_text())
         assert unstamped_refs(spec) == [], path.name
@@ -110,7 +110,7 @@ def test_unstamped_refs_of_the_generated_specs_are_empty():
 def test_unstamped_refs_names_each_category(tmp_path, name, spec_path, keys, pointer):
     import yaml
 
-    from protodirsig.run_spec import unstamped_refs
+    from manifold.core.run_spec import unstamped_refs
     assert unstamped_refs(yaml.safe_load(_unstamp(spec_path, keys, tmp_path).read_text())) == [pointer]
 
 

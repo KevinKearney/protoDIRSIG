@@ -1,4 +1,4 @@
-"""protodirsig.motion_tasks must generate, from manifold_run_specs/auror_ref.yaml, motion and tasks files that
+"""manifold.sim._dirsig.motion_tasks must generate, from manifold_run_specs/auror_ref.yaml, motion and tasks files that
 mean what the received AUROR_ref files meant.
 
 The comparison is semantic, not textual: dirfm formats numbers differently from the received
@@ -12,8 +12,8 @@ from pathlib import Path
 import lxml.etree as et
 import pytest
 
-from protodirsig.motion_tasks import generate_motion, generate_tasks
-from protodirsig.run_spec import load_run_spec, resolve_run
+from manifold.sim._dirsig.motion_tasks import generate_motion, generate_tasks
+from manifold.core.run_spec import load_run_spec, resolve_run
 
 PROJECT = Path(__file__).resolve().parents[1]
 SPEC = PROJECT / "manifold_run_specs" / "auror_ref.yaml"

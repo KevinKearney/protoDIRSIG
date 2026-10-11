@@ -6,7 +6,7 @@ real submission path, when it exists, replaces this one call. `SubmissionResult`
 deliberately not `ConformanceResult`: MANIFOLD's admission response is not defined, and only the
 verdict, the reasons and the per-check outcomes are likely to carry over.
 
-`submit_recipe` composes a layered recipe (`protodirsig.compose`) and submits the result: the layered submission
+`submit_recipe` composes a layered recipe (`manifold.core.compose`) and submits the result: the layered submission
 a MANIFOLD input constructor would accept (CONOPS and Guide, C-21). `submit_sweep` does the same for every run of a
 sweep recipe and `run_sweep` renders the accepted ones. Each run has its own state; a rejected or failed run never
 stops the others.
@@ -20,12 +20,12 @@ import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from protodirsig import _names, identity, problems
-from protodirsig.compose import (MAX_RUNS, ComposeError, compose, compose_sweep, default_sensor_library, dump,  # noqa: F401
+from manifold.core import _names, identity, problems
+from manifold.core.compose import (MAX_RUNS, ComposeError, compose, compose_sweep, default_sensor_library, dump,  # noqa: F401
                                  explain, sweep_id)
-from protodirsig.run_spec import RunSpecError
-from protodirsig.run_spec import default_sensor_library as run_spec_default_library
-from protodirsig.simulation import Simulation
+from manifold.core.run_spec import RunSpecError
+from manifold.core.run_spec import default_sensor_library as run_spec_default_library
+from manifold.sim._dirsig.simulation import Simulation
 
 
 @dataclass
@@ -76,10 +76,10 @@ class SweepResult:
 
 
 class LocalRegistry:
-    """Deprecated: use `protodirsig.Workspace` (kept for the notebooks; removed in phase 3)."""
+    """Deprecated: use `manifold.sim.Workspace` (kept for the notebooks; removed in phase 3)."""
 
     def __init__(self):
-        warnings.warn(f"LocalRegistry is deprecated; use {_names.PACKAGE}.Workspace (Workspace.local(...))",
+        warnings.warn(f"LocalRegistry is deprecated; use {_names.SIM_PACKAGE}.Workspace (Workspace.local(...))",
                       DeprecationWarning, stacklevel=2)
 
     def submit_sweep(self, recipe_path, config_repo, work_dir=None, max_runs=MAX_RUNS):

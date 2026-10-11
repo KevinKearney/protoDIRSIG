@@ -42,8 +42,8 @@ from pathlib import Path
 
 import yaml
 
-from protodirsig import _names, identity, problems
-from protodirsig.errors import NotFoundError
+from manifold.core import _names, identity, problems
+from manifold.core.errors import NotFoundError
 
 STATES = ("accepted", "running", "rendered", "failed", "cancelled")
 FINAL = ("rendered", "failed", "cancelled")
@@ -192,7 +192,7 @@ def process_start(pid):
 
 def _pid_is_worker(pid, start=None):
     """The process exists, is not a zombie, and is the recorded worker. Where /proc exists: the same process when the
-    record has its start time (`process_start`), else a `protodirsig.worker` command line. Without /proc, existence
+    record has its start time (`process_start`), else a `manifold.sim.worker` command line. Without /proc, existence
     is all that can be checked."""
     try:
         os.kill(pid, 0)
@@ -208,7 +208,8 @@ def _pid_is_worker(pid, start=None):
             return False
         if start and start.get("start_ticks") is not None:
             return process_start(pid) == {"start_ticks": start["start_ticks"], "boot_time": start.get("boot_time")}
-        return _names.module("worker").encode() in (proc / "cmdline").read_bytes()    # a record from before start times
+        cmdline = (proc / "cmdline").read_bytes()                              # a record from before start times
+        return any(m.encode() in cmdline for m in (_names.WORKER_MODULE, _names.LEGACY_WORKER_MODULE))
     except (OSError, ValueError, IndexError):
         return False
 

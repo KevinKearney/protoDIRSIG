@@ -1,4 +1,4 @@
-"""The run store (protodirsig.store) and the worker's state machine (protodirsig.worker.main with a stub engine).
+"""The run store (manifold.sim.store) and the worker's state machine (manifold.sim.worker.main with a stub engine).
 
 The real worker subprocess and DIRSIG are exercised by the backend conformance tests (tests/test_local_backend.py).
 """
@@ -16,10 +16,11 @@ import pytest
 import yaml
 
 from api_schema import errors as schema_errors
-from protodirsig import identity, store as store_mod, worker
-from protodirsig.compose import compose
-from protodirsig.errors import NotFoundError
-from protodirsig.store import ArtifactError, RunStore, artifacts_for
+from manifold.core import identity
+from manifold.sim import store as store_mod, worker
+from manifold.core.compose import compose
+from manifold.core.errors import NotFoundError
+from manifold.sim.store import ArtifactError, RunStore, artifacts_for
 
 ROOT = Path(__file__).resolve().parents[1]
 SENSORS = ROOT / "manifold_sensors"
@@ -123,7 +124,7 @@ def test_reap_waits_for_a_worker_to_start(store, resolved):
 
 def test_reap_leaves_a_live_worker_alone(store, resolved):
     run_id, _ = store.create_run(resolved, "n", JOB)
-    proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)", "protodirsig.worker"])
+    proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)", "manifold.sim.worker"])
     try:
         store.update_record(run_id, {"worker": {"pid": proc.pid, "pgid": proc.pid}})
         assert store.read_status(run_id)["state"] == "accepted"
@@ -162,7 +163,7 @@ def forked_not_execd():
 @pytest.mark.skipif(not Path("/proc/self/stat").is_file(), reason="needs /proc")
 def test_reap_does_not_fail_a_worker_read_before_its_exec(store, resolved, forked_not_execd):
     pid = forked_not_execd
-    assert b"protodirsig.worker" not in Path(f"/proc/{pid}/cmdline").read_bytes()      # the window, held open
+    assert b"manifold.sim.worker" not in Path(f"/proc/{pid}/cmdline").read_bytes()      # the window, held open
     run_id, _ = store.create_run(resolved, "n", JOB)
     store.update_record(run_id, {"worker": {"pid": pid, "pgid": pid, **_start_of(pid)}})
     assert store.read_status(run_id)["state"] == "accepted" and "reaped" not in store.read_record(run_id)
@@ -315,7 +316,7 @@ def test_worker_waits_for_a_slot_and_stops_if_cancelled(store, resolved):
         t = threading.Thread(target=worker.main, args=(store.run_dir(run_id), _factory(calls)))
         t.start()
         time.sleep(1.5)
-        # in-process, the recorded pid is pytest's, not a protodirsig.worker, so read without reaping
+        # in-process, the recorded pid is pytest's, not a manifold.sim.worker, so read without reaping
         assert store.read_status(run_id, reap=False)["state"] == "accepted" and t.is_alive()
         store.update_status(run_id, ("accepted",), {"state": "cancelled"})
         t.join(10)

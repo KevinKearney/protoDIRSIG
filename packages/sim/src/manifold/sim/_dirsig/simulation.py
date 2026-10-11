@@ -35,19 +35,19 @@ from pathlib import Path
 from dirfm import DIRSIG, SCENE
 from dirfm.weather import ThermWeatherFilePlugin
 
-# The schema check moved to contract (pure, no engine package); re-exported so `from protodirsig.simulation import
+# The schema check moved to contract (pure, no engine package); re-exported so `from manifold.sim._dirsig.simulation import
 # schema_errors` keeps working.
-from protodirsig import _names
-from protodirsig.contract import (DESCRIPTOR_REQUIRED, ENGINE_ENUMS, ENGINE_REQUIRED, _MISSING, _get,  # noqa: F401
+from manifold.core import _names
+from manifold.core.contract import (DESCRIPTOR_REQUIRED, ENGINE_ENUMS, ENGINE_REQUIRED, _MISSING, _get,  # noqa: F401
                                   schema_errors, schema_violations, semantic_errors)
-from protodirsig.admission import validate_spec
-from protodirsig.platform_gen import render_platform
-from protodirsig.platform_ref import PlatformFilesPlugin
-from protodirsig.motion_tasks import generate_motion, generate_tasks
-from protodirsig.run_spec import (RunSpecError, check_library_files, is_inline_sensor, load_run_spec,  # noqa: F401
+from manifold.core.admission import validate_spec
+from manifold.core.platform_gen import render_platform
+from manifold.sim._dirsig.platform_ref import PlatformFilesPlugin
+from manifold.sim._dirsig.motion_tasks import generate_motion, generate_tasks
+from manifold.core.run_spec import (RunSpecError, check_library_files, is_inline_sensor, load_run_spec,  # noqa: F401
                                  resolve_run, unstamped_refs)
-from protodirsig.run_spec import resolve_run as resolve_auror_run  # noqa: F401 -- deprecated alias, for the notebooks
-from protodirsig.scene_ref import copy_input, reference_scene
+from manifold.core.run_spec import resolve_run as resolve_auror_run  # noqa: F401 -- deprecated alias, for the notebooks
+from manifold.sim._dirsig.scene_ref import copy_input, reference_scene
 
 
 
@@ -272,7 +272,7 @@ class Simulation:
                   for c in info_log["capture_list"]]
         propagator = None
         if self.resolved.motion_kind == "orbit":
-            from protodirsig.orbit import propagator_provenance
+            from manifold.sim.orbit import propagator_provenance
             propagator = propagator_provenance()
         return RunResult(image=frames[0].image, truth=frames[0].truth,
                          output_dir=out_dir, run_log=json.loads(run_info.read_text()), info_log=info_log,

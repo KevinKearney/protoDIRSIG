@@ -8,7 +8,7 @@ import pytest
 import yaml
 from jsonschema import Draft202012Validator
 
-from protodirsig.spectral import read_curve, resolve_curve
+from manifold.core.spectral import read_curve, resolve_curve
 
 ROOT = Path(__file__).resolve().parents[1]
 SENSORS = ROOT / "manifold_sensors"
@@ -101,8 +101,8 @@ def test_engine_image_quantity_matches_the_generated_image(tmp_path, path):
     radiometric_reference is its own calibration and is not compared."""
     import lxml.etree as et
 
-    from protodirsig.platform_gen import IMAGE_QUANTITY, render_platform
-    from protodirsig.run_spec import load_run_spec, load_sensor_spec
+    from manifold.core.platform_gen import IMAGE_QUANTITY, render_platform
+    from manifold.core.run_spec import load_run_spec, load_sensor_spec
     template = ROOT / "manifold_config_repo" / "platforms" / "AurorNIRDetector" / "AurorNIRDetector.platform"
     settings = load_run_spec(ROOT / "manifold_run_specs" / "auror_ref.yaml")["descriptor"]["settings"][0]
     doc = load_sensor_spec(SENSORS, path.name)

@@ -1,4 +1,4 @@
-"""Engine-free validation (protodirsig.admission.validate_spec) and `Simulation.validate(engine_check)`.
+"""Engine-free validation (manifold.core.admission.validate_spec) and `Simulation.validate(engine_check)`.
 
 validate_spec reports each failure the registry tests cover without raising and never runs an engine;
 `Simulation.validate("none")` stops before the dry run; `Simulation.validate()` is unchanged.
@@ -7,10 +7,11 @@ import copy
 
 import pytest
 
-from protodirsig import identity, simulation
-from protodirsig.admission import validate_spec
-from protodirsig.run_spec import load_run_spec
-from protodirsig.simulation import Simulation
+from manifold.core import identity
+from manifold.sim._dirsig import simulation
+from manifold.core.admission import validate_spec
+from manifold.core.run_spec import load_run_spec
+from manifold.sim._dirsig.simulation import Simulation
 from test_simulation import CONFIG_REPO, SENSORS, SPEC, needs_dirsig
 
 needs_config_repo = pytest.mark.skipif(not (CONFIG_REPO / "scenes" / "tahoe" / "tahoe.scene").is_file(),

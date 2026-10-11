@@ -26,7 +26,7 @@ def orbit_waypoints(run):
     scene ENU, the largest linear-interpolation error of the thinned track against the dense one, in metres)."""
     import numpy as np
 
-    from protodirsig import orbit
+    from manifold.sim import orbit
     o = run.orbit
     _, _, line1, line2 = orbit.read_tle(o["tle"])
     dt = o["waypoint_spacing"] / DENSE_PER_WAYPOINT
@@ -47,7 +47,7 @@ def generate_motion(run, motion_dir, name=None):
     if run.motion_kind == "orbit":
         from dirfm import frames
 
-        from protodirsig import orbit
+        from manifold.sim import orbit
         t_wp, pos_wp, up, _ = orbit_waypoints(run)
         motion = orbit.lookat_motion(t_wp, pos_wp, frames.ENUFrame(*run.orbit["lookat_target"]), up)
         motion.write({"root": motion_dir}, name=name or "motion.motion")

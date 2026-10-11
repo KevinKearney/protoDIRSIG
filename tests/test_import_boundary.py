@@ -15,12 +15,12 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 PROPAGATOR = ("skyfield", "sgp4")
 ENGINE = ("dirfm",)
-PURE = ["protodirsig.compose", "protodirsig.run_spec", "protodirsig.orbit", "protodirsig.contract", "protodirsig.identity",
-        "protodirsig.dirhash", "protodirsig.problems", "protodirsig.errors", "protodirsig.admission",
-        "protodirsig.store", "protodirsig.backend", "protodirsig.library",
-        "protodirsig.models", "protodirsig.workspace",
-        "protodirsig.passthrough"]
-DIRFM_BOUND = {"protodirsig.registry", "protodirsig.simulation", "protodirsig.worker"}   # worker: the engine side of LocalBackend
+PURE = ["manifold.core.compose", "manifold.core.run_spec", "manifold.sim.orbit", "manifold.core.contract", "manifold.core.identity",
+        "manifold.core.dirhash", "manifold.core.problems", "manifold.core.errors", "manifold.core.admission",
+        "manifold.sim.store", "manifold.sim.backend", "manifold.sim.library",
+        "manifold.core.models", "manifold.sim.workspace",
+        "manifold.sim._dirsig.passthrough"]
+DIRFM_BOUND = {"manifold.sim._dirsig.registry", "manifold.sim._dirsig.simulation", "manifold.sim.worker"}   # worker: the engine side of LocalBackend
 
 
 def _loaded(module):
@@ -65,8 +65,8 @@ try:
     raise SystemExit("dirfm imported despite the block")
 except ImportError:
     pass
-from protodirsig.compose import compose
-from protodirsig.run_spec import load_sensor_spec, RunSpecError
+from manifold.core.compose import compose
+from manifold.core.run_spec import load_sensor_spec, RunSpecError
 spec = compose({str(recipe)!r})
 print(json.dumps({{"name": spec["descriptor"]["meta"]["name"], "engine": "dirfm" in sys.modules}}))
 """
@@ -90,8 +90,8 @@ def test_engine_free_validation_runs_with_the_engine_packages_unimportable():
     code = BLOCKED + f"""
 import json, yaml
 from pathlib import Path
-from protodirsig import identity
-from protodirsig.admission import validate_spec
+from manifold.core import identity
+from manifold.core.admission import validate_spec
 out = {{}}
 for p in {specs!r}:
     spec = yaml.safe_load(Path(p).read_text())
@@ -109,12 +109,46 @@ print(json.dumps({{"runs": out, "engine": sorted(m for m in ("dirfm", "skyfield"
 
 
 def test_importing_the_package_loads_no_engine_package():
-    """`import protodirsig` and its `Workspace` load none of dirfm, skyfield, sgp4."""
-    code = ("import json, sys, protodirsig\n"
+    """`import manifold.sim` and its `Workspace` load none of dirfm, skyfield, sgp4."""
+    code = ("import json, sys, manifold.sim\n"
             "light = sorted({m.split('.')[0] for m in sys.modules})\n"
-            "protodirsig.Workspace\n"
+            "manifold.sim.Workspace\n"
             "print(json.dumps([light, sorted({m.split('.')[0] for m in sys.modules})]))")
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout
     light, with_workspace = (set(x) for x in json.loads(out))
     assert light.isdisjoint(ENGINE + PROPAGATOR) and with_workspace.isdisjoint(ENGINE + PROPAGATOR)
     assert "lxml" not in light and "numpy" not in light                  # the package import itself is light
+
+
+CORE = sorted(f"manifold.core.{p.stem}" for p in (ROOT / "packages" / "core" / "src" / "manifold" / "core").glob("*.py")
+              if p.stem != "__init__") + ["manifold.core"]
+
+
+def _loaded_names(module):
+    code = (f"import json, sys, {module}\n"
+            f"print(json.dumps(sorted(sys.modules)))")
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout
+    return set(json.loads(out))
+
+
+@pytest.mark.parametrize("module", CORE)
+def test_core_imports_nothing_from_sim_no_engine_and_no_numpy(module):
+    """`manifold.core` is engine-neutral: importing any of its modules loads no `manifold.sim` module, no engine package
+    (`dirfm`, `manifold.engines`), no propagator and no numpy."""
+    names = _loaded_names(module)
+    assert not {n for n in names if n == "manifold.sim" or n.startswith(("manifold.sim.", "manifold.engines"))}
+    assert {n.split(".")[0] for n in names}.isdisjoint(ENGINE + PROPAGATOR + ("numpy",))
+
+
+def test_the_pure_list_covers_every_core_module():
+    """Every core module is in PURE or is a helper whose purity the test above checks."""
+    assert {m for m in CORE if m != "manifold.core"} >= {m for m in PURE if m.startswith("manifold.core.")}
+
+
+def test_no_distribution_ships_the_namespace_init():
+    """`manifold` and `manifold.engines` are PEP 420 namespaces: no source tree under packages/ has their `__init__.py`."""
+    for dist in (ROOT / "packages").iterdir():
+        assert not (dist / "src" / "manifold" / "__init__.py").exists(), dist.name
+        assert not (dist / "src" / "manifold" / "engines" / "__init__.py").exists(), dist.name
+    import manifold
+    assert getattr(manifold, "__file__", None) is None and len(list(manifold.__path__)) >= 2

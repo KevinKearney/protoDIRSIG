@@ -49,10 +49,10 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+sys.path[:0] = [str(ROOT / "packages" / d / "src") for d in ("core", "sim")]   # the manifold namespace, uninstalled
 
-from protodirsig.dirhash import directory_digest                  # noqa: E402
-from protodirsig.passthrough import max_zone_temp_c, throttle_suspect   # noqa: E402
+from manifold.core.dirhash import directory_digest                  # noqa: E402
+from manifold.sim._dirsig.passthrough import max_zone_temp_c, throttle_suspect   # noqa: E402
 
 DIRSIG4 = ("MoonSat1", "Ssa2", "Ssa3")
 DIRSIG4_NOTE = "flagged DIRSIG 4 only by the online demo page, which the user read"
@@ -390,8 +390,8 @@ class Sweep:
         safe_delete(path, allowed=[self.work, self.demo_dirs], protected=self.protected)
 
     def _workspace(self, work):
-        from protodirsig import Workspace
-        from protodirsig.backend import LocalBackend
+        from manifold.sim import Workspace
+        from manifold.sim.backend import LocalBackend
         kwargs = {"work": work, "config_repo": self.config_repo}
         if self.library is not None:
             kwargs["library"] = self.library
@@ -402,7 +402,7 @@ class Sweep:
         return ws
 
     def attempt(self, name, digest, simulation, repeat=False):
-        from protodirsig.errors import ProblemError
+        from manifold.core.errors import ProblemError
         tag = "repeat" if repeat else "first"
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
         work = self.work / "runs" / f"{name}-{Path(simulation).stem}-{tag}-{stamp}"
@@ -646,7 +646,7 @@ def main(argv=None, clock=time.time):
     if a.per_run_timeout <= 0 or a.budget_hours <= 0:
         ap.error("--per-run-timeout and --budget-hours must be positive")
     if a.work is None:
-        from protodirsig.workspace import default_work_root
+        from manifold.sim.workspace import default_work_root
         a.work = str(default_work_root().parent / "sweeps" / datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S"))
     work = Path(a.work).resolve()
     if work.is_relative_to(ROOT):
