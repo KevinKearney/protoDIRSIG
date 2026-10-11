@@ -1,4 +1,4 @@
-# protoDIRSIG SDK API: requirements
+# manifold SDK API: requirements
 
 Status: proposed. Contract version `sdk-api/1`.
 

@@ -16,7 +16,7 @@ a sensor must conform to `sensor-spec/1`; a recipe must carry `compose`, `meta`,
 `sensor` or `sensors`, and only the keys `compose.merge` accepts of a recipe; a scenario must hold `collection` and an
 engine profile `origin` and `engine`, and nothing outside what `compose.OWNER` assigns them.
 
-Imports: the standard library, `yaml` and pure `protodirsig` modules (`compose`, `contract`, `errors`, `problems`); no
+Imports: the standard library, `yaml` and pure `manifold.core` modules (`compose`, `contract`, `errors`, `problems`); no
 engine package.
 """
 import hashlib

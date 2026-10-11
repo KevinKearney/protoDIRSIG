@@ -1,10 +1,10 @@
 openapi: 3.1.0
 info:
-  title: protoDIRSIG SDK API
+  title: manifold SDK API
   version: sdk-api/1
   summary: Compose, validate, submit and inspect DIRSIG runs from layered YAML.
   description: >-
-    Status: proposed. This document is the REST form of the protoDIRSIG SDK's operation set; the Python facade
+    Status: proposed. This document is the REST form of the manifold SDK's operation set; the Python facade
     exposes the same operations, with the same inputs, outputs and errors, over a local backend that needs no
     server. Composition and validation are pure. Submission is admitted synchronously and executed asynchronously:
     a submission that passes admission returns a run or sweep id at once, and its state is then read by id. Run

@@ -15,102 +15,102 @@
           "name": "run_spec.json",
           "sha256": "b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37",
           "media_type": "application/json",
-          "uri": "file:///tmp/protodirsig/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/run_spec.json"
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/run_spec.json"
         },
         {
           "name": "run_info.json",
           "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
           "media_type": "application/json",
-          "uri": "file:///tmp/protodirsig/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/run_info.json"
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/run_info.json"
         },
         {
           "name": "log_info.json",
           "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
           "media_type": "application/json",
-          "uri": "file:///tmp/protodirsig/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/log_info.json"
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/log_info.json"
         },
         {
           "name": "AurorNIROutput-t0000-c0000.img",
           "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
           "media_type": "application/octet-stream",
-          "uri": "file:///tmp/protodirsig/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/AurorNIROutput-t0000-c0000.img",
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/AurorNIROutput-t0000-c0000.img",
           "frame": 0
         },
         {
           "name": "AurorNIROutput-t0000-c0000.img.hdr",
           "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
           "media_type": "text/plain",
-          "uri": "file:///tmp/protodirsig/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/AurorNIROutput-t0000-c0000.img.hdr",
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/AurorNIROutput-t0000-c0000.img.hdr",
           "frame": 0
         },
         {
           "name": "truth1-t0000-c0000.img",
           "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
           "media_type": "application/octet-stream",
-          "uri": "file:///tmp/protodirsig/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/truth1-t0000-c0000.img",
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/truth1-t0000-c0000.img",
           "frame": 0
         },
         {
           "name": "truth1-t0000-c0000.img.hdr",
           "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
           "media_type": "text/plain",
-          "uri": "file:///tmp/protodirsig/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/truth1-t0000-c0000.img.hdr",
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/truth1-t0000-c0000.img.hdr",
           "frame": 0
         },
         {
           "name": "AurorNIROutput-t0001-c0000.img",
           "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
           "media_type": "application/octet-stream",
-          "uri": "file:///tmp/protodirsig/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/AurorNIROutput-t0001-c0000.img",
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/AurorNIROutput-t0001-c0000.img",
           "frame": 1
         },
         {
           "name": "AurorNIROutput-t0001-c0000.img.hdr",
           "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
           "media_type": "text/plain",
-          "uri": "file:///tmp/protodirsig/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/AurorNIROutput-t0001-c0000.img.hdr",
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/AurorNIROutput-t0001-c0000.img.hdr",
           "frame": 1
         },
         {
           "name": "truth1-t0001-c0000.img",
           "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
           "media_type": "application/octet-stream",
-          "uri": "file:///tmp/protodirsig/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/truth1-t0001-c0000.img",
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/truth1-t0001-c0000.img",
           "frame": 1
         },
         {
           "name": "truth1-t0001-c0000.img.hdr",
           "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
           "media_type": "text/plain",
-          "uri": "file:///tmp/protodirsig/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/truth1-t0001-c0000.img.hdr",
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/truth1-t0001-c0000.img.hdr",
           "frame": 1
         },
         {
           "name": "AurorNIROutput-t0002-c0000.img",
           "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
           "media_type": "application/octet-stream",
-          "uri": "file:///tmp/protodirsig/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/AurorNIROutput-t0002-c0000.img",
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/AurorNIROutput-t0002-c0000.img",
           "frame": 2
         },
         {
           "name": "AurorNIROutput-t0002-c0000.img.hdr",
           "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
           "media_type": "text/plain",
-          "uri": "file:///tmp/protodirsig/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/AurorNIROutput-t0002-c0000.img.hdr",
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/AurorNIROutput-t0002-c0000.img.hdr",
           "frame": 2
         },
         {
           "name": "truth1-t0002-c0000.img",
           "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
           "media_type": "application/octet-stream",
-          "uri": "file:///tmp/protodirsig/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/truth1-t0002-c0000.img",
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/truth1-t0002-c0000.img",
           "frame": 2
         },
         {
           "name": "truth1-t0002-c0000.img.hdr",
           "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
           "media_type": "text/plain",
-          "uri": "file:///tmp/protodirsig/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/truth1-t0002-c0000.img.hdr",
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/truth1-t0002-c0000.img.hdr",
           "frame": 2
         }
       ]

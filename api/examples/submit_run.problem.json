@@ -18,7 +18,7 @@
     "status": 422,
     "media_type": "application/problem+json",
     "body": {
-      "type": "urn:protodirsig:problem:admission",
+      "type": "urn:manifold:problem:admission",
       "title": "The submission failed admission",
       "status": 422,
       "detail": "Run auror-ref-static-pose is not valid run-spec/1: engine_profiles/tahoe_static_pose.yaml: engine.motion.kind: 'bogus' is not one of ['static', 'waypoints', 'orbit']",

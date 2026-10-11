@@ -8,7 +8,7 @@ computes the run id (`identity.run_id`). It returns a `ValidationReport` and nev
 dry run is performed (`engine_checked` is always False here); `Simulation.validate("dry_run")` adds it, and implements
 its own schema, resolution and unstamped parts through this function, so the two cannot diverge.
 
-Imports: the standard library and pure `protodirsig` modules (`contract`, `identity`, `run_spec`, and, inside
+Imports: the standard library and pure `manifold.core` modules (`contract`, `identity`, `run_spec`, and, inside
 `check_library_files`, `platform_gen`, `spectral`, `orbit`); nothing from `dirfm`, skyfield, sgp4, `simulation` or
 `registry` (tests/test_import_boundary.py runs it with those imports blocked).
 """

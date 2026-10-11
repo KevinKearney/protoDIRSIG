@@ -25,7 +25,7 @@ States: `accepted`, `running`, then one final state, `rendered`, `failed` or `ca
 `reap` knows the worker by pid and start time (`process_start`), both fixed at the fork, so a worker read while it
 execs (its command line is briefly empty or the parent's) is not mistaken for a dead one.
 
-POSIX only (`fcntl`, `/proc`, process groups). Imports: the standard library, `yaml`, and pure `protodirsig` modules
+POSIX only (`fcntl`, `/proc`, process groups). Imports: the standard library, `yaml`, and pure `manifold.core` modules
 (`identity`, `errors`, `problems`); no engine package.
 """
 import fcntl

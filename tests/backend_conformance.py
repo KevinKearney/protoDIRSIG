@@ -363,7 +363,7 @@ class BackendConformance:
             run_id = backend.submit_run(recipe)["run_id"]
             self.kill_worker(backend, run_id)
             status = wait_for(backend, run_id, ("failed",), timeout=30)
-        assert status["errors"][0]["type"] == "urn:protodirsig:problem:execution"
+        assert status["errors"][0]["type"] == "urn:manifold:problem:execution"
         assert schema_errors("run_status", status) == []
 
     def test_two_instances_see_the_same_runs(self, backend, rendered):

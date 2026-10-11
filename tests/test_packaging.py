@@ -68,7 +68,7 @@ def test_an_installed_wheel_validates_without_the_repository(wheel, tmp_path):
     site = tmp_path / "site"
     with zipfile.ZipFile(wheel) as z:
         z.extractall(site)
-    env = {k: v for k, v in os.environ.items() if k != "PROTODIRSIG_CONTRACTS"}
+    env = {k: v for k, v in os.environ.items() if k != "MANIFOLD_CONTRACTS"}
     r = subprocess.run([sys.executable, "-c", CHECK, str(site), str(VALID)], cwd=tmp_path, env=env,
                        capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
@@ -76,12 +76,12 @@ def test_an_installed_wheel_validates_without_the_repository(wheel, tmp_path):
 
 
 def test_the_checkout_has_no_packaged_copy_and_reads_manifold_contracts(monkeypatch):
-    monkeypatch.delenv("PROTODIRSIG_CONTRACTS", raising=False)
+    monkeypatch.delenv("MANIFOLD_CONTRACTS", raising=False)
     assert not (ROOT / "packages" / "core" / "src" / "manifold" / "core" / "_contracts").exists()
     assert contract.packaged_contracts_dir() is None
     assert contract.contracts_dir() == ROOT / "manifold_contracts"
 
 
 def test_the_environment_variable_comes_first(monkeypatch, tmp_path):
-    monkeypatch.setenv("PROTODIRSIG_CONTRACTS", str(tmp_path))
+    monkeypatch.setenv("MANIFOLD_CONTRACTS", str(tmp_path))
     assert contract.contracts_dir() == tmp_path

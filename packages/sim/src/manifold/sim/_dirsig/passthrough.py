@@ -19,8 +19,8 @@ folder are moved into it. `engine` is the `dirsig5` executable (a stub in tests)
 `HOME` set to that folder (created if missing) and every other variable, `DIRSIG_HOME` included, inherited: DIRSIG writes
 its material caches under `$HOME/Documents/DIRSIG/cache`, so a per-run home keeps them out of the user's cache and lets
 the run record them (`cache_state`). While the tools run, `ThermalSampler` reads the maximum temperature over
-`/sys/class/thermal/thermal_zone*/temp` (`$PROTODIRSIG_THERMAL_ZONES` overrides the folder) every 5 seconds (`max_cpu_temp_c` in the result, None without sensors), and the cores' current frequencies with it
-(`cpu_freq_khz`, `$PROTODIRSIG_CPUFREQ` overrides `/sys/devices/system/cpu`).
+`/sys/class/thermal/thermal_zone*/temp` (`$MANIFOLD_THERMAL_ZONES` overrides the folder) every 5 seconds (`max_cpu_temp_c` in the result, None without sensors), and the cores' current frequencies with it
+(`cpu_freq_khz`, `$MANIFOLD_CPUFREQ` overrides `/sys/devices/system/cpu`).
 `tool_version` is a tool's version line as the tool prints it.
 
 Imports: the standard library, `manifold.core.run_spec` and `manifold.core.dirhash`; no engine package.
@@ -34,8 +34,8 @@ from pathlib import Path, PurePosixPath
 from manifold.core import _names
 from manifold.core.passthrough_spec import OPAQUE, POINTER, PassthroughRun, is_passthrough, resolve_passthrough  # noqa: F401  (re-exported)
 
-THERMAL_ZONES = os.environ.get(_names.env("THERMAL_ZONES"), "/sys/class/thermal")   # overridable for tests
-CPU_FREQ = os.environ.get(_names.env("CPUFREQ"), "/sys/devices/system/cpu")             # overridable for tests
+THERMAL_ZONES = _names.getenv("THERMAL_ZONES", "/sys/class/thermal")   # overridable for tests
+CPU_FREQ = _names.getenv("CPUFREQ", "/sys/devices/system/cpu")             # overridable for tests
 THROTTLE_SUSPECT_C = 90.0         # a run is throttle_suspect at this maximum temperature ...
 THROTTLE_FREQ_FRACTION = 0.9      # ... with a core below this fraction of cpuinfo_max_freq
 

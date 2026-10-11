@@ -236,7 +236,7 @@ def test_admission_problem_example_names_the_edited_engine_profile_field():
     copy of the library: the edited layer file and the field in it, with each violation in `errors`."""
     ex = _load(API / "examples" / "submit_run.problem.json")
     body = ex["response"]["body"]
-    assert (body["type"], body["status"]) == ("urn:protodirsig:problem:admission", 422)
+    assert (body["type"], body["status"]) == ("urn:manifold:problem:admission", 422)
     assert (body["layer"], body["field"]) == (ex["source"]["edited_layer"], "engine.motion.kind")
     assert [(e["layer"], e["field"]) for e in body["errors"]] == [(body["layer"], body["field"])]
     assert "temporary copy" in ex["description"]

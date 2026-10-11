@@ -10,7 +10,7 @@ compare-and-set from `running`, so a cancelled run is never overwritten. The slo
 is written to `worker.log` (where the backend also sends the process's stdout and stderr).
 
 The execution record (`execution.json`) gains: `started_at`, `finished_at`, `worker` (`pid`, `pgid`, `start_ticks`,
-`boot_time`), `python`, the `protodirsig` version, the `dirfm` revision in use and whether it equals the spec's
+`boot_time`), `python`, the `eoptic-manifold-sim` version (under the key `protodirsig_version`, `_names.RECORD_VERSION_KEY`), the `dirfm` revision in use and whether it equals the spec's
 `engine.generator.revision`, the DIRSIG installation and version, the propagator of an orbit run, and `max_parallel`. It is never part of a run id.
 
 A pass-through run (`engine.mode: passthrough`, proposed) skips the layered job: the engine (`job.json` `engine`, else
@@ -104,7 +104,7 @@ def dirfm_revision():
     return {"revision": _pins().get("dirfm", {}).get("commit"), "source": "external/pins.json (no git checkout found)"}
 
 
-def _protodirsig_version():
+def _sdk_version():
     try:
         return version(_names.DISTRIBUTION)
     except PackageNotFoundError:
@@ -220,7 +220,7 @@ def main(run_dir, simulation_factory=_simulation):
         except (OSError, KeyError, TypeError, ValueError):
             spec = None
         store.update_record(run_id, {"started_at": utc_now(), "python": platform.python_version(),
-                                     _names.RECORD_VERSION_KEY: _protodirsig_version(),
+                                     _names.RECORD_VERSION_KEY: _sdk_version(),
                                      "dirfm": {**dirfm, "generator_revision": spec_revision,
                                                "generator_revision_matches": dirfm["revision"] == spec_revision},
                                      "dirsig": dirsig})

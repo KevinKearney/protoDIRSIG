@@ -300,7 +300,7 @@ def test_a_passthrough_run_renders_with_the_stub_engine(tmp_path, library, layer
 def test_an_engine_failure_fails_the_run(tmp_path, library, layers, monkeypatch):
     monkeypatch.setenv("STUB_ENGINE_EXIT", "7")
     backend, final = _submit(tmp_path, library, layers)
-    assert final["state"] == "failed" and final["errors"][0]["type"] == "urn:protodirsig:problem:execution"
+    assert final["state"] == "failed" and final["errors"][0]["type"] == "urn:manifold:problem:execution"
     assert "status 7" in final["errors"][0]["detail"]
 
 
@@ -452,7 +452,7 @@ def test_the_thermal_sampler_reads_the_maximum_over_zones(tmp_path):
 def test_the_execution_record_has_the_maximum_temperature_and_the_throttle_flag(tmp_path, library, layers, monkeypatch,
                                                                                 temps, flagged):
     root = _zones(tmp_path / "thermal", temps)
-    monkeypatch.setenv("PROTODIRSIG_THERMAL_ZONES", str(root))
+    monkeypatch.setenv("MANIFOLD_THERMAL_ZONES", str(root))
     backend, final = _submit(tmp_path, library, layers)
     rec = backend.store.read_record(final["run_id"])
     assert rec["max_cpu_temp_c"] == (max(temps) if temps else None)
@@ -491,8 +491,8 @@ def test_cpu_frequency_and_the_throttle_rule(tmp_path):
 
 @pytest.mark.parametrize("cur, flagged", [([4_000_000, 3_900_000], False), ([4_000_000, 2_000_000], True), (None, True)])
 def test_the_execution_record_has_the_cpu_frequency(tmp_path, library, layers, monkeypatch, cur, flagged):
-    monkeypatch.setenv("PROTODIRSIG_THERMAL_ZONES", str(_zones(tmp_path / "thermal", [95.0])))
-    monkeypatch.setenv("PROTODIRSIG_CPUFREQ", str(_cpus(tmp_path / "cpu", cur) if cur else tmp_path / "none"))
+    monkeypatch.setenv("MANIFOLD_THERMAL_ZONES", str(_zones(tmp_path / "thermal", [95.0])))
+    monkeypatch.setenv("MANIFOLD_CPUFREQ", str(_cpus(tmp_path / "cpu", cur) if cur else tmp_path / "none"))
     monkeypatch.setenv("STUB_ENGINE_SLEEP", "1.5")                               # long enough for a frequency sample
     backend, final = _submit(tmp_path, library, layers)
     rec = backend.store.read_record(final["run_id"])

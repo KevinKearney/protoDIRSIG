@@ -312,11 +312,11 @@ class Problem(_Model):
     Attributes
     ----------
     type : str
-        A URI reference identifying the kind of problem. This contract defines `urn:protodirsig:problem:compose` (a
-        recipe does not compose), `urn:protodirsig:problem:admission` (a submission failed admission),
-        `urn:protodirsig:problem:not-found` (an unknown id or name), `urn:protodirsig:problem:invalid-request` (a
-        request body that does not match its schema, or a request the SDK cannot act on as given) and
-        `urn:protodirsig:problem:execution` (an accepted run failed while executing; status 500).
+        A URI reference identifying the kind of problem. This contract defines `urn:manifold:problem:compose` (a
+        recipe does not compose), `urn:manifold:problem:admission` (a submission failed admission),
+        `urn:manifold:problem:not-found` (an unknown id or name), `urn:manifold:problem:invalid-request` (a request
+        body that does not match its schema, or a request the SDK cannot act on as given) and
+        `urn:manifold:problem:execution` (an accepted run failed while executing; status 500).
     title : str
         A short, human-readable summary of the kind of problem. It is the same for every occurrence of a `type`.
     status : int

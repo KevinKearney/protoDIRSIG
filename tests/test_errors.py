@@ -93,7 +93,7 @@ def test_a_resolution_failure_names_the_layer_file_and_field(library, tmp_path, 
     root, lib = library
     field = edit(root, lib)
     p = _submit(root, lib, tmp_path)
-    assert (p["type"], p["status"], p["layer"], p["field"]) == ("urn:protodirsig:problem:admission", 422, PROFILE, field)
+    assert (p["type"], p["status"], p["layer"], p["field"]) == ("urn:manifold:problem:admission", 422, PROFILE, field)
     assert "Resolution check failed" in p["detail"]
 
 
@@ -175,9 +175,9 @@ def test_problem_errors_carry_conforming_problems():
     for err in cases:
         conforms(err.problem)
         assert str(err) == err.problem["detail"] and err.status == err.problem["status"]
-    assert (cases[1].status, cases[1].type) == (404, "urn:protodirsig:problem:not-found")
-    assert cases[2].type == "urn:protodirsig:problem:invalid-request" and cases[2].status == 422
-    assert cases[4].status == 500 and cases[4].type == "urn:protodirsig:problem:execution"
+    assert (cases[1].status, cases[1].type) == (404, "urn:manifold:problem:not-found")
+    assert cases[2].type == "urn:manifold:problem:invalid-request" and cases[2].status == 422
+    assert cases[4].status == 500 and cases[4].type == "urn:manifold:problem:execution"
     assert all(isinstance(e, ProblemError) for e in cases)
     with pytest.raises(TypeError):
         ProblemError({"detail": "no type"})
@@ -204,10 +204,10 @@ def test_except_problem_error_catches_every_sdk_error(err):
 def test_the_built_problems_carry_class_type_and_members():
     from manifold.core.compose import ComposeError
     c = ComposeError("recipes/r.yaml", "fidelity", "missing").problem
-    assert (c["type"], c["status"], c["layer"], c["field"]) == ("urn:protodirsig:problem:compose", 422, "recipes/r.yaml",
+    assert (c["type"], c["status"], c["layer"], c["field"]) == ("urn:manifold:problem:compose", 422, "recipes/r.yaml",
                                                                 "fidelity")
     r = RunSpecError("m").problem
-    assert (r["type"], r["status"], r["layer"]) == ("urn:protodirsig:problem:admission", 422, None)
+    assert (r["type"], r["status"], r["layer"]) == ("urn:manifold:problem:admission", 422, None)
     a = AdmissionError("x", layer="l.yaml", field="f").problem
     assert (a["layer"], a["field"]) == ("l.yaml", "f")
     assert isinstance(RunSpecError("m"), ValueError) and issubclass(ComposeError, RunSpecError)

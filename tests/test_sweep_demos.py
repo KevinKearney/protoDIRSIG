@@ -159,7 +159,7 @@ def _sweep(tmp_path, home, deadline=None, clock=None, **kw):
 
 
 def test_a_sweep_renders_repeats_records_and_cleans_up(tmp_path, home, monkeypatch):
-    monkeypatch.setenv("PROTODIRSIG_THERMAL_ZONES", str(tmp_path / "no-sensors"))   # the worker reads none
+    monkeypatch.setenv("MANIFOLD_THERMAL_ZONES", str(tmp_path / "no-sensors"))   # the worker reads none
     s = _sweep(tmp_path, home)
     s.run(only={"Small1", "Ssa2", "Dup1 (2)"})
     rows = sweep_demos.demo_rows(s.records())
@@ -322,7 +322,7 @@ def test_the_report_caps_a_demo_s_output_rows():
 
 @pytest.mark.parametrize("repeat, expected", [((), "not tested"), (("Small1",), "no")])
 def test_repeat_names_a_demo_to_repeat_whatever_its_duration(tmp_path, home, monkeypatch, repeat, expected):
-    monkeypatch.setenv("PROTODIRSIG_THERMAL_ZONES", str(tmp_path / "no-sensors"))
+    monkeypatch.setenv("MANIFOLD_THERMAL_ZONES", str(tmp_path / "no-sensors"))
     monkeypatch.setattr(sweep_demos, "REPEAT_UNDER_S", 0)                     # every render counts as long
     s = _sweep(tmp_path, home, repeat=repeat)
     s.run(only={"Small1"})

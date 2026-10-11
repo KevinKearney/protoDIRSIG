@@ -1,8 +1,8 @@
-# protoDIRSIG SDK API contract
+# manifold SDK API contract
 
 Status: proposed. Contract version `sdk-api/1`.
 
-This folder is the contract of the protoDIRSIG SDK: the operations it offers, their inputs, outputs and errors, and the payload schemas they exchange. The SDK's Python class and its REST wrapper are to be written and tested against it. The SDK class is a hand-written facade over a `Backend` protocol with two implementations: `LocalBackend` (`manifold.sim.backend`, built: a run store under a work root and a worker process per run), which needs no server; and `RemoteBackend`, a REST client generated from `openapi.yaml` (not built). Nothing here is implemented beyond what `operations.md` marks `built` or `partial`.
+This folder is the contract of the manifold SDK: the operations it offers, their inputs, outputs and errors, and the payload schemas they exchange. The SDK's Python class and its REST wrapper are to be written and tested against it. The SDK class is a hand-written facade over a `Backend` protocol with two implementations: `LocalBackend` (`manifold.sim.backend`, built: a run store under a work root and a worker process per run), which needs no server; and `RemoteBackend`, a REST client generated from `openapi.yaml` (not built). Nothing here is implemented beyond what `operations.md` marks `built` or `partial`.
 
 ## The Python facade
 

@@ -1,4 +1,4 @@
-# protoDIRSIG SDK API: operations
+# manifold SDK API: operations
 
 Status: proposed. Contract version `sdk-api/1`.
 

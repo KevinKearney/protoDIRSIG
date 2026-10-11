@@ -110,7 +110,7 @@ def test_reap_fails_a_run_whose_worker_died(store, resolved):
     run_id, _ = store.create_run(resolved, "n", JOB)
     store.update_record(run_id, {"worker": {"pid": _dead_pid(), "pgid": 0}})
     status = store.read_status(run_id)
-    assert status["state"] == "failed" and status["errors"][0]["type"] == "urn:protodirsig:problem:execution"
+    assert status["state"] == "failed" and status["errors"][0]["type"] == "urn:manifold:problem:execution"
     assert "no longer running" in status["errors"][0]["detail"] and schema_errors("run_status", status) == []
     assert store.read_record(run_id)["finished_at"]
 
@@ -288,7 +288,7 @@ def test_worker_fails_a_run_whose_dry_run_fails(store, resolved):
     worker.main(store.run_dir(run_id), _factory(calls, dry_run_ok=False))
     status = store.read_status(run_id)
     assert status["state"] == "failed" and [c[0] for c in calls] == ["validate"]
-    assert status["errors"][0]["type"] == "urn:protodirsig:problem:execution" and "no scene" in status["errors"][0]["detail"]
+    assert status["errors"][0]["type"] == "urn:manifold:problem:execution" and "no scene" in status["errors"][0]["detail"]
     assert schema_errors("run_status", status) == []
 
 

@@ -141,7 +141,7 @@ def test_a_mutated_layer_is_named_by_file_and_field(library, case):
     violations = schema_violations(spec)
     assert violations, case
     p = conforms(problems.from_schema_violations(spec, sweep.sources[name], violations, "/runs", recipe=recipe))
-    assert (p["type"], p["status"], p["layer"], p["field"]) == ("urn:protodirsig:problem:admission", 422, layer, field)
+    assert (p["type"], p["status"], p["layer"], p["field"]) == ("urn:manifold:problem:admission", 422, layer, field)
     assert p["detail"].startswith(f"Run {name} is not valid run-spec/1: {layer}: {field}: ")
     assert [e["run"] for e in p["errors"]] == [name] * len(violations)
     assert (p["errors"][0]["layer"], p["errors"][0]["field"]) == (layer, field)
@@ -184,14 +184,14 @@ def test_compose_error_problem(library):
     with pytest.raises(ComposeError) as e:
         compose(library / "recipes" / "auror_ref.yaml")
     p = conforms(problems.from_compose_error(e.value, "/compose"))
-    assert (p["type"], p["status"], p["layer"], p["field"]) == ("urn:protodirsig:problem:compose", 422,
+    assert (p["type"], p["status"], p["layer"], p["field"]) == ("urn:manifold:problem:compose", 422,
                                                                  "recipes/auror_ref.yaml", "settings[0].entry_id")
     assert p["detail"] == str(e.value) and p["instance"] == "/compose"
 
 
 def test_not_found_problem():
     p = conforms(problems.not_found("run", "0" * 64, "/runs/" + "0" * 64))
-    assert (p["type"], p["status"]) == ("urn:protodirsig:problem:not-found", 404) and "0" * 64 in p["detail"]
+    assert (p["type"], p["status"]) == ("urn:manifold:problem:not-found", 404) and "0" * 64 in p["detail"]
 
 
 def test_from_schema_violations_needs_a_violation():
@@ -221,7 +221,7 @@ def test_submission_problem_names_the_engine_profile_field(library, tmp_path):
     r = _submit_recipe(library, tmp_path)
     assert not r.accepted and not r.checks["schema"]
     p = conforms(r.problem)
-    assert (p["type"], p["layer"], p["field"]) == ("urn:protodirsig:problem:admission",
+    assert (p["type"], p["layer"], p["field"]) == ("urn:manifold:problem:admission",
                                                     "engine_profiles/tahoe_static_pose.yaml", "engine.motion.kind")
     assert p["detail"].startswith("Schema check failed")
 
@@ -243,7 +243,7 @@ def test_submission_problem_for_a_recipe_that_does_not_compose(library, tmp_path
     _edit(library / "recipes" / "auror_ref.yaml", "sensor: auror-nir.yaml", "sensor: no-such-sensor.yaml")
     r = _submit_recipe(library, tmp_path)
     p = conforms(r.problem)
-    assert (p["type"], p["layer"], p["field"]) == ("urn:protodirsig:problem:compose", "recipes/auror_ref.yaml", "sensor")
+    assert (p["type"], p["layer"], p["field"]) == ("urn:manifold:problem:compose", "recipes/auror_ref.yaml", "sensor")
 
 
 @needs_dirsig

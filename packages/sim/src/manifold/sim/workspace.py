@@ -10,6 +10,7 @@ Imports no engine package at module level (the backend's worker process is the o
 import hashlib
 import logging
 import os
+import shlex
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -23,8 +24,8 @@ FINAL_STATES = ("rendered", "failed", "cancelled")
 
 
 def default_work_root():
-    """The default work root of `Workspace.local`: `$XDG_STATE_HOME/protodirsig/work`, else
-    `~/.local/state/protodirsig/work`.
+    """The default work root of `Workspace.local`: `$XDG_STATE_HOME/manifold/work`, else
+    `~/.local/state/manifold/work`.
 
     Run records are identity-keyed results, not a cache, so they live in the state directory, not the cache directory.
 
@@ -33,8 +34,23 @@ def default_work_root():
     pathlib.Path
         The folder runs are stored under when no `work` is given.
     """
-    base = os.environ.get("XDG_STATE_HOME") or str(Path.home() / ".local" / "state")
-    return Path(base) / _names.STATE_DIR_NAME / "work"
+    return _state_base() / _names.STATE_DIR_NAME / "work"
+
+
+def _state_base():
+    return Path(os.environ.get("XDG_STATE_HOME") or str(Path.home() / ".local" / "state"))
+
+
+def legacy_work_root():
+    """The default work root before the rename: `$XDG_STATE_HOME/protodirsig/work`, else
+    `~/.local/state/protodirsig/work`. It is never moved or deleted.
+
+    Returns
+    -------
+    pathlib.Path
+        The pre-rename default work root.
+    """
+    return _state_base() / _names.LEGACY_STATE_DIR_NAME / "work"
 
 
 def former_work_root():
@@ -47,18 +63,41 @@ def former_work_root():
         The former default work root.
     """
     base = os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache")
-    return Path(base) / _names.STATE_DIR_NAME / "work"
+    return Path(base) / _names.LEGACY_STATE_DIR_NAME / "work"
+
+
+def _no_runs(work):
+    runs = work / "runs"
+    return not runs.is_dir() or not any(runs.iterdir())       # no run stored yet (the store's empty folders count as empty)
+
+
+def move_command(old, new):
+    """The shell command that moves the work root `old` to `new`: `mv`, after removing the empty folders a store
+    leaves in `new` (`rmdir` refuses anything that is not empty) or creating its parent."""
+    q = shlex.quote
+    if new.exists():
+        empty = " ".join(q(str(new / d)) for d in ("runs", "sweeps", "slots") if (new / d).is_dir())
+        prep = f"rmdir {empty + ' ' if empty else ''}{q(str(new))}"
+    else:
+        prep = f"mkdir -p {q(str(new.parent))}"
+    return f"{prep} && mv {q(str(old))} {q(str(new))}"
 
 
 def _warn_about_former_root(work):
-    """One warning when the former default work root exists and the new default is empty (runs stay where they are)."""
+    """One warning when a former default work root exists and the new default holds no run (runs stay where they are):
+    the pre-rename state directory (`legacy_work_root`), with the command that moves it, and the cache directory of
+    earlier releases (`former_work_root`)."""
+    log = logging.getLogger(_names.LOGGER_NAME)
+    if not _no_runs(work):
+        return
+    legacy = legacy_work_root()
+    if legacy.is_dir() and legacy != work:
+        log.warning("the default work root is now %s; runs stored under the pre-rename default %s are not moved; to "
+                    "move them: %s", work, legacy, move_command(legacy, work))
     old = former_work_root()
-    runs = work / "runs"
-    empty = not runs.is_dir() or not any(runs.iterdir())       # no run stored yet (the store's empty folders count as empty)
-    if old.is_dir() and old != work and empty:
-        logging.getLogger(_names.LOGGER_NAME).warning(
-            "the default work root is now %s; runs stored under the former default %s are not moved (pass "
-            "work=%r to keep using them)", work, old, str(old))
+    if old.is_dir() and old != work:
+        log.warning("the default work root is now %s; runs stored under the former default %s are not moved (pass "
+                    "work=%r to keep using them)", work, old, str(old))
 
 
 @dataclass(frozen=True)
@@ -86,7 +125,7 @@ class Workspace:
 
     Examples
     --------
-    >>> ws = Workspace.local(work="/tmp/protodirsig-work")              # doctest: +SKIP
+    >>> ws = Workspace.local(work="/tmp/manifold-work")                 # doctest: +SKIP
     >>> status = ws.submit_run("leo_pass_tahoe")                          # doctest: +SKIP
     >>> ws.wait(status.run_id).state                                      # doctest: +SKIP
     'rendered'
@@ -111,9 +150,10 @@ class Workspace:
         config_repo : str or pathlib.Path, optional
             The engine-asset library, read only; default the repository's `manifold_config_repo/`.
         work : str or pathlib.Path, optional
-            The work root runs are stored under; default `default_work_root()` (the state directory). If the former
-            default (`former_work_root()`, in the cache directory) exists and the new one is empty, one warning names
-            it; nothing is moved.
+            The work root runs are stored under; default `default_work_root()` (the state directory). If the
+            pre-rename default (`legacy_work_root()`) or the former default (`former_work_root()`, in the cache
+            directory) exists and the new one holds no run, one warning each names it (the first with the `mv`
+            command); nothing is moved.
         max_parallel : int, optional
             How many runs render at once (default 1).
         sensor_library : str or pathlib.Path, optional
@@ -126,18 +166,19 @@ class Workspace:
 
         Examples
         --------
-        >>> ws = Workspace.local(work="/tmp/protodirsig-work")              # doctest: +SKIP
+        >>> ws = Workspace.local(work="/tmp/manifold-work")                 # doctest: +SKIP
         >>> [s.name for s in ws.list_sensors().items]                         # doctest: +SKIP
         ['auror-nir.yaml', 'deepscan_850_306_nir_1280.yaml', 'synthetic_600_200_vis_1920.yaml']
         """
         library = Path(library) if library is not None else REPOSITORY / "manifold_run_specs"
         config_repo = Path(config_repo) if config_repo is not None else REPOSITORY / "manifold_config_repo"
-        if work is None:
-            work = default_work_root()
-            _warn_about_former_root(work)
-        work = Path(work)
-        return cls(LocalBackend(work, config_repo, max_parallel=max_parallel, sensor_library=sensor_library,
-                                library=library))
+        default = work is None
+        work = default_work_root() if default else Path(work)
+        backend = LocalBackend(work, config_repo, max_parallel=max_parallel, sensor_library=sensor_library,
+                               library=library)
+        if default:
+            _warn_about_former_root(work)       # after the store exists, so the move command fits what is on disk
+        return cls(backend)
 
     @classmethod
     def remote(cls, url, token=None):

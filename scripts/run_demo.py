@@ -5,7 +5,7 @@
 
 `<name>` is a demo name (`Brdf1` runs the recipe `demo_brdf1_passthrough`) or a recipe name. The run is submitted to a
 `Workspace.local` over the work root `--work` (default: a fresh folder under the state directory's
-`protodirsig/reference-runs/`), waited for up to `--timeout` seconds (default 1200), and measured: wall time, every output
+`manifold/reference-runs/`), waited for up to `--timeout` seconds (default 1200), and measured: wall time, every output
 file's name, size and sha256, the run directory's size, the engine's exit status and version. A run that fails or times
 out is a result: the failure, the worker log's tail and the cost so far are recorded, and a timed-out run is cancelled.
 `--repeat` runs the demo a second time in a second fresh work root when the first run took under 5 minutes, and records

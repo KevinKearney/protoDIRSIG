@@ -16,7 +16,7 @@
     "status": 422,
     "media_type": "application/problem+json",
     "body": {
-      "type": "urn:protodirsig:problem:compose",
+      "type": "urn:manifold:problem:compose",
       "title": "The recipe does not compose",
       "status": 422,
       "detail": "scenarios/tahoe_static_pose.yaml: fidelity: also in recipes/synthetic_vis.yaml; layers own disjoint members (this one belongs to the recipe)",
