@@ -20,6 +20,102 @@
     "engine": {
       "description": "The origin-specific generator input, required for a synthetic run and absent for field data. Open here (proposed): validated at admission against the schema of the engine adapter registered for descriptor.origin.engine (dirsig: dirsig-engine-1.schema.json).",
       "type": "object"
+    },
+    "resources": {
+      "description": "Proposed. The resources the run requests, as typed slots its engine's adapter declares (the SDK's engine adapter protocol). Admission checks each request against the engine's declaration and the backend's advertised capacity, and refuses a run the backend cannot provide (for example a GPU on a backend with none) or an unstamped asset. Slots that can change the result (cpu_threads, gpu, assets, interpreter) are part of the run id; memory_bytes, scratch_bytes and network are execution settings recorded with the run, not in its id.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cpu_threads": {
+          "description": "Threads the engine runs with (for DIRSIG, passed as --threads). Absent: the engine's default.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "memory_bytes": {
+          "description": "Memory the run needs, bytes; reserved by the backend while it executes.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "gpu": {
+          "description": "GPUs the run needs.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "count"
+          ],
+          "properties": {
+            "count": {
+              "description": "How many devices.",
+              "type": "integer",
+              "minimum": 0
+            },
+            "device_class": {
+              "description": "A device class the backend names, or absent for any.",
+              "type": "string"
+            },
+            "memory_bytes": {
+              "description": "Memory per device, bytes.",
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "scratch_bytes": {
+          "description": "Scratch space the run needs, bytes.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "network": {
+          "description": "none (the default): no network access; allow: the run may use the network, when its engine declares it and the admitting site allows it.",
+          "enum": [
+            "none",
+            "allow"
+          ]
+        },
+        "assets": {
+          "description": "Named external inputs the engine needs (an ephemeris, Earth-orientation tables, a catalog, an atmosphere database), each a library reference with its content hash; staged read-only for the engine.",
+          "type": "array",
+          "items": {
+            "description": "One asset.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "ref"
+            ],
+            "properties": {
+              "name": {
+                "description": "The name the engine's adapter declares for the asset.",
+                "type": "string"
+              },
+              "ref": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "content_hash"
+                ],
+                "properties": {
+                  "name": {
+                    "description": "The asset's path under the engine-asset library (a file, or a directory hashed by dirhash/1).",
+                    "type": "string"
+                  },
+                  "content_hash": {
+                    "description": "sha256:<64 hex digits>: the file's sha256 or the directory's dirhash/1 digest; the sha256:<hash> placeholder marks an unstamped reference, which admission refuses.",
+                    "type": "string",
+                    "pattern": "^sha256:([0-9a-f]{64}|<hash>)$"
+                  }
+                },
+                "description": "The library reference of the asset."
+              }
+            }
+          }
+        },
+        "interpreter": {
+          "description": "The external environment the engine runs in, as its adapter names it (a conda environment name or an interpreter path); absent: the SDK's own.",
+          "type": "string"
+        }
+      }
     }
   },
   "allOf": [

@@ -27,6 +27,7 @@ import uuid
 from pathlib import Path
 
 from manifold.core.contract import contracts_dir
+from manifold.core.resources import CpuThreads, GpuSlot, ResourceDeclaration
 from manifold.engines.dirsig.artifacts import RUN_LEVEL, _frames, _header
 from manifold.core.engine import (CollectedArtifact, Collection, EngineInfo, EnvironmentPolicy, LaunchPlan, Registry,
                                   ResolveContext, default_registry)
@@ -205,7 +206,10 @@ class DirsigAdapter:
                 "dirsig": locate_dirsig()}
 
     def resources(self, spec=None):
-        return None
+        """Threads: any count (passed as `--threads`; without a request, DIRSIG's own default, not reserved); no GPU, no
+        network, no declared asset (the DIRSIG installation's data is covered by its own fingerprint)."""
+        return ResourceDeclaration(cpu_threads=CpuThreads(minimum=1, maximum=None, default=None, variables=()),
+                                   gpu=GpuSlot(maximum=0), network="none")
 
     def dry_run(self, spec, resolved, scratch_root, options=None):
         """(passed, engine_checked, messages) of DIRSIG's own dry run of one run spec, in a scratch directory under
@@ -323,6 +327,12 @@ def _engine_path(option):
     return None
 
 
+def _granted_threads(context):
+    """The thread count the backend granted (`--threads`), or None for DIRSIG's own default."""
+    grant = (context.options or {}).get("grant") or {}
+    return grant.get("cpu_threads")
+
+
 def _simulation(run_spec_path, config_repo, work_dir, sensor_library):
     from manifold.engines.dirsig.simulation import Simulation
     return Simulation.from_run_spec(run_spec_path, config_repo, work_dir, sensor_library)
@@ -333,12 +343,14 @@ def _execute_layered(context, factory):
     locate_dirsig()                                                   # PATH and DIRSIG_HOME for dirfm's DIRSIG.run
     sim = factory(run_dir / "run_spec.yaml", Path(context.config_repo), run_dir,
                   Path(context.sensor_library) if context.sensor_library else None)
+    threads = _granted_threads(context)
     check = sim.validate("dry_run")
     shutil.rmtree(run_dir / "validate", ignore_errors=True)          # the dry run's scratch job
     if not check.passed:
         why = check.execution_error or "; ".join(check.resolution_mismatches) or check.schema_error
         return {"outcome": "failed", "message": f"the DIRSIG dry run did not pass: {why}", "record": {}}
-    result = sim.run(out_dir=Path(context.output_dir or run_dir / "output"))
+    out = Path(context.output_dir or run_dir / "output")
+    result = sim.run(out_dir=out, threads=threads) if threads is not None else sim.run(out_dir=out)
     record = {"propagator": result.propagator} if getattr(result, "propagator", None) else {}
     return {"outcome": "rendered", "mode": "layered", "record": record}
 
@@ -356,7 +368,7 @@ def _execute_passthrough(context):
               "scene2hdf": {"path": str(scene2hdf), "version": tool_version(scene2hdf)} if scene2hdf.is_file() else None,
               "passthrough": {"directory": str(run.directory), "simulation": run.simulation_rel}}
     home = run_dir / "home"
-    result = run_engine(run, run_dir, engine, log=run_dir / "worker.log", home=home)
+    result = run_engine(run, run_dir, engine, log=run_dir / "worker.log", home=home, threads=_granted_threads(context))
     hot, freq = result.get("max_cpu_temp_c"), result.get("cpu_freq_khz")
     record.update({"cache": {"mode": "per-run home", "home": "home", **cache_state(home)},
                    "max_cpu_temp_c": hot, "cpu_freq_khz": freq, "throttle_suspect": throttle_suspect(hot, freq),

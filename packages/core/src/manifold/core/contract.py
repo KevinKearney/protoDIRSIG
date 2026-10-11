@@ -211,7 +211,8 @@ def semantic_errors(spec, registry=None):
     - `descriptor.origin.engine` that no registered adapter serves (or whose adapter failed to load), naming the
       registered engines: the engine block cannot be checked or executed;
     - `descriptor.opaque` without `engine.mode: passthrough`, or the reverse (the two schemas cannot see each other);
-    - the engine's own rules (`EngineAdapter.semantic_rules`), for example an integer member read from YAML as a float.
+    - the engine's own rules (`EngineAdapter.semantic_rules`), for example an integer member read from YAML as a float;
+    - a `resources` request the engine's declaration does not cover (`resources.check` without a capacity).
     """
     errs = []
     if not isinstance(spec, dict):
@@ -221,6 +222,14 @@ def semantic_errors(spec, registry=None):
     adapter = reg.find(engine_id) if engine_id is not None else None
     if adapter is not None:
         errs += list(adapter.semantic_rules(spec))
+        if "resources" in spec:
+            from manifold.core.resources import check, parse_request
+            try:
+                declared = adapter.resources(spec)
+                if declared is not None:
+                    errs += check(parse_request(spec["resources"]), declared)
+            except ValueError as e:
+                errs.append(str(e))
     opaque = _get(spec, ("descriptor", "opaque"))
     mode = _get(spec, ("engine", "mode"))
     if (opaque is not _MISSING) != (mode == "passthrough"):

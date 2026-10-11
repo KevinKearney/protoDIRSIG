@@ -17,8 +17,9 @@ def main(run_dir):
     run_dir = Path(run_dir).resolve()
     job = json.loads((run_dir / "job.json").read_text())
     spec = yaml.safe_load((run_dir / "run_spec.yaml").read_text())
+    grant = json.loads((run_dir / "grant.json").read_text()) if (run_dir / "grant.json").is_file() else {}
     context = RunContext(run_dir, spec, job["config_repo"], job.get("sensor_library"), run_dir / "output",
-                         {"engine": job.get("engine", "auto")})
+                         {"engine": job.get("engine", "auto"), "grant": grant})
     DirsigAdapter().execute(context)
     return 0
 

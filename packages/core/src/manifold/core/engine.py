@@ -60,11 +60,13 @@ class ResolveContext:
 @dataclass(frozen=True)
 class EnvironmentPolicy:
     """How the launched process's environment is built from the worker's: `set` overrides, `unset` removes,
-    `isolate_home` gives it a per-run `HOME` (`<run_dir>/home`), `thread_variables` are set to the granted thread count."""
+    `isolate_home` gives it a per-run `HOME` (`<run_dir>/home`), `thread_variables` are set to the granted thread count,
+    `gpu_variable` (for example `CUDA_VISIBLE_DEVICES`) to the granted GPU ids."""
     set: Mapping[str, str] = field(default_factory=dict)
     unset: tuple = ()
     isolate_home: bool = False
     thread_variables: tuple = ()
+    gpu_variable: str | None = None                # set to the granted device ids, comma-separated
 
 
 @dataclass(frozen=True)

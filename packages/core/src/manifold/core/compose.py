@@ -55,7 +55,8 @@ SPEC_VERSION = "run-spec/1"
 MAX_RUNS = 32                                                      # runs per sweep; compose_sweep(max_runs=...)
 # Composed member -> the layer that owns it. `descriptor.<m>` unless noted.
 OWNER = {"meta": "recipe", "settings": "recipe", "fidelity": "recipe", "sensor": "recipe",
-         "collection": "scenario", "origin": "engine_profile", "extras": "engine_profile", "engine": "engine_profile"}
+         "collection": "scenario", "origin": "engine_profile", "extras": "engine_profile", "engine": "engine_profile",
+         "resources": "engine_profile"}                           # `resources` (proposed) is top-level, not descriptor
 REQUIRED = {"recipe": ("compose", "meta", "sensor", "scenario", "engine_profile", "settings", "fidelity"),
             "scenario": ("collection",), "engine_profile": ("origin", "engine")}
 # Recipe keys that are not composed members (`sensors` and `fidelity_by_sensor` are resolved per run first).
@@ -65,6 +66,7 @@ CONTROL = {"recipe": ("compose", "scenario", "engine_profile", "engine_overrides
 # engine profile holds runtime members only. No scenario, sensor or settings.
 PASSTHROUGH_RECIPE = ("compose", "meta", "passthrough", "engine_profile", "fidelity")
 PASSTHROUGH_PROFILE = ("origin", "engine")
+PASSTHROUGH_PROFILE_OPTIONAL = ("resources",)
 PASSTHROUGH_ENGINE = ("generator", "run")
 OVERRIDABLE = frozenset()                                          # members two layers may both hold; none yet
 ENGINE_OVERRIDES = ("platform.channel_response",)                  # engine paths a recipe may set (engine_overrides)
@@ -192,12 +194,17 @@ def merge(layers, sensor_ref, sensor_doc=None, inline_sensor=False):
         values["extras"] = profile["extras"]
     descriptor = {m: copy.deepcopy(values[m]) for m in DESCRIPTOR_ORDER if m in values}
     spec = {"spec_version": SPEC_VERSION, "descriptor": descriptor, "engine": engine}
+    if "resources" in profile:
+        spec["resources"] = copy.deepcopy(profile["resources"])
     sources = {"spec_version": f"rules {RULES}"}
     sources.update({f"descriptor.{m}": layers[OWNER[m]][0] for m in descriptor if m != "sensor"})
     sources["descriptor.sensor"] = sensor_ref["name"]
     sources["engine"] = profile_name
     sources.update({f"engine.{path}": recipe_name for path in overrides})
-    order = ("spec_version", *(f"descriptor.{m}" for m in descriptor), "engine", *(f"engine.{p}" for p in overrides))
+    if "resources" in spec:
+        sources["resources"] = profile_name
+    order = ("spec_version", *(f"descriptor.{m}" for m in descriptor), "engine", *(f"engine.{p}" for p in overrides),
+             *(("resources",) if "resources" in spec else ()))
     return spec, {k: sources[k] for k in order}
 
 
@@ -404,7 +411,7 @@ def _compose_passthrough(recipe, root, recipe_rel, recipe_stem, recipe_hash, lib
     profile_rel = path.relative_to(root).as_posix()
     profile = _load_layer(path, profile_rel)
     for key in profile:
-        if key not in PASSTHROUGH_PROFILE:
+        if key not in PASSTHROUGH_PROFILE + PASSTHROUGH_PROFILE_OPTIONAL:
             raise ComposeError(profile_rel, key, f"not part of a pass-through engine profile, which holds "
                                f"{list(PASSTHROUGH_PROFILE)}")
     for key in PASSTHROUGH_PROFILE:
@@ -426,10 +433,14 @@ def _compose_passthrough(recipe, root, recipe_rel, recipe_stem, recipe_hash, lib
     descriptor = {"meta": copy.deepcopy(meta), "origin": copy.deepcopy(profile["origin"]),
                   "fidelity": copy.deepcopy(recipe["fidelity"]), "opaque": {"source": "passthrough"}}
     spec = {"spec_version": SPEC_VERSION, "descriptor": descriptor, "engine": engine}
+    if "resources" in profile:
+        spec["resources"] = copy.deepcopy(profile["resources"])
     hashes = {recipe_rel: recipe_hash, profile_rel: sha256_file(path)}
     labels = {"spec_version": f"rules {RULES}", "descriptor.meta": recipe_rel, "descriptor.origin": profile_rel,
               "descriptor.fidelity": recipe_rel, "descriptor.opaque": f"rules {RULES}", "engine": profile_rel,
               "engine.passthrough": recipe_rel}
+    if "resources" in spec:
+        labels["resources"] = profile_rel
     run = meta["name"]
     out = ComposedSweep("", recipe_rel, False)
     out.runs[run] = spec

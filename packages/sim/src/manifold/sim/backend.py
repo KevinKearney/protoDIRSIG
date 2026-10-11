@@ -47,6 +47,7 @@ from manifold.core.admission import validate_spec
 from manifold.core.compose import MAX_RUNS, ComposeError, compose_sweep, compose_sweep_document
 from manifold.core.compose import default_sensor_library as recipe_sensor_library
 from manifold.core.contract import schema_violations, semantic_errors
+from manifold.core import resources
 from manifold.core.engine import engine_id_of
 from manifold.core.errors import AdmissionError, InvalidRequestError, NotFoundError
 from manifold.sim import engines
@@ -86,22 +87,32 @@ class Backend(Protocol):
     def list_engines(self) -> dict: ...
 
 
+def local_capacity():
+    """What this host offers a `LocalBackend` (proposed): its CPU threads, its physical memory, no GPU (GPU slots are
+    parsed and checked, and advertised as zero here), no scratch limit, no network access for runs."""
+    try:
+        memory = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
+    except (ValueError, OSError, AttributeError):
+        memory = None
+    return resources.Capacity(cpu_threads=os.cpu_count() or 1, memory_bytes=memory, gpus=(), scratch_bytes=None,
+                              network=False)
+
+
 def engine_entry(status, adapter=None):
-    """One `engine_list` item (proposed) from a registry `EngineStatus` and, when it is available, its adapter."""
-    from dataclasses import asdict, is_dataclass
+    """One `engine_list` item (proposed) from a registry `EngineStatus` and, when it loaded, its adapter."""
     info = status.info
-    resources, assets = None, []
+    declared, assets = None, []
     if adapter is not None:
         try:
-            declared = adapter.resources()
-            resources = asdict(declared) if is_dataclass(declared) else declared
-            assets = list(getattr(adapter, "assets", lambda: [])())
+            decl = adapter.resources()
+            declared = resources.as_dict(decl) if decl is not None else None
+            assets = [resources.as_dict(a) for a in (decl.assets if decl is not None else ())]
         except Exception:  # noqa: BLE001 -- a listing never fails on one engine
-            resources = None
+            declared, assets = None, []
     return {"engine_id": status.engine_id, "available": status.available,
             "adapter_version": info.adapter_version if info else None,
             "modes": list(info.modes) if info else [], "contracts": list(info.contracts) if info else [],
-            "reason": status.reason, "source": status.source, "resources": resources, "assets": assets}
+            "reason": status.reason, "source": status.source, "resources": declared, "assets": assets}
 
 
 def _sha256_file(path):
@@ -122,7 +133,7 @@ class LocalBackend:
     family reads (default: the repository's `manifold_run_specs/`)."""
 
     def __init__(self, work_root, config_repo, *, max_parallel=1, sensor_library=None, library=None, engine=None,
-                 registry=None):
+                 registry=None, capacity=None):
         if int(max_parallel) < 1:
             raise ValueError("max_parallel must be at least 1")
         self.store = RunStore(work_root)
@@ -133,6 +144,7 @@ class LocalBackend:
         self.library = LibraryReader(library, self.sensor_library)
         self.engine = str(Path(engine).resolve()) if engine is not None else None   # an engine executable override
         self.registry = registry if registry is not None else engines.registry()
+        self.capacity = capacity if capacity is not None else local_capacity()
 
     # --- inputs -------------------------------------------------------------------------------------------------
 
@@ -305,7 +317,7 @@ class LocalBackend:
 
     def list_engines(self):
         """The `engine_list` document (proposed): every engine registered in this environment, available or not."""
-        return {"items": [engine_entry(st, self.registry.find(st.engine_id) if st.available else None)
+        return {"items": [engine_entry(st, self.registry.find(st.engine_id))
                           for st in self.registry.listing()]}
 
     def engines(self):
@@ -316,7 +328,8 @@ class LocalBackend:
 
     def _job(self, run):
         return {"config_repo": str(self.config_repo), "sensor_library": str(Path(run.library).resolve()),
-                "max_parallel": self.max_parallel, "engine": self._engine()}
+                "max_parallel": self.max_parallel, "engine": self._engine(), "capacity": resources.as_dict(self.capacity),
+                "resources": run.spec.get("resources")}         # every request; the stored run spec keeps the id slots
 
     def _start_worker(self, run_id):
         run_dir = self.store.run_dir(run_id)
@@ -335,14 +348,22 @@ class LocalBackend:
 
     def _execution_problem(self, run, instance=None):
         """An admission problem when this backend cannot execute the run although it is valid: its engine is
-        registered but unavailable here (the adapter's `availability`). None otherwise."""
+        registered but unavailable here (the adapter's `availability`), or it requests resources this backend does
+        not advertise (`resources.check` against `self.capacity`: a GPU here, where there is none). None otherwise."""
         engine_id = engine_id_of(run.spec)
         if engine_id is None or engine_id not in self.registry.ids():
             return None
         status = self.registry.status(engine_id)
-        if status.available:
-            return None
-        return problems.admission(f"engine {engine_id!r} is unavailable on this backend: {status.reason}", instance)
+        if not status.available:
+            return problems.admission(f"engine {engine_id!r} is unavailable on this backend: {status.reason}", instance)
+        adapter = self.registry.get(engine_id)
+        try:
+            request = resources.parse_request(run.spec.get("resources"))
+        except ValueError as e:
+            return problems.admission(str(e), instance)
+        declared = adapter.resources(run.spec) or resources.ResourceDeclaration()
+        found = resources.check(request, declared, self.capacity)
+        return problems.admission("; ".join(found), instance) if found else None
 
     def _create(self, run):
         resolved = identity.resolved_run_spec(run.spec, run.library)

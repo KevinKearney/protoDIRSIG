@@ -23,7 +23,24 @@
           ],
           "reason": null,
           "source": "eoptic-manifold-engine-dirsig 0.0.1 (manifold.engines.dirsig.adapter:DirsigAdapter)",
-          "resources": null,
+          "resources": {
+            "cpu_threads": {
+              "minimum": 1,
+              "maximum": null,
+              "default": null,
+              "variables": []
+            },
+            "memory_bytes": null,
+            "gpu": {
+              "maximum": 0,
+              "device_class": null,
+              "memory_bytes": null
+            },
+            "scratch_bytes": null,
+            "network": "none",
+            "assets": [],
+            "interpreter": null
+          },
           "assets": []
         }
       ]

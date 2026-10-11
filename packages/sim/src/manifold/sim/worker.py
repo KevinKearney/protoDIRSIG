@@ -14,7 +14,8 @@ is never overwritten. The slot is always released, and the outcome is written to
 The execution record (`execution.json`) gains: `started_at`, `finished_at`, `worker` (`pid`, `pgid`, `start_ticks`,
 `boot_time`), `python`, the `eoptic-manifold-sim` version (under the key `protodirsig_version`,
 `_names.RECORD_VERSION_KEY`), `adapter` (`engine_id`, `version`, `source`), the adapter's fingerprint members (for
-DIRSIG `dirfm` and `dirsig`), the members the adapter's collection adds (for a pass-through run the engine, its tools,
+DIRSIG `dirfm` and `dirsig`), `resources` (the run's requests, the engine's declaration and the grant reserved in the
+work root's resource ledger, released when the run ends), the members the adapter's collection adds (for a pass-through run the engine, its tools,
 exit status, cache and thermal measurements), `artifact_roles` and `max_parallel`. It is never part of a run id.
 
 Engine-free: the worker imports no engine package; the engine runs in the process the plan describes. `main(run_dir,
@@ -31,10 +32,11 @@ import traceback
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
-from manifold.core import _names, problems
+from manifold.core import _names, problems, resources
 from manifold.core.engine import EngineUnavailable, RunContext, engine_id_of
+from manifold.core.errors import NotFoundError
 from manifold.sim import engines
-from manifold.sim.store import ArtifactError, RunStore, artifact_ref, check_artifact_names, process_start, utc_now
+from manifold.sim.store import FINAL, ArtifactError, RunStore, artifact_ref, check_artifact_names, process_start, utc_now
 
 POLL_S = 1.0
 CONDA_ENV_DIRS = (Path(sys.prefix).parent, Path.home() / "anaconda3" / "envs", Path.home() / "miniconda3" / "envs")
@@ -96,8 +98,9 @@ def command(plan):
     return [str(a) for a in plan.argv]
 
 
-def environment(plan, run_dir, threads=None):
-    """The launched process's environment: the worker's, with the plan's policy applied."""
+def environment(plan, run_dir, threads=None, gpu_ids=()):
+    """The launched process's environment: the worker's, with the plan's policy applied (the granted thread count in
+    its thread variables, the granted GPU ids in its GPU variable)."""
     env = dict(os.environ)
     for k in plan.env.unset:
         env.pop(k, None)
@@ -106,18 +109,78 @@ def environment(plan, run_dir, threads=None):
         home = Path(run_dir) / "home"
         home.mkdir(parents=True, exist_ok=True)
         env["HOME"] = str(home)
-    for var in plan.env.thread_variables:
-        env[var] = str(threads if threads is not None else 1)
+    if threads is not None:
+        for var in plan.env.thread_variables:
+            env[var] = str(threads)
+    if plan.env.gpu_variable:
+        env[plan.env.gpu_variable] = ",".join(gpu_ids)
     return env
 
 
-def launch(plan, run_dir, threads=None):
+def launch(plan, run_dir, threads=None, gpu_ids=()):
     """Run the plan to completion; its stdout and stderr go to `worker.log`. Returns the exit status."""
     run_dir = Path(run_dir)
     with open(run_dir / "worker.log", "ab") as log:
-        proc = subprocess.Popen(command(plan), cwd=str(plan.cwd or run_dir), env=environment(plan, run_dir, threads),
+        proc = subprocess.Popen(command(plan), cwd=str(plan.cwd or run_dir),
+                                env=environment(plan, run_dir, threads, gpu_ids),
                                 stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT)
         return proc.wait()
+
+
+LEDGER, LEDGER_LOCK = "resources.json", "resources.lock"
+
+
+def capacity_of(doc):
+    """A `resources.Capacity` from its JSON form in `job.json` (absent: this host's CPUs, no GPU)."""
+    if not doc:
+        return resources.Capacity(cpu_threads=os.cpu_count() or 1)
+    return resources.Capacity(**{**doc, "gpus": tuple(resources.GpuDevice(**g) for g in doc.get("gpus") or ())})
+
+
+def _ledger(store, update):
+    """Apply `update(ledger)` to `<work_root>/slots/resources.json` under an exclusive lock; returns its result."""
+    with open(store.slots / LEDGER_LOCK, "a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        path = store.slots / LEDGER
+        ledger = json.loads(path.read_text()) if path.is_file() and path.read_text().strip() else {}
+        result = update(ledger)
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(ledger, sort_keys=True))
+        os.replace(tmp, path)
+        return result
+
+
+def _finished(store, run_id):
+    try:
+        return store.read_status(run_id, reap=False)["state"] in FINAL
+    except NotFoundError:
+        return True
+
+
+def acquire_resources(store, run_id, request, declared, capacity):
+    """Reserve what the run requests (`resources.allocate`) against the runs holding reservations, polling while the
+    run stays `running`; a reservation of a finished run is dropped. Returns the `Grant`, or None if the run left
+    `running` (cancelled) while it waited."""
+    def take(ledger):
+        for rid in [r for r in ledger if r != run_id and _finished(store, r)]:
+            del ledger[rid]
+        in_use = [resources.Grant(g.get("cpu_threads"), g.get("memory_bytes", 0), tuple(g.get("gpu_ids", ())))
+                  for rid, g in ledger.items() if rid != run_id]
+        grant = resources.allocate(request, declared, capacity, in_use)
+        if grant is not None:
+            ledger[run_id] = resources.as_dict(grant)
+        return grant
+    while True:
+        if store.read_status(run_id, reap=False)["state"] != "running":
+            return None
+        grant = _ledger(store, take)
+        if grant is not None:
+            return grant
+        time.sleep(POLL_S)
+
+
+def release_resources(store, run_id):
+    _ledger(store, lambda ledger: ledger.pop(run_id, None))
 
 
 def main(run_dir, hook=None):
@@ -155,15 +218,30 @@ def main(run_dir, hook=None):
         except EngineUnavailable as e:
             _fail(store, run_id, name, str(e), run_dir)
             return 0
+        try:
+            requested = job.get("resources", spec.get("resources"))
+            request = resources.parse_request(requested)
+        except ValueError as e:
+            _fail(store, run_id, name, str(e), run_dir)
+            return 0
+        declared = adapter.resources(spec) or resources.ResourceDeclaration()
+        grant = acquire_resources(store, run_id, request, declared, capacity_of(job.get("capacity")))
+        if grant is None:
+            _log(run_dir, f"not started: the run is {store.read_status(run_id, reap=False)['state']}")
+            return 0
+        store.update_record(run_id, {"resources": {"requested": requested,
+                                                   "declared": resources.as_dict(declared),
+                                                   "granted": resources.as_dict(grant)}})
+        (run_dir / "grant.json").write_text(json.dumps(resources.as_dict(grant), sort_keys=True))
         _log(run_dir, "running")
         try:
             context = RunContext(run_dir, spec, job["config_repo"], job.get("sensor_library"), run_dir / "output",
-                                 {"engine": job.get("engine", "auto")})
+                                 {"engine": job.get("engine", "auto"), "grant": resources.as_dict(grant)})
             returncode = None
             if hook is not None:
                 adapter.execute(context, hook)
             else:
-                returncode = launch(adapter.plan(context), run_dir)
+                returncode = launch(adapter.plan(context), run_dir, grant.cpu_threads, grant.gpu_ids)
             collection = adapter.collect(run_dir / "output", run_dir)
             if collection.record:
                 store.update_record(run_id, dict(collection.record))
@@ -194,6 +272,7 @@ def main(run_dir, hook=None):
         return 0
     finally:
         try:
+            release_resources(store, run_id)
             store.update_record(run_id, {"finished_at": utc_now()})
         finally:
             fcntl.flock(slot, fcntl.LOCK_UN)

@@ -271,15 +271,17 @@ class Simulation:
             unstamped=report.unstamped, engine_checked=engine_checked)
         return self.last_conformance
 
-    def run(self, out_dir=None):
+    def run(self, out_dir=None, threads=None):
         """Assemble and render (Stage 01's job), with --run_info_filename and --log_info_filename
-        written beside the images. Raises if the spec did not resolve or DIRSIG fails."""
+        written beside the images, and `--threads` when `threads` is given. Raises if the spec did not resolve or
+        DIRSIG fails."""
         if self.resolved is None:
             raise RunSpecError(f"cannot run: {self.load_error or self.resolve_error}")
         out_dir = Path(out_dir) if out_dir is not None else self.work_dir / "output"
         job = self._assemble(self.work_dir / "input", out_dir)
         run_info, log_info = out_dir / "run_info.json", out_dir / "log_info.json"
-        err, stderr = _run_dirsig(job, run_info_filename=str(run_info), log_info_filename=str(log_info))
+        err, stderr = _run_dirsig(job, run_info_filename=str(run_info), log_info_filename=str(log_info),
+                                  **({"threads": int(threads)} if threads is not None else {}))
         if err is not None:
             raise RuntimeError(err)
         info_log = json.loads(log_info.read_text())

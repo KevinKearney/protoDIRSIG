@@ -189,16 +189,16 @@ def _snapshot(root):
     return {p.relative_to(root): (p.stat().st_size, p.stat().st_mtime_ns) for p in root.rglob("*") if p.is_file()}
 
 
-def run_engine(run, work_dir, engine, dry_run=False, timeout=None, log=None, home=None):
+def run_engine(run, work_dir, engine, dry_run=False, timeout=None, log=None, home=None, threads=None):
     """Run `engine` on a copy of the run's directory. Returns `{returncode, command, moved, output, compiled,
     max_cpu_temp_c, cpu_freq_khz}`: `moved` lists files the engine wrote into the copy, which are moved into `<work_dir>/output/`.
     Never writes into the library. `home`: the `HOME` both tools run with (None: inherited)."""
     with ThermalSampler() as thermal:
-        result = _run_engine(run, work_dir, engine, dry_run, timeout, log, home)
+        result = _run_engine(run, work_dir, engine, dry_run, timeout, log, home, threads)
     return {**result, "max_cpu_temp_c": thermal.max_c, "cpu_freq_khz": thermal.freq}
 
 
-def _run_engine(run, work_dir, engine, dry_run, timeout, log, home):
+def _run_engine(run, work_dir, engine, dry_run, timeout, log, home, threads=None):
     env = None
     if home is not None:
         Path(home).mkdir(parents=True, exist_ok=True)
@@ -219,6 +219,8 @@ def _run_engine(run, work_dir, engine, dry_run, timeout, log, home):
     command = [str(engine), f"--output_folder={out}"]
     if run.seed is not None:
         command.append(f"--random_seed={run.seed}")
+    if threads is not None:
+        command.append(f"--threads={int(threads)}")
     if dry_run:
         command.append("--dry_run")
     command.append(run.simulation_rel.rsplit("/", 1)[-1])

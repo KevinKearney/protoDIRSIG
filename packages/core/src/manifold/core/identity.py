@@ -22,6 +22,7 @@ from decimal import Decimal
 
 from pathlib import Path
 
+from manifold.core.resources import identity_view
 from manifold.core.run_spec import RunSpecError, _verify_hash, is_inline_sensor, load_sensor_spec
 
 _SHORT = {'"': '\\"', "\\": "\\\\", "\b": "\\b", "\f": "\\f", "\n": "\\n", "\r": "\\r", "\t": "\\t"}
@@ -152,8 +153,18 @@ def materialize_sensor(spec, sensor_library):
 
 
 def resolved_run_spec(spec, sensor_library):
-    """The document a run id is computed over: `spec` with its sensor materialized."""
-    return materialize_sensor(spec, sensor_library)
+    """The document a run id is computed over: `spec` with its sensor materialized and, when it requests resources
+    (proposed), only the slots that can change the result kept (`resources.identity_view`): memory, scratch space and
+    network are execution settings, recorded with the run but not in its id. A spec without `resources` resolves as
+    it always has."""
+    out = materialize_sensor(spec, sensor_library)
+    if isinstance(out, dict) and "resources" in out:
+        view = identity_view(out["resources"])
+        if view is None:
+            del out["resources"]
+        else:
+            out["resources"] = view
+    return out
 
 
 def run_id(spec, sensor_library):

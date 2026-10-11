@@ -135,7 +135,7 @@ def engine_listing():
     from manifold.sim import engines
     from manifold.sim.backend import engine_entry
     reg = engines.registry()
-    return {"items": [engine_entry(st, reg.find(st.engine_id) if st.available else None) for st in reg.listing()]}
+    return {"items": [engine_entry(st, reg.find(st.engine_id)) for st in reg.listing()]}
 
 
 def examples():
