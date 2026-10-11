@@ -58,7 +58,13 @@ OWNER = {"meta": "recipe", "settings": "recipe", "fidelity": "recipe", "sensor":
 REQUIRED = {"recipe": ("compose", "meta", "sensor", "scenario", "engine_profile", "settings", "fidelity"),
             "scenario": ("collection",), "engine_profile": ("origin", "engine")}
 # Recipe keys that are not composed members (`sensors` and `fidelity_by_sensor` are resolved per run first).
-CONTROL = {"recipe": ("compose", "scenario", "engine_profile", "engine_overrides", "sensors", "fidelity_by_sensor")}
+CONTROL = {"recipe": ("compose", "scenario", "engine_profile", "engine_overrides", "sensors", "fidelity_by_sensor",
+                      "passthrough")}
+# The pass-through recipe form (proposed): the recipe names a library demo directory and its simulation file; the
+# engine profile holds runtime members only. No scenario, sensor or settings.
+PASSTHROUGH_RECIPE = ("compose", "meta", "passthrough", "engine_profile", "fidelity")
+PASSTHROUGH_PROFILE = ("origin", "engine")
+PASSTHROUGH_ENGINE = ("generator", "run")
 OVERRIDABLE = frozenset()                                          # members two layers may both hold; none yet
 ENGINE_OVERRIDES = ("platform.channel_response",)                  # engine paths a recipe may set (engine_overrides)
 DESCRIPTOR_ORDER = ("meta", "origin", "collection", "sensor", "settings", "fidelity", "extras")
@@ -307,6 +313,8 @@ def compose_document(document, library_root, *, inline_sensor=False, sensor_libr
 def _compose(recipe, root, recipe_rel, recipe_stem, recipe_hash, library, inline_sensor, max_runs):
     """The one composition path: a parsed recipe, its layer root, the label and hash its provenance records."""
     rel = lambda p: p.relative_to(root).as_posix()                  # noqa: E731
+    if "passthrough" in recipe:
+        return _compose_passthrough(recipe, root, recipe_rel, recipe_stem, recipe_hash, library)
     sensors, is_sweep = _sensor_list(recipe, recipe_rel, max_runs)
     files = {}
     layers = {}
@@ -359,6 +367,72 @@ def _compose(recipe, root, recipe_rel, recipe_stem, recipe_hash, library, inline
         out.sources[name] = {member: {"layer": label if src == s else src, "content_hash": hashes.get(src)}
                              for member, src in sources.items()}
         out.run_ids[name] = identity.run_id(spec, library)
+    out.sweep_id = identity.sweep_id_from_runs(out.run_ids.values())
+    return out
+
+
+def _compose_passthrough(recipe, root, recipe_rel, recipe_stem, recipe_hash, library):
+    """A pass-through recipe (proposed): one run whose engine block is `mode: passthrough` with the recipe's
+    `passthrough` member, the engine profile's runtime members (`generator`, `run`) and an opaque descriptor."""
+    for key in recipe:
+        if key not in PASSTHROUGH_RECIPE:
+            raise ComposeError(recipe_rel, key, f"not part of a pass-through recipe, which holds {list(PASSTHROUGH_RECIPE)}")
+    for key in PASSTHROUGH_RECIPE:
+        if key not in recipe:
+            raise ComposeError(recipe_rel, key, "missing")
+    if recipe["compose"] != RULES:
+        raise ComposeError(recipe_rel, "compose", f"is {recipe['compose']!r}; this composer implements {RULES!r}")
+    meta = recipe["meta"]
+    if not isinstance(meta, dict) or not isinstance(meta.get("name"), str):
+        raise ComposeError(recipe_rel, "meta.name", "missing or not a string")
+    block = recipe["passthrough"]
+    if not isinstance(block, dict) or set(block) != {"directory", "simulation"}:
+        raise ComposeError(recipe_rel, "passthrough", "must hold directory ({name, content_hash}) and simulation")
+    ref = block["directory"]
+    if not isinstance(ref, dict) or not isinstance(ref.get("name"), str) or not isinstance(ref.get("content_hash"), str):
+        raise ComposeError(recipe_rel, "passthrough.directory", "must be a library ref {name, content_hash}")
+    if not isinstance(block["simulation"], str):
+        raise ComposeError(recipe_rel, "passthrough.simulation", "must be the simulation file's path in the directory")
+    name = recipe["engine_profile"]
+    if not isinstance(name, str):
+        raise ComposeError(recipe_rel, "engine_profile", "missing or not a layer name")
+    path = root / LAYER_DIR["engine_profile"] / f"{name}.yaml"
+    profile_rel = path.relative_to(root).as_posix()
+    profile = _load_layer(path, profile_rel)
+    for key in profile:
+        if key not in PASSTHROUGH_PROFILE:
+            raise ComposeError(profile_rel, key, f"not part of a pass-through engine profile, which holds "
+                               f"{list(PASSTHROUGH_PROFILE)}")
+    for key in PASSTHROUGH_PROFILE:
+        if key not in profile:
+            raise ComposeError(profile_rel, key, "missing")
+    engine_in = profile["engine"]
+    if not isinstance(engine_in, dict):
+        raise ComposeError(profile_rel, "engine", "must be a mapping")
+    for key in engine_in:
+        if key not in PASSTHROUGH_ENGINE:
+            raise ComposeError(profile_rel, f"engine.{key}", f"a pass-through engine profile holds runtime members "
+                               f"only ({list(PASSTHROUGH_ENGINE)}); the demo directory supplies the rest")
+    if "generator" not in engine_in:
+        raise ComposeError(profile_rel, "engine.generator", "missing")
+    engine = {"generator": copy.deepcopy(engine_in["generator"]), "mode": "passthrough",
+              "passthrough": copy.deepcopy(block)}
+    if "run" in engine_in:
+        engine["run"] = copy.deepcopy(engine_in["run"])
+    descriptor = {"meta": copy.deepcopy(meta), "origin": copy.deepcopy(profile["origin"]),
+                  "fidelity": copy.deepcopy(recipe["fidelity"]), "opaque": {"source": "passthrough"}}
+    spec = {"spec_version": SPEC_VERSION, "descriptor": descriptor, "engine": engine}
+    hashes = {recipe_rel: recipe_hash, profile_rel: sha256_file(path)}
+    labels = {"spec_version": f"rules {RULES}", "descriptor.meta": recipe_rel, "descriptor.origin": profile_rel,
+              "descriptor.fidelity": recipe_rel, "descriptor.opaque": f"rules {RULES}", "engine": profile_rel,
+              "engine.passthrough": recipe_rel}
+    run = meta["name"]
+    out = ComposedSweep("", recipe_rel, False)
+    out.runs[run] = spec
+    out.files[run] = recipe_stem
+    out.sensors[run] = None
+    out.sources[run] = {m: {"layer": src, "content_hash": hashes.get(src)} for m, src in labels.items()}
+    out.run_ids[run] = identity.run_id(spec, library)
     out.sweep_id = identity.sweep_id_from_runs(out.run_ids.values())
     return out
 

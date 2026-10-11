@@ -114,6 +114,8 @@ def locate(pointer, sources, *, spec=None, recipe=None):
             if tokens[1:1 + len(path)] == path:             # an engine_overrides path: the recipe holds the value
                 layer = _layer(sources, member)
                 rest = tokens[1 + len(path):]
+                if path == ["passthrough"]:                 # a pass-through recipe's own member (proposed)
+                    return layer, "passthrough" + (("." + walk(tokens[:2], rest)) if rest else "")
                 return layer, f"engine_overrides.{'.'.join(path)}" + (("." + walk(tokens[:1 + len(path)], rest))
                                                                       if rest else "")
         layer = _layer(sources, "engine")

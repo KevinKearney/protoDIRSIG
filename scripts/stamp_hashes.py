@@ -12,7 +12,8 @@ A ref is `{name: <path>, content_hash: "<sha256:...>"}`. The name resolves as th
 sensor-spec ref (`*.yaml` without a directory) and spectral curves against `manifold_sensors/`; every other name
 against `manifold_config_repo/`. A file ref's hash is `sha256` of the file bytes. A `.scene` ref names a directory,
 the scene directory that holds the `.scene` file with its geometry and materials (`scenes/<scene>/<scene>.scene`), and
-its hash is the `dirhash/1` digest of that directory (`src/protodirsig/dirhash.py`, defined in
+its hash is the `dirhash/1` digest of that directory; so is a ref that names a directory of the library itself (a
+pass-through demo directory, `demo_dirs/<Name>`) (`src/protodirsig/dirhash.py`, defined in
 `manifold_contracts/README.md`), since one file's hash would not identify the asset. MANIFOLD's canonical-JSON hash
 (Metadata_v02 §6.15) replaces the file hash when the registry is built.
 
@@ -45,6 +46,8 @@ def resolve(name, in_sensors_file):
     if dirhash.is_directory_ref(name):
         scene = ROOT / "manifold_config_repo" / name
         return scene.parent if scene.is_file() else None
+    if (ROOT / "manifold_config_repo" / name).is_dir():           # a pass-through directory (proposed): dirhash/1
+        return ROOT / "manifold_config_repo" / name
     candidates = [ROOT / "manifold_sensors" / name] if (in_sensors_file or name.startswith("spectral/") or
                                                 ("/" not in name and name.endswith(".yaml"))) \
         else [ROOT / "manifold_config_repo" / name]

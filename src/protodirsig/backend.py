@@ -50,6 +50,7 @@ from protodirsig.compose import default_sensor_library as recipe_sensor_library
 from protodirsig.contract import schema_violations, semantic_errors
 from protodirsig.errors import AdmissionError, InvalidRequestError, NotFoundError
 from protodirsig.library import LibraryReader
+from protodirsig.passthrough import is_passthrough, run_engine
 from protodirsig.run_spec import RunSpecError, default_sensor_library, load_run_spec
 from protodirsig.store import ACTIVE, FINAL, RunStore, utc_now
 
@@ -100,7 +101,7 @@ class LocalBackend:
     or run spec would use by default (the sibling `manifold_sensors/`). `library` is the layer root the library
     family reads (default: the repository's `manifold_run_specs/`)."""
 
-    def __init__(self, work_root, config_repo, *, max_parallel=1, sensor_library=None, library=None):
+    def __init__(self, work_root, config_repo, *, max_parallel=1, sensor_library=None, library=None, engine=None):
         if int(max_parallel) < 1:
             raise ValueError("max_parallel must be at least 1")
         self.store = RunStore(work_root)
@@ -109,6 +110,7 @@ class LocalBackend:
         self.sensor_library = Path(sensor_library).resolve() if sensor_library is not None else None
         self._children = []
         self.library = LibraryReader(library, self.sensor_library)
+        self.engine = str(Path(engine).resolve()) if engine is not None else None   # dirsig5 for pass-through runs
 
     # --- inputs -------------------------------------------------------------------------------------------------
 
@@ -258,10 +260,32 @@ class LocalBackend:
                         "checks": checks})
         return {"engine_check": engine_check, "runs": out}
 
+    def _engine(self):
+        """The engine executable for pass-through runs: the `engine` given, else the `dirsig5` of the DIRSIG
+        installation found on PATH, at `$DIRSIG_HOME` or under `~/DIRSIG`; None if there is none."""
+        if self.engine:
+            return self.engine
+        from protodirsig.worker import locate_dirsig
+        home = locate_dirsig()["home"]
+        return str(Path(home) / "bin" / "dirsig5") if home else None
+
     def _dry_run(self, run, report):
         """(passed, engine_checked, problems) of a DIRSIG dry run of one run spec, in a scratch directory."""
         if not report.valid:
             return False, False, [problems.admission("not attempted: the engine-free checks did not pass")]
+        if is_passthrough(run.spec):
+            engine = self._engine()
+            if engine is None:
+                return False, False, [problems.admission("not performed: no DIRSIG installation was found")]
+            scratch = self.store.root / "validate" / uuid.uuid4().hex
+            try:
+                result = run_engine(report.run, scratch, engine, dry_run=True, log=None)
+                ok = result["returncode"] == 0
+                return ok, True, [] if ok else [problems.admission(
+                    f"DIRSIG did not accept the pass-through simulation in a dry run (--dry_run): exit status "
+                    f"{result['returncode']}")]
+            finally:
+                shutil.rmtree(scratch, ignore_errors=True)
         from protodirsig.simulation import Simulation
         from protodirsig.worker import locate_dirsig
         if locate_dirsig()["home"] is None:

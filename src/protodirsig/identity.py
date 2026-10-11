@@ -138,8 +138,8 @@ def materialize_sensor(spec, sensor_library):
     out = copy.deepcopy(spec)
     desc = out.get("descriptor") if isinstance(out, dict) else None
     sensor = desc.get("sensor") if isinstance(desc, dict) else None
-    if is_inline_sensor(sensor):
-        return out
+    if is_inline_sensor(sensor) or (isinstance(desc, dict) and "opaque" in desc and sensor is None):
+        return out                                          # inline, or an opaque descriptor (pass-through): no sensor
     ref = sensor.get("ref") if isinstance(sensor, dict) else None
     if not isinstance(ref, dict) or not isinstance(ref.get("name"), str):
         raise RunSpecError(f"descriptor.sensor is neither a sensor-spec/1 reference nor an inline block: {sensor!r:.80}")

@@ -25,7 +25,7 @@ from pathlib import Path
 import yaml
 
 from protodirsig import problems
-from protodirsig.compose import CONTROL, LAYER_DIR, OWNER, REQUIRED, sensor_library_for_root
+from protodirsig.compose import CONTROL, LAYER_DIR, OWNER, PASSTHROUGH_RECIPE, REQUIRED, sensor_library_for_root
 from protodirsig.contract import sensor_spec_violations
 from protodirsig.errors import AdmissionError, InvalidRequestError, NotFoundError
 
@@ -127,6 +127,14 @@ class LibraryReader:
         for key in doc:
             if key not in allowed:
                 bad(f"unknown key; a {kind.replace('_', ' ')} holds {sorted(allowed)}", key)
+        if kind == "recipe" and "passthrough" in doc:
+            for key in PASSTHROUGH_RECIPE:
+                if key not in doc:
+                    bad("missing (a pass-through recipe)", key)
+            for key in doc:
+                if key not in PASSTHROUGH_RECIPE:
+                    bad(f"not part of a pass-through recipe, which holds {list(PASSTHROUGH_RECIPE)}", key)
+            return
         if kind == "recipe":
             required = [k for k in REQUIRED["recipe"] if k not in ("sensor", "fidelity")]
             for key in required:

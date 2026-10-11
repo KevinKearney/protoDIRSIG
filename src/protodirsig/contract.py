@@ -190,7 +190,8 @@ def semantic_errors(spec):
     - an integer member read from YAML as a float (`engine.run.seed`, `engine.platform.integration_samples`):
       JSON Schema's `integer` accepts 42.0, the generator needs an integer;
     - `descriptor.origin.engine` other than `dirsig`: the schemas type the engine block only for dirsig, and this SDK
-      checks and executes only `dirsig-engine/1` runs.
+      checks and executes only `dirsig-engine/1` runs;
+    - `descriptor.opaque` without `engine.mode: passthrough`, or the reverse (the two schemas cannot see each other).
     """
     errs = []
     eng = spec.get("engine") if isinstance(spec, dict) else None
@@ -201,6 +202,11 @@ def semantic_errors(spec):
         samples = _get(eng, ("platform", "integration_samples"))
         if isinstance(samples, float):
             errs.append(f"engine.platform.integration_samples is {samples!r}, expected an integer >= 1")
+    opaque = _get(spec, ("descriptor", "opaque")) if isinstance(spec, dict) else _MISSING
+    mode = _get(spec, ("engine", "mode")) if isinstance(spec, dict) else _MISSING
+    if (opaque is not _MISSING) != (mode == "passthrough"):
+        errs.append("descriptor.opaque and engine.mode: passthrough go together (an opaque descriptor describes a "
+                    "pass-through run, and a pass-through run has an opaque descriptor)")
     origin = _get(spec, ("descriptor", "origin", "engine")) if isinstance(spec, dict) else _MISSING
     if origin is not _MISSING and origin in ("satsim", "usd", "field"):
         errs.append(f"descriptor.origin.engine is {origin!r}; this SDK checks and executes only dirsig runs "

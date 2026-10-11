@@ -582,8 +582,9 @@ class ComposeResponseRun(_Model):
         The run id the run spec would be submitted under (see `run_status`).
     name : str
         The run's name, its `descriptor.meta.name`.
-    sensor : str
-        The sensor file the run uses, as named in the recipe, for example `auror-nir.yaml`.
+    sensor : str | None
+        The sensor file the run uses, as named in the recipe, for example `auror-nir.yaml`; null for a pass-through
+        run (proposed), which names no library sensor.
     run_spec : dict
         The composed `run-spec/1` document. Its `descriptor.sensor` is a reference `{ref: {name, content_hash}}` or,
         with `inline_sensor`, the `sensor` block of a `sensor-spec/1` document. Every composed run spec validates
@@ -595,13 +596,13 @@ class ComposeResponseRun(_Model):
     """
     run_id: str
     name: str
-    sensor: str
+    sensor: str | None
     run_spec: dict
     provenance: dict[str, ComposeResponseRunProvenanceEntry]
     _FIELDS = (
         ('run_id', 'run_id', ('scalar', ('string',), None), True, False),
         ('name', 'name', ('scalar', ('string',), None), True, False),
-        ('sensor', 'sensor', ('scalar', ('string',), None), True, False),
+        ('sensor', 'sensor', ('nullable', ('scalar', ('string',), None)), True, True),
         ('run_spec', 'run_spec', ('dict',), True, False),
         ('provenance', 'provenance', ('map', ('model', 'ComposeResponseRunProvenanceEntry')), True, False),
     )

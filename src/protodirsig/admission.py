@@ -17,6 +17,7 @@ from pathlib import Path
 
 from protodirsig import identity
 from protodirsig.contract import schema_errors
+from protodirsig.passthrough import is_passthrough, resolve_passthrough
 from protodirsig.run_spec import RunSpecError, check_library_files, resolve_run, unstamped_refs
 
 REPOSITORY = Path(__file__).resolve().parents[2]
@@ -65,16 +66,20 @@ def validate_spec(spec, run_spec_path=None, config_repo=None, sensor_library=Non
         schema = schema_errors(spec)
     except Exception as e:  # noqa: BLE001 -- a spec too malformed to walk is a schema failure, not a crash
         schema = [f"/: the spec could not be checked: {type(e).__name__}: {e}"]
+    passthrough = is_passthrough(spec)
     if resolved is not None:
         run, exc = resolved
     else:
         run = exc = None
         try:
-            run = resolve_run(spec, path, config_repo, sensor_library)
+            run = resolve_passthrough(spec, config_repo) if passthrough else \
+                resolve_run(spec, path, config_repo, sensor_library)
         except (RunSpecError, KeyError, TypeError, AttributeError) as e:
             exc = e
     if run is None:
         mismatches = [f"references did not resolve: {type(exc).__name__}: {exc}"]
+    elif passthrough:
+        mismatches = []                                     # no library files beyond the directory: nothing to render
     else:
         try:
             mismatches = check_library_files(spec, run)

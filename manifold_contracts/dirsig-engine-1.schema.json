@@ -2,17 +2,9 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.manifold.example/contracts/dirsig-engine-1.schema.json",
   "title": "dirsig-engine/1 (proposed; Configuration_v02 A.8 as read by protoDIRSIG, with the new_atmosphere and orbit-motion extensions marked proposed)",
-  "description": "The engine block of a run-spec/1 document whose descriptor.origin.engine is dirsig: what the generator and the executor consume to build and run one DIRSIG job. It is origin-specific and not indexed; the engine-independent description of the run is the descriptor. This schema is the SDK's reading of the MANIFOLD configuration document, not a MANIFOLD artefact. Rules this schema cannot express, enforced at admission by the loader: a stamped content_hash must equal the sha256 of the referenced file; every referenced library file must exist; a stamped hash is verified, while the placeholder sha256:<hash> marks a ref not yet stamped (as a .scene ref always is) and <git-sha> a revision not yet recorded; neither is verified, and a run id does not cover the bytes behind a placeholder; for kind orbit, every task window must lie inside the orbit window and the window must be a whole number of waypoint spacings. The $id is an absolute URI under a base that does not resolve on the network (https://schemas.manifold.example/contracts/); references between the three contract schemas are sibling file names, which resolve against it, so a validator maps the base to this folder.",
+  "description": "The engine block of a run-spec/1 document whose descriptor.origin.engine is dirsig: what the generator and the executor consume to build and run one DIRSIG job. It is origin-specific and not indexed; the engine-independent description of the run is the descriptor. This schema is the SDK's reading of the MANIFOLD configuration document, not a MANIFOLD artefact. Rules this schema cannot express, enforced at admission by the loader: a stamped content_hash must equal the sha256 of the referenced file; every referenced library file must exist; a stamped hash is verified, while the placeholder sha256:<hash> marks a ref not yet stamped and <git-sha> a revision not yet recorded; neither is verified, a run id does not cover the bytes behind a placeholder, and submission refuses both; a .scene ref and a pass-through directory are hashed as directories (dirhash/1); for kind orbit, every task window must lie inside the orbit window and the window must be a whole number of waypoint spacings. The $id is an absolute URI under a base that does not resolve on the network (https://schemas.manifold.example/contracts/); references between the three contract schemas are sibling file names, which resolve against it, so a validator maps the base to this folder.",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "generator",
-    "scenes",
-    "platform",
-    "motion",
-    "tasks",
-    "atmosphere"
-  ],
   "properties": {
     "generator": {
       "description": "The tool that turns this block into DIRSIG input files.",
@@ -169,6 +161,31 @@
         "seed": {
           "description": "The random seed passed to scene2hdf and dirsig5; the same seed reproduces a render byte for byte.",
           "type": "integer"
+        }
+      }
+    },
+    "mode": {
+      "description": "Absent for the layered form (the generator builds the DIRSIG input from this block). `passthrough` (proposed): DIRSIG runs a library demo directory's simulation file as authored; the block then carries `generator`, `mode`, `passthrough` and optionally `run`, and no scene, platform, motion, tasks, atmosphere, weather or ephemeris.",
+      "const": "passthrough"
+    },
+    "passthrough": {
+      "description": "The pass-through input (proposed): one library directory, identified by its `dirhash/1` digest, and the simulation file inside it that DIRSIG runs unchanged.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "directory",
+        "simulation"
+      ],
+      "properties": {
+        "directory": {
+          "description": "The directory, a library ref: `name` is its path under the engine-asset library (for example `demo_dirs/Brdf1`), `content_hash` its `dirhash/1` digest.",
+          "$ref": "#/$defs/libraryRef"
+        },
+        "simulation": {
+          "description": "The simulation file (`.sim` or `.jsim`) DIRSIG runs, a relative POSIX path inside the directory; its relative references resolve from its own folder.",
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*(^|/)\\.\\.(/|$))[^\\\\\\n]+\\.(sim|jsim)$"
         }
       }
     }
@@ -572,5 +589,77 @@
         }
       }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "passthrough"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "description": "The pass-through form (proposed).",
+        "required": [
+          "generator",
+          "mode",
+          "passthrough"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "scenes"
+              ]
+            },
+            {
+              "required": [
+                "platform"
+              ]
+            },
+            {
+              "required": [
+                "motion"
+              ]
+            },
+            {
+              "required": [
+                "tasks"
+              ]
+            },
+            {
+              "required": [
+                "atmosphere"
+              ]
+            },
+            {
+              "required": [
+                "weather"
+              ]
+            },
+            {
+              "required": [
+                "ephemeris"
+              ]
+            }
+          ]
+        }
+      },
+      "else": {
+        "description": "The layered form.",
+        "required": [
+          "generator",
+          "scenes",
+          "platform",
+          "motion",
+          "tasks",
+          "atmosphere"
+        ]
+      }
+    }
+  ]
 }

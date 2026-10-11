@@ -168,14 +168,6 @@
       "description": "The engine-independent part of the run: what is observed, by which sensor, under which commanded settings, and how faithfully.",
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "meta",
-        "origin",
-        "collection",
-        "sensor",
-        "settings",
-        "fidelity"
-      ],
       "properties": {
         "meta": {
           "description": "Identity and search terms.",
@@ -544,6 +536,20 @@
           "patternProperties": {
             "^[a-z0-9_]+\\.[A-Za-z0-9_.-]+$": {}
           }
+        },
+        "opaque": {
+          "description": "Present (proposed) when the run's engine input is opaque to the descriptor: a pass-through run (`engine.mode: passthrough`) states no collection, sensor or settings, because they cannot be derived from a demo directory run as authored. The descriptor then carries `meta`, `origin`, `fidelity` and `opaque` only.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source"
+          ],
+          "properties": {
+            "source": {
+              "description": "Why the descriptor is opaque: `passthrough`, the engine input is a pass-through directory.",
+              "const": "passthrough"
+            }
+          }
         }
       },
       "allOf": [
@@ -576,6 +582,57 @@
                 "field"
               ]
             }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "opaque"
+            ]
+          },
+          "then": {
+            "description": "The opaque descriptor (proposed).",
+            "required": [
+              "meta",
+              "origin",
+              "fidelity",
+              "opaque"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "collection"
+                  ]
+                },
+                {
+                  "required": [
+                    "sensor"
+                  ]
+                },
+                {
+                  "required": [
+                    "settings"
+                  ]
+                },
+                {
+                  "required": [
+                    "field"
+                  ]
+                }
+              ]
+            }
+          },
+          "else": {
+            "description": "The stated descriptor.",
+            "required": [
+              "meta",
+              "origin",
+              "collection",
+              "sensor",
+              "settings",
+              "fidelity"
+            ]
           }
         }
       ]
