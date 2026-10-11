@@ -21,8 +21,9 @@ digests compared. Then the attempt work roots and, unless it is a committed asse
 extracted directory are deleted (`safe_delete` refuses any path outside the sweep work root and the demo directories the
 sweep extracted). Each attempt records the demo, simulation file, outcome (`rendered`, `failed`, `timeout`,
 `interrupted`), engine exit status, wall time, outputs (name, size, sha256), run-directory size, minimum free disk,
-maximum CPU temperature (the worker's and the driver's own samples) and `throttle_suspect`, the per-run cache state,
-the tool versions, and for a failure the first `worker.log` line matching `FIRST_ERROR` and the last 20 lines.
+maximum CPU temperature (the worker's and the driver's own samples), the worker's `cpu_freq_khz`, `throttle_suspect`,
+the per-run cache state, the tool versions, and for a failure the first `worker.log` line matching `FIRST_ERROR` and
+the last 20 lines.
 
 Budget: no attempt starts when the time left is less than the longest completed attempt or 10 minutes, whichever is
 larger; a render is stopped only by its capped timeout. SIGTERM cancels the current render, records it `interrupted`,
@@ -51,7 +52,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from protodirsig.dirhash import directory_digest                  # noqa: E402
-from protodirsig.passthrough import THROTTLE_SUSPECT_C, max_zone_temp_c   # noqa: E402
+from protodirsig.passthrough import max_zone_temp_c, throttle_suspect   # noqa: E402
 
 DIRSIG4 = ("MoonSat1", "Ssa2", "Ssa3")
 DIRSIG4_NOTE = "flagged DIRSIG 4 only by the online demo page, which the user read"
@@ -364,7 +365,7 @@ class Sweep:
                         may_start(self.clock(), self.deadline, self.longest):
                     rep = self.attempt(name, digest, sim, repeat=True)
                     att["repeat_run"] = {k: rep.get(k) for k in ("outcome", "wall_s", "outputs", "max_cpu_temp_c",
-                                                              "throttle_suspect")}
+                                                              "cpu_freq_khz", "throttle_suspect")}
                     if rep["outcome"] == "rendered":
                         att["deterministic"], att["differing"] = compare_outputs(att["outputs"], rep["outputs"])
                     else:
@@ -410,7 +411,7 @@ class Sweep:
                "started_at": utc_now(self.clock), "timeout_s": round(timeout, 1)}
         self.out(f"{att['started_at']} {name} {simulation} ({tag}, timeout {int(timeout)} s)")
         min_free = self.free_bytes()
-        hot = self.temp()
+        hot, freq = self.temp(), None
         t0 = self.clock()
         ws = None
         try:
@@ -448,7 +449,7 @@ class Sweep:
             run_dir = store.run_dir(att["run_id"])
             rec = store.read_record(att["run_id"])
             final = store.read_status(att["run_id"], reap=False)
-            worker_hot = rec.get("max_cpu_temp_c")
+            worker_hot, freq = rec.get("max_cpu_temp_c"), rec.get("cpu_freq_khz")
             if worker_hot is not None:
                 hot = worker_hot if hot is None else max(hot, worker_hot)
             att.update(engine_exit_status=rec.get("engine_exit_status"),
@@ -467,8 +468,8 @@ class Sweep:
                 att["errors"] = [e.get("detail") for e in final.get("errors", []) if isinstance(e, dict)]
         else:
             att.setdefault("outputs", [])
-        att["max_cpu_temp_c"] = hot
-        att["throttle_suspect"] = hot is not None and hot >= THROTTLE_SUSPECT_C
+        att["max_cpu_temp_c"], att["cpu_freq_khz"] = hot, freq
+        att["throttle_suspect"] = throttle_suspect(hot, freq)
         if att["outcome"] in ("rendered", "failed", "timeout"):
             self.longest = max(self.longest, att["wall_s"])
         self.append({**att, "recorded_at": utc_now(self.clock)})

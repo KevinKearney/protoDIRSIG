@@ -172,11 +172,14 @@ Muses2 needs the external MUSES tool (`MUSES_EXE` is unset); SpatialResponse1 ne
 ### DIRSIG 4 engine path (maybe)
 `MoonSat1`, `Ssa2` and `Ssa3` are DIRSIG 4 demos (flagged by the online demo page) and were not attempted; several DIRSIG 5 failures are DIRSIG 4 features DIRSIG 5 refuses (SAR reflectivity in SpotlightSar1 and StripmapSar1, a scripted mount in ScriptMount1, an `<atmospherics>` geometry in FastCloud1, the `DIRSIG_ODB` variable). Maybe: a second engine path for DIRSIG 4, if an installation is available and the SDA demos need it. Not planned.
 
+### Artifact listings at scale
+References are hashed once when a run completes and cached in `artifacts.json` and the status, so `list_artifacts` on 2,000 files takes about 3 ms (`tests/test_artifact_scale.py`). The contract has no pagination: the listing and every `get_run` status carry all references, about 630 KB for 2,000 files (LightCurve1 wrote 1,681). `LocalBackend.get_artifact` reads the whole file into memory (a 1 GB file: 0.35 s and a 1 GB peak). No contract change this round; MANIFOLD question C-27. Options: a status that carries a count and a listing with a cursor; a streamed or ranged artifact read.
+
 ### Default-seed nondeterminism in demos
 With no `--random_seed`, 43 of 125 repeated demos gave different outputs (every lidar demo's `.bin`, 9 demos in truth images only, 3 in data-recorder text, 14 in radiance images; `docs/DIRSIG_demo_sweep.md`). Repeat those demos with a stated seed to learn whether DIRSIG's seed makes them reproducible; a reference whose repeat differs needs a tolerance instead of byte equality.
 
 ### Demo sweep follow-ups
-`scripts/sweep_demos.py` measures wall time by its 2 s poll, so short renders read as 4.1 s or 6.1 s; record the worker's start and finish times instead. Its stdout to `driver.log` is block-buffered, so the log showed nothing during the run (the heartbeat was the progress signal); flush per line. CPU frequency was not recorded, so whether the 90 C-plus temperatures throttled the renders is unknown. Rerun the sweep after a DIRSIG upgrade and diff the outcomes.
+`scripts/sweep_demos.py` measures wall time by its 2 s poll, so short renders read as 4.1 s or 6.1 s; record the worker's start and finish times instead. Its stdout to `driver.log` is block-buffered, so the log showed nothing during the run (the heartbeat was the progress signal); flush per line. The pass-through record now carries the CPU frequency (`cpu_freq_khz`); the round 15 sweep predates it, so whether its 90 C-plus temperatures throttled the renders is unknown. Rerun the sweep after a DIRSIG upgrade and diff the outcomes.
 
 ### Ssa1 against the orbit form
 Ssa1 (satellite imaging a satellite) rendered as authored in 629 s with four outputs. Compare it with the SDK's orbit form once space-object imaging against space exists (the C-05 scope note): propagate the same objects, express the observer in layers, and compare the images and truth with the pass-through reference.

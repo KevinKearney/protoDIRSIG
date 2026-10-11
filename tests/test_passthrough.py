@@ -457,3 +457,44 @@ def test_the_execution_record_has_the_maximum_temperature_and_the_throttle_flag(
     rec = backend.store.read_record(final["run_id"])
     assert rec["max_cpu_temp_c"] == (max(temps) if temps else None)
     assert rec["throttle_suspect"] is flagged
+
+
+def _cpus(root, cur_khz, max_khz=4_200_000):
+    for i, f in enumerate(cur_khz):
+        d = root / f"cpu{i}" / "cpufreq"
+        d.mkdir(parents=True)
+        (d / "scaling_cur_freq").write_text(f"{f}\n")
+        (d / "cpuinfo_max_freq").write_text(f"{max_khz}\n")
+    (root / "cpufreq").mkdir(parents=True, exist_ok=True)                  # a sibling that is not a core
+    return root
+
+
+def test_cpu_frequency_and_the_throttle_rule(tmp_path):
+    from protodirsig.passthrough import ThermalSampler, cpu_freq_khz, throttle_suspect
+    root = _cpus(tmp_path / "cpu", [3_000_000, 4_100_000])
+    assert cpu_freq_khz(root) == {"min": 3_000_000, "max": 4_100_000, "cpuinfo_max": 4_200_000}
+    assert cpu_freq_khz(tmp_path / "none") is None
+    fast, slow = {"min": 3_800_000, "max": 4_100_000, "cpuinfo_max": 4_200_000}, {"min": 3_700_000, "max": 4_100_000,
+                                                                                  "cpuinfo_max": 4_200_000}
+    assert throttle_suspect(90.0, slow) and not throttle_suspect(90.0, fast) and not throttle_suspect(89.9, slow)
+    assert throttle_suspect(95.0, None) and not throttle_suspect(None, slow)               # unknown frequency: temperature
+    zones = _zones(tmp_path / "thermal", [50.0])
+    with ThermalSampler(interval=0.3, root=zones, freq_root=root) as s:               # first sample after 0.3 s
+        (root / "cpu1" / "cpufreq" / "scaling_cur_freq").write_text("1200000\n")
+        import time
+        time.sleep(0.5)
+    assert s.freq == {"min": 1_200_000, "max": 3_000_000, "cpuinfo_max": 4_200_000}   # not the entry reading
+    with ThermalSampler(interval=5, root=zones, freq_root=root) as s:                 # ends before the first sample
+        pass
+    assert s.freq is None
+
+
+@pytest.mark.parametrize("cur, flagged", [([4_000_000, 3_900_000], False), ([4_000_000, 2_000_000], True), (None, True)])
+def test_the_execution_record_has_the_cpu_frequency(tmp_path, library, layers, monkeypatch, cur, flagged):
+    monkeypatch.setenv("PROTODIRSIG_THERMAL_ZONES", str(_zones(tmp_path / "thermal", [95.0])))
+    monkeypatch.setenv("PROTODIRSIG_CPUFREQ", str(_cpus(tmp_path / "cpu", cur) if cur else tmp_path / "none"))
+    monkeypatch.setenv("STUB_ENGINE_SLEEP", "1.5")                               # long enough for a frequency sample
+    backend, final = _submit(tmp_path, library, layers)
+    rec = backend.store.read_record(final["run_id"])
+    assert rec["cpu_freq_khz"] == ({"min": min(cur), "max": max(cur), "cpuinfo_max": 4_200_000} if cur else None)
+    assert rec["throttle_suspect"] is flagged

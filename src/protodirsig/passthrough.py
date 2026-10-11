@@ -19,7 +19,8 @@ folder are moved into it. `engine` is the `dirsig5` executable (a stub in tests)
 `HOME` set to that folder (created if missing) and every other variable, `DIRSIG_HOME` included, inherited: DIRSIG writes
 its material caches under `$HOME/Documents/DIRSIG/cache`, so a per-run home keeps them out of the user's cache and lets
 the run record them (`cache_state`). While the tools run, `ThermalSampler` reads the maximum temperature over
-`/sys/class/thermal/thermal_zone*/temp` (`$PROTODIRSIG_THERMAL_ZONES` overrides the folder) every 5 seconds (`max_cpu_temp_c` in the result, None without sensors).
+`/sys/class/thermal/thermal_zone*/temp` (`$PROTODIRSIG_THERMAL_ZONES` overrides the folder) every 5 seconds (`max_cpu_temp_c` in the result, None without sensors), and the cores' current frequencies with it
+(`cpu_freq_khz`, `$PROTODIRSIG_CPUFREQ` overrides `/sys/devices/system/cpu`).
 `tool_version` is a tool's version line as the tool prints it.
 
 Imports: the standard library, `protodirsig.run_spec` and `protodirsig.dirhash`; no engine package.
@@ -37,7 +38,9 @@ from protodirsig.run_spec import PLACEHOLDER, RunSpecError
 POINTER = "/engine/passthrough"
 OPAQUE = {"source": "passthrough"}
 THERMAL_ZONES = os.environ.get("PROTODIRSIG_THERMAL_ZONES", "/sys/class/thermal")   # overridable for tests
-THROTTLE_SUSPECT_C = 90.0         # a run whose maximum reaches this is flagged throttle_suspect
+CPU_FREQ = os.environ.get("PROTODIRSIG_CPUFREQ", "/sys/devices/system/cpu")             # overridable for tests
+THROTTLE_SUSPECT_C = 90.0         # a run is throttle_suspect at this maximum temperature ...
+THROTTLE_FREQ_FRACTION = 0.9      # ... with a core below this fraction of cpuinfo_max_freq
 
 
 def is_passthrough(spec):
@@ -166,23 +169,58 @@ def max_zone_temp_c(root=THERMAL_ZONES):
     return max(temps) if temps else None
 
 
+def cpu_freq_khz(root=CPU_FREQ):
+    """`{min, max, cpuinfo_max}` in kHz: the minimum and maximum `scaling_cur_freq` over `<root>/cpu*/cpufreq` and the
+    largest `cpuinfo_max_freq`; None when no core's current frequency can be read."""
+    def read(name):
+        values = []
+        for f in Path(root).glob(f"cpu[0-9]*/cpufreq/{name}"):
+            try:
+                values.append(int(f.read_text().strip()))
+            except (OSError, ValueError):
+                continue
+        return values
+    cur, top = read("scaling_cur_freq"), read("cpuinfo_max_freq")
+    return {"min": min(cur), "max": max(cur), "cpuinfo_max": max(top) if top else None} if cur else None
+
+
+def throttle_suspect(max_c, freq):
+    """At or above THROTTLE_SUSPECT_C with a core below THROTTLE_FREQ_FRACTION of `cpuinfo_max`; where the frequency
+    is unknown (`freq` None or without `cpuinfo_max`), the temperature alone decides."""
+    if max_c is None or max_c < THROTTLE_SUSPECT_C:
+        return False
+    if not freq or freq.get("min") is None or not freq.get("cpuinfo_max"):
+        return True
+    return freq["min"] < THROTTLE_FREQ_FRACTION * freq["cpuinfo_max"]
+
+
 class ThermalSampler:
     """Samples `max_zone_temp_c` at entry, every `interval` seconds while active, and at exit; `max_c` is the maximum
-    seen, None when the sensors are unavailable."""
+    seen, None when the sensors are unavailable. The CPU frequency (`cpu_freq_khz`) is sampled with the temperature
+    while active, the first time after `min(1, interval)` seconds, but not at entry or exit, when the tools are not
+    running and idle cores would read low; `freq` is `{min, max, cpuinfo_max}` over those samples, None when there
+    was none or the files are unavailable."""
 
-    def __init__(self, interval=5.0, root=THERMAL_ZONES):
-        self.interval, self.root, self.max_c = interval, root, None
+    def __init__(self, interval=5.0, root=THERMAL_ZONES, freq_root=CPU_FREQ):
+        self.interval, self.root, self.freq_root, self.max_c, self.freq = interval, root, freq_root, None, None
         self._stop = threading.Event()
         self._thread = None
 
-    def _sample(self):
+    def _sample(self, freq=False):
         t = max_zone_temp_c(self.root)
         if t is not None and (self.max_c is None or t > self.max_c):
             self.max_c = t
+        f = cpu_freq_khz(self.freq_root) if freq else None
+        if f is not None:
+            old = self.freq or f
+            self.freq = {"min": min(old["min"], f["min"]), "max": max(old["max"], f["max"]),
+                         "cpuinfo_max": max((v for v in (old["cpuinfo_max"], f["cpuinfo_max"]) if v), default=None)}
 
     def _loop(self):
-        while not self._stop.wait(self.interval):
-            self._sample()
+        wait = min(1.0, self.interval)
+        while not self._stop.wait(wait):
+            self._sample(freq=True)
+            wait = self.interval
 
     def __enter__(self):
         self._sample()
@@ -210,11 +248,11 @@ def _snapshot(root):
 
 def run_engine(run, work_dir, engine, dry_run=False, timeout=None, log=None, home=None):
     """Run `engine` on a copy of the run's directory. Returns `{returncode, command, moved, output, compiled,
-    max_cpu_temp_c}`: `moved` lists files the engine wrote into the copy, which are moved into `<work_dir>/output/`.
+    max_cpu_temp_c, cpu_freq_khz}`: `moved` lists files the engine wrote into the copy, which are moved into `<work_dir>/output/`.
     Never writes into the library. `home`: the `HOME` both tools run with (None: inherited)."""
     with ThermalSampler() as thermal:
         result = _run_engine(run, work_dir, engine, dry_run, timeout, log, home)
-    return {**result, "max_cpu_temp_c": thermal.max_c}
+    return {**result, "max_cpu_temp_c": thermal.max_c, "cpu_freq_khz": thermal.freq}
 
 
 def _run_engine(run, work_dir, engine, dry_run, timeout, log, home):

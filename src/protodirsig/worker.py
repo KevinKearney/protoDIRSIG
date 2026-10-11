@@ -9,9 +9,9 @@ dry run and, if it passes, the render; then it hashes the artifacts, writes `art
 compare-and-set from `running`, so a cancelled run is never overwritten. The slot is always released, and the outcome
 is written to `worker.log` (where the backend also sends the process's stdout and stderr).
 
-The execution record (`execution.json`) gains: `started_at`, `finished_at`, `worker` (`pid`, `pgid`, `start_ticks`, `boot_time`), `python`, the
-`protodirsig` version, the `dirfm` revision in use and whether it equals the spec's `engine.generator.revision`, the
-DIRSIG installation and version, the propagator of an orbit run, and `max_parallel`. It is never part of a run id.
+The execution record (`execution.json`) gains: `started_at`, `finished_at`, `worker` (`pid`, `pgid`, `start_ticks`,
+`boot_time`), `python`, the `protodirsig` version, the `dirfm` revision in use and whether it equals the spec's
+`engine.generator.revision`, the DIRSIG installation and version, the propagator of an orbit run, and `max_parallel`. It is never part of a run id.
 
 A pass-through run (`engine.mode: passthrough`, proposed) skips the layered job: the engine (`job.json` `engine`, else
 the located `dirsig5`) runs the demo directory's simulation file on a copy of the directory under `<run_dir>/input/`,
@@ -20,7 +20,9 @@ land under it, not in the user's `~/Documents/DIRSIG/cache`; `DIRSIG_HOME` is in
 artifact (no frames), and the execution record gains `mode: passthrough`, the engine's path and version, the
 `scene2hdf` beside it and its version (both as the tools print them), the engine's exit status and command, `cache`
 (`mode: per-run home`, the home, and the cache's file count and bytes after the run), `max_cpu_temp_c` (the maximum over
-the thermal zones while the tools ran, null without sensors) and `throttle_suspect` (that maximum at or above 90 C).
+the thermal zones while the tools ran, null without sensors), `cpu_freq_khz` (`{min, max}` of the cores' current
+frequency sampled with it and the largest `cpuinfo_max`, null when unavailable) and `throttle_suspect` (that maximum at
+or above 90 C with a core below 90 percent of `cpuinfo_max`; the temperature alone when the frequency is unknown).
 
 Engine-bound: imports `protodirsig.simulation` (dirfm). The state machine is `main(run_dir, simulation_factory)`; tests
 call it in-process with a stub factory.
@@ -39,7 +41,7 @@ from pathlib import Path
 
 from protodirsig import problems
 from protodirsig.simulation import Simulation
-from protodirsig.passthrough import (THROTTLE_SUSPECT_C, cache_state, is_passthrough, resolve_passthrough, run_engine,
+from protodirsig.passthrough import (cache_state, is_passthrough, resolve_passthrough, run_engine, throttle_suspect,
                                      tool_version)
 from protodirsig.store import (ArtifactError, RunStore, artifacts_for, passthrough_artifacts, process_start,
                                utc_now)
@@ -165,10 +167,10 @@ def _run_passthrough(store, run_id, name, run_dir, job, spec):
                                      "passthrough": {"directory": str(run.directory), "simulation": run.simulation_rel}})
         home = run_dir / "home"
         result = run_engine(run, run_dir, engine, log=run_dir / "worker.log", home=home)
-        hot = result.get("max_cpu_temp_c")
+        hot, freq = result.get("max_cpu_temp_c"), result.get("cpu_freq_khz")
         store.update_record(run_id, {"cache": {"mode": "per-run home", "home": "home", **cache_state(home)},
-                                     "max_cpu_temp_c": hot,
-                                     "throttle_suspect": hot is not None and hot >= THROTTLE_SUSPECT_C,
+                                     "max_cpu_temp_c": hot, "cpu_freq_khz": freq,
+                                     "throttle_suspect": throttle_suspect(hot, freq),
                                      "scene_compile": [{"scene": s, "exit_status": c} for s, c in result["compiled"]]
                                      if result.get("compiled") is not None else "no scene2hdf beside the engine",
                                      "engine_exit_status": result["returncode"],
