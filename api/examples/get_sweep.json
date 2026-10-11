@@ -25,7 +25,8 @@
               "name": "run_spec.json",
               "sha256": "24878693c8764443db4df620dd95fcf1e8c31e491b55a4f384083008d24b0e35",
               "media_type": "application/json",
-              "uri": "file:///tmp/manifold/runs/24878693c8764443db4df620dd95fcf1e8c31e491b55a4f384083008d24b0e35/run_spec.json"
+              "uri": "file:///tmp/manifold/runs/24878693c8764443db4df620dd95fcf1e8c31e491b55a4f384083008d24b0e35/run_spec.json",
+              "role": "config"
             }
           ]
         },
@@ -39,7 +40,8 @@
               "name": "run_spec.json",
               "sha256": "d194086c470dc2a272db8f17b37c07d638af143d37d7bda36f4823e06067ed0e",
               "media_type": "application/json",
-              "uri": "file:///tmp/manifold/runs/d194086c470dc2a272db8f17b37c07d638af143d37d7bda36f4823e06067ed0e/run_spec.json"
+              "uri": "file:///tmp/manifold/runs/d194086c470dc2a272db8f17b37c07d638af143d37d7bda36f4823e06067ed0e/run_spec.json",
+              "role": "config"
             }
           ]
         },
@@ -53,7 +55,8 @@
               "name": "run_spec.json",
               "sha256": "37ee7518568b19baab7b25d75f072f8edaebfe1e399770f9b85f6bd48e65c95a",
               "media_type": "application/json",
-              "uri": "file:///tmp/manifold/runs/37ee7518568b19baab7b25d75f072f8edaebfe1e399770f9b85f6bd48e65c95a/run_spec.json"
+              "uri": "file:///tmp/manifold/runs/37ee7518568b19baab7b25d75f072f8edaebfe1e399770f9b85f6bd48e65c95a/run_spec.json",
+              "role": "config"
             }
           ]
         }

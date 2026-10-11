@@ -446,7 +446,7 @@ class LocalBackend:
         status = self.store.read_status(run_id)
         if status["state"] in FINAL:
             return status
-        updated, status = self.store.update_status(run_id, ACTIVE, {"state": "cancelled"})
+        updated, status = self.store.update_status(run_id, ACTIVE, {"state": "cancelled", "verdict": "incomplete"})
         if not updated:
             return status
         pgid = (self.store.read_record(run_id).get("worker") or {}).get("pgid")

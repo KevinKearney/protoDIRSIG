@@ -91,6 +91,26 @@ def _get(d, path):
     return d
 
 
+PASSTHROUGH_ROLES = ((".hdr", "metadata"), (".log", "log"), (".txt", "log"), (".png", "preview"), (".jpg", "preview"),
+                     (".jpeg", "preview"), (".gif", "preview"), (".csv", "metadata"), (".kml", "metadata"),
+                     (".xml", "config"), (".scene", "config"), (".platform", "config"), (".tasks", "config"),
+                     (".ppd", "config"), (".jsim", "config"), (".sim", "config"), (".json", "metadata"))
+
+
+def passthrough_role(relpath):
+    """The role of a file a pass-through run wrote, by its name (a demo's outputs are named by its author, not by this
+    adapter): an image header or a table is `metadata`, a log `log`, a picture `preview`, an input file DIRSIG copied
+    out `config`, the engine's own `run_info.json` and `log_info.json` `log` and any other JSON `metadata`; any other file is `truth` when its name
+    says truth and `product` otherwise. The mapping is `PASSTHROUGH_ROLES`, first suffix match."""
+    name = relpath.rsplit("/", 1)[-1].lower()
+    if name in RUN_LEVEL:
+        return "log"
+    for suffix, role in PASSTHROUGH_ROLES:
+        if name.endswith(suffix):
+            return role
+    return "truth" if "truth" in name else "product"
+
+
 class DirsigAdapter:
     """The DIRSIG adapter. Stateless; one instance serves every run."""
 
@@ -178,8 +198,8 @@ class DirsigAdapter:
         out = Path(output_dir)
         if result.get("mode") == "passthrough":
             files = sorted(p for p in out.rglob("*") if p.is_file()) if out.is_dir() else []
-            arts = tuple(CollectedArtifact(p, "product", None, p.relative_to(out).as_posix().replace("/", "_"))
-                         for p in files)
+            arts = tuple(CollectedArtifact(p, passthrough_role(p.relative_to(out).as_posix()), None,
+                                           p.relative_to(out).as_posix().replace("/", "_")) for p in files)
         else:
             arts = [CollectedArtifact(out / n, "log") for n in RUN_LEVEL if (out / n).is_file()]
             for frame, image, truth in _frames(run_dir):

@@ -50,6 +50,7 @@ from manifold.core.errors import NotFoundError
 STATES = ("accepted", "running", "rendered", "failed", "cancelled")
 FINAL = ("rendered", "failed", "cancelled")
 ACTIVE = ("accepted", "running")
+DEFAULT_VERDICT = {"rendered": "complete", "failed": "failed", "cancelled": "incomplete"}   # run_status `verdict`
 ID = re.compile(r"^[0-9a-f]{64}$")
 WORKER_GRACE_S = 60                                             # an active run with no worker pid this old is dead
 
@@ -170,7 +171,7 @@ class RunStore:
             (tmp / "job.json").write_text(json.dumps({**job, "work_root": str(self.root)}, indent=1) + "\n")
             _write_json(tmp / "execution.json", {"run_id": run_id, "submitted_at": utc_now()})
             spec_ref = {"name": "run_spec.json", "sha256": run_id, "media_type": "application/json",
-                        "uri": (target / "run_spec.json").as_uri()}
+                        "uri": (target / "run_spec.json").as_uri(), "role": "config"}
             _write_json(tmp / "status.json", {"run_id": run_id, "name": name, "state": "accepted", "errors": [],
                                               "artifacts": [spec_ref]})
             if target.exists():                                     # incomplete leftover: replace it
@@ -208,9 +209,12 @@ class RunStore:
     def _status(self, run_id):
         d = self.run_dir(run_id)
         try:
-            return _read_json(d / "status.json")
+            status = _read_json(d / "status.json")
         except (OSError, ValueError):
             raise NotFoundError("run", run_id) from None
+        if status["state"] in FINAL and "verdict" not in status:      # written before verdicts: implied by the state
+            status["verdict"] = DEFAULT_VERDICT[status["state"]]
+        return status
 
     def read_status(self, run_id, reap=True):
         """The run's `run_status` document; an active run whose worker died is failed first (`reap`)."""
@@ -260,7 +264,7 @@ class RunStore:
         cached = d / "artifacts.json"
         if cached.is_file():
             return _read_json(cached)
-        return [artifact_ref(d / "run_spec.json")]
+        return [artifact_ref(d / "run_spec.json", role="config")]
 
     def write_artifacts(self, run_id, refs):
         _write_json(self.run_dir(run_id) / "artifacts.json", refs)
@@ -288,7 +292,7 @@ class RunStore:
                 return False
             why = f"no worker was started within {WORKER_GRACE_S} s of submission"
         problem = problems.execution_failed(run_id, status["name"], f"{why}; the run did not finish")
-        updated, _ = self.update_status(run_id, ACTIVE, {"state": "failed", "errors": [problem]})
+        updated, _ = self.update_status(run_id, ACTIVE, {"state": "failed", "verdict": "incomplete", "errors": [problem]})
         if updated:
             self.update_record(run_id, {"finished_at": utc_now(), "reaped": why})
         return updated

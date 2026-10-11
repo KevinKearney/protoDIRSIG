@@ -177,18 +177,29 @@ class ArtifactRef(_Model):
         For an artifact that belongs to one capture of a multi-frame run (an image, its header, a truth product),
         the zero-based index of that capture, in task order. Absent for an artifact that belongs to the run as a
         whole (the run spec, the engine logs).
+    role : str, optional
+        `proposed`. What the artifact is to a user of the run, from a free vocabulary of lowercase words whose
+        initial set is: `product` (the engine's output imagery or data), `truth` (truth images or annotations that
+        describe a product), `preview` (an image for looking at, not measurement), `log` (what the engine or the
+        worker reported while running), `config` (the inputs as executed: the resolved run spec, the engine's own
+        configuration files) and `metadata` (descriptions of other artifacts: image headers, scene or orbit
+        descriptions). A client treats a role it does not know as an opaque label. The engine's adapter assigns it,
+        never a file name rule of the backend; the resolved run spec is `config`. Every reference a backend builds
+        carries it; a reference stored before roles existed has none.
     """
     name: str
     sha256: str
     media_type: str
     uri: str
     frame: int = None
+    role: str = None
     _FIELDS = (
         ('name', 'name', ('scalar', ('string',), None), True, False),
         ('sha256', 'sha256', ('scalar', ('string',), None), True, False),
         ('media_type', 'media_type', ('scalar', ('string',), None), True, False),
         ('uri', 'uri', ('scalar', ('string',), None), True, False),
         ('frame', 'frame', ('scalar', ('integer',), None), False, False),
+        ('role', 'role', ('scalar', ('string',), None), False, False),
     )
     _CLOSED = True
 
@@ -402,16 +413,24 @@ class RunStatus(_Model):
         References to the artifacts the run has produced so far: the resolved run spec from acceptance, the engine's
         logs once written, and the image, its header and the truth images once the run has `rendered`. The same list
         `list_artifacts` returns.
+    verdict : Literal['complete', 'incomplete', 'failed'], optional
+        `proposed`. For a run in a final state, what its engine's adapter concluded from what the run left, which
+        does not rest on the exit status alone: `complete` (every expected output was written; the state is
+        `rendered`), `incomplete` (the run stopped before it finished: cancelled, its worker gone, or its engine's
+        end-of-run evidence missing) or `failed` (the engine ran to its end and reported failure, or the run could
+        not start). Absent while the run is `accepted` or `running`.
     """
     run_id: str
     name: str
     state: Literal['accepted', 'running', 'rendered', 'failed', 'cancelled']
     errors: tuple[Problem, ...]
     artifacts: tuple[ArtifactRef, ...]
+    verdict: Literal['complete', 'incomplete', 'failed'] = None
     _FIELDS = (
         ('run_id', 'run_id', ('scalar', ('string',), None), True, False),
         ('name', 'name', ('scalar', ('string',), None), True, False),
         ('state', 'state', ('scalar', ('string',), ('accepted', 'running', 'rendered', 'failed', 'cancelled')), True, False),
+        ('verdict', 'verdict', ('scalar', ('string',), ('complete', 'incomplete', 'failed')), False, False),
         ('errors', 'errors', ('array', ('model', 'Problem')), True, False),
         ('artifacts', 'artifacts', ('array', ('model', 'ArtifactRef')), True, False),
     )

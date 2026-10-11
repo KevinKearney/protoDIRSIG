@@ -35,6 +35,11 @@
       "description": "For an artifact that belongs to one capture of a multi-frame run (an image, its header, a truth product), the zero-based index of that capture, in task order. Absent for an artifact that belongs to the run as a whole (the run spec, the engine logs).",
       "type": "integer",
       "minimum": 0
+    },
+    "role": {
+      "description": "`proposed`. What the artifact is to a user of the run, from a free vocabulary of lowercase words whose initial set is: `product` (the engine's output imagery or data), `truth` (truth images or annotations that describe a product), `preview` (an image for looking at, not measurement), `log` (what the engine or the worker reported while running), `config` (the inputs as executed: the resolved run spec, the engine's own configuration files) and `metadata` (descriptions of other artifacts: image headers, scene or orbit descriptions). A client treats a role it does not know as an opaque label. The engine's adapter assigns it, never a file name rule of the backend; the resolved run spec is `config`. Every reference a backend builds carries it; a reference stored before roles existed has none.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
     }
   }
 }

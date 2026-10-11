@@ -110,12 +110,16 @@ def library(kind):
 
 def spec_artifact(run_id):
     return {"name": "run_spec.json", "sha256": run_id, "media_type": "application/json",
-            "uri": f"{RUN_DIR}/{run_id}/run_spec.json"}
+            "uri": f"{RUN_DIR}/{run_id}/run_spec.json", "role": "config"}
+
+
+VERDICT = {"rendered": "complete", "failed": "failed", "cancelled": "incomplete"}   # a final state's verdict (proposed)
 
 
 def status(name, state):
     run_id = RUN_IDS[name]
-    return {"run_id": run_id, "name": name, "state": state, "errors": [], "artifacts": [spec_artifact(run_id)]}
+    verdict = {"verdict": VERDICT[state]} if state in VERDICT else {}
+    return {"run_id": run_id, "name": name, "state": state, **verdict, "errors": [], "artifacts": [spec_artifact(run_id)]}
 
 
 def get(path):
@@ -276,18 +280,20 @@ def examples():
     assert compute_run_id(pass_spec, SENSORS) == pid
     frames = []
     for k, _ in enumerate(pass_spec["engine"]["tasks"]["windows"]):
-        for base, kind in (("AurorNIROutput", "image"), ("truth1", "truth")):
-            for ext, media in ((".img", "application/octet-stream"), (".img.hdr", "text/plain")):
+        for base, role in (("AurorNIROutput", "product"), ("truth1", "truth")):
+            for ext, media, r in ((".img", "application/octet-stream", role), (".img.hdr", "text/plain", "metadata")):
                 name = f"{base}-t{k:04d}-c0000{ext}"
                 frames.append({"name": name, "sha256": ZERO, "media_type": media, "uri": f"{RUN_DIR}/{pid}/{name}",
-                               "frame": k})
-    logs = [{"name": n, "sha256": ZERO, "media_type": "application/json", "uri": f"{RUN_DIR}/{pid}/{n}"}
+                               "frame": k, "role": r})
+    logs = [{"name": n, "sha256": ZERO, "media_type": "application/json", "uri": f"{RUN_DIR}/{pid}/{n}", "role": "log"}
             for n in ("run_info.json", "log_info.json")]
     ex["list_artifacts.pass"] = {
         "summary": f"List the artifacts of the rendered `{PASS}` run: three frames.",
         "description": ("A multi-frame run lists one image, one header and one truth product per capture, named "
                         "`<base>-t<task>-c<capture>` as the pass template writes them, each with its zero-based `frame`; "
-                        "the run spec and the engine logs belong to the run as a whole and carry no frame. "
+                        "the run spec and the engine logs belong to the run as a whole and carry no frame. Each "
+                        "reference carries the role the engine's adapter gave it (proposed): the image `product`, the "
+                        "truth image `truth`, their headers `metadata`, the engine logs `log`, the run spec `config`. "
                         f"{PLACEHOLDER} {RENDERED_PLACEHOLDER}"),
         "request": get(f"/runs/{pid}/artifacts"),
         "response": ok({"run_id": pid, "artifacts": [spec_artifact(pid)] + logs + frames},

@@ -1,5 +1,6 @@
 """Artifact references: the `artifact_ref` document of a file (name, sha256 of its bytes, media type, `file://` URI,
-and the zero-based `frame` of a per-capture product) and the name rule every reference list obeys. Engine-neutral:
+the zero-based `frame` of a per-capture product, and the `role` its engine's adapter gave it, `proposed`) and the name
+rule every reference list obeys. Engine-neutral:
 what an engine produced is its adapter's to say (`EngineAdapter.collect`); the references are built here.
 
 Imports: the standard library only.
@@ -10,7 +11,11 @@ from pathlib import Path
 
 NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")               # artifact_ref.schema.json `name`
 MEDIA_TYPES = {".img": "application/octet-stream", ".hdr": "text/plain", ".log": "text/plain", ".txt": "text/plain",
-               ".json": "application/json", ".png": "image/png"}
+               ".json": "application/json", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+               ".fits": "application/fits", ".czml": "application/json", ".yaml": "application/yaml"}
+ROLES = ("product", "truth", "preview", "log", "config", "metadata")   # the initial set of `role` (proposed; free)
+ROLE = re.compile(r"^[a-z][a-z0-9_]*$")                              # artifact_ref.schema.json `role` pattern
+VERDICTS = ("complete", "incomplete", "failed")                        # run_status.schema.json `verdict` (proposed)
 
 
 class ArtifactError(ValueError):
@@ -29,13 +34,20 @@ def sha256_bytes_of(path):
     return h.hexdigest()
 
 
-def artifact_ref(path, name=None, frame=None):
-    """An `artifact_ref` document for a file: name (its base name), sha256 of the bytes, media type, `file://` URI."""
+def artifact_ref(path, name=None, frame=None, role=None):
+    """An `artifact_ref` document for a file: name (its base name), sha256 of the bytes, media type, `file://` URI, and
+    the frame and role when given (the vocabulary is free, `ROLES` its initial set; a role not matching `ROLE` is an
+    ArtifactError)."""
+    if role is not None and not ROLE.match(role):
+        raise ArtifactError(f"artifact role {role!r} is not a lowercase word ({ROLE.pattern}); the initial set is "
+                            f"{', '.join(ROLES)}")
     path = Path(path).resolve()
     ref = {"name": name or path.name, "sha256": sha256_bytes_of(path), "media_type": media_type(path),
            "uri": path.as_uri()}
     if frame is not None:
         ref["frame"] = frame
+    if role is not None:
+        ref["role"] = role
     return ref
 
 

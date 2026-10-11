@@ -20,7 +20,7 @@ Two controlled drawings illustrate the contract: `docs/diagrams/sdk_api.png` (th
 
 ## Contract version
 
-`sdk-api/1` is the version of the whole folder: the operations, the schemas and the OpenAPI document change together. A change that removes or renames an operation, a field or a state, or changes the meaning of one, needs a new version.
+`sdk-api/1` is the version of the whole folder: the operations, the schemas and the OpenAPI document change together. A change that removes or renames an operation, a field or a state, or changes the meaning of one, needs a new version. Adding an optional member stays within `sdk-api/1`; such additions are marked `proposed` in the schema that carries them: `list_engines`, an artifact reference's `role` and a run status's `verdict`.
 
 ## Out of scope
 

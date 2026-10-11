@@ -249,11 +249,14 @@ class BackendConformance:
 
     def test_submit_run_returns_at_once_and_renders(self, backend, library, rendered):
         first, final = rendered["first"], rendered["final"]
-        assert first["state"] == "accepted" and schema_errors("run_status", first) == []
+        assert first["state"] == "accepted" and schema_errors("run_status", first) == [] and "verdict" not in first
         assert first["run_id"] == identity.run_id(compose(rendered["recipe"]), self.sensor_library(library))
-        assert schema_errors("run_status", final) == [] and final["errors"] == []
+        assert schema_errors("run_status", final) == [] and final["errors"] == [] and final["verdict"] == "complete"
         names = [a["name"] for a in final["artifacts"]]
         assert names[0] == "run_spec.json" and any(n.endswith(".img") for n in names)
+        roles = {a["name"]: a["role"] for a in final["artifacts"]}                # every reference carries a role
+        assert roles["run_spec.json"] == "config" and {roles[n] for n in names if n.endswith(".img")} >= {"product"}
+        assert {roles[n] for n in names if n.endswith(".hdr")} == {"metadata"}
         listed = backend.list_artifacts(first["run_id"])
         assert schema_errors("artifact_list", listed) == [] and listed["artifacts"] == final["artifacts"]
         for ref in listed["artifacts"]:
@@ -326,6 +329,7 @@ class BackendConformance:
             run_id = backend.submit_run(recipe)["run_id"]
             cancelled = backend.cancel_run(run_id)
             assert cancelled["state"] == "cancelled" and schema_errors("run_status", cancelled) == []
+            assert cancelled["verdict"] == "incomplete"
         time.sleep(2)
         assert backend.get_run(run_id)["state"] == "cancelled"
         assert self.run_processes(backend, run_id) == []
@@ -367,6 +371,7 @@ class BackendConformance:
         for f in (0, 1, 2):
             assert any(a["name"].endswith(f"-t{f:04d}-c0000.img") and a["frame"] == f for a in framed)
         assert all("frame" not in a for a in final["artifacts"] if a["name"].endswith(".json"))
+        assert {a["role"] for a in framed if a["name"].endswith(".img")} == {"product", "truth"}
 
     def test_a_killed_worker_leaves_a_failed_run(self, backend, library):
         recipe = variant(library, "auror_ref", "conformance_killed", width=19)
@@ -375,7 +380,7 @@ class BackendConformance:
             self.kill_worker(backend, run_id)
             status = wait_for(backend, run_id, ("failed",), timeout=30)
         assert status["errors"][0]["type"] == "urn:manifold:problem:execution"
-        assert schema_errors("run_status", status) == []
+        assert schema_errors("run_status", status) == [] and status["verdict"] == "incomplete"
 
     def test_two_instances_see_the_same_runs(self, backend, rendered):
         other = self.second_backend(backend)
@@ -396,7 +401,9 @@ class BackendConformance:
         final = wait_for(pt_backend, status["run_id"], ("rendered", "failed", "cancelled"), timeout=120)
         assert final["state"] == "rendered", final["errors"]
         assert schema_errors("run_status", final) == [] and all("frame" not in a for a in final["artifacts"])
-        assert len(final["artifacts"]) > 1
+        assert len(final["artifacts"]) > 1 and final["verdict"] == "complete"
+        roles = {a["name"]: a["role"] for a in final["artifacts"]}
+        assert all(r == "metadata" for n, r in roles.items() if n.endswith(".hdr")) and "product" in roles.values()
         spec_bytes, _ = pt_backend.get_artifact(status["run_id"], "run_spec.json")
         assert hashlib.sha256(spec_bytes).hexdigest() == status["run_id"]
         assert pt_backend.submit_run(recipe)["run_id"] == status["run_id"]

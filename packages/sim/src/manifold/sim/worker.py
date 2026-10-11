@@ -3,12 +3,14 @@
 It loads `job.json`, records its pid and process group, waits for one of `max_parallel` slot locks
 (`<work_root>/slots/slot-<i>.lock`, polled every second) while the run stays `accepted`, then moves the run from
 `accepted` to `running` by compare-and-set (a run cancelled meanwhile is left alone and nothing runs). It finds the
-adapter registered for the run's `descriptor.origin.engine` (`engines.registry()`), records the adapter and its
+adapter registered for the run's `descriptor.origin.engine` in the engine set the backend wrote into `job.json`
+(`engine_set`), records the adapter and its
 fingerprint, launches the adapter's `LaunchPlan` as a subprocess (its stdout and stderr appended to `worker.log`, in
 the worker's process group, so cancelling the run stops it) and asks the adapter to `collect` what the process left:
-a `complete` verdict gives the artifact references (`run_spec.json`, then the adapter's artifacts in its order, each
-hashed once) in `artifacts.json` and moves the run to `rendered`; `incomplete` or `failed` moves it to `failed` with an
-`execution` problem carrying the adapter's message. Each move is a compare-and-set from `running`, so a cancelled run
+a `complete` verdict gives the artifact references (`run_spec.json` with role `config`, then the adapter's artifacts in
+its order with the roles it gave, each hashed once) in `artifacts.json` and moves the run to `rendered`; `incomplete`
+or `failed` moves it to `failed` with an `execution` problem carrying the adapter's message. The status carries the
+verdict (`proposed`). Each move is a compare-and-set from `running`, so a cancelled run
 is never overwritten. The slot is always released, and the outcome is written to `worker.log`.
 
 The execution record (`execution.json`) gains: `started_at`, `finished_at`, `worker` (`pid`, `pgid`, `start_ticks`,
@@ -36,6 +38,7 @@ from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 from manifold.core import _names, problems, resources
+from manifold.core.artifacts import VERDICTS
 from manifold.core.engine import EngineUnavailable, Registry, RunContext, engine_id_of
 from manifold.core.errors import NotFoundError
 from manifold.sim import engines
@@ -72,11 +75,17 @@ def _acquire_slot(store, run_id, max_parallel):
         time.sleep(POLL_S)
 
 
-def _fail(store, run_id, name, message, run_dir):
+def _fail(store, run_id, name, message, run_dir, verdict="failed"):
     problem = problems.execution_failed(run_id, name, message)
-    updated, _ = store.update_status(run_id, ("running",), {"state": "failed", "errors": [problem]})
+    updated, _ = store.update_status(run_id, ("running",), {"state": "failed", "verdict": verdict, "errors": [problem]})
     _log(run_dir, f"failed: {message}" if updated else f"not recorded (state changed meanwhile): {message}")
     return updated
+
+
+def _refs(run_dir, collection):
+    """The references of a run's artifacts: the resolved run spec (`config`), then the adapter's, each with its role."""
+    return [artifact_ref(run_dir / "run_spec.json", role="config")] + \
+        [artifact_ref(a.path, name=a.name, frame=a.frame, role=a.role) for a in collection.artifacts]
 
 
 def python_for(interpreter):
@@ -312,22 +321,18 @@ def main(run_dir, hook=None):
                 store.update_record(run_id, dict(collection.record))
             if collection.verdict != "complete":
                 try:                                                  # what the engine left, listed for the user
-                    store.write_artifacts(run_id, check_artifact_names(
-                        [artifact_ref(run_dir / "run_spec.json")] +
-                        [artifact_ref(a.path, name=a.name, frame=a.frame) for a in collection.artifacts]))
+                    store.write_artifacts(run_id, check_artifact_names(_refs(run_dir, collection)))
                 except (ArtifactError, OSError):
                     pass
                 why = collection.message or "the engine did not finish"
                 _fail(store, run_id, name, why if returncode in (None, 0) else f"{why} (exit status {returncode})",
-                      run_dir)
+                      run_dir, collection.verdict if collection.verdict in VERDICTS else "failed")
                 return 0
-            refs = [artifact_ref(run_dir / "run_spec.json")]
-            refs += [artifact_ref(a.path, name=a.name, frame=a.frame) for a in collection.artifacts]
-            check_artifact_names(refs)
-            roles = {"run_spec.json": "config", **{r["name"]: a.role for r, a in zip(refs[1:], collection.artifacts)}}
-            store.update_record(run_id, {"artifact_roles": roles})
+            refs = check_artifact_names(_refs(run_dir, collection))
+            store.update_record(run_id, {"artifact_roles": {r["name"]: r["role"] for r in refs}})
             store.write_artifacts(run_id, refs)
-            updated, status = store.update_status(run_id, ("running",), {"state": "rendered", "artifacts": refs})
+            updated, status = store.update_status(run_id, ("running",), {"state": "rendered", "verdict": "complete",
+                                                                         "artifacts": refs})
             _log(run_dir, f"rendered: {len(refs)} artifacts" if updated else f"rendered, but the run is {status['state']}")
         except ArtifactError as e:
             _fail(store, run_id, name, f"artifact references could not be built: {e}", run_dir)

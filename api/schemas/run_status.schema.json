@@ -19,6 +19,10 @@
       "description": "`accepted`: admitted and waiting to execute. `running`: executing (the engine dry run of the assembled job, then the render). `rendered`: finished; all artifacts are available. `failed`: execution stopped with an error, given in `errors`. `cancelled`: cancelled before it finished. `rendered`, `failed` and `cancelled` are final.",
       "enum": ["accepted", "running", "rendered", "failed", "cancelled"]
     },
+    "verdict": {
+      "description": "`proposed`. For a run in a final state, what its engine's adapter concluded from what the run left, which does not rest on the exit status alone: `complete` (every expected output was written; the state is `rendered`), `incomplete` (the run stopped before it finished: cancelled, its worker gone, or its engine's end-of-run evidence missing) or `failed` (the engine ran to its end and reported failure, or the run could not start). Absent while the run is `accepted` or `running`.",
+      "enum": ["complete", "incomplete", "failed"]
+    },
     "errors": {
       "description": "For a `failed` run, the problems that stopped it; empty otherwise.",
       "type": "array",

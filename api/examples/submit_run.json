@@ -22,7 +22,8 @@
           "name": "run_spec.json",
           "sha256": "489824e0a63e5b108ab8d47f2b1eec4a6536925c1976984c884bdef08449a7a0",
           "media_type": "application/json",
-          "uri": "file:///tmp/manifold/runs/489824e0a63e5b108ab8d47f2b1eec4a6536925c1976984c884bdef08449a7a0/run_spec.json"
+          "uri": "file:///tmp/manifold/runs/489824e0a63e5b108ab8d47f2b1eec4a6536925c1976984c884bdef08449a7a0/run_spec.json",
+          "role": "config"
         }
       ]
     },
