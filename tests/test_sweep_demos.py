@@ -318,3 +318,13 @@ def test_the_report_caps_a_demo_s_output_rows():
     text = sweep_demos.render_generated(records, {})
     assert "| f0023.img |" in text and "| f0024.img |" not in text
     assert "| and 6 more files | 60 | listed in the results file |" in text
+
+
+@pytest.mark.parametrize("repeat, expected", [((), "not tested"), (("Small1",), "no")])
+def test_repeat_names_a_demo_to_repeat_whatever_its_duration(tmp_path, home, monkeypatch, repeat, expected):
+    monkeypatch.setenv("PROTODIRSIG_THERMAL_ZONES", str(tmp_path / "no-sensors"))
+    monkeypatch.setattr(sweep_demos, "REPEAT_UNDER_S", 0)                     # every render counts as long
+    s = _sweep(tmp_path, home, repeat=repeat)
+    s.run(only={"Small1"})
+    att = sweep_demos.demo_rows(s.records())["Small1"]["attempts"][0]
+    assert att["deterministic"] == expected and ("repeat_run" in att) is bool(repeat)

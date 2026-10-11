@@ -3,7 +3,7 @@
 
     python scripts/sweep_demos.py [--budget-hours 14.5 | --deadline 2026-10-11T12:42:13-04:00] [--per-run-timeout 1800]
                                   [--work DIR] [--disk-floor-gb 20] [--resume] [--only A,B] [--skip C,D]
-                                  [--report docs/DIRSIG_demo_sweep.md]
+                                  [--repeat E,F] [--report docs/DIRSIG_demo_sweep.md]
 
 A standalone process (it does not need the session that started it). Candidates are every `<Name>.zip` in
 `$DIRSIG_HOME/demos/zips` and every unpacked demo directory under `$DIRSIG_HOME/demos` or `$DIRSIG_HOME/demos/zips`
@@ -16,8 +16,8 @@ skipped `skipped: disk` when the free space is below the floor plus three times 
 `dirhash/1`; the simulation files are tried in turn (`simulation_plan`), each attempt an ad hoc pass-through run spec
 submitted through `Workspace` in a fresh work root, with no engine check, waited for up to the smaller of
 `--per-run-timeout` and the time left to the deadline minus 5 minutes (a timed-out run is cancelled), stopping at the
-first that renders. An attempt that rendered in under 300 s is repeated once in a second fresh work root and its output
-digests compared. Then the attempt work roots and, unless it is a committed asset or was placed before the sweep, the
+first that renders. An attempt that rendered in under 300 s, or of a demo named by `--repeat`, is repeated once in a
+second fresh work root and its output digests compared. Then the attempt work roots and, unless it is a committed asset or was placed before the sweep, the
 extracted directory are deleted (`safe_delete` refuses any path outside the sweep work root and the demo directories the
 sweep extracted). Each attempt records the demo, simulation file, outcome (`rendered`, `failed`, `timeout`,
 `interrupted`), engine exit status, wall time, outputs (name, size, sha256), run-directory size, minimum free disk,
@@ -235,7 +235,7 @@ class Sweep:
 
     def __init__(self, work, deadline, per_run_timeout=1800, disk_floor_gb=20.0, dirsig_home=None, config_repo=None,
                  library=None, engine=None, report=REPORT, clock=time.time, sleep=time.sleep, free_bytes=None,
-                 temp=max_zone_temp_c, out=print):
+                 temp=max_zone_temp_c, out=print, repeat=()):
         self.work = Path(work).resolve()
         self.sweep_dir = self.work / "sweep"
         self.sweep_dir.mkdir(parents=True, exist_ok=True)
@@ -252,6 +252,7 @@ class Sweep:
         self.free_bytes = free_bytes or (lambda: shutil.disk_usage(self.work).free)
         self.results = self.sweep_dir / "results.jsonl"
         self.protected = {self.demo_dirs / Path(e["path"]).name for e in _manifest_dirs(self.config_repo)}
+        self.repeat = set(repeat)                       # demos repeated whatever their duration
         self.longest = 0.0
         self.stop = False
         self.current = {}
@@ -361,7 +362,7 @@ class Sweep:
             att = self.attempt(name, digest, sim)
             rec["attempts"].append(att)
             if att["outcome"] == "rendered":
-                if att["wall_s"] < REPEAT_UNDER_S and not self.stop and \
+                if (att["wall_s"] < REPEAT_UNDER_S or name in self.repeat) and not self.stop and \
                         may_start(self.clock(), self.deadline, self.longest):
                     rep = self.attempt(name, digest, sim, repeat=True)
                     att["repeat_run"] = {k: rep.get(k) for k in ("outcome", "wall_s", "outputs", "max_cpu_temp_c",
@@ -634,6 +635,8 @@ def main(argv=None, clock=time.time):
     ap.add_argument("--resume", action="store_true", help="skip finished demos and keep the original deadline")
     ap.add_argument("--only", default=None, help="NAME[,NAME...]: only these demos")
     ap.add_argument("--skip", default=None, help="NAME[,NAME...]: skip these demos")
+    ap.add_argument("--repeat", default=None, help=f"NAME[,NAME...]: repeat these demos even when a render takes "
+                                                   f"{REPEAT_UNDER_S} s or more")
     ap.add_argument("--report", default=str(REPORT), help="the markdown report to rewrite ('' for none)")
     ap.add_argument("--dirsig-home", default=None, help=argparse.SUPPRESS)
     ap.add_argument("--config-repo", default=None, help=argparse.SUPPRESS)
@@ -662,7 +665,7 @@ def main(argv=None, clock=time.time):
                  resumed=state.get("resumed", 0) + (1 if a.resume and state else 0))
     state_file.write_text(json.dumps(state, indent=1, sort_keys=True))
     sweep = Sweep(work, deadline, a.per_run_timeout, a.disk_floor_gb, a.dirsig_home, a.config_repo, a.library,
-                  a.engine, a.report or None, clock=clock)
+                  a.engine, a.report or None, clock=clock, repeat=_names(a.repeat))
 
     def on_term(signum, frame):
         sweep.stop = True
