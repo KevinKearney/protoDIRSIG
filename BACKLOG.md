@@ -91,6 +91,27 @@ The pass template is the AUROR NIR template with per-capture image and truth sch
 ### Multi-focal-plane generation
 `platform_gen` renders one focal plane per run (C-19). A rig whose entries image the same instant needs one `.platform` with several focal planes and one run with several `settings` members. Build it when a run needs a co-boresight rig, and after MANIFOLD answers C-19.
 
+### Remove the `protodirsig` compatibility shim
+`packages/compat-protodirsig` maps the pre-rename import paths to `manifold.core` and `manifold.sim` and warns on import. Keep it for one release after MANIFOLD adopts the `manifold` packages, then delete the distribution, `tests/test_compat_shim.py` and `tests/data/protodirsig_public_names.json`, and the legacy fallbacks in `manifold.core._names` (the `PROTODIRSIG_*` environment variables, the pre-rename state directory warning, the `protodirsig.worker` command line the store still recognizes in old run records).
+
+### `manifold.sim._dirsig` to a separate engine distribution (round 18)
+Move the DIRSIG-bound modules to a `manifold.engines.dirsig` distribution behind an engine adapter protocol, so `manifold.sim` runs any engine through the protocol and depends on no engine distribution. What the move must also take: `ResolvedRun.atmosphere_plugin` and `ephemeris_plugin` and the `dirfm`-bound aliases of `run_spec` (today the only references from `manifold.core` to `manifold.sim`, at call time); `platform_gen` (DIRSIG's `.platform` format, in core only because admission's library-files check renders it, which makes that check engine-specific); `orbit.lookat_motion` (builds a `dirfm` FlexMotion); the worker's direct import of `simulation`; `LocalBackend`'s import of `passthrough.run_engine`.
+
+### Publishing and the internal index policy
+The distributions (`eoptic-manifold-core`, `eoptic-manifold-sim`, and while it lasts `protodirsig`) are installed editable only. Decide the internal package index, who may publish, the version policy (lockstep today, 0.0.1), whether wheels carry the contract schemas only through `packages/core/setup.py`, and that a resolver never consults the public index for a `manifold` name (a public PyPI project named Manifold exists; the `eoptic-` prefix avoids the collision for installs by name, not for a misconfigured index).
+
+### Rename the repository directory (user's action)
+The repository directory is still `protoDIRSIG`, and so are the conda environment and Jupyter kernel names (`protodirsig`, `environment.yml`, README). Renaming them is outside the code: no path in the code or tests depends on the directory name. YAML comments in the layer, sensor and vector files still cite the "protoDIRSIG CONOPS and Guide"; editing them changes the stamped `content_hash` of sensor files (not any run id), so do it with `scripts/stamp_hashes.py` and `scripts/compose.py` in one change.
+
+### Execution record member `protodirsig_version`
+`execution.json` records the SDK version under the pre-rename key (`manifold.core._names.RECORD_VERSION_KEY`); the value is now the `eoptic-manifold-sim` version. Rename it to a neutral key with the next change of the record's schema; it is not hashed and no id depends on it. No other name-derived string reaches hashed content (round 17 audit; `tests/test_id_snapshot.py`).
+
+### SatSim probe
+A separate short prompt: install SatSim into its own environment (network allowed only for that install), run its examples, and record what an engine adapter for it would need (inputs, outputs, determinism, GPU use), against the adapter protocol of round 18.
+
+### Typed resource slots for GPU engines
+`LocalBackend` has `max_parallel` CPU slots only. A GPU engine needs typed slots (GPU count and memory per run) in admission and in the worker's slot locks, and the run spec or engine profile has to state what a run needs.
+
 ### Release repo plan
 Cut the validated SDK, tests, and notebooks into a new repository under formal change control. Strip `.claude_mem/`, `notebooks/dev/`, and `prompt.md`; carry `docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md`.
 
@@ -117,7 +138,7 @@ The AUROR database was built for western NY (43.12 N, −78.45, 250 m; stored su
 ## Notebooks and tools
 
 ### Image viewer for DIRSIG ENVI output
-DS9 cannot read the ENVI `.img` + `.hdr` (float64, BIP). Build a pyqtgraph viewer (ImageView, ROI, mouse-move truth readout) as an optional `[viewer]` extra behind `protodirsig-view`. Stage A: ENVI loader plus a tested shared ROI-excess function. Stage B: the viewer. Run-vs-run difference is kept while validation continues.
+DS9 cannot read the ENVI `.img` + `.hdr` (float64, BIP). Build a pyqtgraph viewer (ImageView, ROI, mouse-move truth readout) as an optional `[viewer]` extra behind a `manifold-view` entry point. Stage A: ENVI loader plus a tested shared ROI-excess function. Stage B: the viewer. Run-vs-run difference is kept while validation continues.
 
 ### `tutorial_orbit_to_ground` Stage 3
 Final render and comparison. The notebook status still reads "in progress".
