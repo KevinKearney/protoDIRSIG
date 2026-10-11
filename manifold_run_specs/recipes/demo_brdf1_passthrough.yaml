@@ -1,4 +1,5 @@
-# Recipe (pass-through form, proposed): the DIRSIG install demo Brdf1 run as authored, its simulation file demo.jsim.
+# Recipe (pass-through form, proposed): the DIRSIG install demo Brdf1 run as authored, its simulation file demo.sim
+# (its demo.jsim names a NewAtmosphere database the demo archive does not contain).
 # The directory is materialized at manifold_config_repo/demo_dirs/Brdf1/ by `scripts/bootstrap.py assets` from the
 # demo archive in the DIRSIG installation (manifold_config_repo/assets.json); it is gitignored, and only its name and
 # dirhash/1 digest appear here. The descriptor is opaque: the demo's collection, sensor and settings are not stated.
@@ -14,7 +15,7 @@ meta:
 
 passthrough:
   directory: {name: demo_dirs/Brdf1, content_hash: "sha256:1d5b259d3d428c2678acdf1a28c0a48cb0fa9f39e9ca496b47adbcaadf8f13dd"}
-  simulation: demo.jsim
+  simulation: demo.sim
 
 engine_profile: passthrough_runtime
 

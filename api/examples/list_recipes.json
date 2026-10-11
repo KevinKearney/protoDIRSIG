@@ -16,7 +16,7 @@
         },
         {
           "name": "demo_brdf1_passthrough",
-          "sha256": "ef52171559d3f921fba309d719019a112b48fda8e244273bd90c5ba5c86b271e"
+          "sha256": "546d500f8b5cdf747eb8e90983043e75f2f5db7999313b2083dc86cf8128e932"
         },
         {
           "name": "demo_pointcollectors2_passthrough",

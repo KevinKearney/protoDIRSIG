@@ -36,4 +36,4 @@ engine:
     directory:
       name: demo_dirs/Brdf1
       content_hash: sha256:1d5b259d3d428c2678acdf1a28c0a48cb0fa9f39e9ca496b47adbcaadf8f13dd
-    simulation: demo.jsim
+    simulation: demo.sim
