@@ -9,7 +9,7 @@ dry run and, if it passes, the render; then it hashes the artifacts, writes `art
 compare-and-set from `running`, so a cancelled run is never overwritten. The slot is always released, and the outcome
 is written to `worker.log` (where the backend also sends the process's stdout and stderr).
 
-The execution record (`execution.json`) gains: `started_at`, `finished_at`, `worker` (`pid`, `pgid`), `python`, the
+The execution record (`execution.json`) gains: `started_at`, `finished_at`, `worker` (`pid`, `pgid`, `start_ticks`, `boot_time`), `python`, the
 `protodirsig` version, the `dirfm` revision in use and whether it equals the spec's `engine.generator.revision`, the
 DIRSIG installation and version, the propagator of an orbit run, and `max_parallel`. It is never part of a run id.
 
@@ -41,7 +41,8 @@ from protodirsig import problems
 from protodirsig.simulation import Simulation
 from protodirsig.passthrough import (THROTTLE_SUSPECT_C, cache_state, is_passthrough, resolve_passthrough, run_engine,
                                      tool_version)
-from protodirsig.store import ArtifactError, RunStore, artifacts_for, passthrough_artifacts, utc_now
+from protodirsig.store import (ArtifactError, RunStore, artifacts_for, passthrough_artifacts, process_start,
+                               utc_now)
 
 REPOSITORY = Path(__file__).resolve().parents[2]
 POLL_S = 1.0
@@ -194,7 +195,8 @@ def main(run_dir, simulation_factory=_simulation):
     store = RunStore(job["work_root"])
     run_id = run_dir.name
     name = store.read_status(run_id, reap=False)["name"]
-    store.update_record(run_id, {"worker": {"pid": os.getpid(), "pgid": os.getpgid(0)},
+    start = process_start(os.getpid()) or {}
+    store.update_record(run_id, {"worker": {"pid": os.getpid(), "pgid": os.getpgid(0), **start},
                                  "max_parallel": job.get("max_parallel", 1)})
     _log(run_dir, f"worker {os.getpid()} waiting for a slot ({job.get('max_parallel', 1)})")
     slot = _acquire_slot(store, run_id, int(job.get("max_parallel", 1)))

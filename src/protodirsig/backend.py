@@ -52,7 +52,7 @@ from protodirsig.errors import AdmissionError, InvalidRequestError, NotFoundErro
 from protodirsig.library import LibraryReader
 from protodirsig.passthrough import is_passthrough, run_engine
 from protodirsig.run_spec import RunSpecError, default_sensor_library, load_run_spec
-from protodirsig.store import ACTIVE, FINAL, RunStore, utc_now
+from protodirsig.store import ACTIVE, FINAL, RunStore, process_start, utc_now
 
 TERMINATE_WAIT_S = 10
 
@@ -319,7 +319,8 @@ class LocalBackend:
                                     stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
                                     start_new_session=True, close_fds=True)
         self._children.append(proc)
-        self.store.update_record(run_id, {"worker": {"pid": proc.pid, "pgid": proc.pid}})
+        start = process_start(proc.pid) or {}                  # pid and start time: the worker's identity for reap
+        self.store.update_record(run_id, {"worker": {"pid": proc.pid, "pgid": proc.pid, **start}})
         return proc
 
     def _poll_children(self):

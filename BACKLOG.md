@@ -172,9 +172,6 @@ Muses2 needs the external MUSES tool (`MUSES_EXE` is unset); SpatialResponse1 ne
 ### DIRSIG 4 engine path (maybe)
 `MoonSat1`, `Ssa2` and `Ssa3` are DIRSIG 4 demos (flagged by the online demo page) and were not attempted; several DIRSIG 5 failures are DIRSIG 4 features DIRSIG 5 refuses (SAR reflectivity in SpotlightSar1 and StripmapSar1, a scripted mount in ScriptMount1, an `<atmospherics>` geometry in FastCloud1, the `DIRSIG_ODB` variable). Maybe: a second engine path for DIRSIG 4, if an installation is available and the SDA demos need it. Not planned.
 
-### Run store: a live worker taken for dead between fork and exec
-`RunStore.reap` decides a worker is dead when `/proc/<pid>/cmdline` lacks `protodirsig.worker`; in the instant after `LocalBackend` forks the worker and before it execs, the command line is the parent's, so a run read then is failed with "the worker ... is no longer running". The demo sweep, which reads a run immediately after submitting it, hit this once in 282 runs (EarthMap1's repeat). Fix: do not reap a live, non-zombie pid within `WORKER_GRACE_S` of submission, or compare the process start time with the submission time; add a test that reads a run while the child has not exec'd.
-
 ### Default-seed nondeterminism in demos
 With no `--random_seed`, 43 of 125 repeated demos gave different outputs (every lidar demo's `.bin`, 9 demos in truth images only, 3 in data-recorder text, 14 in radiance images; `docs/DIRSIG_demo_sweep.md`). Repeat those demos with a stated seed to learn whether DIRSIG's seed makes them reproducible; a reference whose repeat differs needs a tolerance instead of byte equality.
 

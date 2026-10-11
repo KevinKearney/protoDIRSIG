@@ -7,7 +7,8 @@ Layout (proposed; MANIFOLD's analogue is `<work>/<run_id>/inputs`):
         run_spec.yaml     the same spec as YAML, what the executor loads (canonical JSON is not fed to the YAML
                           loader: PyYAML reads numbers such as 5e-07 as strings)
         status.json       a `run_status` document (run_id, name, state, errors, artifacts)
-        execution.json    the execution record (times, worker pid and process group, versions); never in a run id
+        execution.json    the execution record (times, worker pid, start time and process group, versions); never in a
+                          run id
         job.json          the worker's inputs (config repository, sensor library, work root, max_parallel)
         artifacts.json    the artifact references of a rendered run, hashed once
         worker.log        the worker's output
@@ -20,6 +21,9 @@ Layout (proposed; MANIFOLD's analogue is `<work>/<run_id>/inputs`):
 complete; two creators of one run id race safely (one gets `created=True`). `update_status` is a compare-and-set
 under an exclusive `fcntl.flock`, written by temporary file and `os.replace`. `reap` fails a run whose worker died.
 States: `accepted`, `running`, then one final state, `rendered`, `failed` or `cancelled`.
+
+`reap` knows the worker by pid and start time (`process_start`), both fixed at the fork, so a worker read while it
+execs (its command line is briefly empty or the parent's) is not mistaken for a dead one.
 
 POSIX only (`fcntl`, `/proc`, process groups). Imports: the standard library, `yaml`, and pure `protodirsig` modules
 (`identity`, `errors`, `problems`); no engine package.
@@ -157,8 +161,39 @@ def passthrough_artifacts(run_dir):
     return refs
 
 
-def _pid_is_worker(pid):
-    """The process exists, is not a zombie, and is a protodirsig worker (by its command line, where /proc exists)."""
+def _boot_time():
+    """The kernel's boot time (`btime` in /proc/stat, seconds since the epoch), or None without /proc."""
+    try:
+        for line in Path("/proc/stat").read_text().splitlines():
+            if line.startswith("btime "):
+                return int(line.split()[1])
+    except (OSError, ValueError):
+        pass
+    return None
+
+
+def _stat_fields(pid):
+    """The fields of /proc/<pid>/stat after the command name (field 3, the state, is index 0)."""
+    stat = (Path("/proc") / str(pid) / "stat").read_text()
+    return stat[stat.rindex(")") + 2:].split()
+
+
+def process_start(pid):
+    """The identity of a process beyond its pid: `{"start_ticks", "boot_time"}`, its start time in clock ticks since
+    boot (field 22 of /proc/<pid>/stat, set at fork and unchanged by exec) and the boot it counts from. None where
+    /proc is absent or the process is gone. A pid with the same start time and boot time is the same process."""
+    try:
+        start = int(_stat_fields(pid)[19])
+    except (OSError, ValueError, IndexError):
+        return None
+    boot = _boot_time()
+    return None if boot is None else {"start_ticks": start, "boot_time": boot}
+
+
+def _pid_is_worker(pid, start=None):
+    """The process exists, is not a zombie, and is the recorded worker. Where /proc exists: the same process when the
+    record has its start time (`process_start`), else a `protodirsig.worker` command line. Without /proc, existence
+    is all that can be checked."""
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
@@ -169,10 +204,11 @@ def _pid_is_worker(pid):
     if not proc.is_dir():
         return True                                             # no /proc: existence is all that can be checked
     try:
-        stat = (proc / "stat").read_text()
-        if stat[stat.rindex(")") + 2] in "ZX":
+        if _stat_fields(pid)[0] in "ZX":
             return False
-        return b"protodirsig.worker" in (proc / "cmdline").read_bytes()
+        if start and start.get("start_ticks") is not None:
+            return process_start(pid) == {"start_ticks": start["start_ticks"], "boot_time": start.get("boot_time")}
+        return b"protodirsig.worker" in (proc / "cmdline").read_bytes()    # a record from before start times
     except (OSError, ValueError, IndexError):
         return False
 
@@ -320,7 +356,7 @@ class RunStore:
         _write_json(self.run_dir(run_id) / "artifacts.json", refs)
 
     def reap(self, run_id):
-        """Fail an active run whose worker is gone: the recorded pid is not a live `protodirsig.worker`, or no worker
+        """Fail an active run whose worker is gone: the recorded pid is not the live worker (same start time), or no worker
         pid was recorded and the run was submitted more than WORKER_GRACE_S ago. Returns True if it failed the run."""
         status = self._status(run_id)
         if status["state"] not in ACTIVE:
@@ -329,9 +365,10 @@ class RunStore:
             record = self.read_record(run_id)
         except (OSError, ValueError):
             record = {}
-        pid = (record.get("worker") or {}).get("pid")
+        worker = record.get("worker") or {}
+        pid = worker.get("pid")
         if pid is not None:
-            if _pid_is_worker(pid):
+            if _pid_is_worker(pid, worker):
                 return False
             why = f"the worker (pid {pid}) is no longer running"
         else:

@@ -4,6 +4,7 @@ The real worker subprocess and DIRSIG are exercised by the backend conformance t
 """
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import threading
@@ -131,6 +132,59 @@ def test_reap_leaves_a_live_worker_alone(store, resolved):
         proc.wait()
 
 
+def _start_of(pid):
+    """Field 22 of /proc/<pid>/stat and btime of /proc/stat, read here independently of the store."""
+    stat = Path(f"/proc/{pid}/stat").read_text()
+    btime = next(int(x.split()[1]) for x in Path("/proc/stat").read_text().splitlines() if x.startswith("btime "))
+    return {"start_ticks": int(stat[stat.rindex(")") + 2:].split()[19]), "boot_time": btime}
+
+
+@pytest.fixture
+def forked_not_execd():
+    """A child forked from this process that never execs: its command line is the parent's (pytest's), as a
+    worker's is in the window between LocalBackend's fork and the worker's exec."""
+    r, w = os.pipe()
+    pid = os.fork()
+    if pid == 0:                                                # the child: wait for the parent, never exec
+        os.close(w)
+        try:
+            os.read(r, 1)
+        finally:
+            os._exit(0)
+    os.close(r)
+    try:
+        yield pid
+    finally:
+        os.close(w)
+        os.waitpid(pid, 0)
+
+
+@pytest.mark.skipif(not Path("/proc/self/stat").is_file(), reason="needs /proc")
+def test_reap_does_not_fail_a_worker_read_before_its_exec(store, resolved, forked_not_execd):
+    pid = forked_not_execd
+    assert b"protodirsig.worker" not in Path(f"/proc/{pid}/cmdline").read_bytes()      # the window, held open
+    run_id, _ = store.create_run(resolved, "n", JOB)
+    store.update_record(run_id, {"worker": {"pid": pid, "pgid": pid, **_start_of(pid)}})
+    assert store.read_status(run_id)["state"] == "accepted" and "reaped" not in store.read_record(run_id)
+
+
+@pytest.mark.skipif(not Path("/proc/self/stat").is_file(), reason="needs /proc")
+def test_reap_fails_a_recycled_pid(store, resolved, forked_not_execd):
+    pid = forked_not_execd
+    run_id, _ = store.create_run(resolved, "n", JOB)
+    start = _start_of(pid)
+    store.update_record(run_id, {"worker": {"pid": pid, "pgid": pid, **start, "start_ticks": start["start_ticks"] - 1}})
+    assert store.read_status(run_id)["state"] == "failed"                   # same pid, another process
+
+
+def test_process_start(forked_not_execd):
+    if not Path("/proc/self/stat").is_file():
+        assert store_mod.process_start(os.getpid()) is None
+        return
+    assert store_mod.process_start(forked_not_execd) == _start_of(forked_not_execd)
+    assert store_mod.process_start(_dead_pid()) is None
+
+
 def _fake_output(run_dir, frames=3, collide=False):
     out = run_dir / "output"
     out.mkdir(parents=True, exist_ok=True)
@@ -217,6 +271,14 @@ def test_worker_renders_and_records(store, resolved):
         assert key in rec, key
     assert rec["dirfm"]["generator_revision_matches"] is True
     assert "rendered" in (store.run_dir(run_id) / "worker.log").read_text()
+
+
+def test_worker_records_its_start_time(store, resolved):
+    run_id, _ = store.create_run(resolved, "n", JOB)
+    assert worker.main(store.run_dir(run_id), _factory([])) == 0
+    w = store.read_record(run_id)["worker"]
+    assert w["pid"] == os.getpid() and {k: w.get(k) for k in ("start_ticks", "boot_time")} == (
+        store_mod.process_start(os.getpid()) or {"start_ticks": None, "boot_time": None})
 
 
 def test_worker_fails_a_run_whose_dry_run_fails(store, resolved):
