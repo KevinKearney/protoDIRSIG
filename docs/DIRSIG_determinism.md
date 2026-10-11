@@ -73,7 +73,7 @@ The sweep rendered Ssa1, SpaceRendezVous1 and LightCurve1 once (629 s, 706 s and
 | LightCurve1 | `box_spin.jsim` | 748.7, 749.9 | 1,681 | 2 differ: `cube_150.img`, `lightcurve.dat` | the same 2 differ |
 | SpaceRendezVous1 | `lidar_rpo.jsim` (a lidar) | 718.2, 701.4 | 3 | 2 differ: `demo.bin`, `lidar_truth.img` | the same 2 differ |
 
-Ssa1 is deterministic: three renders on two days gave one set of digests. LightCurve1 repeats 1,679 of its 1,681 outputs exactly; one frame and the light-curve table differ, which digests alone cannot classify (the table summarizes the frames, so a difference in one frame would appear in it too). SpaceRendezVous1's file is a lidar simulation: run, not analyzed. Every one of these renders peaked at 93 to 99 C.
+Ssa1 is deterministic: three renders, the sweep's and two about 12 hours later, gave one set of digests. LightCurve1 repeats 1,679 of its 1,681 outputs exactly; one frame and the light-curve table differ, which digests alone cannot classify (the table summarizes the frames, so a difference in one frame would appear in it too). SpaceRendezVous1's file is a lidar simulation: run, not analyzed. Every one of these renders peaked at 93 to 99 C.
 
 ## Recommendation for a layered-versus-reference test
 

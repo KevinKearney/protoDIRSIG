@@ -16,3 +16,4 @@
 - step 4d: long SDA repeats started 2026-10-11T11:27:00-04:00, driver subshell pid 410085, work ~/.local/state/protodirsig/r16/repeats (sweep driver --repeat, --report '', disk floor 50 GB = 20 + 30)
 - step 4: committed; suite 923 passed, 2 skipped, 246 s; checks 0; probe outputs deleted
 - step 5: committed; suite 923 passed, 2 skipped, 245 s; checks 0
+- step 6: committed; suite 923 passed, 2 skipped, 245 s; checks 0 (gate fix 1: C-n citation removed from api/requirements.md)
