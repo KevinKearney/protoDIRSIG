@@ -5,8 +5,10 @@ package loads nothing heavy: `Workspace` is imported on first use.
 """
 from importlib.metadata import PackageNotFoundError, version
 
+from protodirsig._names import DISTRIBUTION
+
 try:
-    __version__ = version("protodirsig")
+    __version__ = version(DISTRIBUTION)
 except PackageNotFoundError:
     __version__ = "0+unknown"
 
@@ -17,4 +19,4 @@ def __getattr__(name):                          # PEP 562: `protodirsig.Workspac
     if name == "Workspace":
         from protodirsig.workspace import Workspace
         return Workspace
-    raise AttributeError(f"module 'protodirsig' has no attribute {name!r}")
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

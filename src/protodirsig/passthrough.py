@@ -32,13 +32,14 @@ import threading
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
+from protodirsig import _names
 from protodirsig.dirhash import directory_digest
 from protodirsig.run_spec import PLACEHOLDER, RunSpecError
 
 POINTER = "/engine/passthrough"
 OPAQUE = {"source": "passthrough"}
-THERMAL_ZONES = os.environ.get("PROTODIRSIG_THERMAL_ZONES", "/sys/class/thermal")   # overridable for tests
-CPU_FREQ = os.environ.get("PROTODIRSIG_CPUFREQ", "/sys/devices/system/cpu")             # overridable for tests
+THERMAL_ZONES = os.environ.get(_names.env("THERMAL_ZONES"), "/sys/class/thermal")   # overridable for tests
+CPU_FREQ = os.environ.get(_names.env("CPUFREQ"), "/sys/devices/system/cpu")             # overridable for tests
 THROTTLE_SUSPECT_C = 90.0         # a run is throttle_suspect at this maximum temperature ...
 THROTTLE_FREQ_FRACTION = 0.9      # ... with a core below this fraction of cpuinfo_max_freq
 

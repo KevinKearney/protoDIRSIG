@@ -17,14 +17,16 @@ Every exception pickles with its members (the worker and a future server move th
 This module also holds the plain problem constructors (`make_problem`, `admission`, `not_found`, `invalid_request`,
 `execution_failed`, `from_compose_error`) and the problem type URNs, because `run_spec` imports this module and
 `problems` imports `run_spec`: the constructors live here, `problems` re-exports them and adds the ones that locate a
-pointer in a composed spec. Imports: the standard library only.
+pointer in a composed spec. Imports: the standard library and `_names` only.
 """
 
-COMPOSE = "urn:protodirsig:problem:compose"
-ADMISSION = "urn:protodirsig:problem:admission"
-NOT_FOUND = "urn:protodirsig:problem:not-found"
-INVALID_REQUEST = "urn:protodirsig:problem:invalid-request"
-EXECUTION = "urn:protodirsig:problem:execution"
+from protodirsig._names import problem
+
+COMPOSE = problem("compose")
+ADMISSION = problem("admission")
+NOT_FOUND = problem("not-found")
+INVALID_REQUEST = problem("invalid-request")
+EXECUTION = problem("execution")
 TITLES = {COMPOSE: "The recipe does not compose", ADMISSION: "The submission failed admission",
           NOT_FOUND: "Not found", INVALID_REQUEST: "The request is not valid",
           EXECUTION: "The run failed while executing"}

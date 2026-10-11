@@ -31,6 +31,8 @@ from jsonschema.exceptions import best_match
 from referencing import Registry, Resource
 from referencing.jsonschema import DRAFT202012
 
+from protodirsig import _names
+
 SCHEMA_FILES = ("run-spec-1.schema.json", "dirsig-engine-1.schema.json", "sensor-spec-1.schema.json")
 ROOT_SCHEMA = "run-spec-1.schema.json"
 MAX_MESSAGE = 200
@@ -39,7 +41,7 @@ MAX_MESSAGE = 200
 def packaged_contracts_dir():
     """The schemas packaged with the library (`protodirsig/_contracts/`, copied there by the build), or None in a
     checkout or editable install, which has no packaged copy."""
-    folder = resources.files("protodirsig") / "_contracts"
+    folder = resources.files(_names.PACKAGE) / "_contracts"
     try:
         if folder.joinpath(ROOT_SCHEMA).is_file():
             return Path(str(folder))
@@ -51,7 +53,7 @@ def packaged_contracts_dir():
 def contracts_dir():
     """The folder holding the contract schemas, in this order: `$PROTODIRSIG_CONTRACTS`; the packaged copy
     (`packaged_contracts_dir`); the repository's `manifold_contracts/`."""
-    env = os.environ.get("PROTODIRSIG_CONTRACTS")
+    env = os.environ.get(_names.env("CONTRACTS"))
     if env:
         return Path(env)
     return packaged_contracts_dir() or Path(__file__).resolve().parents[2] / "manifold_contracts"

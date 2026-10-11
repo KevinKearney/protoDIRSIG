@@ -20,7 +20,7 @@ import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from protodirsig import identity, problems
+from protodirsig import _names, identity, problems
 from protodirsig.compose import (MAX_RUNS, ComposeError, compose, compose_sweep, default_sensor_library, dump,  # noqa: F401
                                  explain, sweep_id)
 from protodirsig.run_spec import RunSpecError
@@ -79,7 +79,7 @@ class LocalRegistry:
     """Deprecated: use `protodirsig.Workspace` (kept for the notebooks; removed in phase 3)."""
 
     def __init__(self):
-        warnings.warn("LocalRegistry is deprecated; use protodirsig.Workspace (Workspace.local(...))",
+        warnings.warn(f"LocalRegistry is deprecated; use {_names.PACKAGE}.Workspace (Workspace.local(...))",
                       DeprecationWarning, stacklevel=2)
 
     def submit_sweep(self, recipe_path, config_repo, work_dir=None, max_runs=MAX_RUNS):
@@ -95,7 +95,7 @@ class LocalRegistry:
             result.errors.append(f"Composition failed: {e}")
             return result
         result.sweep_id = sweep.sweep_id
-        work_dir = Path(work_dir) if work_dir is not None else Path(tempfile.mkdtemp(prefix="protodirsig_sweep_"))
+        work_dir = Path(work_dir) if work_dir is not None else Path(tempfile.mkdtemp(prefix=_names.TEMP_PREFIX + "sweep_"))
         work_dir.mkdir(parents=True, exist_ok=True)
         for name, spec in sweep.runs.items():
             path = work_dir / f"{sweep.files[name]}.yaml"
@@ -138,7 +138,7 @@ class LocalRegistry:
             return SubmissionResult(verdict="rejected", reasons=[f"Composition failed: {e}"], compose_error=e,
                                     checks={"compose": False, "schema": False, "resolution": False, "execution": False,
                                             "stamped": False})
-        work_dir = Path(work_dir) if work_dir is not None else Path(tempfile.mkdtemp(prefix="protodirsig_"))
+        work_dir = Path(work_dir) if work_dir is not None else Path(tempfile.mkdtemp(prefix=_names.TEMP_PREFIX))
         work_dir.mkdir(parents=True, exist_ok=True)
         path = work_dir / f"{recipe_path.stem}.yaml"
         path.write_text(dump(spec, recipe_path.relative_to(recipe_path.parent.parent).as_posix()))

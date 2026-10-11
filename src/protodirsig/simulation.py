@@ -37,6 +37,7 @@ from dirfm.weather import ThermWeatherFilePlugin
 
 # The schema check moved to contract (pure, no engine package); re-exported so `from protodirsig.simulation import
 # schema_errors` keeps working.
+from protodirsig import _names
 from protodirsig.contract import (DESCRIPTOR_REQUIRED, ENGINE_ENUMS, ENGINE_REQUIRED, _MISSING, _get,  # noqa: F401
                                   schema_errors, schema_violations, semantic_errors)
 from protodirsig.admission import validate_spec
@@ -134,7 +135,7 @@ class Simulation:
     def __init__(self, run_spec_path, config_repo, work_dir=None, sensor_library=None):
         self.run_spec_path, self.config_repo = Path(run_spec_path), Path(config_repo)
         self.sensor_library = Path(sensor_library) if sensor_library is not None else None
-        self.work_dir = Path(work_dir) if work_dir is not None else Path(tempfile.mkdtemp(prefix="protodirsig_"))
+        self.work_dir = Path(work_dir) if work_dir is not None else Path(tempfile.mkdtemp(prefix=_names.TEMP_PREFIX))
         self.spec = self.resolved = None
         self.load_error = self.resolve_error = None
         self.resolve_exception = None             # the resolution exception (RunSpecError.pointer names the member)

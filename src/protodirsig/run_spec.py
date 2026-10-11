@@ -54,15 +54,16 @@ from pathlib import Path
 import lxml.etree as et
 import yaml
 
+from protodirsig import _names
 from protodirsig.dirhash import directory_digest
 from protodirsig.errors import ProblemError
 from protodirsig.spectral import PLACEHOLDER, sha256_file
 
 # dirfm-bound names, imported only when a job is built (ResolvedRun.atmosphere_plugin, ephemeris_plugin), so loading,
 # resolving and composing a run spec needs no engine package. `from protodirsig.run_spec import <name>` still works.
-_ENGINE_BOUND = {"PatchedModtranTapeBackend": "protodirsig.atmosphere_patches",
-                 "PatchedNewAtmospherePlugin": "protodirsig.atmosphere_patches",
-                 "SpiceEphemerisPlugin": "protodirsig.platform_ref"}
+_ENGINE_BOUND = {"PatchedModtranTapeBackend": _names.module("atmosphere_patches"),
+                 "PatchedNewAtmospherePlugin": _names.module("atmosphere_patches"),
+                 "SpiceEphemerisPlugin": _names.module("platform_ref")}
 
 
 def __getattr__(name):                         # PEP 562: the engine-bound names, loaded on first use

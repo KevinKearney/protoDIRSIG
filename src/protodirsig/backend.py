@@ -44,6 +44,7 @@ from typing import Protocol, runtime_checkable
 import yaml
 
 from protodirsig import identity, problems
+from protodirsig import _names
 from protodirsig.admission import validate_spec
 from protodirsig.compose import MAX_RUNS, ComposeError, compose_sweep, compose_sweep_document, dump
 from protodirsig.compose import default_sensor_library as recipe_sensor_library
@@ -315,7 +316,7 @@ class LocalBackend:
     def _start_worker(self, run_id):
         run_dir = self.store.run_dir(run_id)
         with open(run_dir / "worker.log", "ab") as log:
-            proc = subprocess.Popen([sys.executable, "-m", "protodirsig.worker", str(run_dir)], cwd=run_dir,
+            proc = subprocess.Popen([sys.executable, "-m", _names.module("worker"), str(run_dir)], cwd=run_dir,
                                     stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
                                     start_new_session=True, close_fds=True)
         self._children.append(proc)

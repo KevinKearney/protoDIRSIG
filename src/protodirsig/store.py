@@ -42,7 +42,7 @@ from pathlib import Path
 
 import yaml
 
-from protodirsig import identity, problems
+from protodirsig import _names, identity, problems
 from protodirsig.errors import NotFoundError
 
 STATES = ("accepted", "running", "rendered", "failed", "cancelled")
@@ -208,7 +208,7 @@ def _pid_is_worker(pid, start=None):
             return False
         if start and start.get("start_ticks") is not None:
             return process_start(pid) == {"start_ticks": start["start_ticks"], "boot_time": start.get("boot_time")}
-        return b"protodirsig.worker" in (proc / "cmdline").read_bytes()    # a record from before start times
+        return _names.module("worker").encode() in (proc / "cmdline").read_bytes()    # a record from before start times
     except (OSError, ValueError, IndexError):
         return False
 

@@ -39,7 +39,7 @@ import traceback
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
-from protodirsig import problems
+from protodirsig import _names, problems
 from protodirsig.simulation import Simulation
 from protodirsig.passthrough import (cache_state, is_passthrough, resolve_passthrough, run_engine, throttle_suspect,
                                      tool_version)
@@ -106,7 +106,7 @@ def dirfm_revision():
 
 def _protodirsig_version():
     try:
-        return version("protodirsig")
+        return version(_names.DISTRIBUTION)
     except PackageNotFoundError:
         return None
 
@@ -220,7 +220,7 @@ def main(run_dir, simulation_factory=_simulation):
         except (OSError, KeyError, TypeError, ValueError):
             spec = None
         store.update_record(run_id, {"started_at": utc_now(), "python": platform.python_version(),
-                                     "protodirsig_version": _protodirsig_version(),
+                                     _names.RECORD_VERSION_KEY: _protodirsig_version(),
                                      "dirfm": {**dirfm, "generator_revision": spec_revision,
                                                "generator_revision_matches": dirfm["revision"] == spec_revision},
                                      "dirsig": dirsig})
@@ -260,5 +260,5 @@ def main(run_dir, simulation_factory=_simulation):
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        sys.exit("usage: python -m protodirsig.worker <run_dir>")
+        sys.exit(f"usage: python -m {_names.module('worker')} <run_dir>")
     sys.exit(main(sys.argv[1]))

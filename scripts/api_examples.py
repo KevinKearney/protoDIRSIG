@@ -26,7 +26,8 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from protodirsig import problems                                        # noqa: E402
+from protodirsig import _names, problems                                # noqa: E402
+from protodirsig.errors import ADMISSION                                 # noqa: E402
 from protodirsig.compose import ComposeError, compose, compose_sweep   # noqa: E402
 from protodirsig.contract import schema_violations                       # noqa: E402
 from protodirsig.library import LibraryReader                            # noqa: E402
@@ -52,7 +53,7 @@ PASS = "leo_pass_tahoe"
 _COMPOSED = {r: compose_sweep(LAYERS / "recipes" / f"{r}.yaml") for r in (SWEEP, SINGLE, PASS)}
 RUN_IDS = {n: i for c in _COMPOSED.values() for n, i in c.run_ids.items()}     # computed: identity.run_id
 SWEEP_ID = _COMPOSED[SWEEP].sweep_id                                           # computed: identity.sweep_id_from_runs
-RUN_DIR = "file:///tmp/protodirsig/runs"
+RUN_DIR = f"file:///tmp/{_names.PACKAGE}/runs"
 
 
 BOGUS_KIND = "bogus"
@@ -198,7 +199,7 @@ def examples():
     resolved = resolve_run(spec, spec_path, CONFIG_REPO, SENSORS)
     checks = [("schema", schema_errors(spec)), ("resolution", []), ("content_hash", []),
               ("library_files", check_library_files(spec, resolved))]
-    checks = [{"check": c, "passed": not errs, "errors": [{"type": "urn:protodirsig:problem:admission",
+    checks = [{"check": c, "passed": not errs, "errors": [{"type": ADMISSION,
                                                             "title": "A check failed", "status": 422,
                                                             "detail": d, "layer": None, "field": None}
                                                            for d in errs]} for c, errs in checks]

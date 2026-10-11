@@ -14,7 +14,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from protodirsig import models
+from protodirsig import _names, models
 from protodirsig.backend import Backend, LocalBackend
 from protodirsig.compose import MAX_RUNS
 
@@ -34,7 +34,7 @@ def default_work_root():
         The folder runs are stored under when no `work` is given.
     """
     base = os.environ.get("XDG_STATE_HOME") or str(Path.home() / ".local" / "state")
-    return Path(base) / "protodirsig" / "work"
+    return Path(base) / _names.STATE_DIR_NAME / "work"
 
 
 def former_work_root():
@@ -47,7 +47,7 @@ def former_work_root():
         The former default work root.
     """
     base = os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache")
-    return Path(base) / "protodirsig" / "work"
+    return Path(base) / _names.STATE_DIR_NAME / "work"
 
 
 def _warn_about_former_root(work):
@@ -56,7 +56,7 @@ def _warn_about_former_root(work):
     runs = work / "runs"
     empty = not runs.is_dir() or not any(runs.iterdir())       # no run stored yet (the store's empty folders count as empty)
     if old.is_dir() and old != work and empty:
-        logging.getLogger("protodirsig").warning(
+        logging.getLogger(_names.LOGGER_NAME).warning(
             "the default work root is now %s; runs stored under the former default %s are not moved (pass "
             "work=%r to keep using them)", work, old, str(old))
 
