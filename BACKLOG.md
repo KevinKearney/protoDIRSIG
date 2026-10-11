@@ -106,11 +106,23 @@ The repository directory is still `protoDIRSIG`, and so are the conda environmen
 ### Execution record member `protodirsig_version`
 `execution.json` records the SDK version under the pre-rename key (`manifold.core._names.RECORD_VERSION_KEY`); the value is now the `eoptic-manifold-sim` version. Rename it to a neutral key with the next change of the record's schema; it is not hashed and no id depends on it. No other name-derived string reaches hashed content (round 17 audit; `tests/test_id_snapshot.py`).
 
-### SatSim probe
-A separate short prompt: install SatSim into its own environment (network allowed only for that install), run its examples, and record what an engine adapter for it would need (inputs, outputs, determinism, GPU use), against the adapter protocol of round 18.
+### SatSim engine adapter
+The probe (`docs/SatSim_probe.md`, SatSim 0.26.1 in its own `satsim` environment) fixes what an adapter needs: launch the environment's `satsim run` or a Python launcher as a subprocess (the environment is 3.0 GB with TensorFlow and `astropy<6`, so never in the SDK's environment); find the timestamped set folder under `-o`; set `SATSIM_SKYFIELD_LOAD_DIR`, a per-run `HOME` and the four thread variables; collect frames, annotations, previews, movie, CZML and `config.json` with roles, and drop `_input_dir` (an absolute path) from what is hashed or published; treat a missing `config_pass_*.json` as an incomplete run, since a signal leaves no status; parse a traceback on exit 1. A `satsim-engine/1` block for what the descriptor cannot hold (gaps item below) comes with it. Round 18's adapter protocol is the place.
+
+### SatSim: seeds and repeatability
+The CLI cannot repeat a run: the `bins` star field uses numpy's global random state and the detector noise TensorFlow operations without a seed, and neither the configuration nor the CLI has a global seed. Global seeding through the Python API (`np.random.seed`, `tf.random.set_seed` before `gen_multi`) gave byte-identical products on CPU at default and one thread. Decide whether the adapter always launches through such a launcher with the run spec's seed, and ask upstream for a seed option.
+
+### SatSim: network-free runs and hashed catalogs
+First runs download `de421.bsp` (`ssd.jpl.nasa.gov`) into the working directory and the IERS tables (`datacenter.iers.org`, `hpiers.obspm.fr`) into `$HOME/.astropy`; star catalogs come from `SATSIM_SSTR7_PATH`, `SATSIM_GCVS5_PATH` or `geometry.stars.path`. For reproducible, network-free runs these become library assets with content hashes (as DIRSIG's installation data and `orbit/iers.npz` are), placed for each run, and astropy's IERS auto-download is turned off. Decide the policy, including how stale IERS tables are refreshed.
+
+### Descriptor gaps found by the SatSim mapping
+Of 32 SatSim configuration concepts, 3 map cleanly onto the descriptor, 11 with a conversion and 18 have no home (`docs/SatSim_probe.md`). The consequential gaps: targets (only a class; no trajectory or brightness), observer motion and pointing (a geodetic position and a governed term; no orbit, track mode or field rotation), detector noise and the radiometric scale (`sensor-spec/1` has no dark current, read noise, full well or PSF; SatSim takes a photometric zeropoint). Also without a home: frame count and collect duration, the star field and catalog, sky brightness and clouds as numbers, product requests, Monte Carlo sets, a seed. Decide which belong in the descriptor (MANIFOLD questions) and which in a `satsim-engine/1` block.
+
+### SatSim GPU follow-up
+Repeat the probe on a GPU machine with the checklist at the end of `docs/SatSim_probe.md`: device selection (`--device`, `--memory`, `--jobs`), wall time and host and GPU memory against the CPU numbers, and repeatability with global seeds on GPU and against CPU (with and without `TF_DETERMINISTIC_OPS=1`).
 
 ### Typed resource slots for GPU engines
-`LocalBackend` has `max_parallel` CPU slots only. A GPU engine needs typed slots (GPU count and memory per run) in admission and in the worker's slot locks, and the run spec or engine profile has to state what a run needs.
+`LocalBackend` has `max_parallel` CPU slots only. A GPU engine needs typed slots (GPU count and memory per run) in admission and in the worker's slot locks, and the run spec or engine profile has to state what a run needs. SatSim (`docs/SatSim_probe.md`) declares its needs only as CLI options: GPU ids, GPU memory per process and jobs per GPU; on CPU it takes 0.85 to 0.91 GB and, by default, 37 threads on an 8-thread machine (9 with thread variables set), so a CPU slot also needs a thread count, and a run's memory should be declarable.
 
 ### Release repo plan
 Cut the validated SDK, tests, and notebooks into a new repository under formal change control. Strip `.claude_mem/`, `notebooks/dev/`, and `prompt.md`; carry `docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md`.

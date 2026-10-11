@@ -151,7 +151,7 @@ Required blocks for `run-spec/1`: `meta`, `origin`, `collection`, `sensor`, `set
 
 ### 3.2 `engine` (`dirsig-engine/1`)
 
-The `engine` section is origin-specific: one schema per engine, selected by `descriptor.origin.engine`. DIRSIG (`dirsig-engine/1`) is the first engine implemented. Others (`satsim`, `usd`) will follow with their own `<engine>-engine/<major>` schemas; none of what follows constrains them. The `descriptor` is the engine-independent part of the contract and is shared across all engines. This document describes the DIRSIG engine only.
+The `engine` section is origin-specific: one schema per engine, selected by `descriptor.origin.engine`. DIRSIG (`dirsig-engine/1`) is the first engine implemented. Others (`satsim`, `usd`) will follow with their own `<engine>-engine/<major>` schemas; none of what follows constrains them. SatSim (`planned`): `docs/SatSim_probe.md` records its install, CPU cost, outputs, side effects, repeatability and how its configuration maps onto the descriptor. The `descriptor` is the engine-independent part of the contract and is shared across all engines. This document describes the DIRSIG engine only.
 
 Members (Configuration_v02 A.8.1): `generator`, `scenes`, `platform`, `motion`, `tasks`, `atmosphere` (required); `weather`, `ephemeris`, `run` (optional). The `proposed` pass-through mode replaces these with `generator`, `mode`, `passthrough` and an optional `run` (below, C-26). The schema is `manifold_contracts/dirsig-engine-1.schema.json` (`proposed`).
 
