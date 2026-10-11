@@ -251,3 +251,32 @@ A verdict compares a demo's simulation file, platform, motion and atmosphere wit
 7. The demo's camera could be written as a `sensor-spec/1` document only by copying values from its licensed platform file, and its epoch, pose and viewing geometry only by copying from its tasks and motion files; none of that may be committed, so the layers use a library stand-in sensor and stand-in collection and pose. Regenerating a demo needs those values derived at bootstrap time into a gitignored layer overlay, or a licence that allows committing them.
 8. The demo's motion and tasks files are not library assets: the SDK generates motion and tasks from the run spec, so their values belong in the engine profile and scenario (point 7 applies).
 9. The survey chose `framing.jsim` as the simulation file because the demo has no `demo.jsim`; the choice of variant decides which plugins and files a regeneration must cover.
+
+## Tagged demos
+
+Hand-maintained and kept when the table is regenerated: the demos the user named as of interest, by tag (SDA: space domain awareness; URSO: relevance to the URSO work), with each one's pass-through sweep outcome and cost (`docs/DIRSIG_demo_sweep.md`) and its survey verdict. The table between the markers is rewritten by `scripts/summarize_sweep.py`.
+
+<!-- summarize_sweep: tagged demos, generated between these markers by scripts/summarize_sweep.py -->
+
+| Tag | Demo | Sweep outcome | Simulation | Wall time (s) | Deterministic | Survey verdict | Missing features (survey) |
+|---|---|---|---|---|---|---|---|
+| SDA | MoonSat1 | skipped: dirsig4 | - | - | - | `far` | BasicAtmosphere .atm (classicradiativetransfer, uniformweather), simulation options file |
+| SDA | MoonSat2 | rendered | demo.jsim | 4.1 | no | `far` | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather), tracking mount |
+| SDA | Ssa1 | rendered | demo.sim | 629.4 | not tested | `far` | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather), simulation options file, LookAt orientation from a fixed location |
+| SDA | Ssa2 | skipped: dirsig4 | - | - | - | `far` | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather), LookAt orientation from a fixed location |
+| SDA | Ssa3 | skipped: dirsig4 | - | - | - | `far` | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather), sgp4 location engine |
+| SDA | EarthShine1 | rendered | demo.jsim | 84.2 | yes | `far` | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather), plugin EarthGrid, LookAt orientation from a fixed location |
+| SDA | SpaceRendezVous1 | rendered | lidar_rpo.jsim | 705.5 | not tested | `far` | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather), plugin EarthGrid, non-imaging sensor: lidar, tracking mount, STK report import, quaternion orientation |
+| SDA | LightCurve1 | rendered | box_spin.jsim | 691.9 | not tested | `far` | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather), plugin LightCurve, a sensor plugin instead of BasicPlatform |
+| SDA | StkImport1 | rendered | demo.jsim | 24.1 | no | `far` | no scene file (the Earth is the EarthGrid plugin), BasicAtmosphere .atm (simpleradiativetransfer, uniformweather), plugin EarthGrid, non-imaging sensor: datarecorder, STK report import, quaternion orientation |
+| URSO | Sources1 | rendered | demo.sim | 6.1 | yes | `far` | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather), simulation options file |
+| URSO | Indoors1 | rendered | demo.jsim | 8.1 | yes | `near` | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
+| URSO | Sources3 | rendered | demo.sim | 6.1 | no | `far` | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather), simulation options file |
+| URSO | Sources4 | rendered | demo.sim | 4.1 | yes | `far` | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather), simulation options file |
+| URSO | Sources5 | rendered | demo.sim | 8.1 | yes | `far` | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather), simulation options file |
+| URSO | IESSources1 | rendered | demo.sim | 18.1 | yes | `near` | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
+| URSO | Sources6 | rendered | demo.sim | 44.1 | no | `near` | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
+| URSO | SubPixelObject1 | rendered | demo.sim | 44.1 | yes | `near` | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
+| URSO | SubPixelObject2 | rendered | demo.sim | 62.1 | no | `near` | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
+
+<!-- summarize_sweep: tagged demos end -->

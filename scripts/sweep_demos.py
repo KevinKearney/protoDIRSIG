@@ -63,6 +63,7 @@ MAX_FALLBACK_SIMS = 4
 TAIL_LINES = 20
 HEARTBEAT_S = 30
 POLL_S = 2.0
+MAX_OUTPUT_ROWS = 24             # per demo in the report; every digest stays in results.jsonl
 BEGIN = "<!-- sweep_demos: generated between these markers by scripts/sweep_demos.py; edit outside them -->"
 END = "<!-- sweep_demos: end -->"
 REPORT = ROOT / "docs" / "DIRSIG_demo_sweep.md"
@@ -583,8 +584,12 @@ def render_generated(records, state):
     if rendered:
         lines += ["", "## Outputs of rendered demos", ""]
         for n, a in rendered:
+            outs = a.get("outputs", [])
             lines += [f"### {n} ({a['simulation']})", "", "| File | Bytes | sha256 |", "|---|---|---|"]
-            lines += [f"| {_cell(o['name'])} | {o['size']} | `{o['sha256']}` |" for o in a.get("outputs", [])]
+            lines += [f"| {_cell(o['name'])} | {o['size']} | `{o['sha256']}` |" for o in outs[:MAX_OUTPUT_ROWS]]
+            if len(outs) > MAX_OUTPUT_ROWS:
+                rest = outs[MAX_OUTPUT_ROWS:]
+                lines.append(f"| and {len(rest)} more files | {sum(o['size'] for o in rest)} | listed in the results file |")
             lines.append("")
     lines += ["", END]
     return "\n".join(lines)

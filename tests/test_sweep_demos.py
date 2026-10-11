@@ -309,3 +309,12 @@ def test_a_stop_request_cancels_the_render_records_it_and_writes_the_report(tmp_
     assert "Big1" not in sweep_demos.demo_rows(records) and "Small1" not in s.finished()
     assert [r["reason"] for r in records if r["type"] == "stop"] == ["SIGTERM"]
     assert "| Small1 |" in (tmp_path / "sweep.md").read_text() and not (s.demo_dirs / "Small1").exists()
+
+
+def test_the_report_caps_a_demo_s_output_rows():
+    outs = [{"name": f"f{i:04d}.img", "size": 10, "sha256": "0" * 64} for i in range(30)]
+    records = [{"type": "demo", "demo": "Many1", "outcome": "rendered", "uncompressed_bytes": 1,
+                "attempts": [{"simulation": "demo.sim", "outcome": "rendered", "wall_s": 1.0, "outputs": outs}]}]
+    text = sweep_demos.render_generated(records, {})
+    assert "| f0023.img |" in text and "| f0024.img |" not in text
+    assert "| and 6 more files | 60 | listed in the results file |" in text
