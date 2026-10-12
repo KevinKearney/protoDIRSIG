@@ -1584,3 +1584,19 @@ Space-to-space characterization I: coverage audit, the first scenario family, fi
 - **C, judgment: "ratio", no threshold.** Every number is reported as rendered/expected from the spec's own values; no pass/fail threshold invented. The expected values use the exact aperture-cone factor after it was measured on a full pixel (stated in the document with the paraxial ratio).
 - **C, documents.** CONOPS section 9: a bullet "A sub-pixel object needs a surface behind it." BACKLOG (TBR group): "Space-to-space: what the first measurements leave open" (seven items). The new document's measurement section and "Axes the SDK cannot express".
 - Step C gate: 1684 passed, 2 skipped (7 min 46 s, alone); eleven checks 0; boundary tests 23 passed; core and id snapshot unchanged since 796ecd5. No test edited in C.
+- Final gate = the C gate at 7b815f9: suite 1684 passed, 2 skipped; eleven --check scripts 0 (status_markers 179 markers, 0 problems; s2s_scenarios 63 specs); tests/test_core_boundary.py and tests/test_distribution_graph.py 23 passed; `git diff 796ecd5 -- packages/core tests/data/id_snapshot.json` empty; no existing id-snapshot entry changed. Time used about 1 h 35 min of 4 h. No two renders overlapped; the baseline and every gate suite ran alone. Scratch images and job folders deleted after hashing.
+- Assertions changed: none (one new test file; its two first-run failures were in its own new assertions, fixed before any commit).
+
+### OPEN (round 29)
+1. Why `--convergence` (and the sample strategy) leave byte-identical a pixel whose rays all leave the scene: not isolated. Minimal evidence: the 20 m plate at 400 km, `--convergence 10 10 0` and `100 1000 1e-6` run directly by dirsig5 on the assembled job (log shows the setting), images identical; pixel values 4/5, 3/4, 2/3.
+2. E1 residual: equivalent pixels over expected rise with range (0.99992 to 1.00816) as edge pixels grow in share; not scene size (a one-plate scene gave the same 100 km image).
+3. The 1.224-pixel plate centred on a pixel peaks at 0.9025 of a full pixel (geometry 1.000); repeats in the one-plate scene; offsets 0.25 and 0.75 give 0.699 and 0.707 (geometry 0.743).
+4. Unresolved flux is a hit count at the template's multiplier (100; quantum 1/2000): R^-2 fails below about a third of a pixel area. The multiplier, the convergence and the label are not run-spec members (BACKLOG).
+5. Shutter blur unmeasured: unresolved streaks are single hits; no hyperresolved mover in the family; the `straight` heading-90 direction (assumed +x) not verified from the images.
+6. Not rendered: the unlabelled plate's look, Sun, exposure and offset points (18).
+7. SatSim: nothing run (C-38); its cells are the audit's.
+8. No Earth background, stars or PSF in the family; the `orbit` point's range and speed are the TLE's.
+9. New governed-term values in free strings (`space_to_space`, `space`, `none`, `space_object`): MANIFOLD's vocabulary decides.
+10. dirfm's `DIRSIG.run(**options)` writes `--<key>=<value>`: DIRSIG's presets (`-reference`) and the three-value `--convergence` cannot be passed through it (a value with spaces fails to parse). Noted only.
+11. The survey's prose calls Ssa1 to Ssa3 "a satellite from a satellite"; Ssa1 is a fixed site. Not edited (generated report).
+12. Carried from round 28's OPEN: items 1 to 10.

@@ -9,3 +9,4 @@
 - step A: gate 1677 passed, 2 skipped (7 min 58 s, alone, B's files moved out); ten checks 0; boundary 23 passed; core and snapshot unchanged
 - step B: gate 1684 passed, 2 skipped (7 min 49 s, alone); eleven checks 0; boundary 23 passed; core and snapshot unchanged
 - step C: gate 1684 passed, 2 skipped (7 min 46 s, alone); eleven checks 0; boundary 23 passed; core and snapshot unchanged
+- final gate = C gate at 7b815f9; time used ~1 h 35 min
