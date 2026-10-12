@@ -251,3 +251,24 @@ The edge pixels take 20 to 100 paths (`samplecount`), and their Monte Carlo scat
 The spread scales with the f-number, as a diffraction spread would. 1.22 λ N at 0.85 µm and N 3.6 is 3.7 µm, 0.37 pixel, inside the 0.35 to 0.40 bracket of explicit Gaussian widths. The plugin's model is not documented; that is an interpretation, not a measurement. Fitted as the pixel convolved with a Gaussian, the spread has σ = 0.18 pixel (100 km plate, 1000 paths: residual rms 0.0034). That model predicts the 12.5 km unresolved plate's peaks at offsets 0, 0.25, 0.5 and 0.75 as 0.373, 0.698, 0.882 and 0.698. Round 29 rendered 0.381, 0.699, 0.903 and 0.707; at 4000 paths per pixel (×100 hypersampled) the pixel-centred peak is 0.8876. Hypersampling multiplier 1 and the unlabelled plate give 0.90 at 100 paths: the label and multiplier do not cause it. A symmetric spread keeps the sum, so it does not cause item 2.
 
 Consequences for the documents: the sensor-spec has no PSF member, and DIRSIG5 does not keep the template's one-pixel uniform response. It applies an aperture-dependent spread of about 0.18 pixel (σ) for `auror-nir`, unless the platform file states a `<psf>`. The family specs' `fidelity.absent` entry "optics blur (the template's spatial response is one uniform pixel)" is therefore inaccurate. The specs are not regenerated: that would change every family spec's run id, and the text is a fidelity statement, not an input. It is recorded here and in BACKLOG.
+
+### The audit's DIRSIG cells after round 30
+
+| Axis | Unresolved | Hyperresolved |
+|---|---|---|
+| Platform motion | measured as scene motion (the `platform` group): the 0.5 m plate's streak is sampled at a few hits, flux 1.03 to 0.36 of the expectation from 0.1 to 20 ms (A). The `orbit` form tracks its LookAt point (round 29's orbit point: one hit) | measured as scene motion: blur v·t/footprint to 2 to 3 percent, flux to 0.2 percent, along scene +x from the task time (A). The `orbit` form holds a 100 m plate still over 20 ms (A); its range and speed are the TLE's |
+| Target motion | measured (the `target` group, scene content): as for platform motion; the background unblurred | measured (the `target` group): the plate's blur as above, the background's 0.001 pixel |
+| Shutter blur | measured: an unresolved streak loses flux as it lengthens, because hypersampling covers only the pixels at about the task time and the rest stop at 20 paths with no hit (A) | measured: boxcar edge profile (rms ≤ 0.0064 of a full pixel), four exposures over 2.3 decades, target and background blur separately (A); the blur length 1.7 to 3.1 percent short at 5 and 20 ms, unexplained |
+| Off-nadir look angle | measured at 200 km in round 29 (3 hits and 1 hit) | measured 0 to 75 degrees against a barred background: projected area to 0.13 percent and background period to half a pixel up to 60 degrees; at 75 degrees the background ends behind the target and the flux drops to 0.957 (B) |
+| Sun angle | measured at 200 km (round 29) | measured (round 29) |
+
+### Axes the SDK cannot express (round 30)
+
+- **Platform motion at a stated speed.** The `static` form has no velocity. The `orbit` form's speed (7558 m/s here) and range are the TLE's, and its LookAt holds the target still (A). Family II therefore moves the scene: platform motion is the whole group moving the other way (DIRSIG `straight`, heading 90, a fixed orientation), target motion is the plates alone, both is both. This is exact for a non-rotating platform and a fixed Sun. Every such speed is a scene-asset value, one per instance, not a member.
+- **Target motion.** As in round 29: scene content only.
+- **Hypersampling of a moving unresolved object.** `::IMPORTANT::` follows the object at about the task time only (A). Neither the multiplier nor the per-pixel sample count is a member.
+- **The earth core.** A pixel's sampling ends at its first path to the earth core (C1). Its removal (`--disable_earth_core`) is a dirsig5 option, not a member, so the family needs a surface behind every target and background.
+- **Path length inside the scene.** A surface about 20 km along the ray inside the generated scene was not hit (family II's layout note). The mechanism is not isolated, and no member or documented option states it.
+- **An Earth background beside a target.** The run spec takes one `engine.scenes` entry; no member adds an Earth model. A planar background is scene content (B).
+- **A PSF.** The sensor-spec has none. DIRSIG5 applies an aperture-dependent spread of its own (C3), and only a `<psf>` in the platform file, not a member, changes it.
+- **Look angle and phase angle in the descriptor.** As in round 29: recorded under `descriptor.extras`.

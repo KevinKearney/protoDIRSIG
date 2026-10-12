@@ -17,3 +17,4 @@
 - step B: gate 1690 passed, 2 skipped (7 min 55 s, alone); eleven checks 0; boundary 23 passed; core and snapshot unchanged
 - C: about 6 min render (16x16 variations, 5 native 100/50 km seed renders, one 82 s 4000-path render); all three explained with observed causes
 - step C: gate 1690 passed, 2 skipped (8 min 11 s, alone); eleven checks 0; boundary 23 passed; core and snapshot unchanged
+- step D: gate 1690 passed, 2 skipped (7 min 50 s, alone); eleven checks 0; boundary 23 passed; git diff 91ebb4f -- packages/core tests/data/id_snapshot.json empty. Final gate = D gate. Time used ~1 h 45 min.
