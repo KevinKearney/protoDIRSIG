@@ -421,3 +421,117 @@ def test_the_library_satsim_run_spec_is_admitted_with_its_recorded_id():
     lib = [ln for ln in (ROOT / "manifold_config_repo" / "satsim" / "tahoe_worldview2.yaml").read_text().splitlines()
            if not ln.startswith("#")]
     assert lib == probe                                               # the probe's sample, promoted unchanged
+
+
+# --- collection: roles and verdicts on synthetic set folders --------------------------------------------------------
+
+def _fits(path, rows=4, cols=6):
+    cards = ["SIMPLE  =                    T", "BITPIX  =                   16", "NAXIS   =                    2",
+             f"NAXIS1  = {cols:20d}", f"NAXIS2  = {rows:20d}", "END"]
+    header = "".join(c.ljust(80) for c in cards).ljust(2880).encode()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(header + bytes(2880))
+
+
+def _set_folder(run_dir, frames=3, written=3, end=True, movie=True, czml=True, name="set"):
+    out = run_dir / "output"
+    folder = out / name
+    (run_dir / "input").mkdir(parents=True, exist_ok=True)
+    (run_dir / "input" / "launch.json").write_text(json.dumps({"seed": 3, "set": "set", "input_dir": "input",
+                                                              "config": "input/config.yaml"}))
+    folder.mkdir(parents=True)
+    (folder / "config.json").write_text(json.dumps({"fpa": {"num_frames": frames}, "sim": {}, "_input_dir": "input"}))
+    for i in range(written):
+        _fits(folder / "ImageFiles" / f"{name}.{i:04d}.fits")
+        (folder / "Annotations").mkdir(exist_ok=True)
+        (folder / "Annotations" / f"{name}.{i:04d}.json").write_text("{}")
+        (folder / "AnnotatedImages").mkdir(exist_ok=True)
+        (folder / "AnnotatedImages" / f"{name}.{i:04d}.jpg").write_bytes(b"jpg")
+    if end:
+        for k in range(1, 8):
+            (folder / f"config_pass_{k}.json").write_text("{}")
+    if movie:
+        (folder / "AnnotatedImages").mkdir(exist_ok=True)
+        (folder / "AnnotatedImages" / "movie.png").write_bytes(b"png")
+    if czml:
+        (folder / "satsim.czml").write_text("[]")
+    (run_dir / "worker.log").write_text("running\n")
+    return out
+
+
+def _result(out, **doc):
+    (out / "satsim_result.json").write_text(json.dumps({"outcome": "rendered", "seed": 3, "versions": {"satsim": "x"},
+                                                        "elapsed_s": 4.2, **doc}))
+
+
+def test_a_complete_set_is_complete_with_its_roles_and_metadata(tmp_path):
+    out = _set_folder(tmp_path)
+    _result(out)
+    c = SatsimAdapter().collect(out, tmp_path)
+    assert c.verdict == "complete" and c.message is None
+    roles = {a.name: (a.role, a.frame) for a in c.artifacts}
+    assert roles["ImageFiles_set.0001.fits"] == ("product", 1) and roles["Annotations_set.0002.json"] == ("truth", 2)
+    assert roles["AnnotatedImages_set.0000.jpg"] == ("preview", 0) and roles["AnnotatedImages_movie.png"] == ("preview", None)
+    assert roles["satsim.czml"] == ("metadata", None) and roles["config.json"] == ("config", None)
+    assert roles["config_pass_7.json"] == ("config", None) and roles["worker.log"] == ("log", None)
+    assert roles["satsim_result.json"] == ("metadata", None)
+    assert (out / "worker.log").read_text() == "running\n"                 # the worker log, copied at collection
+    md = c.record["engine_metadata"]
+    assert md == {"set_folder": "set", "frames": 3, "frames_expected": 3, "image_size": [4, 6], "seed": 3,
+                  "versions": {"satsim": "x"}, "elapsed_s": 4.2}
+
+
+def test_frames_without_the_end_of_run_files_are_incomplete(tmp_path):
+    out = _set_folder(tmp_path, frames=40, written=30, end=False, movie=False, czml=False)
+    c = SatsimAdapter().collect(out, tmp_path)                             # stopped by a signal: no launcher result
+    assert c.verdict == "incomplete" and "30 of 40 frames written" in c.message
+    assert "missing config_pass_*.json, AnnotatedImages/movie.png, satsim.czml" in c.message
+    assert sum(a.role == "product" for a in c.artifacts) == 30
+
+
+def test_a_reported_success_with_a_missing_frame_is_incomplete(tmp_path):
+    out = _set_folder(tmp_path, frames=3, written=2)
+    _result(out)
+    c = SatsimAdapter().collect(out, tmp_path)
+    assert c.verdict == "incomplete" and "2 of 3 frames" in c.message
+
+
+def test_a_failure_is_failed_with_the_traceback_head(tmp_path):
+    out = tmp_path / "output"
+    out.mkdir()
+    _result(out, outcome="failed", message="KeyError: 'time'", traceback_head=["Traceback ...", "KeyError: 'time'"],
+            elapsed_s=3.1)
+    c = SatsimAdapter().collect(out, tmp_path)
+    assert c.verdict == "failed" and c.message == "SatSim failed: KeyError: 'time'"
+    assert c.record["engine_metadata"]["traceback_head"][-1] == "KeyError: 'time'"
+    assert c.record["engine_metadata"]["elapsed_s"] == 3.1
+
+
+def test_a_wall_clock_set_folder_is_accepted_and_named(tmp_path):
+    out = _set_folder(tmp_path, name="2026-10-11T20-52-28.123456")
+    (tmp_path / "input" / "launch.json").unlink()
+    _result(out)
+    c = SatsimAdapter().collect(out, tmp_path)
+    assert c.verdict == "complete" and c.record["engine_metadata"]["set_folder"] == "2026-10-11T20-52-28.123456"
+    assert "ImageFiles_2026-10-11T20-52-28.123456.0000.fits" in {a.name for a in c.artifacts}
+
+
+def test_a_network_attempt_is_listed_and_counted(tmp_path):
+    out = _set_folder(tmp_path)
+    _result(out)
+    (out / "network_attempts.log").write_text("1 ('example.invalid', 80)\n")
+    c = SatsimAdapter().collect(out, tmp_path)
+    assert c.record["engine_metadata"]["network_attempts"] == 1
+    assert ("network_attempts.log", "log") in {(a.name, a.role) for a in c.artifacts}
+
+
+def test_the_launcher_fails_at_once_when_an_asset_is_not_staged(tmp_path):
+    (tmp_path / "input").mkdir()
+    (tmp_path / "input" / "launch.json").write_text(json.dumps({"seed": 1, "set": "set", "input_dir": "input",
+                                                               "config": "input/config.yaml"}))
+    env = {"HOME": str(tmp_path / "home"), "PATH": "/usr/bin:/bin"}
+    res = subprocess.run([sys.executable, "-I", str(satsim_adapter.LAUNCHER), str(tmp_path)], capture_output=True,
+                         text=True, env=env)
+    result = json.loads((tmp_path / "output" / "satsim_result.json").read_text())
+    assert res.returncode == 1 and "asset 'de421.bsp' is not staged" in result["message"]
+    assert not (tmp_path / "output" / "network_attempts.log").exists()

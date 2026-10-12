@@ -6,7 +6,8 @@ Standard library until SatSim is reached. In this order it:
    network slot is `none`) and is appended to `output/network_attempts.log`;
 2. reads `<run_dir>/input/launch.json` (written by the adapter's launch plan: the seed, the staged configuration, the
    set folder name);
-3. keeps every cache inside the run: `HOME` is the per-run home the plan set; `MPLCONFIGDIR`, `XDG_CACHE_HOME`,
+3. checks that the two staged assets are present (else it fails at once, before SatSim could reach for a download);
+   keeps every cache inside the run: `HOME` is the per-run home the plan set; `MPLCONFIGDIR`, `XDG_CACHE_HOME`,
    `XDG_CONFIG_HOME`, `KERAS_HOME` and `NUMBA_CACHE_DIR` are set under it, and `CUDA_VISIBLE_DEVICES` is empty (CPU);
 4. sets `SATSIM_SKYFIELD_LOAD_DIR` to the folder of the staged ephemeris (`MANIFOLD_SATSIM_EPHEMERIS`), which SatSim
    reads when it is imported;
@@ -62,8 +63,13 @@ def main():
         os.environ[var] = str(home / sub)
     os.environ["CUDA_VISIBLE_DEVICES"] = ""
     os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
-    ephemeris = Path(os.environ["MANIFOLD_SATSIM_EPHEMERIS"])
-    iers_table = Path(os.environ["MANIFOLD_SATSIM_IERS"])
+    ephemeris = Path(os.environ.get("MANIFOLD_SATSIM_EPHEMERIS", ""))
+    iers_table = Path(os.environ.get("MANIFOLD_SATSIM_IERS", ""))
+    for var, path, name in (("MANIFOLD_SATSIM_EPHEMERIS", ephemeris, "de421.bsp"),
+                            ("MANIFOLD_SATSIM_IERS", iers_table, "finals2000A.all")):
+        if not path.is_file() or path.name != name:     # before SatSim could reach for a download
+            raise FileNotFoundError(f"asset {name!r} is not staged ({var}={os.environ.get(var)!r}); SatSim would try "
+                                    "to download it, which this run may not")
     os.environ["SATSIM_SKYFIELD_LOAD_DIR"] = str(ephemeris.parent)
     os.chdir(RUN_DIR)
     seed = int(launch["seed"])

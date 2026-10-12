@@ -127,6 +127,9 @@ Repeat the probe on a GPU machine with the checklist at the end of `docs/SatSim_
 ### Resource slots: what remains
 Built (round 18, proposed): typed slots in `manifold.core.resources`, the `resources` member of a run spec, admission against the declaration and the backend's capacity, a flock'd reservation ledger in `LocalBackend` for threads, memory and GPU devices, and GPU allocation tested against stub capacities. What remains: a backend that advertises real GPUs (device discovery, `CUDA_VISIBLE_DEVICES` through the plan's `gpu_variable`), and SatSim's GPU options measured (see the GPU follow-up); memory is reserved, not enforced (no cgroup limit); a run waits for its reservation in state `running`, after its `max_parallel` slot; the worker resolves the engine through the discovered registry, while admission uses `LocalBackend.registry` (one registry for both when a backend is given a custom one); MANIFOLD's answer on slots and the run id (C-30).
 
+### Partial artifacts of a cancelled run
+Cancelling stops the worker's process group, so the worker never collects: a cancelled run lists only `run_spec.json`, although the engine's frames are still in its folder and its adapter's collector reports them (`incomplete`; SatSim, the dummy engine). Give the worker a SIGTERM handler that stops the engine process, collects and writes the partial references (roles, `incomplete`) before it exits, within the backend's grace period; this is a `manifold.sim` change.
+
 ### A network sandbox for runs
 `LocalBackend` refuses network requests at admission and, for an engine that declares network use, points the proxy variables at a closed port; it does not isolate the process (unprivileged user namespaces are restricted on the development host). Decide on a real sandbox (a network namespace, a container) before an engine that downloads at run time is admitted.
 
