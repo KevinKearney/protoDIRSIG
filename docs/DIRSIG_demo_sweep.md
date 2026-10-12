@@ -1617,74 +1617,81 @@ Cache: every attempt ran with a per-run `HOME`, so DIRSIG's material caches star
 
 ### Layered-comparison candidates
 
-The survey marks 67 demos `near` (one loader feature away). 62 of them now have a pass-through reference; ranked by its cost, they are the candidates for a layered re-expression and comparison.
+The survey marks 53 demos `near` (one loader feature away) and 27 `ready` (none missing). 69 of them now have a pass-through reference; ranked by its cost, they are the candidates for a layered re-expression and comparison (a `ready` demo's missing feature is "none").
 
 | Rank | Demo | Simulation | Reference wall time (s) | Deterministic | Missing feature (survey) |
 |---|---|---|---|---|---|
-| 1 | DeltaMotion1 | demo.sim | 4.0 | yes | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
-| 2 | Balfour1 | demo.sim | 4.1 | yes | BasicAtmosphere .atm (classicradiativetransfer, uniformweather) |
-| 3 | BumpMap2 | demo.sim | 4.1 | yes | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
-| 4 | BundledMaterials1 | w_bundles.jsim | 4.1 | yes | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
+| 1 | ColorFilterArray1 | bayer.sim | 4.0 | yes | none |
+| 2 | DeltaMotion1 | demo.sim | 4.0 | yes | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
+| 3 | Balfour1 | demo.sim | 4.1 | yes | BasicAtmosphere .atm (classicradiativetransfer, uniformweather) |
+| 4 | BayerPattern1 | bayer_hdf.sim | 4.1 | yes | none |
 | 5 | CurveMap1 | demo.jsim | 4.1 | yes | FourCurveAtmosphere |
-| 6 | DataDrivenTempSolver1 | demo.sim | 4.1 | yes | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
-| 7 | DecalMap1 | demo.sim | 4.1 | yes | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
-| 8 | DensityMap1 | demo.sim | 4.1 | yes | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 9 | GenericMotion1 | demo.sim | 4.1 | yes | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
-| 10 | MaterialMap1 | w_mixing.sim | 4.1 | yes | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
+| 6 | DecalMap1 | demo.sim | 4.1 | yes | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
+| 7 | DensityMap1 | demo.sim | 4.1 | yes | none |
+| 8 | GenericMotion1 | demo.sim | 4.1 | yes | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
+| 9 | LensDistortion1 | demo.jsim | 4.1 | yes | none |
+| 10 | MaterialMap1 | w_mixing.sim | 4.1 | yes | none |
 | 11 | MaterialOverrides1 | demo.sim | 4.1 | no | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
 | 12 | NestedMotion1 | demo.sim | 4.1 | no | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
-| 13 | TemporalIntegration1 | blur_off.sim | 4.1 | yes | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
-| 14 | Balfour2 | single.sim | 6.1 | yes | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
-| 15 | GeoLocation1 | flex_ecef_ecef.jsim | 6.1 | no | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
-| 16 | InstanceOptions1 | glist_demo.sim | 6.1 | yes | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
-| 17 | PointCollectors2 | framing.jsim | 6.1 | yes | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 18 | PolyFill1 | demo.sim | 6.1 | yes | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 19 | PrimitiveObjects1 | demo.sim | 6.1 | yes | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 20 | Indoors1 | demo.jsim | 8.1 | yes | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 21 | SensorPosition1 | downlook.sim | 8.1 | yes | BasicAtmosphere .atm (classicradiativetransfer, uniformweather) |
-| 22 | VertexNormals1 | demo.sim | 8.1 | yes | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 23 | BumpMap1 | demo.sim | 10.1 | yes | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 24 | LeafStack1 | demo.sim | 10.1 | yes | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 25 | MacbethColorChecker1 | demo.sim | 10.1 | yes | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
-| 26 | TriBar1 | demo.sim | 10.1 | yes | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
-| 27 | EarthMap1 | demo.sim | 12.1 | repeat failed | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
-| 28 | PrimitiveObjects2 | demo.sim | 12.1 | yes | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 29 | RollingShutter1 | global.sim | 12.1 | yes | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 30 | SubObjectMotion1 | demo.sim | 12.1 | yes | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 31 | SubObjectMotion2 | demo.sim | 12.1 | yes | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 32 | UvMapping1 | drape_map.sim | 12.1 | yes | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 33 | UvMapping2 | demo.sim | 12.1 | yes | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 34 | MixtureMap1 | demo.sim | 12.2 | yes | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 35 | ExtinctionProp1 | demo.sim | 14.1 | yes | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 36 | IESSources1 | demo.sim | 18.1 | yes | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
-| 37 | TemperatureMap1 | demo.sim | 18.1 | yes | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
-| 38 | Brdf2 | demo.sim | 20.1 | yes | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 39 | Thermal3 | demo.sim | 22.1 | no | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
-| 40 | MaterialMap2 | demo.sim | 30.1 | yes | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 41 | PointCollectors1 | framing.jsim | 36.1 | yes | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 42 | Sources6 | demo.sim | 44.1 | no | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 43 | SubPixelObject1 | demo.sim | 44.1 | yes | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
-| 44 | BundledObject1 | demo.sim | 48.2 | no | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 45 | FastCloud2 | demo_mat_map.sim | 52.3 | yes | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 46 | VertexNormals2 | demo.sim | 54.1 | yes | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 47 | NormalMap3 | demo.jsim | 54.2 | yes | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 48 | SubPixelObject2 | demo.sim | 62.1 | no | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
-| 49 | BundledObject2 | demo.sim | 66.1 | no | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
-| 50 | ChipMaker2 | demo.sim | 66.2 | no | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 51 | NormalMap2 | demo.sim | 66.2 | yes | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 52 | ExternalTriggers1 | constant.sim | 68.2 | yes | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
-| 53 | Brdf3 | demo.jsim | 88.1 | no | FourCurveAtmosphere |
-| 54 | GlistPopulations1 | demo_daily.sim | 88.2 | no | BasicAtmosphere .atm (classicradiativetransfer, uniformweather) |
-| 55 | Caustics1 | clear_water.jsim | 100.3 | yes | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 56 | FlexMotion1 | multi_frame.sim | 114.3 | no | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
-| 57 | Parking1 | demo_assimp.sim | 132.2 | no | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 58 | Starfield1 | demo.jsim | 154.2 | yes | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 59 | FourCurveAtm1 | default_w_path.jsim | 160.3 | yes | FourCurveAtmosphere |
-| 60 | Brdf1 | demo.sim | 204.3 | yes | weather without a ThermWeather file |
-| 61 | ChipMaker1 | demo.sim | 212.3 | yes | BasicAtmosphere .atm (uniformradiativetransfer, uniformweather) |
-| 62 | Polarization1 | nadir.sim | 310.6 | not tested | BasicAtmosphere .atm (classicradiativetransfer, uniformweather) |
+| 13 | ReflectanceMap1 | demo.sim | 4.1 | yes | none |
+| 14 | Telecentricity1 | demo.jsim | 4.1 | yes | scene files outside geometry/, materials/ and maps/ |
+| 15 | TemporalIntegration1 | blur_off.sim | 4.1 | yes | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
+| 16 | Balfour2 | single.sim | 6.1 | yes | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
+| 17 | GeoLocation1 | flex_ecef_ecef.jsim | 6.1 | no | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
+| 18 | InstanceOptions1 | glist_demo.sim | 6.1 | yes | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
+| 19 | PointCollectors2 | framing.jsim | 6.1 | yes | scene files outside geometry/, materials/ and maps/ |
+| 20 | PolyFill1 | demo.sim | 6.1 | yes | none |
+| 21 | PrimitiveObjects1 | demo.sim | 6.1 | yes | scene files outside geometry/, materials/ and maps/ |
+| 22 | Skyview1 | demo.sim | 6.1 | yes | BasicAtmosphere .atm (classicradiativetransfer, uniformweather) |
+| 23 | Indoors1 | demo.jsim | 8.1 | yes | none |
+| 24 | SensorPosition1 | downlook.sim | 8.1 | yes | BasicAtmosphere .atm (classicradiativetransfer, uniformweather) |
+| 25 | VertexNormals1 | demo.sim | 8.1 | yes | scene files outside geometry/, materials/ and maps/ |
+| 26 | BumpMap1 | demo.sim | 10.1 | yes | scene files outside geometry/, materials/ and maps/ |
+| 27 | LeafStack1 | demo.sim | 10.1 | yes | none |
+| 28 | MacbethColorChecker1 | demo.sim | 10.1 | yes | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
+| 29 | TriBar1 | demo.sim | 10.1 | yes | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
+| 30 | PrimitiveObjects2 | demo.sim | 12.1 | yes | scene files outside geometry/, materials/ and maps/ |
+| 31 | RollingShutter1 | global.sim | 12.1 | yes | none |
+| 32 | SubObjectMotion1 | demo.sim | 12.1 | yes | none |
+| 33 | SubObjectMotion2 | demo.sim | 12.1 | yes | none |
+| 34 | UvMapping1 | drape_map.sim | 12.1 | yes | none |
+| 35 | UvMapping2 | demo.sim | 12.1 | yes | none |
+| 36 | MixtureMap1 | demo.sim | 12.2 | yes | scene files outside geometry/, materials/ and maps/ |
+| 37 | ExtinctionProp1 | demo.sim | 14.1 | yes | none |
+| 38 | Pilings1 | demo.sim | 14.1 | yes | scene files outside geometry/, materials/ and maps/ |
+| 39 | IESSources1 | demo.sim | 18.1 | yes | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
+| 40 | TemperatureMap1 | demo.sim | 18.1 | yes | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
+| 41 | Brdf2 | demo.sim | 20.1 | yes | none |
+| 42 | Thermal3 | demo.sim | 22.1 | no | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
+| 43 | MaterialMap2 | demo.sim | 30.1 | yes | none |
+| 44 | RegularGrid1 | demo.sim | 30.1 | no | BasicAtmosphere .atm (classicradiativetransfer, uniformweather) |
+| 45 | PointCollectors1 | framing.jsim | 36.1 | yes | none |
+| 46 | Sources6 | demo.sim | 44.1 | no | none |
+| 47 | SubPixelObject1 | demo.sim | 44.1 | yes | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
+| 48 | BundledObject1 | demo.sim | 48.2 | no | none |
+| 49 | FastCloud2 | demo_mat_map.sim | 52.3 | yes | scene files outside geometry/, materials/ and maps/ |
+| 50 | VertexNormals2 | demo.sim | 54.1 | yes | none |
+| 51 | NormalMap3 | demo.jsim | 54.2 | yes | scene files outside geometry/, materials/ and maps/ |
+| 52 | SubPixelObject2 | demo.sim | 62.1 | no | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
+| 53 | BundledObject2 | demo.sim | 66.1 | no | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
+| 54 | ChipMaker2 | demo.sim | 66.2 | no | none |
+| 55 | NormalMap2 | demo.sim | 66.2 | yes | scene files outside geometry/, materials/ and maps/ |
+| 56 | ExternalTriggers1 | constant.sim | 68.2 | yes | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
+| 57 | Brdf3 | demo.jsim | 88.1 | no | FourCurveAtmosphere |
+| 58 | GlistPopulations1 | demo_daily.sim | 88.2 | no | BasicAtmosphere .atm (classicradiativetransfer, uniformweather) |
+| 59 | Caustics1 | clear_water.jsim | 100.3 | yes | none |
+| 60 | Thermal2 | demo.sim | 116.3 | yes | BasicAtmosphere .atm (simpleradiativetransfer, uniformweather) |
+| 61 | Parking1 | demo_assimp.sim | 132.2 | no | none |
+| 62 | Starfield1 | demo.jsim | 154.2 | yes | none |
+| 63 | FourCurveAtm1 | default_w_path.jsim | 160.3 | yes | FourCurveAtmosphere |
+| 64 | BackgroundSky1 | demo.jsim | 166.4 | yes | plugin PositionIndependentBackground |
+| 65 | Brdf1 | demo.sim | 204.3 | yes | weather without a ThermWeather file |
+| 66 | ChipMaker1 | demo.sim | 212.3 | yes | none |
+| 67 | Polarization5 | pi.sim | 230.4 | yes | none |
+| 68 | Polarization4 | pi.sim | 244.3 | yes | several instruments or focal planes |
+| 69 | Polarization1 | nadir.sim | 310.6 | not tested | BasicAtmosphere .atm (classicradiativetransfer, uniformweather) |
 
-`near` demos without a reference: FastCloud1 (failed), HdfWater1 (failed), Polarization2 (failed), Polarization3 (failed), Refraction1 (failed).
+`near` demos without a reference: Blackadar1 (failed), Cloudview1 (failed), FastCloud1 (failed), FocusDistance1 (timeout), HdfWater1 (failed), Polarization3 (failed), ReflectanceInversion1 (failed), Refraction1 (failed), Ssa2 (skipped: dirsig4), Ssa3 (skipped: dirsig4), Thermal1 (failed).
 
 <!-- summarize_sweep: end -->
 

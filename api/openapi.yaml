@@ -163,7 +163,7 @@ paths:
       operationId: validate
       tags: [compose]
       summary: Check whether runs would be admitted.
-      description: "Runs the admission checks on a run spec, or on each run of a recipe, without submitting anything. At `engine_check: none` (the default) it is pure and needs no engine; at `dry_run` it also runs a DIRSIG dry run of each assembled job, which needs a local DIRSIG installation. A run that fails a check is reported in the response, not as an error; only a recipe that does not compose is an error."
+      description: "Runs the admission checks on a run spec, or on each run of a recipe, without submitting anything. At `engine_check: none` (the default) it is pure and needs no engine; at `dry_run` it also runs a DIRSIG dry run of each assembled job, which needs a local DIRSIG installation. A run that fails a check is reported in the response, not as an error; only a request that cannot be checked is an error: a library name that does not exist (404), or a recipe that does not compose or a document that is neither a recipe nor a run spec (422)."
       requestBody:
         required: true
         content:

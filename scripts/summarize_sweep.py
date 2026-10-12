@@ -7,7 +7,7 @@
 Reads the results file `scripts/sweep_demos.py` writes and the verdicts of the coverage table, and rewrites two
 generated parts, each between its own markers, keeping every other line: the analysis in the sweep report (outcome
 counts; failures grouped by first error line with the file, database, variable or tool each names; cost; determinism;
-thermal and cache; the layered-comparison candidates, the survey's `near` demos that now have a pass-through reference,
+thermal and cache; the layered-comparison candidates, the survey's `ready` and `near` demos that now have a pass-through reference,
 ranked by its cost), and the table of the "Tagged demos" section of the coverage table (the section is hand-written and
 kept when `scripts/survey_demos.py` regenerates the table; the tags are `TAGS`). Only names, sizes, measurements and
 DIRSIG error lines are written, with paths reduced to file names.
@@ -246,18 +246,24 @@ def render(records, verdicts):
               "apply."]
 
     near = sorted((n for n, (v, _) in verdicts.items() if v == "near"))
-    cands = sorted(((rendered[n]["wall_s"], n) for n in near if n in rendered))
+    ready = sorted((n for n, (v, _) in verdicts.items() if v == "ready"))
+    cands = sorted(((rendered[n]["wall_s"], n) for n in ready + near if n in rendered))
     missing_ref = sorted(n for n in near if n not in rendered)
+    ready_no_ref = sorted(n for n in ready if n not in rendered)
     lines += ["", "### Layered-comparison candidates", "",
-              f"The survey marks {len(near)} demos `near` (one loader feature away). {len(cands)} of them now have a "
-              f"pass-through reference; ranked by its cost, they are the candidates for a layered re-expression and "
-              "comparison.", "",
+              f"The survey marks {len(near)} demos `near` (one loader feature away) and {len(ready)} `ready` (none "
+              f"missing). {len(cands)} of them now have a pass-through reference; ranked by its cost, they are the "
+              "candidates for a layered re-expression and comparison (a `ready` demo's missing feature is \"none\").", "",
               "| Rank | Demo | Simulation | Reference wall time (s) | Deterministic | Missing feature (survey) |",
               "|---|---|---|---|---|---|"]
     for i, (w, n) in enumerate(cands, 1):
         a = rendered[n]
         lines.append(f"| {i} | {n} | {a['simulation']} | {w} | {a.get('deterministic', '-')} | "
-                     f"{_cell(verdicts[n][1])} |")
+                     f"{'none' if verdicts[n][0] == 'ready' else _cell(verdicts[n][1])} |")
+    if ready_no_ref:
+        lines += ["", "`ready` demos without a reference: "
+                  + ", ".join(f"{n} ({rows[n].get('outcome', 'not in the sweep') if n in rows else 'not in the sweep'})"
+                              for n in ready_no_ref) + "."]
     if missing_ref:
         lines += ["", "`near` demos without a reference: "
                   + ", ".join(f"{n} ({rows[n].get('outcome', 'not in the sweep') if n in rows else 'not in the sweep'})"

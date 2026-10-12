@@ -37,12 +37,18 @@ PLATFORMS = {"BasicPlatform"}
 NON_IMAGING = {"lidar", "radar", "laser", "gatedfocalplane", "datarecorder"}
 SENSOR_PLUGINS = {"ChipMaker", "SphericalCollector", "LightCurve", "PointCollectors", "OrthoImage"}
 # Platform elements that name a camera feature the SDK's platform generator does not write (platform_gen refuses a
-# distortion model, a channel layout other than single, ...), by element name.
+# distortion model, a channel layout other than single, ...), by element name. A demo's own platform file is used as
+# authored (`engine.platform.as_authored`), so these are recorded as the camera's features, not as missing ones.
 PLATFORM_FEATURES = {"distortion": "lens distortion", "psf": "point spread function", "focusdistance": "focus distance",
                      "fieldcount": "field selector array", "channelpattern": "color filter array",
                      "detectormodel": "detector model (noise, quantization)", "gainmodel": "gain model",
                      "xoversample": "spatial response"}
 VERDICT_ORDER = ("ready", "near", "far", "unparsed")
+# The scene folders a layered job links beside its copy of the `.scene` (`scene_ref.ASSET_DIRS`); any other file the
+# scene names is not there (BACKLOG tagged item 11).
+SCENE_ASSET_DIRS = ("geometry", "materials", "maps")
+# Where a uniform `.atm` names an installation weather file (`basic_atmosphere.WEATHER_DIR`).
+INSTALL_WEATHER = "$DIRSIG_HOME/lib/data/weather/"
 SIZE = lambda b: f"{b / 1e6:.2f}"                                                  # noqa: E731
 KEPT = "## First demo: what it took"            # a hand-written section kept when the table is regenerated
 
@@ -178,7 +184,8 @@ def _atmosphere_file(demo, member):
     root = _xml(demo.read(member), posixpath.basename(member))
     rt = [c.tag for c in root if isinstance(c.tag, str) and c.tag.endswith("radiativetransfer")]
     weather = [c.tag for c in root if isinstance(c.tag, str) and c.tag.endswith("weather")]
-    return rt[0] if rt else "unknown", weather[0] if weather else "unknown"
+    install = (root.findtext("uniformweather/classicdata/filename") or "").strip().startswith(INSTALL_WEATHER)
+    return rt[0] if rt else "unknown", weather[0] if weather else "unknown", install
 
 
 def survey(path):
@@ -252,6 +259,13 @@ def _survey(demo, rec):
     rec["scene_members"] = sorted(members)
     if len(set(scenes)) > 1:
         missing.append("several scenes")
+    for s in scenes:
+        top = posixpath.dirname(s)
+        thumbnails = {demo.resolve(top, el.text or "") for el in _xml(demo.read(s), s).iterfind(".//thumbnaillist//filename")}
+        outside = [m for m in members if m != s and m not in thumbnails      # DIRSIG renders without the thumbnails
+                   and posixpath.relpath(m, top).split("/")[0] not in SCENE_ASSET_DIRS]
+        if outside:
+            missing.append("scene files outside geometry/, materials/ and maps/")
     if not scenes:
         missing.append("no scene file (the Earth is the EarthGrid plugin)")
 
@@ -259,10 +273,13 @@ def _survey(demo, rec):
     atmos = [p for p in plugins if p in ATMOSPHERES]
     if rec["format"] == "sim" or "BasicAtmosphere" in atmos:
         atm = demo.resolve(base, refs["atm"]) if refs["atm"] else None
-        rt, weather = _atmosphere_file(demo, atm) if atm else ("unknown", "unknown")
+        rt, weather, install = _atmosphere_file(demo, atm) if atm else ("unknown", "unknown", False)
         rec["atmosphere"] = f"BasicAtmosphere (.atm, {rt})"
-        rec["weather"] = f"{weather} (.atm)"
-        missing.append(f"BasicAtmosphere .atm ({rt}, {weather})")
+        rec["weather"] = f"{weather} (.atm" + (", installation file)" if install else ")")
+        if (rt, weather) != ("uniformradiativetransfer", "uniformweather"):
+            missing.append(f"BasicAtmosphere .atm ({rt}, {weather})")
+        elif not install:                                  # engine.atmosphere.uniform names an installation file only
+            missing.append("BasicAtmosphere .atm (uniform weather not from the installation)")
     elif "FourCurveAtmosphere" in atmos:
         rec["atmosphere"], rec["weather"] = "FourCurveAtmosphere", "unknown"
         missing.append("FourCurveAtmosphere")
@@ -298,7 +315,7 @@ def _survey(demo, rec):
         if not sensors or any(p in PLATFORMS for p in plugins):
             raise Unparsed(f"{rec['sim']}: no platform file in the archive ({refs['platform']})")
         rec.update(instruments=[f"{p} plugin" for p in sensors], mounts=[], array="unknown", channels="unknown",
-                   captures=[], motion="none (sensor plugin)", orientation="unknown", moving=False, tasks="unknown",
+                   captures=[], camera=[], motion="none (sensor plugin)", orientation="unknown", moving=False, tasks="unknown",
                    non_imaging=True)
         missing.append("a sensor plugin instead of BasicPlatform")
         rec["missing"] = list(dict.fromkeys(missing))
@@ -317,12 +334,9 @@ def _survey(demo, rec):
     for m in p["mounts"]:
         if m != "static":
             missing.append(f"{m} mount")
-    for c in p["captures"]:
-        if c not in ("simple", "protolidar"):
-            missing.append(f"capture method {c}")
-    for pol in p["polarizers"]:
-        missing.append(f"polarizer {pol}")
-    missing += p["features"]
+    camera = [f"capture method {c}" for c in p["captures"] if c not in ("simple", "protolidar")]
+    camera += [f"polarizer {pol}" for pol in p["polarizers"]] + p["features"]
+    rec["camera"] = camera                                 # as authored: carried by engine.platform.as_authored
 
     # motion
     mot = demo.resolve(base, refs["motion"]) if refs["motion"] else None
@@ -411,7 +425,7 @@ def render(records, demos_label="external/dirsig/demos/zips"):
     lines = ["# DIRSIG demo coverage", "",
              f"Which of DIRSIG's {len(records)} shipped demos the SDK could regenerate today, and what each still needs. Generated by `python scripts/survey_demos.py --out docs/DIRSIG_demo_coverage.md` from the demo archives in the DIRSIG installation (`{demos_label}`), read in place; regenerate it after a loader feature lands. It is derived from file names, plugin and element names, counts and sizes only, and contains no demo file contents.",
              "",
-             "A verdict compares a demo's simulation file, platform, motion and atmosphere with what the SDK's engine body and loader cover (the run-spec contract's engine block and `run_spec.resolve_run`): `ready` needs nothing new (one scene, `NewAtmosphere` with a `ThermWeather` file, SPICE ephemeris, static or orbit motion, one imaging instrument); `near` needs exactly one missing feature; `far` needs two or more, or has a non-imaging sensor; `unparsed` means the layout was not understood, with the reason. A value that cannot be read is `unknown`. A legacy `.sim` carries its atmosphere and uniform weather in one `.atm` file, counted as one feature, and its ephemeris is implicit. Platform features are recognized by element name (lens distortion, point spread function, field selectors and so on); a behaviour with no distinct element, such as a rolling shutter, is not seen, so a `near` verdict is an upper bound on readiness. Scene size is the `.scene` file and the archive members it references.",
+             "A verdict compares a demo's simulation file, platform, motion and atmosphere with what the SDK's engine body and loader cover (the run-spec contract's engine block and `run_spec.resolve_run`): `ready` needs nothing new (one scene whose files lie in its `geometry/`, `materials/` and `maps/` folders, `NewAtmosphere` with a `ThermWeather` file or a uniform `BasicAtmosphere` `.atm` naming an installation weather file (`engine.atmosphere.uniform`), SPICE or the `.atm`'s ephemeris, static or orbit motion, one imaging instrument); `near` needs exactly one missing feature; `far` needs two or more, or has a non-imaging sensor; `unparsed` means the layout was not understood, with the reason. A value that cannot be read is `unknown`. A legacy `.sim` carries its atmosphere and uniform weather in one `.atm` file, counted as one feature, and its ephemeris is implicit. The demo's own platform file is used as authored (`engine.platform.as_authored`), so its camera features (recognized by element name: lens distortion, point spread function, field selectors, capture methods, polarizers and so on) are listed under `Camera (as authored)` and are not missing; several instruments or focal planes, a moving mount and a non-imaging sensor still are. What the survey cannot see is not counted (a `.ppd` pose in another frame or units, an `.atm`'s turbulence or lunar values, which the uniform form does not carry), so `ready` and `near` are upper bounds on readiness. Scene size is the `.scene` file and the archive members it references.",
              "", "## Summary", "", "| Verdict | Demos |", "|---|---|"]
     lines += [f"| `{v}` | {counts.get(v, 0)} |" for v in VERDICT_ORDER]
     lines += ["", "## Missing features, by the demos each would unlock", "",
@@ -420,19 +434,19 @@ def render(records, demos_label="external/dirsig/demos/zips"):
     for f in sorted(needed, key=lambda f: (-unlocks[f], -needed[f], f)):
         lines.append(f"| {_cell(f)} | {unlocks[f]} | {needed[f]} |")
     lines += ["", "## All demos", "",
-              "| Demo | Verdict | Simulation | Zip MB | Scene MB | Scenes | Atmosphere | Weather | Ephemeris | Motion | Orientation | Mounts | Instruments | Array | Channels | Tasks | Missing features |",
-              "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+              "| Demo | Verdict | Simulation | Zip MB | Scene MB | Scenes | Atmosphere | Weather | Ephemeris | Motion | Orientation | Mounts | Instruments | Array | Channels | Tasks | Camera (as authored) | Missing features |",
+              "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
     order = {v: i for i, v in enumerate(VERDICT_ORDER)}
     for r in sorted(records, key=lambda r: (order[r["verdict"]], r["name"])):
         if r["verdict"] == "unparsed":
-            lines.append(f"| {r['name']} | `unparsed` | - | {SIZE(r['zip_bytes'])} | - | - | - | - | - | - | - | - | - | - | - | - | {_cell(r['reason'])} |")
+            lines.append(f"| {r['name']} | `unparsed` | - | {SIZE(r['zip_bytes'])} | - | - | - | - | - | - | - | - | - | - | - | - | - | {_cell(r['reason'])} |")
             continue
         sim = f"{r['sim']}" + (f" (+{r['variants'] - 1})" if r["variants"] > 1 else "")
         lines.append(" | ".join(["", r["name"], f"`{r['verdict']}`", _cell(sim), SIZE(r["zip_bytes"]),
                                  SIZE(r["scene_bytes"]), _cell(r["scenes"]), _cell(r["atmosphere"]), _cell(r["weather"]),
                                  _cell(r["ephemeris"]), _cell(r["motion"]), _cell(r["orientation"]), _cell(r["mounts"]),
                                  _cell(r["instruments"]), _cell(r["array"]), _cell(r["channels"]), _cell(r["tasks"]),
-                                 _cell(r["missing"]), ""]).strip())
+                                 _cell(r["camera"]), _cell(r["missing"]), ""]).strip())
     picks = recommendations(records)
     lines += ["", "## Recommended first three", ""]
     why = ["the simplest static ground-imaging demo that is `ready` or `near`, with the smallest scene",

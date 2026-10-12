@@ -147,3 +147,9 @@ def test_main_rewrites_only_its_parts_and_the_tag_section_survives_survey_regene
     assert "Findings by hand." in cov and "| SDA | MoonSat1 | absent from the installation |" in cov
     assert summarize.main(args) == 0                                          # idempotent: one section, one analysis
     assert report.read_text() == text and coverage.read_text() == cov and cov.count("## Tagged demos") == 1
+
+
+def test_ready_demos_are_candidates_too(records):
+    text = summarize.render(records, dict(VERDICTS, Fast1=("ready", "-")))
+    assert "marks 3 demos `near` (one loader feature away) and 1 `ready` (none missing)" in text
+    assert "2 of them now have a pass-through reference" in text and "| 1 | Fast1 | demo.sim | 4.0 | yes | none |" in text

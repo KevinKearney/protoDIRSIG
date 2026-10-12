@@ -81,12 +81,42 @@ def test_a_jsim_demo_with_new_atmosphere_is_ready(tmp_path):
     (dict(jsim=jsim(weather=None)), "near", "weather without a ThermWeather file"),
     (dict(jsim=jsim(ephemeris="FixedEphemeris")), "near", "FixedEphemeris"),
     (dict(jsim=jsim(), plat=platform("lidar")), "far", "non-imaging sensor: lidar"),
-    (dict(jsim=jsim(), plat=platform(extra="<distortion/>")), "near", "lens distortion"),
     (dict(jsim=jsim(atmosphere="FourCurveAtmosphere", weather="NsrdbWeather")), "far", "NsrdbWeather"),
-], ids=["four_curve", "no_weather", "fixed_ephemeris", "lidar", "distortion", "two_features"])
+], ids=["four_curve", "no_weather", "fixed_ephemeris", "lidar", "two_features"])
 def test_features_and_verdicts(tmp_path, kwargs, verdict, feature):
     r = survey.survey(make(tmp_path, "Case1", **kwargs))
     assert r["verdict"] == verdict and feature in r["missing"]
+
+
+def test_a_platform_feature_is_the_camera_as_authored_not_missing(tmp_path):
+    r = survey.survey(make(tmp_path, "Case1", jsim=jsim(), plat=platform(extra="<distortion/>")))
+    assert r["verdict"] == "ready" and r["missing"] == [] and r["camera"] == ["lens distortion"]
+
+
+UNIFORM_ATM = ("<atmosphericconditions><uniformweather><classicdata><filename>{weather}</filename></classicdata>"
+               "</uniformweather><uniformradiativetransfer/></atmosphericconditions>")
+
+
+@pytest.mark.parametrize("weather, missing", [
+    ("$DIRSIG_HOME/lib/data/weather/mls.wth", []),
+    ("./my.wth", ["BasicAtmosphere .atm (uniform weather not from the installation)"]),
+], ids=["installation_weather", "own_weather"])
+def test_a_uniform_atm_is_covered_only_with_an_installation_weather_file(tmp_path, weather, missing):
+    r = survey.survey(make(tmp_path, "Uniform1", sim=SIM, extra_files={"demo.atm": UNIFORM_ATM.format(weather=weather)}))
+    assert r["missing"] == missing and r["verdict"] == ("ready" if not missing else "near")
+
+
+def test_scene_files_outside_the_linked_folders_are_missing_but_not_thumbnails(tmp_path):
+    scene = SCENE.replace("geometry/demo.glist", "demo.glist").replace(
+        "<classicscene>", "<classicscene><thumbnaillist><thumbnail><filename>$SCENE_DIR/images/t.png</filename>"
+                          "</thumbnail></thumbnaillist>")
+    r = survey.survey(make(tmp_path, "Sibling1", jsim=jsim(), extra_files={"demo.scene": scene, "demo.glist": GLIST,
+                                                                           "images/t.png": "png"}))
+    assert r["missing"] == ["scene files outside geometry/, materials/ and maps/"] and r["verdict"] == "near"
+    r = survey.survey(make(tmp_path, "Thumb1", jsim=jsim(), extra_files={"demo.scene": SCENE.replace(
+        "<classicscene>", "<classicscene><thumbnaillist><thumbnail><filename>$SCENE_DIR/images/t.png</filename>"
+                          "</thumbnail></thumbnaillist>"), "images/t.png": "png"}))
+    assert r["missing"] == [] and r["verdict"] == "ready"
 
 
 def test_motion_kinds(tmp_path):

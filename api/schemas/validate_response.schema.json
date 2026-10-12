@@ -19,7 +19,7 @@
         "additionalProperties": false,
         "required": ["name", "run_id", "valid", "engine_checked", "checks"],
         "properties": {
-          "name": {"description": "The run's name, its `descriptor.meta.name`, or null if the run spec has none.", "type": ["string", "null"]},
+          "name": {"description": "The run's name: its `descriptor.meta.name`; without one, the file's stem for a run spec given as a file, else null.", "type": ["string", "null"]},
           "run_id": {"description": "The run id the run spec would be submitted under, or null if the run spec could not be resolved (its sensor could not be materialized).", "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
           "valid": {"description": "True if every check performed passed.", "type": "boolean"},
           "engine_checked": {"description": "True only if the DIRSIG dry run was performed. False at `engine_check: none`, and false at `dry_run` if the dry run could not be attempted because an earlier check failed.", "type": "boolean"},

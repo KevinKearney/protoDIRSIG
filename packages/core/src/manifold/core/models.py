@@ -154,9 +154,9 @@ class ArtifactList(_Model):
 
 @dataclasses.dataclass(frozen=True)
 class ArtifactRef(_Model):
-    """A reference to one file a run produced. The SDK returns references, never bare file paths: a reference carries
-    the file's content hash and type, so it stays meaningful away from the machine that wrote it and its bytes can
-    be verified after download.
+    """A reference to one file a run produced. The SDK API's operations return references, never bare file paths (the
+    deprecated `LocalRegistry` and `Simulation` return paths): a reference carries the file's content hash and type,
+    so it stays meaningful away from the machine that wrote it and its bytes can be verified after download.
 
     Attributes
     ----------
@@ -417,8 +417,9 @@ class RunStatus(_Model):
         `built / internal` (`tests/test_artifact_roles.py`). For a run in a final state, what its engine's adapter
         concluded from what the run left, which does not rest on the exit status alone: `complete` (every expected
         output was written; the state is `rendered`), `incomplete` (the run stopped before it finished: cancelled,
-        its worker gone, or its engine's end-of-run evidence missing) or `failed` (the engine ran to its end and
-        reported failure, or the run could not start). Absent while the run is `accepted` or `running`.
+        its worker gone or never started, or its engine's end-of-run evidence missing) or `failed` (the engine ran
+        to its end and reported failure, or its worker could not start it: the engine unavailable, its resources or
+        assets refused). Absent while the run is `accepted` or `running`.
     """
     run_id: str
     name: str
@@ -786,7 +787,8 @@ class ValidateResponseRun(_Model):
     Attributes
     ----------
     name : str | None
-        The run's name, its `descriptor.meta.name`, or null if the run spec has none.
+        The run's name: its `descriptor.meta.name`; without one, the file's stem for a run spec given as a file,
+        else null.
     run_id : str | None
         The run id the run spec would be submitted under, or null if the run spec could not be resolved (its sensor
         could not be materialized).

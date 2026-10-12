@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Artifact reference",
-  "description": "A reference to one file a run produced. The SDK returns references, never bare file paths: a reference carries the file's content hash and type, so it stays meaningful away from the machine that wrote it and its bytes can be verified after download.",
+  "description": "A reference to one file a run produced. The SDK API's operations return references, never bare file paths (the deprecated `LocalRegistry` and `Simulation` return paths): a reference carries the file's content hash and type, so it stays meaningful away from the machine that wrote it and its bytes can be verified after download.",
   "type": "object",
   "additionalProperties": false,
   "required": [
