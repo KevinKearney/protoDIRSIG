@@ -143,3 +143,51 @@ Where the plate covers at least a third of a pixel (12.5 and 25 km), the sum nea
 - **Look angle, phase angle and target radiometry in the descriptor.** Only the range and governed terms have homes. The family records the rest under `descriptor.extras`.
 - **A PSF.** The sensor-spec has none; DIRSIG keeps the template's one-pixel uniform response.
 - **SatSim.** Nothing run (C-38). The table's SatSim cells are unchanged.
+
+## Scenario family II (round 30)
+
+`scripts/s2s_scenarios.py` also writes family II: 21 specs (`s2s2-*` in `manifold_run_specs/s2s/`, indexed after family I's 63 with `family: 2`) and a second generated scene, `manifold_config_repo/scenes/s2s_blur/`, so that family I's scene and specs are byte-identical to round 29's. Every spec keeps family I's template: `auror-nir`, one thread, seed 1, the 500 x 500 window, the Sun at the zenith from `atmosphere.uniform`, a static platform at nadir unless stated.
+
+| Group | Scene content (scene ENU) | What moves (DIRSIG `straight`, heading 90, fixed orientation) | Specs |
+|---|---|---|---|
+| `static` | a 20 m plate (reflectance 0.5) at (0, 0, 10 km); a 0.5 m `::IMPORTANT::` plate 120 m to its +y side; a 4 m marker plate 100 m to its +x side; 10 km below, a 1200 m black plate with white bars (reflectance 0.25, 40 m wide every 80 m, running along y) on its −y side from −60 to −600 m, black elsewhere | nothing | `s2s2-blur-static-e5ms` |
+| `platform` | the same, without the marker, at x = 2 km | everything at 1000 m/s: the platform moving at 1000 m/s on heading 270, expressed in the scene | 0.1, 1, 5, 20 ms |
+| `target` | the same at x = 4 km | the two plates at 1000 m/s; the background still | 0.1, 1, 5, 20 ms |
+| `both` | the same at x = 6 km | the background at 1000 m/s, the plates at 2000 m/s (the platform at 1000 m/s on heading 270, the target at 1000 m/s on heading 90) | 0.1, 1, 5, 20 ms |
+| `look` | the 20 m plate at (0, 5 km, 10 km); 500 m below it a 2400 m black plate with the same bars on both sides of a black band 80 m wide along x | nothing | look 0, 15, 30, 45, 60, 75 degrees at a slant range of 25 km |
+| `orbit` | a 100 m plate at (0, −20 km, 0) with a 2 km black backstop 10 m behind | the platform, by the `orbit` form (library TLE, LookAt at the plate, task at culmination): 773.266 km, 2.2 degrees off nadir, 7558 m/s | 0.1, 20 ms |
+
+The platform stands 25 km above each blur group's plates, so the background is 35 km away: the target's pixel footprint is 0.8170 m and the background's 1.1438 m. A plate is 24.48 pixels across, a bar period 69.94 pixels. Blur is expected to be speed × exposure / footprint, a boxcar of that length convolved with the plate's or the bars' profile and the pixel.
+
+**Why the background is 10 km behind and the plates are at the top of the scene (measured while building).** The first layout put the background 25 km behind the plates. No pixel of it rendered. With 16 x 16 probes and DIRSIG's truth collectors (`samplecount`, `convergencestatus`, `earthcorefraction`, `voidfraction`; scratch, not committed), the background at z = 0 rendered from a platform 20 km above it and not from 21 km. From 21 km each pixel took one path that hit DIRSIG's default earth core (fraction 1, status 4, radiance 0). With `--disable_earth_core` the same pixels took 20 paths that hit nothing (void fraction 1). Moving the background and the plates 10 km higher moved the threshold with them (rendered from 30 km above the background, not from 31 km). A surface more than about 20 km along the ray inside this scene was therefore not intersected. The mechanism is not isolated (OPEN). The family keeps every path inside the scene shorter than 10 km: the plates are the highest geometry, so a platform above them enters the scene at their height. Round 29's single-plane scene never met this.
+
+### A: shutter blur (native 500 x 500, one thread)
+
+**Image directions.** In the static frame the marker (scene +x) lies at decreasing column and the bars (scene −y) at increasing row. The streaks below are measured along the columns.
+
+**Direction and timing of the streak (round 29's `straight` heading, now verified).** Every moving plate and background sweeps toward scene +x (heading 90 is +x, east), and the sweep starts at the task time. The swept interval, fitted relative to the static position, runs from about 0 to +b (for example [−0.06, +5.92] pixels at 5 ms and [+0.13, +48.26] at 20 ms for the `both` target). The streak's centroid moves by about half the blur (2.94 against 3.06 pixels, 24.22 against 24.48), not zero: the exposure window is [t, t + exposure], not centred on the task time. The orbit form's platform is the only other motion. It does not streak the plate it looks at: at 0.1 ms and 20 ms the same 25 pixels are lit, and the sums differ by 200.000 (images `9eac82dead43210a`, `cb617b12fb7e8292`). An untracked platform at the same speed would have streaked it by 5.98 pixels in 20 ms.
+
+| Group, exposure | Target blur, expected / fitted (px) | Target flux ratio | Background blur, expected / fitted (px) | Profile rms, fitted / analytic (target) | Unresolved: ratio, pixels lit | Wall (s) | Image sha256 (16) |
+|---|---|---|---|---|---|---|---|
+| static, 5 ms | 0 / — | 1.0009 | 0 / — | — | 1.040, 4 | 83.7 | `2313fb4264480b38` |
+| platform, 0.1 ms | 0.122 / 0.122 | 1.0008 | 0.087 / 0.089 | 0.0007 / 0.0098 | 1.031, 4 | 122.9 | `45b32999db892a54` |
+| platform, 1 ms | 1.224 / 1.233 | 0.9995 | 0.874 / 0.955 | 0.0008 / 0.0092 | 0.895, 4 | 126.4 | `1b957de3de6889dd` |
+| platform, 5 ms | 6.12 / 5.97 | 1.0002 | 4.37 / 4.25 | 0.0027 / 0.0060 | 0.790, 12 | 139.7 | `a54757f48e7f0c2d` |
+| platform, 20 ms | 24.48 / 23.85 | 0.9980 | 17.49 / 17.11 | 0.0045 / 0.0059 | 0.364, 9 | 200.3 | `09a3764bca2cfdb9` |
+| target, 0.1 ms | 0.122 / 0.122 | 1.0008 | 0 / 0.001 | 0.0007 / 0.0098 | 1.031, 4 | 88.5 | `1bd70400b514705b` |
+| target, 1 ms | 1.224 / 1.233 | 0.9995 | 0 / 0.001 | 0.0008 / 0.0092 | 0.895, 4 | 88.8 | `f6e6d760ef9d9e2b` |
+| target, 5 ms | 6.12 / 5.97 | 1.0002 | 0 / 0.001 | 0.0027 / 0.0060 | 0.790, 12 | 89.0 | `a35a397f1e1e6686` |
+| target, 20 ms | 24.48 / 23.85 | 0.9980 | 0 / 0.001 | 0.0045 / 0.0059 | 0.364, 9 | 90.3 | `b03b658b62c92b7e` |
+| both, 0.1 ms | 0.245 / 0.249 | 1.0012 | 0.087 / 0.088 | 0.0016 / 0.0195 | 1.071, 4 | 123.3 | `e1497e09ac81550f` |
+| both, 1 ms | 2.448 / 2.363 | 0.9988 | 0.874 / 0.955 | 0.0014 / 0.0140 | 0.754, 5 | 126.8 | `26b211543a99beb2` |
+| both, 5 ms | 12.24 / 11.87 | 1.0003 | 4.37 / 4.25 | 0.0023 / 0.0075 | 0.619, 12 | 140.8 | `68ec8789c9e710d3` |
+| both, 20 ms | 48.96 / 48.13 | 0.9907 | 17.49 / 17.11 | 0.0064 / 0.0079 | 0.254, 9 | 204.1 | `3327da933d03225e` |
+
+How each number is made. The target profile is the mean of the plate's interior rows. It is fitted with the exact model: a plate 24.48 pixels wide swept uniformly over a signed length, integrated over each pixel; the start and the length are free. The background profile is the mean of the bar rows away from the plates, fitted the same way with the static frame's bar phase as the reference. The flux ratio is the sum over a box about the streak, divided by the full-pixel signal at that exposure (the 5 ms value 2.82847e16 scaled by the exposure) and by the plate's 599.27-pixel area. The analytic-profile rms is the same model with the start at the static position and the length v·t/footprint. Profile values are fractions of a full pixel.
+
+What this shows, for the hyperresolved plate and the textured background:
+- Target and background blur are separately observable. With the target moving alone the background does not blur (fitted 0.001 pixel); with the platform moving both blur, the background less (its footprint is larger); with both, the target's blur is the sum (twice) and the background's is the platform's alone.
+- The blur length follows exposure over 2.3 decades, and the edge is a boxcar: the fitted model leaves an rms of 0.0007 to 0.0064 of a full pixel. At 5 and 20 ms the fitted length is short of v·t/footprint by 1.7 to 3.1 percent (target 5.97/6.12, 23.85/24.48, 11.87/12.24, 48.13/48.96; background 4.25/4.37, 17.11/17.49). The shortfall is the same for the target and the background, at both ranges, and does not depend on `integration_samples`: 10 and 100 render byte-identical images, as the manual says DIRSIG5 ignores the count. Not explained (OPEN). At 1 ms the background fit is long (0.955/0.874): a 0.9-pixel blur on a 70-pixel bar period is near what the fit can resolve.
+- Integrated flux is conserved over the exposure: 0.9907 to 1.0012 of the expectation scaled by the exposure.
+
+**The unresolved plate's streak.** The 0.5 m plate (0.61 pixels across, labelled) keeps its flux only while its streak stays within about a pixel. The ratio is 1.03 to 1.07 at 0.1 ms, falls to 0.75 to 0.90 at 1 ms, 0.62 to 0.79 at 5 ms and 0.25 to 0.36 at 20 ms, with 9 pixels lit along a 24- or 49-pixel streak. A 64 x 64 truth render of the `both` 20 ms streak (scratch; platform recentred on the streak) shows why. Only two pixels on the streak are hypersampled (2000 paths): the pixel holding the plate at the task time, and one more. Every other streak pixel starts with the minimum 20 paths. If none hits the plate, the pixel stops there with status 4 and radiance 0. If one does, it runs to the maximum of 100 paths (status 2) and takes 0.01 of a full pixel per hit. At about 0.008 of a pixel of plate per streak pixel, about 15 percent of the pixels are hit at all. So the hit-count noise of round 29 becomes, along a streak, a lost-or-one-hit sampling. Its integrated flux is not conserved, and it falls as the streak lengthens. The `::IMPORTANT::` multiplier evidently follows the object at one time, not over the exposure.

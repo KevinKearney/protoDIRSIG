@@ -9,7 +9,7 @@ Run specs, authored as layers and composed into the single `run-spec/1` document
 | `engine_profiles/<name>.yaml` | `descriptor.origin`, `descriptor.extras` and the `dirsig-engine/1` block for one scenario |
 | `<name>.yaml` | the composed run spec for a one-run `recipes/<name>.yaml`; generated, tracked, do not edit |
 | `<name>--<sensor>.yaml` | one composed run spec per sensor of a sweep recipe; generated, tracked, do not edit |
-| `s2s/<name>.yaml`, `s2s/index.json` | the space-to-space scenario family, one spec per grid point and their run ids; written by `scripts/s2s_scenarios.py` (not a recipe), tracked, do not edit |
+| `s2s/<name>.yaml`, `s2s/index.json` | the space-to-space scenario families I (`s2s-*`) and II (`s2s2-*`), one spec per grid point and their run ids; written by `scripts/s2s_scenarios.py` (not a recipe), tracked, do not edit |
 
 The sensor is a file in `manifold_sensors/`, named by the recipe; the composed run spec refers to it by name and hash, or carries its block inline when composed with `inline_sensor` (the run id is the same). A new sensor is a new library file and a new recipe (or a new entry in a sweep's `sensors`); a new engine is a new engine profile. Each member of the composed spec comes from exactly one layer: a member in two layers is an error. A recipe may set an allowed engine path with `engine_overrides` (today only `platform.channel_response`; `recipes/auror_ref.yaml` sets `native`).
 

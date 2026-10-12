@@ -691,5 +691,194 @@
   "look_deg": 0.0,
   "solar_zenith_deg": 0.0,
   "offset_px": 0.75
+ },
+ {
+  "name": "s2s2-blur-static-e5ms",
+  "run_id": "1a5b7222b06ed1ecf3371f200a629da6ebc2c0971bcae8fc7556422ec4e96c34",
+  "family": 2,
+  "kind": "blur",
+  "group": "static",
+  "exposure_s": 0.005,
+  "look_deg": 0.0
+ },
+ {
+  "name": "s2s2-blur-platform-e0p1ms",
+  "run_id": "a3778e141a3c8d1d6d9d98da5b24cfc13b9b8bbe08649c3688c3079cb409a0f6",
+  "family": 2,
+  "kind": "blur",
+  "group": "platform",
+  "exposure_s": 0.0001,
+  "look_deg": 0.0
+ },
+ {
+  "name": "s2s2-blur-platform-e1ms",
+  "run_id": "d3b5cdbb6156d6adf64b70ea2972518e2ab51a92375171c3dc676e87bce0ae8d",
+  "family": 2,
+  "kind": "blur",
+  "group": "platform",
+  "exposure_s": 0.001,
+  "look_deg": 0.0
+ },
+ {
+  "name": "s2s2-blur-platform-e5ms",
+  "run_id": "2ae734671a5ea03cba6a290d13503898c86e1662b029cfb7d0b78c8d2f83e2a9",
+  "family": 2,
+  "kind": "blur",
+  "group": "platform",
+  "exposure_s": 0.005,
+  "look_deg": 0.0
+ },
+ {
+  "name": "s2s2-blur-platform-e20ms",
+  "run_id": "1a41c466894696cc0e752c68adf3ae4ff5b76b5fa3ec6d2dbfc6ccb60ba40f6f",
+  "family": 2,
+  "kind": "blur",
+  "group": "platform",
+  "exposure_s": 0.02,
+  "look_deg": 0.0
+ },
+ {
+  "name": "s2s2-blur-target-e0p1ms",
+  "run_id": "67b1b57a31949211358433aafa213a500df40557c7a3dc45fccffb6007919331",
+  "family": 2,
+  "kind": "blur",
+  "group": "target",
+  "exposure_s": 0.0001,
+  "look_deg": 0.0
+ },
+ {
+  "name": "s2s2-blur-target-e1ms",
+  "run_id": "d91a6532df1dd4e46b55fa2c298c522dca82bea7b2af754eb4fdfd030e27d978",
+  "family": 2,
+  "kind": "blur",
+  "group": "target",
+  "exposure_s": 0.001,
+  "look_deg": 0.0
+ },
+ {
+  "name": "s2s2-blur-target-e5ms",
+  "run_id": "629026af01d85c31f92566dee8e58c278fc450245b4dd9f71ae962e2757f76e5",
+  "family": 2,
+  "kind": "blur",
+  "group": "target",
+  "exposure_s": 0.005,
+  "look_deg": 0.0
+ },
+ {
+  "name": "s2s2-blur-target-e20ms",
+  "run_id": "252ec8a05a49f5b9382056db87e7746568663ee1bcc36b121d90b15c64af45a0",
+  "family": 2,
+  "kind": "blur",
+  "group": "target",
+  "exposure_s": 0.02,
+  "look_deg": 0.0
+ },
+ {
+  "name": "s2s2-blur-both-e0p1ms",
+  "run_id": "4e7d2bdc70c2e5c4b1b23c2267db53f8a3ae96bc5fb2ba5efcafa24b48892d2b",
+  "family": 2,
+  "kind": "blur",
+  "group": "both",
+  "exposure_s": 0.0001,
+  "look_deg": 0.0
+ },
+ {
+  "name": "s2s2-blur-both-e1ms",
+  "run_id": "41f0e913c582a04586f37f1e4a811f856d5b3f9e98cf0c0ae7aee412284705be",
+  "family": 2,
+  "kind": "blur",
+  "group": "both",
+  "exposure_s": 0.001,
+  "look_deg": 0.0
+ },
+ {
+  "name": "s2s2-blur-both-e5ms",
+  "run_id": "6f8f1a53070b22b5ead2f8320d8e8f1d2bb116d10149fcb085389292338f9d86",
+  "family": 2,
+  "kind": "blur",
+  "group": "both",
+  "exposure_s": 0.005,
+  "look_deg": 0.0
+ },
+ {
+  "name": "s2s2-blur-both-e20ms",
+  "run_id": "02e011b907ebf266d5b278fd1a54d25e87f3b2e15b6e921f05850aad7b379630",
+  "family": 2,
+  "kind": "blur",
+  "group": "both",
+  "exposure_s": 0.02,
+  "look_deg": 0.0
+ },
+ {
+  "name": "s2s2-look-l0",
+  "run_id": "fbacdafa35ca3f4d082844fd2b700e1fdd00240fc300ef82821557bd9914569f",
+  "family": 2,
+  "kind": "look",
+  "group": "look",
+  "exposure_s": 0.005,
+  "look_deg": 0.0
+ },
+ {
+  "name": "s2s2-look-l15",
+  "run_id": "8cf7c29ee47d5301d3a939579af25af1748edba80088619f23b336c53cdb78da",
+  "family": 2,
+  "kind": "look",
+  "group": "look",
+  "exposure_s": 0.005,
+  "look_deg": 15.0
+ },
+ {
+  "name": "s2s2-look-l30",
+  "run_id": "2369999747c6c75ba25cf2ce81ee6e3dc7a1e6ab5d9f7b9a4f3b765c241250e5",
+  "family": 2,
+  "kind": "look",
+  "group": "look",
+  "exposure_s": 0.005,
+  "look_deg": 30.0
+ },
+ {
+  "name": "s2s2-look-l45",
+  "run_id": "a328b52e0f4ec50bb46d96397c4bd0e6b633f45eebbff27d27dce9fdb83b28fb",
+  "family": 2,
+  "kind": "look",
+  "group": "look",
+  "exposure_s": 0.005,
+  "look_deg": 45.0
+ },
+ {
+  "name": "s2s2-look-l60",
+  "run_id": "eec357e641c986aeb2538c37375d37a9b015a8a6a471c3c28150fac1bdcf4074",
+  "family": 2,
+  "kind": "look",
+  "group": "look",
+  "exposure_s": 0.005,
+  "look_deg": 60.0
+ },
+ {
+  "name": "s2s2-look-l75",
+  "run_id": "c0f616a709d85af80efe39d231eb72edb36ec033e7ed0d8b7807f5eb5808bf98",
+  "family": 2,
+  "kind": "look",
+  "group": "look",
+  "exposure_s": 0.005,
+  "look_deg": 75.0
+ },
+ {
+  "name": "s2s2-orbit-e0p1ms",
+  "run_id": "97e3011f5d0dc8fba6db51306d00c6549ca218554847dbd2481aa77e44eae6aa",
+  "family": 2,
+  "kind": "orbit",
+  "group": "orbit",
+  "exposure_s": 0.0001,
+  "look_deg": null
+ },
+ {
+  "name": "s2s2-orbit-e20ms",
+  "run_id": "62efcbb647c939fd56bed062c5cf5db8b62b5831b0c9467172e905668bf9614d",
+  "family": 2,
+  "kind": "orbit",
+  "group": "orbit",
+  "exposure_s": 0.02,
+  "look_deg": null
  }
 ]
