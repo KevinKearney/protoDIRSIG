@@ -8,3 +8,5 @@
 - scratch (outside the repository): ~/r32scratch
 - baseline suite at a2d992f, alone, no edits: 1695 passed, 2 skipped (8 min 46 s)
 - step A: gate 1695 passed, 2 skipped (8 min 48 s, alone); eleven checks 0 (s2s_measure absent until B); boundary 23 passed; core and snapshot unchanged
+- B renders: 62 native re-renders + 3 through Workspace, 3320 s logged (incl. overhead); family III read from ~/r31scratch/work; runs kept in ~/r32scratch/runs
+- step B: gate 1733 passed, 2 skipped (8 min 4 s, alone); twelve checks 0 (s2s_measure 89 records); boundary 23; core and snapshot unchanged
