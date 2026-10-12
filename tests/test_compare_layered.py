@@ -124,3 +124,18 @@ def test_the_demo_angles_replace_only_the_generated_angles(tmp_path):
     assert "<x>0.1</x><y>0</y><z>3.14159265</z>" in out                     # the demo's text, as written there
     assert out.replace("<x>0.1</x><y>0</y><z>3.14159265</z>", "") == generated.replace(
         "<x>0.100000</x><y>0.000000</y><z>3.141593</z>", "")                 # nothing else changed
+
+
+@pytest.mark.parametrize("rt, form, values", [
+    ("<uniformradiativetransfer><hemisphereirradiance>1</hemisphereirradiance><skyfraction>0.2</skyfraction>"
+     "</uniformradiativetransfer>", "uniform", {"hemisphere_irradiance": 1, "sky_fraction": 0.2}),
+    ("<simpleradiativetransfer><apparentskytemperature>260</apparentskytemperature></simpleradiativetransfer>", "simple",
+     {"apparent_sky_temperature": 260}),
+], ids=["uniform", "simple"])
+def test_a_demo_atm_is_read_by_its_radiative_transfer_form(tmp_path, rt, form, values):
+    atm = tmp_path / "x.atm"
+    atm.write_text("<atmosphericconditions><metadata/><uniformweather><classicdata><filename>"
+                   f"$DIRSIG_HOME/lib/data/weather/mls.wth</filename></classicdata></uniformweather>{rt}"
+                   "</atmosphericconditions>")
+    got_form, block = cl.read_basic_atm(atm)
+    assert got_form == form and block == {"radiative_transfer": values, "weather": {"install_file": "mls.wth"}}

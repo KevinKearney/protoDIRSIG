@@ -10,11 +10,11 @@ Per demo, one render at a time, everything under `--work` (default: the state di
    `<work>/<Name>/config_repo/demo_dirs/<Name>/`.
 2. Layers are derived from the demo's own files and written under `<work>/<Name>/layers/` (a recipe, a scenario and an
    engine profile; `manifold_sensors/` is the sensor library): the scene and the platform by reference with stamped
-   hashes (the platform `as_authored`), the atmosphere as `basic` with `uniform` read from the demo's `.atm`
-   (`basic_atmosphere.read_atm`), a static pose from its `.ppd`, the epoch and task windows from its `.tasks`, and
-   `engine.run.seed` = `--seed`. The values are the demo's (licensed); they are written only under `--work`, never into
-   the repository. The descriptor's sensor is a library stand-in (`STAND_IN_SENSOR`): with an as-authored platform it
-   is checked but not applied.
+   hashes (the platform `as_authored`), the atmosphere as `basic` with `uniform` or `simple` read from the demo's
+   `.atm` (`basic_atmosphere.read_atm`, `read_simple_atm`), a static pose from its `.ppd`, the epoch and task windows
+   from its `.tasks`, and `engine.run.seed` = `--seed`. The values are the demo's (licensed); they are written only
+   under `--work`, never into the repository. The descriptor's sensor is a library stand-in (`STAND_IN_SENSOR`): with
+   an as-authored platform it is checked but not applied.
 3. Three renders through `Workspace.local` over that library: the layered recipe, the pass-through form at the same
    seed, and the pass-through form without a seed (the reference the demo sweep recorded).
 4. Each image the two forms both wrote is compared: shape, per-band mean of each, maximum absolute difference, the
@@ -52,7 +52,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from compare_outputs import header_for, read_envi                              # noqa: E402
 from manifold.core.dirhash import directory_digest                            # noqa: E402
 from manifold.core.spectral import sha256_file                                # noqa: E402
-from manifold.engines.dirsig.basic_atmosphere import read_atm                 # noqa: E402
+from manifold.engines.dirsig.basic_atmosphere import read_atm, read_simple_atm  # noqa: E402
 from manifold.sim import Workspace                                             # noqa: E402
 from manifold.sim.workspace import default_work_root                          # noqa: E402
 
@@ -63,14 +63,14 @@ STAND_IN_ENTRY = "synthetic-600-200-vis-1920"
 SIMULATION = {"DensityMap1": "demo.sim", "MaterialMap1": "w_mixing.sim", "PointCollectors2": "framing.jsim",
               "ColorFilterArray1": "bayer.sim", "BayerPattern1": "bayer_hdf.sim", "LensDistortion1": "demo.jsim",
               "ReflectanceMap1": "demo.sim", "Telecentricity1": "demo.jsim", "PolyFill1": "demo.sim",
-              "PrimitiveObjects1": "demo.sim", "Indoors1": "demo.jsim"}
+              "PrimitiveObjects1": "demo.sim", "Indoors1": "demo.jsim", "DeltaMotion1": "demo.sim"}
 KNOWN = [
     ("simulation file: the layered job's jsim is written by dirfm (plugins BasicPlatform, BasicAtmosphere, and "
      "SpiceEphemeris unless the .atm fixes the Sun), not the demo's own file"),
     ("motion and tasks: regenerated from the derived values by dirfm (PlatformPosition .ppd, TASKS .tasks with the epoch "
      "in UTC), not the demo's files; PlatformPosition writes positions to 3 and Euler angles to 6 decimals"),
-    (".atm: written from the derived uniform values; the demo's <metadata>, <turbulence> and lunar ephemeris values are "
-     "not carried"),
+    (".atm: written from the derived uniform or simple values; the demo's <metadata>, <turbulence> and lunar ephemeris "
+     "values are not carried"),
     ("scene compile: dirfm runs scene2hdf with --threads <cpu count> and the seed; the pass-through runner runs it with "
      "neither"),
     ("cache: the layered job runs with the user's HOME (DIRSIG material cache); the pass-through run with a per-run HOME"),
@@ -131,6 +131,14 @@ def simulation_inputs(demo_dir, simulation):
     return {k: (path.parent / v).resolve().relative_to(demo_dir.resolve()).as_posix() for k, v in names.items()}
 
 
+def read_basic_atm(path):
+    """("uniform" or "simple", the block) a demo's BasicAtmosphere `.atm` states, by its radiative-transfer form."""
+    root = et.parse(str(path)).getroot()
+    if root.find("simpleradiativetransfer") is not None:
+        return "simple", read_simple_atm(path)
+    return "uniform", read_atm(path)
+
+
 def static_pose(ppd):
     """The single-entry `.ppd`'s scene-frame position and `sceneenu` Euler orientation, as `engine.motion`."""
     root = et.parse(str(ppd)).getroot()
@@ -180,7 +188,7 @@ def write_layers(name, layers, config_repo, seed):
     """The demo's recipe, scenario and engine profile under `layers` (its derivation notes returned)."""
     demo_dir = config_repo / "demo_dirs" / name
     files = simulation_inputs(demo_dir, SIMULATION[name])
-    uniform = read_atm(demo_dir / files["atmosphere"])
+    form, uniform = read_basic_atm(demo_dir / files["atmosphere"])
     motion = static_pose(demo_dir / files["motion"])
     epoch, windows = epoch_and_windows(demo_dir / files["tasks"])
     lat, lon = scene_origin(demo_dir / files["scene"])
@@ -195,7 +203,7 @@ def write_layers(name, layers, config_repo, seed):
                            "library_entry": name.lower(), "output_prefix": "", "split_channels": False,
                            "as_authored": True},
               "motion": motion, "tasks": {"windows": windows},
-              "atmosphere": {"plugin": "basic", "uniform": uniform}}
+              "atmosphere": {"plugin": "basic", form: uniform}}
     if "fixed_ephemeris" not in uniform:
         engine["ephemeris"] = {"plugin": "spice"}
     engine["run"] = {"seed": seed}
@@ -227,8 +235,8 @@ def write_layers(name, layers, config_repo, seed):
                            "valid_for": "A layered-versus-pass-through comparison only.\n"}}
     (layers / "recipes" / f"{key}.yaml").write_text(yaml.safe_dump(recipe, sort_keys=False))
     notes = [f"simulation {SIMULATION[name]}: {files}",
-             f"atmosphere: {sorted(uniform)}" + ("" if "fixed_ephemeris" in uniform else "; no fixed Sun in the .atm, "
-                                                 "so the layered job adds SpiceEphemeris"),
+             f"atmosphere {form}: {sorted(uniform)}" + ("" if "fixed_ephemeris" in uniform else
+                                                        "; no fixed Sun in the .atm: the layered job adds SpiceEphemeris"),
              f"tasks: {len(windows)} window(s)"]
     if SIMULATION[name].endswith(".jsim"):
         plugins = [p["name"] for p in json.loads((demo_dir / SIMULATION[name]).read_text())[0]["plugin_list"]]

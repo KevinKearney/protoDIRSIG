@@ -64,7 +64,8 @@ def jsim(atmosphere="NewAtmosphere", weather="ThermWeather", ephemeris="SpiceEph
 def test_a_legacy_sim_demo_is_read_and_is_near(tmp_path):
     r = survey.survey(make(tmp_path, "Legacy1", sim=SIM))
     assert r["verdict"] == "near" and r["format"] == "sim" and r["ephemeris"] == "implicit (.sim)"
-    assert r["missing"] == ["BasicAtmosphere .atm (simpleradiativetransfer, uniformweather)"]
+    # Simple radiative transfer is covered (engine.atmosphere.simple); this .atm's uniform weather names no file.
+    assert r["missing"] == ["BasicAtmosphere .atm (uniform weather not from the installation)"]
     assert (r["array"], r["channels"], r["tasks"], r["motion"]) == ("16x12", 2, 2, "static (.ppd)")
     members = {m.split("/", 1)[1] for m in r["scene_members"]}
     assert members == {"demo.scene", "geometry/demo.glist", "geometry/box.obj", "materials/demo.mat"}
@@ -94,16 +95,24 @@ def test_a_platform_feature_is_the_camera_as_authored_not_missing(tmp_path):
 
 
 UNIFORM_ATM = ("<atmosphericconditions><uniformweather><classicdata><filename>{weather}</filename></classicdata>"
-               "</uniformweather><uniformradiativetransfer/></atmosphericconditions>")
+               "</uniformweather><{rt}radiativetransfer/></atmosphericconditions>")
 
 
+@pytest.mark.parametrize("rt", ["uniform", "simple"])
 @pytest.mark.parametrize("weather, missing", [
     ("$DIRSIG_HOME/lib/data/weather/mls.wth", []),
     ("./my.wth", ["BasicAtmosphere .atm (uniform weather not from the installation)"]),
 ], ids=["installation_weather", "own_weather"])
-def test_a_uniform_atm_is_covered_only_with_an_installation_weather_file(tmp_path, weather, missing):
-    r = survey.survey(make(tmp_path, "Uniform1", sim=SIM, extra_files={"demo.atm": UNIFORM_ATM.format(weather=weather)}))
+def test_a_uniform_atm_is_covered_only_with_an_installation_weather_file(tmp_path, weather, missing, rt):
+    atm = UNIFORM_ATM.format(weather=weather, rt=rt)
+    r = survey.survey(make(tmp_path, "Uniform1", sim=SIM, extra_files={"demo.atm": atm}))
     assert r["missing"] == missing and r["verdict"] == ("ready" if not missing else "near")
+
+
+def test_classic_radiative_transfer_is_still_missing(tmp_path):
+    atm = UNIFORM_ATM.format(weather="$DIRSIG_HOME/lib/data/weather/mls.wth", rt="classic")
+    r = survey.survey(make(tmp_path, "Classic1", sim=SIM, extra_files={"demo.atm": atm}))
+    assert r["missing"] == ["BasicAtmosphere .atm (classicradiativetransfer, uniformweather)"] and r["verdict"] == "near"
 
 
 THUMB = ("<classicscene><thumbnaillist><thumbnail><filename>$SCENE_DIR/images/t.png</filename></thumbnail>"

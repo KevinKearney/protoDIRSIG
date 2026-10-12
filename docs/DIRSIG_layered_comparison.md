@@ -1,6 +1,6 @@
 # DIRSIG demos: layered form against pass-through
 
-Comparisons of DIRSIG demos expressed in the layered form (CONOPS section 3.2: `engine.atmosphere.uniform`, C-39, and `engine.platform.as_authored`, C-40) with the same demo run as authored through the pass-through form. Numbers and digests only; no output byte and no demo value is in this repository.
+Comparisons of DIRSIG demos expressed in the layered form (CONOPS section 3.2: `engine.atmosphere.uniform`, C-39, `engine.atmosphere.simple`, C-41, and `engine.platform.as_authored`, C-40) with the same demo run as authored through the pass-through form. Numbers and digests only; no output byte and no demo value is in this repository.
 
 **How.** `python scripts/compare_layered.py DensityMap1 MaterialMap1 PointCollectors2 --work <outside the repository>` (2026-10-12, DIRSIG 2026.38 (a020954), dirfm 93195ce, 36 s for all renders). Per demo the script extracts the demo's archive into a private library under `--work`, derives the layers from the demo's own files (the scene and platform by reference and hash, the `.atm` read with `basic_atmosphere.read_atm`, the one-entry `.ppd` as a static pose, the `.tasks` as epoch and windows), renders the layered recipe, the pass-through form at the same seed and the pass-through form without a seed, one at a time at the demo's native size, and compares every image both forms wrote. The derived layers hold the demo's licensed values, so they are written only under `--work` and are not committed as recipes (section 5.1); the script is the recipe's source. Seed: 1 for the layered run and the same-seed pass-through run.
 
@@ -46,6 +46,10 @@ Comparisons of DIRSIG demos expressed in the layered form (CONOPS section 3.2: `
 | Indoors1 | `demo_truth.img` | pass-through, seed 1 | 9 x 240 x 320 | nan, nan, nan, nan, nan, inf, nan, nan, nan | nan, nan, nan, nan, nan, inf, nan, nan, nan | 8 | 96.0130% | no |
 | Indoors1 | `demo.img` | pass-through, no seed (the sweep's reference) | 3 x 240 x 320 | 2.62235e-06, 1.2656e-06, 2.25482e-07 | 2.62122e-06, 1.26461e-06, 2.25144e-07 | 4.39171e-05 | 73.0352% | no |
 | Indoors1 | `demo_truth.img` | pass-through, no seed | 9 x 240 x 320 | as above | nan, nan, nan, nan, nan, inf, nan, nan, nan | inf | 96.0169% | no |
+| DeltaMotion1 | `demo-t0000-c0000.img` | pass-through, seed 1 | 3 x 240 x 320 | 0.00251198, 0.00205836, 0.00147173 | identical | 0 | 0.0000% | yes |
+| DeltaMotion1 | `demo_truth-t0000-c0000.img` | pass-through, seed 1 | 6 x 240 x 320 | 1.036, 0.0360547, 0, 0.0133724, 1.02674, 5.6212 | identical | 0 | 0.0000% | yes |
+| DeltaMotion1 | `demo-t0000-c0000.img` | pass-through, no seed (the sweep's reference) | 3 x 240 x 320 | 0.00251198, 0.00205836, 0.00147173 | 0.00251211, 0.0020584, 0.00147177 | 0.00274654 | 63.6914% | no |
+| DeltaMotion1 | `demo_truth-t0000-c0000.img` | pass-through, no seed | 6 x 240 x 320 | as above | 1.03589, 0.0359505, 0, 0.0133724, 1.02674, 5.62974 | 441 | 0.2044% | no |
 
 The `nan` band of DensityMap1's truth image is NaN in some pixels of both forms; pixels NaN in both are not counted as differing. "Pixels differing" counts a pixel when any band differs. BayerPattern1 and Telecentricity1 have no rows: their layered runs failed in DIRSIG's dry run (below, and the digests table). Indoors1's truth image holds NaN and infinite values in both forms, so its means are NaN or infinite and a maximum difference can be infinite.
 
@@ -63,7 +67,9 @@ The `nan` band of DensityMap1's truth image is NaN in some pixels of both forms;
 
 **Telecentricity1: stopped, a geometry list DIRSIG finds only from the working folder.** The layered run failed in DIRSIG's dry run: `Unable to locate file "demo.glist"`, searched in the job's working folder and the scene's `gdbdirectory` (`$SCENE_DIR/geometry`). The `.scene` names `demo.glist` by a bare name and the file lies beside it, not in `geometry/`; the job copies it beside its `.scene` (`scene_named_paths`), where DIRSIG does not look, while the pass-through form runs in the demo's folder, where it does. PointCollectors2's `.scene` names its list the same way but its `gdbdirectory` is `$SCENE_DIR`. Controlled variation (as for BayerPattern1): `demo.glist` copied into the working folder gets past the list and fails on `Sphere.obj`, which the list names; `demo.glist` and `Sphere.obj` both in the working folder give a render byte-identical to the same-seed pass-through render (`demo.img` 51cfec01..., `demo_truth.img` 31d1d72e...). The survey now counts "geometry lists DIRSIG finds only from the working folder" as missing (Telecentricity1 is the only demo it finds), which makes Telecentricity1 `near`.
 
-**Unexplained differences.** None in this round: every difference has an observed cause, shown by a controlled variation.
+**DeltaMotion1: byte-identical, through `atmosphere.simple`.** The cheapest demo the simple radiative-transfer form makes expressible (`python scripts/compare_layered.py DeltaMotion1 --work <outside the repository>`, 2026-10-12, same DIRSIG and dirfm, 12 s for the three renders). Its `.atm` holds SimpleAtm (an apparent sky temperature), installation weather and a `<turbulence>` block, which the layered form does not carry; the layered render is byte-identical to the same-seed pass-through render, image and truth (`demo-t0000-c0000.img` and `demo_truth-t0000-c0000.img`), so the turbulence changed nothing in this visible-band render. Product files: the truth headers are identical; the image headers differ in the acquisition-time form only. The no-seed run reproduces the sweep's digests.
+
+**Unexplained differences.** None in this round (nine demos): every difference has an observed cause, shown by a controlled variation.
 
 ## Known input differences
 
@@ -71,7 +77,7 @@ Listed for every comparison, whether or not it changed a number:
 
 - simulation file: the layered job's jsim is written by dirfm (BasicPlatform, BasicAtmosphere, and SpiceEphemeris unless the `.atm` fixes the Sun), not the demo's own `.sim` or `.jsim`; MaterialMap1's `.atm` fixes no Sun, so its layered job names SpiceEphemeris where the `.sim` relies on DIRSIG's implicit ephemeris;
 - motion and tasks: regenerated by dirfm from the derived values (the `.ppd` with positions to three and Euler angles to six decimals, the `.tasks` with the epoch in UTC);
-- `.atm`: written from the derived uniform values; the demo's `<metadata>`, `<turbulence>` and lunar values are not carried;
+- `.atm`: written from the derived uniform or simple values; the demo's `<metadata>`, `<turbulence>` and lunar values are not carried;
 - seed: the layered run states 1; the sweep's references state none (DIRSIG's default seed), so the same-seed pass-through run is the like-for-like reference;
 - scene compile: dirfm runs `scene2hdf` with `--threads <cpu count>` and the seed; the pass-through runner runs it with neither;
 - cache: the layered job runs with the user's HOME; the pass-through run with a per-run HOME;
@@ -115,5 +121,8 @@ Listed for every comparison, whether or not it changed a number:
 | Telecentricity1 | layered | `e05ce978059eeb9c` | failed (dry run) | | 3.0 |
 | Telecentricity1 | pass-through, seed 1 | `5c46186a00e85329` | `51cfec01fe11a25209c6343436c1e44f6052c66a837696c677cd1817eb49335b` | `31d1d72eb47f07b9383436a888fda70d3d199d7423bcbd3d02adb3a49a50d565` | 5.0 |
 | Telecentricity1 | pass-through, no seed | `771506090b418720` | `8641eb5f0f440903db93a4be3566157ab6e0c65d3d841a12f287ea673e645fb6` | `63074ce19994648b881ac42e92c8db3badac0b897cf92e55c1dfa1acb40d4e36` | 6.0 |
+| DeltaMotion1 | layered | `dba8887c90d812fb` | `a134e3875363588db91d16cc5afe711c499f48d66f0582ff02604df8c25bebc2` | `1c401a4052ffae94e6077ee4411296523182087762e76b4954083a96773ade8a` | 4.1 |
+| DeltaMotion1 | pass-through, seed 1 | `c3fd504edf039532` | `a134e3875363588db91d16cc5afe711c499f48d66f0582ff02604df8c25bebc2` | `1c401a4052ffae94e6077ee4411296523182087762e76b4954083a96773ade8a` | 4.0 |
+| DeltaMotion1 | pass-through, no seed | `8a7546447662828d` | `f5c4744d455a4105d18093c52206e72de1da633eb34fec7a0f8b73fca6669bb4` | `2156d3ec12cdc57619cbd5d69beebf30b91bcf3ceda575e7866e99967c215dd4` | 4.0 |
 
-For ColorFilterArray1 and BayerPattern1 the two digest columns are `bayer.img` and `bayer_truth.img`. Every no-seed pass-through run (three in the first round, eight in the second, images and headers) reproduces the demo sweep's recorded digests (`docs/DIRSIG_demo_sweep.md`, `docs/data/demo_sweep_digests.jsonl.gz`). The run ids are those of the specs the script derived; they are not in `tests/data/id_snapshot.json`, which holds committed specs only.
+For ColorFilterArray1 and BayerPattern1 the two digest columns are `bayer.img` and `bayer_truth.img`, for DeltaMotion1 `demo-t0000-c0000.img` and `demo_truth-t0000-c0000.img`. Every no-seed pass-through run (three in the first round, eight in the second, DeltaMotion1, images and headers) reproduces the demo sweep's recorded digests (`docs/DIRSIG_demo_sweep.md`, `docs/data/demo_sweep_digests.jsonl.gz`). The run ids are those of the specs the script derived; they are not in `tests/data/id_snapshot.json`, which holds committed specs only.

@@ -1,7 +1,7 @@
 """The DIRSIG interpreter of a run spec: resolve a `dirsig-engine/1` engine block for a run (`resolve_run`).
 
 Narrow by design: it resolves what the repository's run specs use (one scene, `new_atmosphere` with SPICE ephemeris
-and a library weather file, or a `basic` atmosphere stated as `uniform` values, static or orbit motion) and refuses the
+and a library weather file, or a `basic` atmosphere stated as `uniform` or `simple` values, static or orbit motion) and refuses the
 rest with a `RunSpecError`. It is not a general `dirsig-engine/1` interpreter.
 
 Renamed in phase 2b-3 (the old names stay as deprecated aliases of the same objects, for the notebooks):
@@ -25,8 +25,9 @@ run spec's `settings`.
 
 What it drives: `engine.scenes`, `platform`, `atmosphere`, `weather`, `ephemeris` and
 `run.seed` name existing library files that the `scene_ref`, `platform_ref` and
-`atmosphere_patches` helpers reference as-is, except `atmosphere.uniform` (proposed): its values are written into the
-job's `.atm` by `basic_atmosphere`, with the weather inside it and, when it fixes the Sun, no ephemeris plugin. `engine.motion` and `engine.tasks` are generated,
+`atmosphere_patches` helpers reference as-is, except `atmosphere.uniform` and `atmosphere.simple` (proposed): their
+values are written into the job's `.atm` by `basic_atmosphere`, with the weather inside it and, when it fixes the Sun, no
+ephemeris plugin. `engine.motion` and `engine.tasks` are generated,
 not resolved: `ResolvedRun` carries their values, and `motion_tasks` writes the `.ppd` and `.tasks`
 files from them. Two motion forms are generated: `kind: static` with a scene-frame position and a `sceneenu`
 Euler orientation (a `.ppd`), and `kind: orbit` (proposed): a TLE propagated over a window into ECEF waypoints,
@@ -115,14 +116,16 @@ class ResolvedRun:
                                           # up ("along_track"), scene_origin (lat, lon deg, from the .scene)
     uniform_atmosphere: dict | None = None  # engine.atmosphere.uniform (plugin basic): the values the job's .atm is
                                             # written from (basic_atmosphere); atmosphere_db and weather are then None
+    simple_atmosphere: dict | None = None   # engine.atmosphere.simple (plugin basic): as uniform_atmosphere, with
+                                            # DIRSIG's SimpleAtm radiative transfer (basic_atmosphere.write_simple_atm)
     platform_as_authored: bool = False      # engine.platform.as_authored: `platform` is copied into the job as it is,
                                             # not rendered from the sensor-spec (integration_samples is then None)
 
     def atmosphere_plugin(self, db=None):
         """`NewAtmosphere` over `db`, or over the resolved library database if not given. Pass the job's
-        copy of the database so the jsim references it rather than the read-only original. For a uniform atmosphere,
-        `BasicAtmosphere` over `db`, the job's written `.atm` (`basic_atmosphere.write_atm`)."""
-        if self.uniform_atmosphere is not None:
+        copy of the database so the jsim references it rather than the read-only original. For a uniform or simple
+        atmosphere, `BasicAtmosphere` over `db`, the job's written `.atm` (`basic_atmosphere`)."""
+        if self.uniform_atmosphere is not None or self.simple_atmosphere is not None:
             from manifold.engines.dirsig.atmosphere_patches import BasicAtmosphereFilePlugin
             if db is None:
                 raise ValueError("a uniform atmosphere has no library file: pass the job's written .atm")
@@ -192,15 +195,21 @@ def resolve_run(spec, run_spec_path, config_repo, sensor_library=None):
         sensor_library = default_sensor_library(run_spec_path)
     eng = spec["engine"]
     atm = eng["atmosphere"]
+    if atm.get("plugin") == "basic" and "uniform" in atm and "simple" in atm:
+        raise RunSpecError("engine.atmosphere has both `uniform` and `simple`: a .atm has one radiative-transfer form",
+                           pointer="/engine/atmosphere/simple")
     uniform = _resolve_uniform_atmosphere(eng) if atm.get("plugin") == "basic" and "uniform" in atm else None
-    if uniform is None and atm.get("plugin") != "new_atmosphere":
+    simple = (_resolve_uniform_atmosphere(eng, member="simple") if atm.get("plugin") == "basic" and "simple" in atm
+              else None)
+    written = uniform if uniform is not None else simple           # the values of the job's written .atm, if any
+    if written is None and atm.get("plugin") != "new_atmosphere":
         raise RunSpecError(
             f"engine.atmosphere.plugin is {atm.get('plugin')!r}; this loader handles 'new_atmosphere', the "
-            "non-adopted extension the AUROR_ref spec uses (guide §6), and 'basic' with `uniform` (a .atm written from "
-            "stated values). It is not a general dirsig-engine/1 interpreter, so 'four_curve' and 'basic' with a file "
-            "are not supported here.", pointer="/engine/atmosphere/plugin")
+            "non-adopted extension the AUROR_ref spec uses (guide §6), and 'basic' with `uniform` or `simple` (a .atm "
+            "written from stated values). It is not a general dirsig-engine/1 interpreter, so 'four_curve' and 'basic' "
+            "with a file are not supported here.", pointer="/engine/atmosphere/plugin")
     ephemeris = eng.get("ephemeris", {}).get("plugin")
-    if uniform is not None and "fixed_ephemeris" in uniform:
+    if written is not None and "fixed_ephemeris" in written:
         ephemeris = None                     # the .atm's fixed ephemeris; _resolve_uniform_atmosphere refused a plugin
     elif ephemeris != "spice":
         raise RunSpecError(f"engine.ephemeris.plugin is {ephemeris!r}; only 'spice' (no inputs) is handled",
@@ -208,7 +217,7 @@ def resolve_run(spec, run_spec_path, config_repo, sensor_library=None):
     if len(eng["scenes"]) != 1:
         raise RunSpecError(f"expected one engine.scenes entry, got {len(eng['scenes'])}", pointer="/engine/scenes")
     weather = eng.get("weather")
-    if uniform is None and (weather is None or weather.get("source") != "library"):
+    if written is None and (weather is None or weather.get("source") != "library"):
         raise RunSpecError(f"engine.weather must be a library file for this tree, got {weather!r}",
                            pointer="/engine/weather/source" if isinstance(weather, dict) and "source" in weather
                            else "/engine/weather")
@@ -252,7 +261,7 @@ def resolve_run(spec, run_spec_path, config_repo, sensor_library=None):
     if channel_response not in ("tabulated", "native"):
         raise RunSpecError(f"engine.platform.channel_response is {channel_response!r}; expected 'tabulated' or 'native'",
                            pointer="/engine/platform/channel_response")
-    if plat.get("split_channels") and uniform is None:
+    if plat.get("split_channels") and written is None:
         # One spectral state per channel; the NewAtmosphere database has states for the focal plane's bandpass
         # only. The dry run passes and the render fails ("Missing spectral/temporal state"), so refuse it here.
         raise RunSpecError("engine.platform.split_channels true is not handled with new_atmosphere: the database "
@@ -306,10 +315,10 @@ def resolve_run(spec, run_spec_path, config_repo, sensor_library=None):
         output_prefix=plat["output_prefix"],
         split_channels=bool(plat["split_channels"]),
         integration_samples=None if as_authored else int(plat["integration_samples"]),
-        atmosphere_db=None if uniform is not None else _root_file(
+        atmosphere_db=None if written is not None else _root_file(
             config_repo, atm["database"]["ref"]["name"], "atmosphere database", atm["database"]["ref"],
             "/engine/atmosphere/database/ref"),
-        weather=None if uniform is not None else _root_file(config_repo, weather["file"]["name"], "weather file",
+        weather=None if written is not None else _root_file(config_repo, weather["file"]["name"], "weather file",
                                                             weather["file"], "/engine/weather/file"),
         ephemeris=ephemeris,
         seed=int(eng["run"]["seed"]),
@@ -320,34 +329,36 @@ def resolve_run(spec, run_spec_path, config_repo, sensor_library=None):
         motion_kind=kind,
         orbit=orbit_values if kind == "orbit" else None,
         uniform_atmosphere=uniform,
+        simple_atmosphere=simple,
         platform_as_authored=as_authored,
     )
 
 
-def _resolve_uniform_atmosphere(eng):
-    """`engine.atmosphere` of plugin `basic` with `uniform` (proposed): the values the job's `.atm` is written from
-    (`basic_atmosphere`), checked against the other members a BasicAtmosphere job reads its inputs from."""
+def _resolve_uniform_atmosphere(eng, member="uniform"):
+    """`engine.atmosphere` of plugin `basic` with `uniform` or, as `member`, `simple` (both proposed): the values the
+    job's `.atm` is written from (`basic_atmosphere`), checked against the other members a BasicAtmosphere job reads its
+    inputs from. The two forms differ in their radiative transfer only, so the rules are the same."""
     from manifold.engines.dirsig.basic_atmosphere import uniform_problem
     atm = eng["atmosphere"]
-    uniform = atm["uniform"]
+    uniform = atm[member]
     if not isinstance(uniform, dict):
-        raise RunSpecError(f"engine.atmosphere.uniform must be a mapping, got {uniform!r}",
-                           pointer="/engine/atmosphere/uniform")
+        raise RunSpecError(f"engine.atmosphere.{member} must be a mapping, got {uniform!r}",
+                           pointer=f"/engine/atmosphere/{member}")
     problem = uniform_problem(uniform)
     if problem:
-        raise RunSpecError(f"engine.atmosphere.uniform {problem}", pointer="/engine/atmosphere/uniform")
+        raise RunSpecError(f"engine.atmosphere.{member} {problem}", pointer=f"/engine/atmosphere/{member}")
     if "file" in atm:
-        raise RunSpecError("engine.atmosphere has both `uniform` and `file`: the job's .atm is written from `uniform`",
+        raise RunSpecError(f"engine.atmosphere has both `{member}` and `file`: the job's .atm is written from `{member}`",
                            pointer="/engine/atmosphere/file")
     weather = eng.get("weather")
     if isinstance(weather, dict) and weather.get("source") == "library":
-        raise RunSpecError("engine.weather is a library file, but a uniform atmosphere carries its weather in the .atm "
-                           "(uniform.weather); omit engine.weather or state `source: install`",
+        raise RunSpecError(f"engine.weather is a library file, but a {member} atmosphere carries its weather in the .atm "
+                           f"({member}.weather); omit engine.weather or state `source: install`",
                            pointer="/engine/weather/source")
     if "fixed_ephemeris" in uniform and "ephemeris" in eng:
-        raise RunSpecError("engine.ephemeris is given beside engine.atmosphere.uniform.fixed_ephemeris: DIRSIG replaces "
-                           "the .atm's fixed ephemeris with the plugin (SpiceEphemeris), so the stated Sun would be "
-                           "dropped; omit engine.ephemeris", pointer="/engine/ephemeris")
+        raise RunSpecError(f"engine.ephemeris is given beside engine.atmosphere.{member}.fixed_ephemeris: DIRSIG "
+                           "replaces the .atm's fixed ephemeris with the plugin (SpiceEphemeris), so the stated Sun "
+                           "would be dropped; omit engine.ephemeris", pointer="/engine/ephemeris")
     return dict(uniform)
 
 

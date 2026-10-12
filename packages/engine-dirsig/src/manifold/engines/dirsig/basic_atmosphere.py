@@ -1,5 +1,5 @@
 """A BasicAtmosphere `.atm` written from a run spec's stated values: `engine.atmosphere` of plugin `basic` with
-`uniform` (proposed).
+`uniform` or `simple` (both proposed).
 
 DIRSIG's BasicAtmosphere plugin reads a DIRSIG 4 era `.atm` file (`docs/basicatm_plugin.html` in the installation). The
 `uniform` member states what the generator writes into it, and nothing else:
@@ -12,8 +12,15 @@ DIRSIG's BasicAtmosphere plugin reads a DIRSIG 4 era `.atm` file (`docs/basicatm
                        degrees). DIRSIG then sets up a FixedEphemeris from the file; a SpiceEphemeris plugin in the
                        same job replaces it (measured with DensityMap1), so the loader refuses `engine.ephemeris` beside it
 
+The `simple` member (`write_simple_atm`, `read_simple_atm`) states the same file with DIRSIG's SimpleAtm in place of
+UniformAtm, and the same `weather` and optional `fixed_ephemeris`:
+
+  radiative_transfer   <simpleradiativetransfer>: apparent_sky_temperature, the sky temperature that drives the
+                       thermal sky irradiance (the visible sky irradiance is 0, the Sun a scaled 5,800 K blackbody, no
+                       extinction and no path radiance; docs/basicatm_plugin.html)
+
 Not written: `<turbulence>` (no first target's output depends on it: DensityMap1's demo renders byte-identical without
-it), `<metadata>`, the simple and classic radiative-transfer forms, lunar values. The file is written in that element
+it), `<metadata>`, the classic radiative-transfer form, lunar values. The file is written in that element
 order with each number as stated (an integer as an integer, a float in its shortest round-trip form), so a `.atm` with
 the same values renders byte-identically to the demo's (DensityMap1, measured).
 
@@ -39,24 +46,43 @@ def weather_path(install_file):
     return f"{WEATHER_DIR}/{install_file}"
 
 
-def write_atm(uniform, path):
-    """Write the `.atm` for an `engine.atmosphere.uniform` block to `path`. Returns `path`."""
+def _weather_and_sun(values):
+    """The `<atmosphericconditions>` root with the uniform weather and the optional fixed Sun of `values`."""
     root = et.Element("atmosphericconditions")
     classic = et.SubElement(et.SubElement(root, "uniformweather"), "classicdata")
-    et.SubElement(classic, "filename").text = weather_path(uniform["weather"]["install_file"])
-    fixed = uniform.get("fixed_ephemeris")
+    et.SubElement(classic, "filename").text = weather_path(values["weather"]["install_file"])
+    fixed = values.get("fixed_ephemeris")
     if fixed is not None:
         node = et.SubElement(et.SubElement(root, "ephemeris"), "fixed", units=fixed["units"])
         et.SubElement(node, "solarzenith").text = _text(fixed["solar_zenith"])
         et.SubElement(node, "solarazimuth").text = _text(fixed["solar_azimuth"])
-    rt = uniform["radiative_transfer"]
-    node = et.SubElement(root, "uniformradiativetransfer")
-    et.SubElement(node, "hemisphereirradiance").text = _text(rt["hemisphere_irradiance"])
-    et.SubElement(node, "skyfraction").text = _text(rt["sky_fraction"])
+    return root
+
+
+def _write(root, path):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     et.ElementTree(root).write(str(path), pretty_print=True)
     return path
+
+
+def write_atm(uniform, path):
+    """Write the `.atm` for an `engine.atmosphere.uniform` block to `path`. Returns `path`."""
+    root = _weather_and_sun(uniform)
+    rt = uniform["radiative_transfer"]
+    node = et.SubElement(root, "uniformradiativetransfer")
+    et.SubElement(node, "hemisphereirradiance").text = _text(rt["hemisphere_irradiance"])
+    et.SubElement(node, "skyfraction").text = _text(rt["sky_fraction"])
+    return _write(root, path)
+
+
+def write_simple_atm(simple, path):
+    """Write the `.atm` for an `engine.atmosphere.simple` block to `path`, in the element order of the demos' files
+    (weather, fixed Sun, radiative transfer). Returns `path`."""
+    root = _weather_and_sun(simple)
+    node = et.SubElement(root, "simpleradiativetransfer")
+    et.SubElement(node, "apparentskytemperature").text = _text(simple["radiative_transfer"]["apparent_sky_temperature"])
+    return _write(root, path)
 
 
 def read_atm(path):
@@ -67,12 +93,31 @@ def read_atm(path):
     rt = root.find("uniformradiativetransfer")
     if rt is None:
         raise ValueError(f"{Path(path).name}: no <uniformradiativetransfer>")
+    return {"radiative_transfer": {"hemisphere_irradiance": _number(rt.findtext("hemisphereirradiance")),
+                                   "sky_fraction": _number(rt.findtext("skyfraction"))},
+            **_read_weather_and_sun(root, path)}
+
+
+def read_simple_atm(path):
+    """The `simple` block a simple-radiative-transfer `.atm` states, parsed back (the members `write_simple_atm`
+    writes). Raises ValueError as `read_atm` does, and for a `<simpleradiativetransfer>` with other values than the
+    apparent sky temperature."""
+    root = et.parse(str(path)).getroot()
+    rt = root.find("simpleradiativetransfer")
+    if rt is None:
+        raise ValueError(f"{Path(path).name}: no <simpleradiativetransfer>")
+    other = sorted({c.tag for c in rt if isinstance(c.tag, str)} - {"apparentskytemperature"})
+    if other:
+        raise ValueError(f"{Path(path).name}: <simpleradiativetransfer> states {other}, which `simple` does not carry")
+    return {"radiative_transfer": {"apparent_sky_temperature": _number(rt.findtext("apparentskytemperature"))},
+            **_read_weather_and_sun(root, path)}
+
+
+def _read_weather_and_sun(root, path):
     name = (root.findtext("uniformweather/classicdata/filename") or "").strip()
     if not name.startswith(WEATHER_DIR + "/"):
         raise ValueError(f"{Path(path).name}: weather {name!r} is not an installation weather file")
-    out = {"radiative_transfer": {"hemisphere_irradiance": _number(rt.findtext("hemisphereirradiance")),
-                                  "sky_fraction": _number(rt.findtext("skyfraction"))},
-           "weather": {"install_file": name[len(WEATHER_DIR) + 1:]}}
+    out = {"weather": {"install_file": name[len(WEATHER_DIR) + 1:]}}
     fixed = root.find("ephemeris/fixed")
     if fixed is not None:
         out["fixed_ephemeris"] = {"units": fixed.get("units", "radians"),
@@ -90,8 +135,8 @@ def _number(text):
 
 
 def uniform_problem(uniform):
-    """Why an `engine.atmosphere.uniform` block cannot be written, or None. The schema states the shape; this states the
-    rule a reader needs the reason for: a uniform atmosphere names its weather."""
+    """Why an `engine.atmosphere.uniform` (or `simple`) block cannot be written, or None. The schema states the shape;
+    this states the rule a reader needs the reason for: a uniform or simple atmosphere names its weather."""
     weather = uniform.get("weather") if isinstance(uniform, dict) else None
     if not isinstance(weather, dict) or not weather.get("install_file"):
         return ("has no weather values: BasicAtmosphere reads its uniform weather from the .atm file and DIRSIG "

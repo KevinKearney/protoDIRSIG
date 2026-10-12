@@ -50,9 +50,10 @@ from manifold.core.run_spec import RunSpecError, is_inline_sensor, load_run_spec
 from manifold.engines.dirsig.run_spec import check_library_files, resolve_run  # noqa: F401
 from manifold.engines.dirsig.run_spec import resolve_run as resolve_auror_run  # noqa: F401 -- deprecated alias, for the notebooks
 from manifold.engines.dirsig.scene_ref import copy_input, reference_scene, scene_named_paths
-from manifold.engines.dirsig.basic_atmosphere import write_atm
+from manifold.engines.dirsig.basic_atmosphere import write_atm, write_simple_atm
 
 UNIFORM_ATM = "uniform.atm"     # the job's written .atm (engine.atmosphere.uniform), beside the jsim
+SIMPLE_ATM = "simple.atm"       # the job's written .atm (engine.atmosphere.simple), beside the jsim
 
 
 def schema_errors(spec, registry=None):
@@ -199,6 +200,8 @@ class Simulation:
                                                  in_dir / r.platform.relative_to(lib), r.channel_response).path
         if r.uniform_atmosphere is not None:                        # a .atm written from the spec, weather inside it
             atm = write_atm(r.uniform_atmosphere, in_dir / UNIFORM_ATM)
+        elif r.simple_atmosphere is not None:                       # the same, with SimpleAtm radiative transfer
+            atm = write_simple_atm(r.simple_atmosphere, in_dir / SIMPLE_ATM)
         else:
             inputs["weather"] = copy_input(r.weather, in_dir / r.weather.relative_to(lib))
             atm = copy_input(r.atmosphere_db, in_dir / r.atmosphere_db.name)   # beside the jsim, as received

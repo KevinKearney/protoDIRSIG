@@ -650,6 +650,101 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "plugin": {
+                "const": "basic"
+              }
+            },
+            "required": [
+              "plugin",
+              "simple"
+            ]
+          },
+          "then": {
+            "description": "The basic form with simple (proposed): the generator writes the job's BasicAtmosphere .atm from these values.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "plugin",
+              "simple"
+            ],
+            "properties": {
+              "plugin": {
+                "description": "basic.",
+                "const": "basic"
+              },
+              "simple": {
+                "description": "A simple-radiative-transfer BasicAtmosphere .atm written from stated values (proposed): DIRSIG's SimpleAtm, uniform weather from an installation weather file and, optionally, a fixed Sun. The same rules as uniform: a run that states it names no atmosphere file and no library weather file; with fixed_ephemeris it names no ephemeris plugin; the loader refuses a simple block without weather. Exclusive with uniform.",
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "radiative_transfer"
+                ],
+                "properties": {
+                  "radiative_transfer": {
+                    "description": "DIRSIG's SimpleAtm: the Sun a 5,800 K blackbody scaled to a clear equatorial day, no visible sky irradiance, a thermal sky irradiance driven by the apparent sky temperature, no extinction and no path radiance.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "apparent_sky_temperature"
+                    ],
+                    "properties": {
+                      "apparent_sky_temperature": {
+                        "description": "The apparent sky temperature that drives the thermal sky irradiance, in kelvin (written as <apparentskytemperature>; the demos state 240 to 260).",
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      }
+                    }
+                  },
+                  "weather": {
+                    "description": "The uniform weather: a weather file shipped with the DIRSIG installation, read by DIRSIG's thermal model.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "install_file"
+                    ],
+                    "properties": {
+                      "install_file": {
+                        "description": "The file's name in the installation's lib/data/weather folder, for example mls.wth; written as $DIRSIG_HOME/lib/data/weather/<install_file>. It is covered by the DIRSIG installation's fingerprint, not by a content hash.",
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9_.-]+\\.wth$"
+                      }
+                    }
+                  },
+                  "fixed_ephemeris": {
+                    "description": "A fixed Sun position written into the .atm (DIRSIG sets up a FixedEphemeris from it); angles relative to the scene ENU origin.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "units",
+                      "solar_zenith",
+                      "solar_azimuth"
+                    ],
+                    "properties": {
+                      "units": {
+                        "description": "The angle units.",
+                        "enum": [
+                          "radians",
+                          "degrees"
+                        ]
+                      },
+                      "solar_zenith": {
+                        "description": "The solar zenith angle.",
+                        "type": "number"
+                      },
+                      "solar_azimuth": {
+                        "description": "The solar azimuth angle, east of north.",
+                        "type": "number"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       ]
     },
