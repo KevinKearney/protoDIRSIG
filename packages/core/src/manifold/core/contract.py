@@ -37,6 +37,8 @@ from manifold.core import _names
 from manifold.core.engine import engine_id_of, resolve_registry
 
 SCHEMA_FILES = ("run-spec-1.schema.json", "sensor-spec-1.schema.json")
+CONTRACTS_BASE = "https://schemas.manifold.example/contracts/"      # every contract schema's $id is under it
+PUBLISHED = "manifold_contracts/"                                   # where the base maps, relative to the repository
 ROOT_SCHEMA = "run-spec-1.schema.json"
 MAX_MESSAGE = 200
 
@@ -167,13 +169,38 @@ def _message(error):
     return msg[:MAX_MESSAGE] + "..."
 
 
+def run_spec_violations(spec):
+    """The violations of the core run-spec/1 schema alone (the engine block an open object), as `schema_violations`
+    gives them. Not sufficient for admission: the engine block is checked against its engine's schema, and the engine
+    must be registered (`schema_violations`, `semantic_errors`)."""
+    found = {(pointer(e.absolute_path), _message(e), pointer(_at(e))) for e in validator().iter_errors(spec)}
+    return [{"path": p, "message": m, "at": a} for p, m, a in sorted(found)]
+
+
+def published_location(schema_id):
+    """The repository-relative file a contract schema is published at (`manifold_contracts/<file>`), from its `$id`
+    under `CONTRACTS_BASE`; None for an id outside the base."""
+    if not isinstance(schema_id, str) or not schema_id.startswith(CONTRACTS_BASE):
+        return None
+    name = schema_id[len(CONTRACTS_BASE):]
+    return PUBLISHED + name if name and "/" not in name else None
+
+
+def adapter_schemas(adapter):
+    """The engine-block schema documents an adapter contributes: its optional `schemas()`, else `engine_schema(None)`
+    (an adapter whose schema does not depend on the block)."""
+    getter = getattr(adapter, "schemas", None)
+    docs = list(getter()) if callable(getter) else [adapter.engine_schema(None)]
+    return [d for d in docs if d]
+
+
 def schema_violations(spec, registry=None):
     """Every violation of run-spec/1 (and, through it, sensor-spec/1) and of the engine block's adapter schema in a
     parsed spec, as `[{"path": <JSON Pointer>, "message": <text>, "at": <JSON Pointer>}]`, sorted by path then message.
     Empty means the spec conforms. `path` is where the validator reports the violation; `at` is the deepest location
     its message names (the same, except under a oneOf/anyOf, where it is the closest alternative's location), the
     pointer `problems.locate` attributes to a layer file and field."""
-    found = {(pointer(e.absolute_path), _message(e), pointer(_at(e))) for e in validator().iter_errors(spec)}
+    found = {(v["path"], v["message"], v["at"]) for v in run_spec_violations(spec)}
     found |= set(engine_block_violations(spec, registry))
     return [{"path": p, "message": m, "at": a} for p, m, a in sorted(found)]
 

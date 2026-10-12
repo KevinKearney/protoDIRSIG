@@ -41,7 +41,14 @@
             "assets": [],
             "interpreter": null
           },
-          "assets": []
+          "assets": [],
+          "schemas": [
+            {
+              "schema_id": "https://schemas.manifold.example/contracts/dirsig-engine-1.schema.json",
+              "location": "manifold_contracts/dirsig-engine-1.schema.json",
+              "sha256": "56fa8303e63cc5985484ffad74199df1f927c8b29cc5a2e60d54e55256102a78"
+            }
+          ]
         }
       ]
     },

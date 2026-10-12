@@ -24,7 +24,8 @@
           "reason",
           "source",
           "resources",
-          "assets"
+          "assets",
+          "schemas"
         ],
         "properties": {
           "engine_id": {
@@ -86,6 +87,31 @@
             "items": {
               "description": "One required asset.",
               "type": "object"
+            }
+          },
+          "schemas": {
+            "description": "Proposed. Every engine-block schema the engine contributes, so a client in any language can fetch it and apply it as admission does: the run-spec schema alone leaves the engine block open and is not sufficient for admission. Empty when the adapter did not load.",
+            "type": "array",
+            "items": {
+              "description": "One engine-block schema.",
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["schema_id", "location", "sha256"],
+              "properties": {
+                "schema_id": {
+                  "description": "The schema's `$id`, an absolute URI under the contract base `https://schemas.manifold.example/contracts/`, which does not resolve on the network.",
+                  "type": ["string", "null"]
+                },
+                "location": {
+                  "description": "Where the schema is published, relative to the contracts repository: `manifold_contracts/<file>`, the base of `schema_id` mapped to that folder; null for an id outside the base (not published).",
+                  "type": ["string", "null"]
+                },
+                "sha256": {
+                  "description": "The sha256 of the canonical JSON (RFC 8785) of the schema the adapter applies, so a fetched copy can be checked against it.",
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              }
             }
           }
         }

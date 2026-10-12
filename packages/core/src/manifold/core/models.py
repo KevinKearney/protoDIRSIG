@@ -9,7 +9,7 @@ from __future__ import annotations
 import dataclasses
 from typing import Literal
 
-__all__ = ['ArtifactList', 'ArtifactRef', 'ComposeRequest', 'ComposeResponse', 'ComposeResponseRecipe', 'ComposeResponseRun', 'ComposeResponseRunProvenanceEntry', 'EngineList', 'EngineListItem', 'LibraryDocument', 'LibraryList', 'LibraryListItem', 'Problem', 'ProblemErrorEntry', 'RunStatus', 'SensorDocument', 'SubmitRunRequest', 'SubmitSweepRequest', 'SweepStatus', 'SweepStatusRecipe', 'ValidateRequest', 'ValidateResponse', 'ValidateResponseRun', 'ValidateResponseRunCheck']
+__all__ = ['ArtifactList', 'ArtifactRef', 'ComposeRequest', 'ComposeResponse', 'ComposeResponseRecipe', 'ComposeResponseRun', 'ComposeResponseRunProvenanceEntry', 'EngineList', 'EngineListItem', 'EngineListItemSchema', 'LibraryDocument', 'LibraryList', 'LibraryListItem', 'Problem', 'ProblemErrorEntry', 'RunStatus', 'SensorDocument', 'SubmitRunRequest', 'SubmitSweepRequest', 'SweepStatus', 'SweepStatusRecipe', 'ValidateRequest', 'ValidateResponse', 'ValidateResponseRun', 'ValidateResponseRunCheck']
 
 class _Absent:
     """Marker for a key that was not present."""
@@ -674,6 +674,10 @@ class EngineListItem(_Model):
     assets : tuple[dict, ...]
         The external assets the adapter requires, each named with its library reference and content digest
         (proposed); empty when it requires none.
+    schemas : tuple[EngineListItemSchema, ...]
+        Proposed. Every engine-block schema the engine contributes, so a client in any language can fetch it and
+        apply it as admission does: the run-spec schema alone leaves the engine block open and is not sufficient for
+        admission. Empty when the adapter did not load.
     """
     engine_id: str
     available: bool
@@ -684,6 +688,7 @@ class EngineListItem(_Model):
     source: str | None
     resources: dict | None
     assets: tuple[dict, ...]
+    schemas: tuple[EngineListItemSchema, ...]
     _FIELDS = (
         ('engine_id', 'engine_id', ('scalar', ('string',), None), True, False),
         ('available', 'available', ('scalar', ('boolean',), None), True, False),
@@ -694,6 +699,7 @@ class EngineListItem(_Model):
         ('source', 'source', ('nullable', ('scalar', ('string',), None)), True, True),
         ('resources', 'resources', ('nullable', ('dict',)), True, True),
         ('assets', 'assets', ('array', ('dict',)), True, False),
+        ('schemas', 'schemas', ('array', ('model', 'EngineListItemSchema')), True, False),
     )
     _CLOSED = True
 
@@ -823,6 +829,33 @@ class ComposeResponseRunProvenanceEntry(_Model):
     _FIELDS = (
         ('layer', 'layer', ('scalar', ('string',), None), True, False),
         ('content_hash', 'content_hash', ('nullable', ('scalar', ('string',), None)), True, True),
+    )
+    _CLOSED = True
+
+
+@dataclasses.dataclass(frozen=True)
+class EngineListItemSchema(_Model):
+    """One engine-block schema.
+
+    Attributes
+    ----------
+    schema_id : str | None
+        The schema's `$id`, an absolute URI under the contract base `https://schemas.manifold.example/contracts/`,
+        which does not resolve on the network.
+    location : str | None
+        Where the schema is published, relative to the contracts repository: `manifold_contracts/<file>`, the base
+        of `schema_id` mapped to that folder; null for an id outside the base (not published).
+    sha256 : str
+        The sha256 of the canonical JSON (RFC 8785) of the schema the adapter applies, so a fetched copy can be
+        checked against it.
+    """
+    schema_id: str | None
+    location: str | None
+    sha256: str
+    _FIELDS = (
+        ('schema_id', 'schema_id', ('nullable', ('scalar', ('string',), None)), True, True),
+        ('location', 'location', ('nullable', ('scalar', ('string',), None)), True, True),
+        ('sha256', 'sha256', ('scalar', ('string',), None), True, False),
     )
     _CLOSED = True
 

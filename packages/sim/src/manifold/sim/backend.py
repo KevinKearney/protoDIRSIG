@@ -41,7 +41,7 @@ from typing import Protocol, runtime_checkable
 
 import yaml
 
-from manifold.core import identity, problems
+from manifold.core import contract, identity, problems
 from manifold.core import _names
 from manifold.core.admission import validate_spec
 from manifold.core.compose import MAX_RUNS, ComposeError, compose_sweep, compose_sweep_document
@@ -109,10 +109,19 @@ def engine_entry(status, adapter=None):
             assets = [resources.as_dict(a) for a in (decl.assets if decl is not None else ())]
         except Exception:  # noqa: BLE001 -- a listing never fails on one engine
             declared, assets = None, []
+    schemas = []
+    if adapter is not None:
+        try:
+            schemas = [{"schema_id": d.get("$id"), "location": contract.published_location(d.get("$id")),
+                        "sha256": hashlib.sha256(identity.canonical_json(d)).hexdigest()}
+                       for d in contract.adapter_schemas(adapter)]
+        except Exception:  # noqa: BLE001 -- a listing never fails on one engine
+            schemas = []
     return {"engine_id": status.engine_id, "available": status.available,
             "adapter_version": info.adapter_version if info else None,
             "modes": list(info.modes) if info else [], "contracts": list(info.contracts) if info else [],
-            "reason": status.reason, "source": status.source, "resources": declared, "assets": assets}
+            "reason": status.reason, "source": status.source, "resources": declared, "assets": assets,
+            "schemas": schemas}
 
 
 def _sha256_file(path):
@@ -329,8 +338,8 @@ class LocalBackend:
     def _job(self, run):
         return {"config_repo": str(self.config_repo), "sensor_library": str(Path(run.library).resolve()),
                 "max_parallel": self.max_parallel, "engine": self._engine(), "capacity": resources.as_dict(self.capacity),
-                "resources": run.spec.get("resources"),
-                "engines": self.registry.describe()}             # the worker rebuilds exactly this engine set         # every request; the stored run spec keeps the id slots
+                "resources": run.spec.get("resources"),          # every request; the stored run spec keeps the id slots
+                "engines": self.registry.describe()}             # the worker rebuilds exactly this engine set
 
     def _start_worker(self, run_id):
         run_dir = self.store.run_dir(run_id)
