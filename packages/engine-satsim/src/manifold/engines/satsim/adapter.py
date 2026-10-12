@@ -17,12 +17,14 @@ request or a `device` other than `cpu` is refused: GPU behavior is unverified); 
 """
 import hashlib
 import json
+import re
+import shutil
 from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path, PurePosixPath
 
 from manifold.core.dirhash import directory_digest
-from manifold.core.engine import Collection, EngineInfo, EnvironmentPolicy, LaunchPlan
+from manifold.core.engine import CollectedArtifact, Collection, EngineInfo, EnvironmentPolicy, LaunchPlan
 from manifold.core.resources import AssetDecl, CpuThreads, GpuSlot, ResourceDeclaration
 from manifold.core.run_spec import PLACEHOLDER, RunSpecError
 from manifold.engines.satsim import interpreter
@@ -49,6 +51,12 @@ EARTH_ORIENTATION = AssetDecl("finals2000A.all", {"name": "satsim/assets/finals2
                               "MANIFOLD_SATSIM_IERS", "IERS finals2000A Earth orientation, snapshot of 2026-10-11, "
                               "read by astropy with downloads off")
 ASSETS = (EPHEMERIS, EARTH_ORIENTATION)
+LAUNCHER = HERE / "launcher.py"
+SET = "set"                                 # SatSim's set folder name (fixed: its default is the local wall-clock time)
+RESULT = "satsim_result.json"
+UNSET = ("PYTHONPATH", "PYTHONHOME", "PYTHONSTARTUP", "SATSIM_SKYFIELD_LOAD_DIR", "SATSIM_SSTR7_PATH",
+         "SATSIM_GCVS5_PATH")
+FRAME = re.compile(r"\.(\d+)\.[A-Za-z]+$")    # sat_00000.0003.fits: frame 3
 
 
 def _version():
@@ -216,15 +224,40 @@ class SatsimAdapter:
         return config_problems(resolved.document, resolved.directory)
 
     def plan(self, context):
-        raise RuntimeError("SatSim execution is not built yet: the launcher arrives with the launch plan")
+        """Stage the configuration (its digest verified again) read-only in `<run_dir>/input/`, write
+        `input/launch.json` and return the plan: `launcher.py` in SatSim's interpreter, in the run folder, with a
+        per-run `HOME`, the granted thread count in the four thread variables, and the SDK's Python variables removed."""
+        python, source = self.interpreter()
+        if python is None:
+            raise RuntimeError(f"SatSim cannot run here: {source}")
+        engine = context.spec["engine"]
+        config, directory = resolve_config(engine, context.config_repo)
+        run_dir = Path(context.run_dir)
+        inp = run_dir / "input"
+        inp.mkdir(parents=True, exist_ok=True)
+        if directory is not None:
+            shutil.copytree(directory, inp, dirs_exist_ok=True)
+            staged = inp / config.relative_to(directory)
+        else:
+            staged = inp / f"config{config.suffix}"
+            shutil.copy2(config, staged)
+        for f in [p for p in inp.rglob("*") if p.is_file()]:
+            f.chmod(0o444)
+        (inp / "launch.json").write_text(json.dumps({"seed": engine["seed"], "set": SET, "input_dir": "input",
+                                                     "config": staged.relative_to(run_dir).as_posix()}, indent=1) + "\n")
+        return LaunchPlan(argv=(str(LAUNCHER), str(run_dir)), cwd=str(run_dir), interpreter=python,
+                          env=EnvironmentPolicy(set={"PYTHONDONTWRITEBYTECODE": "1", "PYTHONNOUSERSITE": "1"},
+                                                unset=UNSET, isolate_home=True, thread_variables=THREAD_VARIABLES),
+                          expected_outputs=(RESULT,))
 
     def collect(self, output_dir, run_dir):
-        return Collection((), "failed", "SatSim execution is not built yet", {})
+        return collect(output_dir, run_dir)
 
     def fingerprint(self, spec=None):
         python, source = self.interpreter()
         probe = interpreter.probe_cached(python) if python else None
         return {"satsim": {"interpreter": python, "interpreter_source": source, "probe": probe,
+                           "launcher_sha256": hashlib.sha256(LAUNCHER.read_bytes()).hexdigest(),
                            "assets": {a.name: a.ref["content_hash"] for a in ASSETS}}}
 
     def resources(self, spec=None):
@@ -233,3 +266,122 @@ class SatsimAdapter:
                                                           variables=THREAD_VARIABLES),
                                    memory_bytes=MEMORY_BYTES, gpu=GpuSlot(maximum=0), scratch_bytes=SCRATCH_BYTES,
                                    network="none", assets=ASSETS, interpreter=python)
+
+
+# --- collection --------------------------------------------------------------------------------------------------------
+
+def role_of(rel):
+    """The role of a file in SatSim's set folder (path relative to it): FITS frames `product`, annotations `truth`,
+    annotated images and the movie `preview`, the CZML `metadata`, the resolved configurations `config`; anything else
+    (an optional product the configuration asked for) `product`."""
+    top = rel.split("/", 1)[0] if "/" in rel else ""
+    if top == "ImageFiles" and rel.endswith(".fits"):
+        return "product"
+    if top == "Annotations" and rel.endswith(".json"):
+        return "truth"
+    if top == "AnnotatedImages":
+        return "preview"
+    if rel == "satsim.czml":
+        return "metadata"
+    if rel == "config.json" or re.fullmatch(r"config_pass_\d+\.json", rel):
+        return "config"
+    return "product"
+
+
+def fits_shape(path):
+    """`[rows, columns]` (NAXIS2, NAXIS1) of a FITS file's primary header, read without numpy; None if unreadable."""
+    try:
+        with open(path, "rb") as f:
+            cards = {}
+            while True:
+                block = f.read(2880)
+                if len(block) < 2880:
+                    return None
+                for i in range(0, 2880, 80):
+                    card = block[i:i + 80].decode("ascii", "replace")
+                    key = card[:8].strip()
+                    if key == "END":
+                        return [int(cards["NAXIS2"]), int(cards["NAXIS1"])] if "NAXIS2" in cards else None
+                    if card[8:10] == "= ":
+                        cards[key] = card[10:].split("/")[0].strip()
+    except (OSError, ValueError, KeyError):
+        return None
+
+
+def _set_folder(out, run_dir):
+    """SatSim's set folder in the output folder: the name the launch file fixed, else the one folder there (SatSim's
+    own wall-clock name), else None."""
+    try:
+        name = json.loads((Path(run_dir) / "input" / "launch.json").read_text())["set"]
+    except (OSError, ValueError, KeyError):
+        name = None
+    if name and (out / name).is_dir():
+        return out / name
+    dirs = [d for d in out.iterdir() if d.is_dir()] if out.is_dir() else []
+    return dirs[0] if len(dirs) == 1 else None
+
+
+def collect(output_dir, run_dir):
+    """The artifacts of a SatSim run, with roles and paths relative to the set folder (flattened into names), and the
+    verdict: `failed` when the launcher reported a failure (the traceback head and the elapsed time in the record);
+    `complete` only when the launcher reported success, every frame was written and SatSim's end-of-run files exist
+    (`config_pass_*.json`, and `AnnotatedImages/movie.png` and `satsim.czml` unless the configuration turns them off);
+    otherwise `incomplete` (a run stopped by a signal leaves complete frames and no end-of-run files). The worker log is
+    copied into the output folder as `worker.log` when collected. `engine_metadata` goes into the execution record."""
+    out, run_dir = Path(output_dir), Path(run_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    if (run_dir / "worker.log").is_file():
+        shutil.copyfile(run_dir / "worker.log", out / "worker.log")
+    result = None
+    if (out / RESULT).is_file():
+        try:
+            result = json.loads((out / RESULT).read_text())
+        except ValueError:
+            result = None
+    folder = _set_folder(out, run_dir)
+    arts, frames, shape = [], set(), None
+    for p in sorted(p for p in folder.rglob("*") if p.is_file()) if folder is not None else []:
+        rel = p.relative_to(folder).as_posix()
+        role = role_of(rel)
+        m = FRAME.search(p.name) if role in ("product", "truth", "preview") and p.name != "movie.png" else None
+        frame = int(m.group(1)) if m else None
+        if role == "product" and p.suffix == ".fits" and frame is not None:
+            frames.add(frame)
+            shape = shape or fits_shape(p)
+        arts.append(CollectedArtifact(p, role, frame, rel.replace("/", "_")))
+    for name, role in ((RESULT, "metadata"), ("network_attempts.log", "log"), ("worker.log", "log")):
+        if (out / name).is_file():
+            arts.append(CollectedArtifact(out / name, role, None, name))
+    config = {}
+    if folder is not None and (folder / "config.json").is_file():
+        try:
+            config = json.loads((folder / "config.json").read_text())
+        except ValueError:
+            config = {}
+    fpa = config.get("fpa") if isinstance(config.get("fpa"), dict) else {}
+    sim = config.get("sim") if isinstance(config.get("sim"), dict) else {}
+    expected = fpa.get("num_frames")
+    metadata = {"set_folder": folder.name if folder is not None else None, "frames": len(frames),
+                "frames_expected": expected, "image_size": shape, "seed": (result or {}).get("seed"),
+                "versions": (result or {}).get("versions"), "elapsed_s": (result or {}).get("elapsed_s")}
+    if (out / "network_attempts.log").is_file():
+        metadata["network_attempts"] = len((out / "network_attempts.log").read_text().splitlines())
+    record = {"engine_metadata": metadata}
+    if result is not None and result.get("outcome") == "failed":
+        metadata["traceback_head"] = result.get("traceback_head")
+        return Collection(tuple(arts), "failed", f"SatSim failed: {result.get('message')}", record)
+    missing = []
+    if folder is None or not list(folder.glob("config_pass_*.json")):
+        missing.append("config_pass_*.json")
+    if sim.get("save_movie", True) and not (folder is not None and (folder / "AnnotatedImages" / "movie.png").is_file()):
+        missing.append("AnnotatedImages/movie.png")
+    if sim.get("save_czml", True) and not (folder is not None and (folder / "satsim.czml").is_file()):
+        missing.append("satsim.czml")
+    if result is None or missing or (expected is not None and len(frames) != expected):
+        why = "the launcher wrote no result (stopped by a signal?)" if result is None else \
+            "SatSim's end-of-run files are missing"
+        return Collection(tuple(arts), "incomplete",
+                          f"SatSim stopped before it finished: {why}; {len(frames)} of "
+                          f"{expected if expected is not None else 'an unknown number of'} frames written"
+                          f"{'; missing ' + ', '.join(missing) if missing else ''}", record)
+    return Collection(tuple(arts), "complete", None, record)

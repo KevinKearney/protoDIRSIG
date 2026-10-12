@@ -322,3 +322,102 @@ def test_bootstrap_status_and_install_skip_asset_pins(tmp_path):
     bs = _bootstrap()
     pins = {"a": {"kind": "asset", "path": "p", "library": "l", "url": "u", "sha256": "0" * 64, "size": 1}}
     assert bs.status(pins, external=tmp_path) == [] and bs.install(pins, external=tmp_path) == []
+
+
+# --- launch plan and launcher ---------------------------------------------------------------------------------------
+
+def test_the_plan_stages_the_configuration_and_isolates_the_process(library, tmp_path, monkeypatch):
+    from manifold.core.engine import RunContext
+    from manifold.sim.worker import command, environment
+    monkeypatch.setenv("MANIFOLD_SATSIM_PYTHON", str(stub_python(tmp_path)))
+    monkeypatch.setenv("PYTHONPATH", "/somewhere/sdk")
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    spec = spec_for(file_ref(library), seed=7)
+    plan = SatsimAdapter().plan(RunContext(run_dir, spec, library, None, run_dir / "output"))
+    launch = json.loads((run_dir / "input" / "launch.json").read_text())
+    assert launch == {"seed": 7, "set": "set", "input_dir": "input", "config": "input/config.yaml"}
+    staged = run_dir / "input" / "config.yaml"
+    assert staged.read_bytes() == (library / "satsim" / "probe" / "config.yaml").read_bytes()
+    assert oct(staged.stat().st_mode & 0o777) == "0o444"
+    argv = command(plan)
+    assert argv[0] == str(tmp_path / "python-stub") and Path(argv[1]).name == "launcher.py" and argv[2] == str(run_dir)
+    env = environment(plan, run_dir, threads=2)
+    assert env["HOME"] == str(run_dir / "home") and "PYTHONPATH" not in env and env["PYTHONDONTWRITEBYTECODE"] == "1"
+    assert all(env[v] == "2" for v in satsim_adapter.THREAD_VARIABLES)
+    assert all(v not in environment(plan, run_dir) or v in os.environ for v in satsim_adapter.THREAD_VARIABLES)
+    assert plan.expected_outputs == ("satsim_result.json",)
+    fp = SatsimAdapter().fingerprint()["satsim"]
+    assert fp["launcher_sha256"] == hashlib.sha256(satsim_adapter.LAUNCHER.read_bytes()).hexdigest()
+
+
+def test_the_plan_verifies_the_configuration_again(library, tmp_path, monkeypatch):
+    from manifold.core.engine import RunContext
+    from manifold.core.run_spec import RunSpecError
+    monkeypatch.setenv("MANIFOLD_SATSIM_PYTHON", str(stub_python(tmp_path)))
+    spec = spec_for(file_ref(library))
+    (library / "satsim" / "probe" / "config.yaml").write_text("fpa: {}\n")          # changed after admission
+    with pytest.raises(RunSpecError, match="does not match"):
+        SatsimAdapter().plan(RunContext(tmp_path, spec, library, None, tmp_path / "output"))
+
+
+GUARD = """
+import json, runpy, socket, sys
+from pathlib import Path
+run_dir = Path(sys.argv[1])
+sys.argv = ["launcher.py", str(run_dir)]
+runpy.run_path(%r, run_name="launcher_under_test")
+out = []
+for call in (lambda: socket.create_connection(("example.invalid", 80)), lambda: socket.getaddrinfo("example.invalid", 80),
+             lambda: socket.socket().connect(("127.0.0.1", 9))):
+    try:
+        call()
+        out.append("connected")
+    except OSError as e:
+        out.append(str(e))
+print(json.dumps(out))
+"""
+
+
+def test_the_launcher_refuses_every_connection_and_records_it(tmp_path):
+    """The launcher's guard is installed when it is loaded, before anything else: run here with the SDK's interpreter
+    and without its main (which needs SatSim)."""
+    code = GUARD % str(satsim_adapter.LAUNCHER)
+    res = subprocess.run([sys.executable, "-c", code, str(tmp_path)], capture_output=True, text=True)
+    assert res.returncode == 0, res.stderr
+    out = json.loads(res.stdout.strip().splitlines()[-1])
+    assert len(out) == 3 and all("network access refused" in m and "network slot is none" in m for m in out)
+    assert len((tmp_path / "output" / "network_attempts.log").read_text().splitlines()) == 3
+
+
+def test_the_launcher_reports_a_failure_with_its_traceback(tmp_path):
+    """Without numpy-and-TensorFlow (the system interpreter) the launcher fails after reading its launch file: exit 1
+    and a result naming the failure, with the traceback head."""
+    system = Path("/usr/bin/python3")
+    if not system.exists():
+        pytest.skip("no /usr/bin/python3")
+    (tmp_path / "input").mkdir()
+    (tmp_path / "input" / "launch.json").write_text(json.dumps({"seed": 1, "set": "set", "input_dir": "input",
+                                                               "config": "input/config.yaml"}))
+    env = {"HOME": str(tmp_path / "home"), "PATH": "/usr/bin:/bin", "MANIFOLD_SATSIM_EPHEMERIS": str(tmp_path / "de421.bsp"),
+           "MANIFOLD_SATSIM_IERS": str(tmp_path / "finals2000A.all")}
+    res = subprocess.run([str(system), "-I", str(satsim_adapter.LAUNCHER), str(tmp_path)], capture_output=True, text=True,
+                         env=env)
+    result = json.loads((tmp_path / "output" / "satsim_result.json").read_text())
+    if result.get("outcome") == "rendered":
+        pytest.skip("the system interpreter has SatSim")
+    assert res.returncode == 1 and result["outcome"] == "failed" and "Error" in result["message"]
+    assert result["traceback_head"] and result["elapsed_s"] >= 0
+
+
+def test_the_library_satsim_run_spec_is_admitted_with_its_recorded_id():
+    if not assets_present():
+        pytest.skip("the pinned SatSim assets are absent")
+    spec = yaml.safe_load((ROOT / "manifold_run_specs" / "satsim" / "tahoe_worldview2.yaml").read_text())
+    r = admission.validate_spec(spec, None, ROOT / "manifold_config_repo", ROOT / "manifold_sensors", registry=registry())
+    assert r.valid and r.unstamped == [], (r.schema_errors, r.resolution_mismatches)
+    assert r.run_id == "81fe69a103a32acdc8a1015e36724faa9d3ed8152488806dbd8a93f24adc5a3d"
+    probe = [ln for ln in PROBE_CONFIG.read_text().splitlines() if not ln.startswith("#")]
+    lib = [ln for ln in (ROOT / "manifold_config_repo" / "satsim" / "tahoe_worldview2.yaml").read_text().splitlines()
+           if not ln.startswith("#")]
+    assert lib == probe                                               # the probe's sample, promoted unchanged

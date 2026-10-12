@@ -1,0 +1,65 @@
+# SatSim configuration, library copy (pass-through form, proposed): the SatSim probe's sample (docs/data/satsim_probe_config.yaml,
+# which stays as the probe's record), promoted to the first SatSim run in the library. SatSim 0.26.1 EO mode: a ground site near
+# Lake Tahoe tracks WorldView-2 (NORAD 35946, the TLE pinned in manifold_config_repo/orbit/worldview2_35946.tle) through three
+# 0.1 s frames on a 64 x 64 focal plane around the 2026-09-26 18:51:25 UTC culmination; stars drawn from a magnitude-density
+# table (no catalog); no clouds. Run by manifold_run_specs/satsim/tahoe_worldview2.yaml; its content_hash is stamped there.
+version: 1
+sim:
+  mode: fftconv2p
+  spatial_osf: 3
+  temporal_osf: 10
+  padding: 8
+  samples: 1
+  psf_sample_frequency: once
+  save_czml: true
+  save_movie: true
+fpa:
+  height: 64
+  width: 64
+  y_fov: 0.4            # degrees
+  x_fov: 0.4
+  dark_current: 0.5     # pe / pixel / s
+  gain: 1.0
+  bias: 0
+  zeropoint: 20.6       # magnitude giving 1 pe / s
+  a2d:
+    fwc: 100000
+    gain: 1.5
+    bias: 1000
+  noise:
+    read: 8
+    electronic: 0
+  psf:
+    mode: gaussian
+    eod: 0.15
+  time:
+    exposure: 0.1       # seconds
+    gap: 0.5
+  num_frames: 3
+background:
+  galactic: 19.5        # mag / arcsec^2
+geometry:
+  time: [2026, 9, 26, 18, 51, 24.0]   # WorldView-2 culminates near 88 deg over the site at 18:51:25 UTC
+  site:
+    lat: 39.1
+    lon: -120.03
+    alt: 1.9            # km
+    gimbal:
+      rotation: 0
+    track:
+      mode: rate
+      tle1: "1 35946U 09055A   26265.58344087  .00000045  00000+0  29357-4 0  9994"
+      tle2: "2 35946  98.4713 337.6915 0003237 298.9504  61.1358 14.37921529889649"
+  stars:
+    mode: bins
+    mv:
+      bins: [10, 12, 14, 16]
+      density: [0.5, 2, 8]   # stars / deg^2 per magnitude bin
+    motion:
+      mode: none
+  obs:
+    list:
+      - mode: tle
+        tle1: "1 35946U 09055A   26265.58344087  .00000045  00000+0  29357-4 0  9994"
+        tle2: "2 35946  98.4713 337.6915 0003237 298.9504  61.1358 14.37921529889649"
+        mv: 8.0
