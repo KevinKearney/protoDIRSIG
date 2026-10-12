@@ -99,8 +99,8 @@ def test_a_backend_engine_set_the_worker_cannot_rebuild_fails_the_run(tmp_path):
         run_id = backend.submit_run(str(path))["run_id"]
         job_path = backend.store.run_dir(run_id) / "job.json"
         job = json.loads(job_path.read_text())
-        assert [e["engine_id"] for e in job["engines"]] == ["dirsig"]
-        job["engines"][0]["adapter_version"] = "0.0.0-not-installed"
+        (dirsig,) = [e for e in job["engines"] if e["engine_id"] == "dirsig"]   # the discovered set, as the backend had it
+        dirsig["adapter_version"] = "0.0.0-not-installed"
         job_path.write_text(json.dumps(job))
     final = wait_for(backend, run_id, ("rendered", "failed"), timeout=120)
     assert final["state"] == "failed" and final["errors"][0]["type"] == "urn:manifold:problem:execution"

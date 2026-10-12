@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# SatSim itself is not a dependency and nothing of it is bundled: the adapter drives a SatSim the user installed in its
+# own interpreter (MANIFOLD_SATSIM_PYTHON, ~/.config/manifold/engines.yaml or the conda environment `satsim`). SatSim's
+# distribution states no license; see the repository README.
+[project]
+name = "eoptic-manifold-engine-satsim"
+version = "0.0.1"
+description = "The SatSim engine for MANIFOLD run specs: the satsim-engine/1 adapter (pass-through form only), registered in the manifold.engines entry-point group; drives a user-installed SatSim in its own interpreter"
+requires-python = ">=3.10"
+dependencies = [
+    "eoptic-manifold-core==0.0.1",   # lockstep versions; an engine depends on core only
+    "pyyaml",
+]
+
+[project.entry-points."manifold.engines"]
+satsim = "manifold.engines.satsim.adapter:SatsimAdapter"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["manifold.engines.satsim*"]   # `manifold` and `manifold.engines` are PEP 420 namespaces: no __init__ shipped
+namespaces = true
+
+[tool.setuptools.package-data]
+"manifold.engines.satsim" = ["*.json", "launcher.py"]

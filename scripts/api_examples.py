@@ -139,7 +139,15 @@ def engine_listing():
     from manifold.sim import engines
     from manifold.sim.backend import engine_entry
     reg = engines.registry()
-    return {"items": [engine_entry(st, reg.find(st.engine_id)) for st in reg.listing()]}
+    items = [engine_entry(st, reg.find(st.engine_id)) for st in reg.listing()]
+    for item in items:                    # host-specific: an engine run in its own interpreter (SatSim)
+        if (item.get("resources") or {}).get("interpreter"):
+            item["resources"]["interpreter"] = OWN_INTERPRETER
+            item["available"], item["reason"] = True, None
+    return {"items": items}
+
+
+OWN_INTERPRETER = "<the Python of the engine's own environment, found on this host>"
 
 
 def examples():
@@ -301,7 +309,10 @@ def examples():
     ex["list_engines"] = {
         "summary": "List the engines the backend can run (proposed).",
         "description": "Real data: the engines registered in this environment's `manifold.engines` entry-point group, as "
-                       "`LocalBackend.list_engines` lists them.",
+                       "`LocalBackend.list_engines` lists them, with two host-specific values of an engine that runs in "
+                       "its own interpreter (SatSim) normalized: `resources.interpreter` is a placeholder for the path "
+                       "found on the host, and `available` is shown as on a host where that interpreter is installed "
+                       "(elsewhere it is false, with the reason).",
         "request": get("/engines"),
         "response": ok(engine_listing(), "schemas/engine_list.schema.json")}
     for k, v in ex.items():

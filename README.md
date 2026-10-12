@@ -39,9 +39,12 @@ pip install -e external/dirsig-file-maker
 pip install --no-build-isolation --no-deps -e packages/core   # eoptic-manifold-core: import manifold.core
 pip install --no-build-isolation --no-deps -e packages/sim    # eoptic-manifold-sim: import manifold.sim
 pip install --no-build-isolation --no-deps -e packages/engine-dirsig   # the DIRSIG engine: import manifold.engines.dirsig
+pip install --no-build-isolation --no-deps -e packages/engine-satsim   # the SatSim engine (optional): import manifold.engines.satsim
 pip install pytest ruff openapi-spec-validator                # the dev tools (packages/sim extra "dev")
 python -m ipykernel install --user --name protodirsig --display-name "Python (protodirsig)"
 ```
+
+**SatSim (optional).** The SatSim engine drives a SatSim installed by the user in its own interpreter; the SDK's environment never takes SatSim or TensorFlow. SatSim's distribution states no license (`License: UNKNOWN`), so this repository bundles none of it and depends on none of it: install it yourself, for example `conda create -n satsim -c conda-forge --override-channels python=3.11 pip` then `~/anaconda3/envs/satsim/bin/pip install satsim==0.26.1` (the probe's recipe, `docs/SatSim_probe.md`), and point the adapter at it with `MANIFOLD_SATSIM_PYTHON=<that env>/bin/python` if it is not the conda environment `satsim`. Without it, `list_engines` lists `satsim` unavailable with the reason.
 
 To reuse existing checkouts instead of cloning, add `--link dirfm=~/dev/dirsig-file-maker --link agent-docs=~/dev/agent-docs` to the `install` command.
 

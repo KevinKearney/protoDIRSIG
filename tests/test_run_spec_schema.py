@@ -187,8 +187,9 @@ SEMANTIC = {
                         "JSON Schema's integer accepts 42.0; the generator needs an integer seed"),
     "integration_samples_is_a_float": (S, _set(("engine", "platform", "integration_samples"), 10.0),
                                        "JSON Schema's integer accepts 10.0; the generator needs an integer"),
-    "origin_engine_satsim": (S, _set(("descriptor", "origin", "engine"), "satsim"),
-                             "satsim is not a registered engine here: no adapter checks or executes its engine block"),
+    "origin_engine_unregistered": (S, _set(("descriptor", "origin", "engine"), "lightsim"),
+                                   "an engine id no installed distribution registers: no adapter checks or executes its "
+                                   "engine block"),
     "invalid_origin_engine": (S, _set(("descriptor", "origin", "engine"), "bogus"),
                               "origin.engine is an open id in the published schema; only a registered engine is admitted"),
 }

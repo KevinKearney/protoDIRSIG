@@ -1,6 +1,6 @@
 {
   "summary": "List the engines the backend can run (proposed).",
-  "description": "Real data: the engines registered in this environment's `manifold.engines` entry-point group, as `LocalBackend.list_engines` lists them.",
+  "description": "Real data: the engines registered in this environment's `manifold.engines` entry-point group, as `LocalBackend.list_engines` lists them, with two host-specific values of an engine that runs in its own interpreter (SatSim) normalized: `resources.interpreter` is a placeholder for the path found on the host, and `available` is shown as on a host where that interpreter is installed (elsewhere it is false, with the reason).",
   "request": {
     "method": "GET",
     "path": "/engines"
@@ -47,6 +47,50 @@
               "schema_id": "https://schemas.manifold.example/contracts/dirsig-engine-1.schema.json",
               "location": "manifold_contracts/dirsig-engine-1.schema.json",
               "sha256": "56fa8303e63cc5985484ffad74199df1f927c8b29cc5a2e60d54e55256102a78"
+            }
+          ]
+        },
+        {
+          "engine_id": "satsim",
+          "available": true,
+          "adapter_version": "0.0.1",
+          "modes": [
+            "passthrough"
+          ],
+          "contracts": [
+            "satsim-engine/1"
+          ],
+          "reason": null,
+          "source": "eoptic-manifold-engine-satsim 0.0.1 (manifold.engines.satsim.adapter:SatsimAdapter)",
+          "resources": {
+            "cpu_threads": {
+              "minimum": 1,
+              "maximum": null,
+              "default": null,
+              "variables": [
+                "TF_NUM_INTRAOP_THREADS",
+                "TF_NUM_INTEROP_THREADS",
+                "OMP_NUM_THREADS",
+                "NUMBA_NUM_THREADS"
+              ]
+            },
+            "memory_bytes": 1073741824,
+            "gpu": {
+              "maximum": 0,
+              "device_class": null,
+              "memory_bytes": null
+            },
+            "scratch_bytes": 268435456,
+            "network": "none",
+            "assets": [],
+            "interpreter": "<the Python of the engine's own environment, found on this host>"
+          },
+          "assets": [],
+          "schemas": [
+            {
+              "schema_id": "https://schemas.manifold.example/contracts/satsim-engine-1.schema.json",
+              "location": "manifold_contracts/satsim-engine-1.schema.json",
+              "sha256": "d1ccd85872272a0becac680b5856c78567ad8c8a0ca9aaaa9a6af6d84d6fdf6b"
             }
           ]
         }

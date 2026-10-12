@@ -10,7 +10,7 @@ Installed, a dummy recipe composes, validates (its schema, its semantic rule and
 admitted, executes through `LocalBackend` in another interpreter (`/usr/bin/python3`) with its declared asset staged
 read-only and its granted thread count in its environment, is listed by `list_engines`, is cancellable (SIGTERM
 mid-run, after which its collector says `incomplete`), and the unmodified `tests/backend_conformance.py` suite (through
-`tests/test_local_backend.py`) still passes. Uninstalled, `list_engines` lists DIRSIG exactly as before and no dummy,
+`tests/test_local_backend.py`) still passes. Uninstalled, `list_engines` lists the other engines exactly as before and no dummy,
 and a dummy run spec is refused as an unregistered engine. A backend given a registry holding only the dummy runs with
 that set alone while discovery finds DIRSIG too.
 
@@ -148,7 +148,7 @@ def test_the_installed_dummy_engine_runs_end_to_end(site, library):
     code = "import sys; sys.path.insert(0, 'tests')\n" + ACCEPT.format(top=str(library))
     got = _run(code, site)
     ids = [e["engine_id"] for e in got["engines"]]
-    assert ids == ["dirsig", "dummy"]
+    assert {"dirsig", "dummy"} <= set(ids) and ids == sorted(ids)      # with whatever else is installed (satsim)
     (dummy,) = [e for e in got["engines"] if e["engine_id"] == "dummy"]
     assert dummy["available"] and dummy["modes"] == ["layered"] and dummy["contracts"] == ["dummy-engine/1"]
     assert dummy["resources"]["cpu_threads"]["maximum"] == 2 and dummy["assets"][0]["name"] == "table"
@@ -194,10 +194,11 @@ print(json.dumps({{"engines": b.list_engines()["items"], "valid": v["valid"], "c
 def test_uninstalling_removes_only_the_dummy(site, library):
     with_dummy = _run(LIST.format(top=str(library)), site)
     without = _run(LIST.format(top=str(library)))
-    assert [e["engine_id"] for e in without["engines"]] == ["dirsig"]
-    assert without["engines"] == [e for e in with_dummy["engines"] if e["engine_id"] == "dirsig"]
+    assert "dummy" not in [e["engine_id"] for e in without["engines"]]
+    assert without["engines"] == [e for e in with_dummy["engines"] if e["engine_id"] != "dummy"]
     assert with_dummy["valid"] and not without["valid"]
     assert "'dummy' is not a registered engine; registered engines: dirsig" in json.dumps(without["checks"])
+    assert "dummy" not in json.dumps(without["checks"]).split("registered engines:")[1].split('"')[0]
 
 
 def test_the_backend_conformance_suite_passes_with_the_dummy_installed(site):
@@ -235,7 +236,7 @@ def test_a_backend_given_a_custom_registry_runs_with_exactly_that_engine_set(sit
     """Discovery finds DIRSIG and the dummy; a backend given a registry holding only the dummy lists, admits and runs
     with that set alone, and its worker rebuilds the same set from job.json rather than discovering."""
     got = _run(ONLY_DUMMY.format(top=str(library)), site)
-    assert got["discovered"] == ["dirsig", "dummy"]
+    assert {"dirsig", "dummy"} <= set(got["discovered"])
     assert got["listed"] == ["dummy"] and got["job_engines"] == ["dummy"]
     assert got["state"] == "rendered", got["errors"]
 
@@ -301,17 +302,17 @@ def _in_venv(python, code):
 def test_the_dummy_installed_from_its_wheel_is_discovered_runs_and_uninstalls(venv_with_wheel, library):
     """A real install, not a folder on PYTHONPATH: pip puts the wheel's files and `.dist-info` (with its entry point)
     into the virtual environment's site-packages; discovery finds it there, a run renders, and after `pip uninstall`
-    discovery finds DIRSIG alone. The folder tests above stay the fast path."""
+    discovery no longer finds it (the other installed engines are unchanged). The folder tests above stay the fast path."""
     python, whl = venv_with_wheel
     venv = python.parent.parent
     got = _in_venv(python, WHEEL_RUN.format(top=str(library)))
     assert Path(got["prefix"]) == venv and Path(got["dummy_file"]).is_relative_to(venv)
-    assert got["ids"] == ["dirsig", "dummy"] and "eoptic-manifold-engine-dummy 0.0.1" in got["source"]
+    assert {"dirsig", "dummy"} <= set(got["ids"]) and "eoptic-manifold-engine-dummy 0.0.1" in got["source"]
     assert got["state"] == "rendered", got["errors"]
     assert got["roles"] == ["config", "log", "product"]
     r = subprocess.run([str(python), "-m", "pip", "uninstall", "-y", "eoptic-manifold-engine-dummy"],
                        capture_output=True, text=True, timeout=300)
     assert r.returncode == 0, r.stderr[-2000:]
     after = _in_venv(python, WHEEL_LIST)
-    assert after["ids"] == ["dirsig"]
+    assert after["ids"] == [i for i in got["ids"] if i != "dummy"]
     assert not list((venv / "lib").glob("python*/site-packages/manifold/engines/dummy"))
