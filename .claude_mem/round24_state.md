@@ -8,3 +8,4 @@
 - report protocol: as round 20 (prompt_report.md, then outputs/relay/DONE)
 - step A: committed 4c16b4d
 - step B: gate 1643 passed, 2 skipped (7 min 21 s); ten checks 0; id snapshot unchanged
+- final gate: = B gate; boundary tests 23 passed; id snapshot unchanged since d521803
