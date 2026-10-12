@@ -7,3 +7,6 @@
 - step A: committed bd5f476; gate 1578 passed, 2 skipped; ten checks 0
 - step B1: gate 1590 passed, 2 skipped; ten checks 0
 - step B2: gate 1597 passed, 2 skipped; ten checks 0
+- step B3: gate 1602 passed, 2 skipped; ten checks 0
+- final gate: = B3 gate; boundary tests 23 passed; id snapshot unchanged since 01abea0
+- report protocol: as round 20 (prompt_report.md, then outputs/relay/DONE)
