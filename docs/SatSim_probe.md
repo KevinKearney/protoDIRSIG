@@ -1,5 +1,7 @@
 # SatSim probe
 
+The adapter this probe informed now exists: `eoptic-manifold-engine-satsim` (pass-through form, `proposed`; CONOPS and Guide section 7.4), with its first run recorded in `docs/SatSim_reference_run.md`. The findings below are the probe's, unchanged.
+
 SatSim is the planned second engine. This probe installed it into its own environment on the development machine and measured what an engine adapter and the descriptor audit need: how it installs and runs, what it costs on CPU, what it writes, whether its outputs repeat, what it touches outside its output folder, and how its configuration maps onto the run-spec descriptor. Nothing in the repository's code, contracts or schemas changed. All runs were on CPU (the machine has no GPU); the GPU items are listed at the end. The probe ran on 2026-10-11.
 
 ## Machine and setup

@@ -103,38 +103,35 @@ The repository directory is still `protoDIRSIG`, and so are the conda environmen
 ### Execution record member `protodirsig_version`
 `execution.json` records the SDK version under the pre-rename key (`manifold.core._names.RECORD_VERSION_KEY`); the value is now the `eoptic-manifold-sim` version. Rename it to a neutral key with the next change of the record's schema; it is not hashed and no id depends on it. No other name-derived string reaches hashed content (round 17 audit; `tests/test_id_snapshot.py`).
 
-### SatSim pass-through adapter (first)
-`eoptic-manifold-engine-satsim`, an engine distribution like `eoptic-manifold-engine-dirsig` (section 7.3 of the CONOPS: "How to write an engine"), serving a pass-through mode first: a library SatSim configuration file run as authored, with an opaque descriptor. From the probe (`docs/SatSim_probe.md`, SatSim 0.26.1 in its own `satsim` environment): `interpreter` names the `satsim` environment (3.0 GB, TensorFlow, `astropy<6`; never the SDK's); the launch plan runs `satsim run` or a standard-library launcher with global seeds; the environment policy isolates `HOME`, sets `SATSIM_SKYFIELD_LOAD_DIR` to the staged ephemeris and the four thread variables; `de421.bsp` and the IERS tables are declared assets, `network: none`; `collect` finds the timestamped set folder under `-o`, reports frames, annotations, previews, movie, CZML and `config.json` with roles, drops `_input_dir` (an absolute path) from what is published, and says `incomplete` when `config_pass_*.json` is missing; failures are a traceback on exit 1; the fingerprint carries the SatSim and TensorFlow versions.
+### Descriptor audit with two engines (first)
+DIRSIG and SatSim are both registered now (SatSim in the pass-through form, `docs/SatSim_reference_run.md`). Audit the descriptor against both engines' needs (the SatSim mapping in `docs/SatSim_probe.md`, the gaps item below, and DIRSIG's engine block), and write the MANIFOLD questions that follow (C-37 asks about opaque descriptors meanwhile), before any layered SatSim form is designed.
 
-### Descriptor audit with two engines (second)
-With DIRSIG and SatSim both registered, audit the descriptor against both engines' needs (the SatSim mapping in `docs/SatSim_probe.md`, the gaps item below, and DIRSIG's engine block), and write the MANIFOLD questions that follow, before any layered SatSim form is designed.
+### `descriptor_id` (second)
+An id for the descriptor alone, the engine-independent part of a run spec, beside the run id: two runs that describe the same observation (two engines, or one engine with another seed or engine profile) would share it, so results can be related and searched by observation. Define what it hashes (the descriptor with or without `meta`, `fidelity`, `extras`; an opaque descriptor has none to give) after the audit, as a MANIFOLD question.
 
 ### Layered SatSim (third)
-A `satsim-engine/1` engine block and its schema in the SatSim distribution, composed from the descriptor and a SatSim engine profile as DIRSIG's layered form is, after the audit decides what the descriptor holds.
+A layered form of `satsim-engine/1`, composed from the descriptor and a SatSim engine profile as DIRSIG's layered form is, after the audit decides what the descriptor holds. The composer's pass-through form is DIRSIG-shaped today (a demo directory and a simulation file), which is why the SatSim run spec is written whole (`manifold_run_specs/satsim/`); generalize compose's pass-through form per engine with it.
 
-### SatSim: seeds and repeatability
-The CLI cannot repeat a run: the `bins` star field uses numpy's global random state and the detector noise TensorFlow operations without a seed, and neither the configuration nor the CLI has a global seed. Global seeding through the Python API (`np.random.seed`, `tf.random.set_seed` before `gen_multi`) gave byte-identical products on CPU at default and one thread. Decide whether the adapter always launches through such a launcher with the run spec's seed, and ask upstream for a seed option.
+### SatSim GPU follow-up (fourth)
+Repeat the probe on a GPU machine with the checklist at the end of `docs/SatSim_probe.md`: device selection (`--device`, `--memory`, `--jobs`), wall time and host and GPU memory against the CPU numbers, and repeatability with global seeds on GPU and against CPU (with and without `TF_DETERMINISTIC_OPS=1`). Until then the adapter refuses any `device` other than `cpu` and any GPU request ("SatSim GPU behavior is unverified").
 
-### SatSim: network-free runs and hashed catalogs
-The policy exists (round 18: named, hashed assets refused at admission when unstamped, missing or mismatched, staged read-only; no network unless declared and allowed; CONOPS section 7.3). What remains for SatSim: place `de421.bsp` and the IERS tables (`finals2000A.all`, `Leap_Second.dat`) in the engine-asset library with digests, decide how stale IERS tables are refreshed, turn off astropy's IERS auto-download in the launch environment, and treat star catalogs (`SATSIM_SSTR7_PATH`, `SATSIM_GCVS5_PATH`) as directory assets.
+### SatSim: what remains of seeds, assets and catalogs
+The launcher always seeds Python, numpy and TensorFlow from the run spec's required `seed` (byte-identical repeats on CPU); ask upstream for a seed option so the `satsim` command can repeat too. The ephemeris and a dated IERS snapshot are pinned assets (`external/pins.json`); decide how a snapshot is refreshed and archived (it cannot be fetched again from its URL; C-36), and make star catalogs (`SATSIM_SSTR7_PATH`, `SATSIM_GCVS5_PATH`, `geometry.stars.path`) directory assets, which today a single-file configuration may not name at all.
 
 ### Descriptor gaps found by the SatSim mapping
 Of 32 SatSim configuration concepts, 3 map cleanly onto the descriptor, 11 with a conversion and 18 have no home (`docs/SatSim_probe.md`). The consequential gaps: targets (only a class; no trajectory or brightness), observer motion and pointing (a geodetic position and a governed term; no orbit, track mode or field rotation), detector noise and the radiometric scale (`sensor-spec/1` has no dark current, read noise, full well or PSF; SatSim takes a photometric zeropoint). Also without a home: frame count and collect duration, the star field and catalog, sky brightness and clouds as numbers, product requests, Monte Carlo sets, a seed. Decide which belong in the descriptor (MANIFOLD questions) and which in a `satsim-engine/1` block.
 
-### SatSim GPU follow-up
-Repeat the probe on a GPU machine with the checklist at the end of `docs/SatSim_probe.md`: device selection (`--device`, `--memory`, `--jobs`), wall time and host and GPU memory against the CPU numbers, and repeatability with global seeds on GPU and against CPU (with and without `TF_DETERMINISTIC_OPS=1`).
-
 ### Resource slots: what remains
-Built (round 18, proposed): typed slots in `manifold.core.resources`, the `resources` member of a run spec, admission against the declaration and the backend's capacity, a flock'd reservation ledger in `LocalBackend` for threads, memory and GPU devices, and GPU allocation tested against stub capacities. What remains: a backend that advertises real GPUs (device discovery, `CUDA_VISIBLE_DEVICES` through the plan's `gpu_variable`), and SatSim's GPU options measured (see the GPU follow-up); memory is reserved, not enforced (no cgroup limit); a run waits for its reservation in state `running`, after its `max_parallel` slot; the worker resolves the engine through the discovered registry, while admission uses `LocalBackend.registry` (one registry for both when a backend is given a custom one); MANIFOLD's answer on slots and the run id (C-30).
+Built (round 18, proposed): typed slots in `manifold.core.resources`, the `resources` member of a run spec, admission against the declaration and the backend's capacity, a flock'd reservation ledger in `LocalBackend` for threads, memory and GPU devices, and GPU allocation tested against stub capacities. What remains: a backend that advertises real GPUs (device discovery, `CUDA_VISIBLE_DEVICES` through the plan's `gpu_variable`), and SatSim's GPU options measured (see the GPU follow-up); memory is reserved, not enforced (no cgroup limit); a run waits for its reservation in state `running`, after its `max_parallel` slot; MANIFOLD's answer on slots and the run id (C-30).
+
+### Artifact roles: the vocabulary
+`artifact_ref` carries a role and a run status its verdict (round 19, `proposed`; initial roles `product`, `truth`, `preview`, `log`, `config`, `metadata`, a free vocabulary). Settle the vocabulary and its owner with MANIFOLD (C-34); a layered DIRSIG run's generated input files are not listed as `config` artifacts yet.
 
 ### Partial artifacts of a cancelled run
 Cancelling stops the worker's process group, so the worker never collects: a cancelled run lists only `run_spec.json`, although the engine's frames are still in its folder and its adapter's collector reports them (`incomplete`; SatSim, the dummy engine). Give the worker a SIGTERM handler that stops the engine process, collects and writes the partial references (roles, `incomplete`) before it exits, within the backend's grace period; this is a `manifold.sim` change.
 
 ### A network sandbox for runs
 `LocalBackend` refuses network requests at admission and, for an engine that declares network use, points the proxy variables at a closed port; it does not isolate the process (unprivileged user namespaces are restricted on the development host). Decide on a real sandbox (a network namespace, a container) before an engine that downloads at run time is admitted.
-
-### Artifact roles in `artifact_ref`
-The adapter gives each artifact a role (`product`, `truth`, `log`, `config`, `metadata`), recorded as `artifact_roles` in the execution record; `artifact_ref` does not carry it. Add it to the API with MANIFOLD's vocabulary (C-33).
 
 ### Release repo plan
 Cut the validated SDK, tests, and notebooks into a new repository under formal change control. Strip `.claude_mem/`, `notebooks/dev/`, and `prompt.md`; carry `docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md`.
