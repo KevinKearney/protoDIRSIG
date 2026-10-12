@@ -49,7 +49,7 @@ from manifold.engines.dirsig.motion_tasks import generate_motion, generate_tasks
 from manifold.core.run_spec import RunSpecError, is_inline_sensor, load_run_spec, unstamped_refs  # noqa: F401
 from manifold.engines.dirsig.run_spec import check_library_files, resolve_run  # noqa: F401
 from manifold.engines.dirsig.run_spec import resolve_run as resolve_auror_run  # noqa: F401 -- deprecated alias, for the notebooks
-from manifold.engines.dirsig.scene_ref import copy_input, reference_scene
+from manifold.engines.dirsig.scene_ref import copy_input, reference_scene, scene_named_paths
 from manifold.engines.dirsig.basic_atmosphere import write_atm
 
 UNIFORM_ATM = "uniform.atm"     # the job's written .atm (engine.atmosphere.uniform), beside the jsim
@@ -184,7 +184,8 @@ class Simulation:
         """The Stage 01 job: scene reference, byte-identical library copies, generated motion and
         tasks, four plugins, seed."""
         r, lib = self.resolved, self.config_repo
-        ref_file = reference_scene(r.scene, in_dir / "auror_ref")   # wipes and recreates only this subdirectory
+        ref_file = reference_scene(r.scene, in_dir / "auror_ref",   # wipes and recreates only this subdirectory
+                                   named=scene_named_paths(r.scene))  # files the .scene names beside it: copied
         scene = SCENE(r.scene.stem)
         scene._fname = ref_file                                     # private attribute: write() returns it as-is
         # Library assets keep their manifold_config_repo-relative paths; motion and tasks are generated.

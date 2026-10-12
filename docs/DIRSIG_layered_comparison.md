@@ -16,7 +16,10 @@ The first comparisons of a DIRSIG demo expressed in the layered form (CONOPS sec
 | MaterialMap1 | `demo_truth.img` | pass-through, seed 1 | 10 x 240 x 320 | 3.38076, 2.38232, 1.81199e-05, 3.22681e-05, 0.000845158, 750.287, 0.999616, 0.43403, 0.434028, 323.892 | identical | 0 | 0% | yes |
 | MaterialMap1 | `demo.img` | pass-through, no seed (the sweep's reference) | 1 x 240 x 320 | 0.0714416 | 0.0714375 | 0.019471 | 44.0299% | no |
 | MaterialMap1 | `demo_truth.img` | pass-through, no seed | 10 x 240 x 320 | as above | 3.3812, 2.3824, 3.89154e-05, -7.01243e-06, 0.000845117, 750.287, 0.999616, 0.434047, 0.434031, 323.893 | 6.93077 | 100.0000% | no |
-| PointCollectors2 | none | — | — | — | — | — | — | stopped: the layered run failed |
+| PointCollectors2 | `demo.img` | pass-through, seed 1 | 1 x 512 x 512 | 0.0496833 | 0.0496833 | 0 | 0% | yes |
+| PointCollectors2 | `demo_truth.img` | pass-through, seed 1 | 9 x 512 x 512 | nan in every band | identical | 0 | 0% | yes |
+| PointCollectors2 | `demo.img` | pass-through, no seed (the sweep's reference) | 1 x 512 x 512 | 0.0496833 | 0.0496791 | 0.143333 | 42.2485% | no |
+| PointCollectors2 | `demo_truth.img` | pass-through, no seed | 9 x 512 x 512 | nan in every band | nan in every band | 0.0627468 | 49.3214% | no |
 
 The `nan` band of DensityMap1's truth image is NaN in some pixels of both forms; pixels NaN in both are not counted as differing. "Pixels differing" counts a pixel when any band differs.
 
@@ -24,7 +27,7 @@ The `nan` band of DensityMap1's truth image is NaN in some pixels of both forms;
 
 **DensityMap1.** The layered render differs from the same-seed pass-through render in almost every pixel, by Monte Carlo noise around equal means (0.045067 against 0.0450775). Attribution (the script's step 5, a diagnostic outside the recipe): the layered job's own input folder rendered again with the demo's `.ppd` in place of the generated one gives the pass-through digests exactly (`demo.img` db5d5511..., `demo_truth.img` 23429245...). Two further diagnostic renders narrowed it to the Euler angles: dirfm's `PlatformPosition` writes them to six decimals (1.047198 for the demo's 1.04719755, 5.759587 for 5.75958653), and restoring the two values alone gives the pass-through digests, while writing the location's `frame` attribute in place of dirfm's `type` changes nothing. The tasks file, the jsim's plugin order, the scene compile's seed and thread count, and the cache (user HOME against a per-run HOME) made no difference here. MaterialMap1's angles are 0, which six decimals hold exactly.
 
-**PointCollectors2.** The layered run failed in DIRSIG's dry run: `demo.mat` "is not a file" in the job's scene copy. The demo's `.scene` names `demo.glist` and `$SCENE_DIR/demo.mat`, files beside it, and the scene reference (`scene_ref.reference_scene`) links only the `geometry/`, `materials/` and `maps/` folders beside a `.scene` (BACKLOG "Tagged demos: loader gaps", item 11). That feature is not built this round; no pass-through render was made for the comparison.
+**PointCollectors2.** First run (2026-10-12, before the fix): the layered run failed in DIRSIG's dry run, `demo.mat` "is not a file" in the job's scene copy. The demo's `.scene` names `demo.glist` and `$SCENE_DIR/demo.mat`, files beside it, and the scene reference (`scene_ref.reference_scene`) linked only the `geometry/`, `materials/` and `maps/` folders beside a `.scene` (BACKLOG "Tagged demos: loader gaps", item 11). Since then the job copies the files a `.scene` names beside it (`scene_ref.scene_named_paths`; CONOPS section 3.2, `scenes[]`), and `python scripts/compare_layered.py PointCollectors2 --work <outside the repository>` (2026-10-12, same DIRSIG and dirfm, 19 s) gives a layered render byte-identical to the same-seed pass-through render, image and truth. The truth image's per-band means are NaN because about half its pixels are NaN in every band and its last band is NaN throughout; pixels NaN in both forms are not counted as differing. Its `.atm` fixes the Sun and its `framing.jsim` names no ephemeris plugin, so neither form adds one. The layered run id is the one the first run had: the fix changes the job folder, not the run spec.
 
 ## Known input differences
 
@@ -48,6 +51,8 @@ Listed for every comparison, whether or not it changed a number:
 | MaterialMap1 | layered | `c0446776c46ddb75` | `57ad35d39f3d8929f2371cf2384953c7c42cb05b14802035a0989afdc8a4293c` | `f0ead2e81524b19c0ef8b19b99cebbaec8625fe7f3768c7aa3c4cf991f97cbc8` | 5.0 |
 | MaterialMap1 | pass-through, seed 1 | `fd22cf1938d86011` | `57ad35d39f3d8929f2371cf2384953c7c42cb05b14802035a0989afdc8a4293c` | `f0ead2e81524b19c0ef8b19b99cebbaec8625fe7f3768c7aa3c4cf991f97cbc8` | 5.0 |
 | MaterialMap1 | pass-through, no seed | `0b6395d7f4647bc9` | `e3af002344a905d52f37bc790f35b0583d73d682f6e18512955fedd60af29efc` | `44266bb5a144d70d21931075180c0e9fba18df1a787a28448f3f929fb74a5d38` | 5.0 |
-| PointCollectors2 | layered | `7cbfc2ff7e841437` | failed (scene files beside the `.scene`) | — | 3.0 |
+| PointCollectors2 | layered | `7cbfc2ff7e841437` | `164e919cf0721a1e1fb6d94255b6682f6eaa9e6347383f10d59b91d25f7a0ec5` | `5494673feb4ad4851d08dd7bb2633cdac21cc5eabf1db41c286e94c4723be0c0` | 6.1 |
+| PointCollectors2 | pass-through, seed 1 | `321b588a632ac1b3` | `164e919cf0721a1e1fb6d94255b6682f6eaa9e6347383f10d59b91d25f7a0ec5` | `5494673feb4ad4851d08dd7bb2633cdac21cc5eabf1db41c286e94c4723be0c0` | 6.0 |
+| PointCollectors2 | pass-through, no seed | `f4013afbb7101ddb` | `10699416f6d812b891534a71b630f534d8197d33c99fe0ef515e755e563d7962` | `6dbf3513f653c648b225162f474a6c654637271c83446f5333cbe640b42cf096` | 6.0 |
 
-The two no-seed pass-through runs reproduce the demo sweep's recorded digests (`docs/DIRSIG_demo_sweep.md`, `docs/data/demo_sweep_digests.jsonl.gz`). The run ids are those of the specs the script derived; they are not in `tests/data/id_snapshot.json`, which holds committed specs only.
+The three no-seed pass-through runs reproduce the demo sweep's recorded digests (`docs/DIRSIG_demo_sweep.md`, `docs/data/demo_sweep_digests.jsonl.gz`). The run ids are those of the specs the script derived; they are not in `tests/data/id_snapshot.json`, which holds committed specs only.

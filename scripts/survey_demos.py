@@ -44,9 +44,11 @@ PLATFORM_FEATURES = {"distortion": "lens distortion", "psf": "point spread funct
                      "detectormodel": "detector model (noise, quantization)", "gainmodel": "gain model",
                      "xoversample": "spatial response"}
 VERDICT_ORDER = ("ready", "near", "far", "unparsed")
-# The scene folders a layered job links beside its copy of the `.scene` (`scene_ref.ASSET_DIRS`); any other file the
-# scene names is not there (BACKLOG tagged item 11).
+# What a layered job places beside its copy of a `.scene` (`scene_ref.reference_scene` with `scene_named_paths`): links
+# to these folders and to every folder the scene names inside its own, and copies of the files it names there (one
+# level into a named `.glist` or `.odb`); metadata and thumbnails are not read. Anything else the scene needs is not there.
 SCENE_ASSET_DIRS = ("geometry", "materials", "maps")
+SCENE_SKIPPED = ("metadata", "thumbnaillist")
 # Where a uniform `.atm` names an installation weather file (`basic_atmosphere.WEATHER_DIR`).
 INSTALL_WEATHER = "$DIRSIG_HOME/lib/data/weather/"
 SIZE = lambda b: f"{b / 1e6:.2f}"                                                  # noqa: E731
@@ -133,6 +135,61 @@ def _scene_members(demo, scene):
             if member:
                 found.add(member)
     return {m for m in found if m == scene or not _is_control(m)}
+
+
+def _unplaced(demo, scene, members):
+    """The members of `members` (a scene's, from `_scene_members`) that a layered job would not place beside its copy
+    of `scene`: outside the scene's folder, or inside it but neither under a linked folder nor a named file."""
+    top = posixpath.dirname(scene)
+
+    def texts(member):
+        root = _xml(demo.read(member), posixpath.basename(member))
+        for el in root.iter():
+            if (isinstance(el.tag, str) and len(el) == 0 and (el.text or "").strip()
+                    and not any(a.tag in SCENE_SKIPPED for a in el.iterancestors())):
+                yield re.sub(r"^\$SCENE_DIR/?", "", el.text.strip().replace("\\", "/"))
+
+    def inside(name):
+        rel = posixpath.relpath(name, top) if top else name
+        return None if rel == "." or rel.startswith("../") else rel
+
+    files, dirs = set(), set(SCENE_ASSET_DIRS)
+    listings = []
+    for text in texts(scene):
+        name = posixpath.normpath(posixpath.join(top, text))
+        rel = inside(name)
+        if rel is None:
+            continue
+        if name in demo.infos:
+            files.add(rel)
+            if name.endswith((".glist", ".odb")):
+                listings.append(name)
+        elif demo.under(name):
+            dirs.add(rel)
+    for listing in listings:
+        try:
+            names = list(texts(listing))
+        except Unparsed:
+            continue
+        for text in names:
+            for base in (posixpath.dirname(listing), top):
+                name = posixpath.normpath(posixpath.join(base, text))
+                if name in demo.infos and inside(name) is not None:
+                    files.add(inside(name))
+                    break
+    root = _xml(demo.read(scene), posixpath.basename(scene))
+    skipped = {posixpath.normpath(posixpath.join(top, re.sub(r"^\$SCENE_DIR/?", "", el.text.strip())))
+               for name in SCENE_SKIPPED for sub in root.iter(name) for el in sub.iter()
+               if isinstance(el.tag, str) and len(el) == 0 and (el.text or "").strip()}   # shown, not rendered
+    shown = {posixpath.dirname(m) + "/" for m in skipped if posixpath.dirname(m) != top}   # `_scene_members` takes
+    out = []                                                                               # a thumbnail's whole folder
+    for m in members:
+        rel = inside(m)
+        if m == scene or m in skipped or any(m.startswith(f) for f in shown) or (
+                rel is not None and (rel in files or any(rel.startswith(d + "/") for d in dirs))):
+            continue
+        out.append(m)
+    return out
 
 
 def _is_control(member):
@@ -260,12 +317,8 @@ def _survey(demo, rec):
     if len(set(scenes)) > 1:
         missing.append("several scenes")
     for s in scenes:
-        top = posixpath.dirname(s)
-        thumbnails = {demo.resolve(top, el.text or "") for el in _xml(demo.read(s), s).iterfind(".//thumbnaillist//filename")}
-        outside = [m for m in members if m != s and m not in thumbnails      # DIRSIG renders without the thumbnails
-                   and posixpath.relpath(m, top).split("/")[0] not in SCENE_ASSET_DIRS]
-        if outside:
-            missing.append("scene files outside geometry/, materials/ and maps/")
+        if _unplaced(demo, s, members):
+            missing.append("scene files the job does not place")
     if not scenes:
         missing.append("no scene file (the Earth is the EarthGrid plugin)")
 
@@ -425,7 +478,7 @@ def render(records, demos_label="external/dirsig/demos/zips"):
     lines = ["# DIRSIG demo coverage", "",
              f"Which of DIRSIG's {len(records)} shipped demos the SDK could regenerate today, and what each still needs. Generated by `python scripts/survey_demos.py --out docs/DIRSIG_demo_coverage.md` from the demo archives in the DIRSIG installation (`{demos_label}`), read in place; regenerate it after a loader feature lands. It is derived from file names, plugin and element names, counts and sizes only, and contains no demo file contents.",
              "",
-             "A verdict compares a demo's simulation file, platform, motion and atmosphere with what the SDK's engine body and loader cover (the run-spec contract's engine block and `run_spec.resolve_run`): `ready` needs nothing new (one scene whose files lie in its `geometry/`, `materials/` and `maps/` folders, `NewAtmosphere` with a `ThermWeather` file or a uniform `BasicAtmosphere` `.atm` naming an installation weather file (`engine.atmosphere.uniform`), SPICE or the `.atm`'s ephemeris, static or orbit motion, one imaging instrument); `near` needs exactly one missing feature; `far` needs two or more, or has a non-imaging sensor; `unparsed` means the layout was not understood, with the reason. A value that cannot be read is `unknown`. A legacy `.sim` carries its atmosphere and uniform weather in one `.atm` file, counted as one feature, and its ephemeris is implicit. The demo's own platform file is used as authored (`engine.platform.as_authored`), so its camera features (recognized by element name: lens distortion, point spread function, field selectors, capture methods, polarizers and so on) are listed under `Camera (as authored)` and are not missing; several instruments or focal planes, a moving mount and a non-imaging sensor still are. What the survey cannot see is not counted (a `.ppd` pose in another frame or units, an `.atm`'s turbulence or lunar values, which the uniform form does not carry), so `ready` and `near` are upper bounds on readiness. Scene size is the `.scene` file and the archive members it references.",
+             "A verdict compares a demo's simulation file, platform, motion and atmosphere with what the SDK's engine body and loader cover (the run-spec contract's engine block and `run_spec.resolve_run`): `ready` needs nothing new (one scene whose files the job places: those in its `geometry/`, `materials/` and `maps/` folders, in a folder it names inside its own, or named by it there (one level into a named `.glist` or `.odb`), `NewAtmosphere` with a `ThermWeather` file or a uniform `BasicAtmosphere` `.atm` naming an installation weather file (`engine.atmosphere.uniform`), SPICE or the `.atm`'s ephemeris, static or orbit motion, one imaging instrument); `near` needs exactly one missing feature; `far` needs two or more, or has a non-imaging sensor; `unparsed` means the layout was not understood, with the reason. A value that cannot be read is `unknown`. A legacy `.sim` carries its atmosphere and uniform weather in one `.atm` file, counted as one feature, and its ephemeris is implicit. The demo's own platform file is used as authored (`engine.platform.as_authored`), so its camera features (recognized by element name: lens distortion, point spread function, field selectors, capture methods, polarizers and so on) are listed under `Camera (as authored)` and are not missing; several instruments or focal planes, a moving mount and a non-imaging sensor still are. What the survey cannot see is not counted (a `.ppd` pose in another frame or units, an `.atm`'s turbulence or lunar values, which the uniform form does not carry), so `ready` and `near` are upper bounds on readiness. Scene size is the `.scene` file and the archive members it references.",
              "", "## Summary", "", "| Verdict | Demos |", "|---|---|"]
     lines += [f"| `{v}` | {counts.get(v, 0)} |" for v in VERDICT_ORDER]
     lines += ["", "## Missing features, by the demos each would unlock", "",

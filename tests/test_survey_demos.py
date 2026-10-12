@@ -106,17 +106,22 @@ def test_a_uniform_atm_is_covered_only_with_an_installation_weather_file(tmp_pat
     assert r["missing"] == missing and r["verdict"] == ("ready" if not missing else "near")
 
 
-def test_scene_files_outside_the_linked_folders_are_missing_but_not_thumbnails(tmp_path):
-    scene = SCENE.replace("geometry/demo.glist", "demo.glist").replace(
-        "<classicscene>", "<classicscene><thumbnaillist><thumbnail><filename>$SCENE_DIR/images/t.png</filename>"
-                          "</thumbnail></thumbnaillist>")
+THUMB = ("<classicscene><thumbnaillist><thumbnail><filename>$SCENE_DIR/images/t.png</filename></thumbnail>"
+         "</thumbnaillist>")
+
+
+def test_files_named_beside_the_scene_are_placed_and_thumbnails_are_not_needed(tmp_path):
+    scene = SCENE.replace("geometry/demo.glist", "demo.glist").replace("<classicscene>", THUMB)
     r = survey.survey(make(tmp_path, "Sibling1", jsim=jsim(), extra_files={"demo.scene": scene, "demo.glist": GLIST,
                                                                            "images/t.png": "png"}))
-    assert r["missing"] == ["scene files outside geometry/, materials/ and maps/"] and r["verdict"] == "near"
-    r = survey.survey(make(tmp_path, "Thumb1", jsim=jsim(), extra_files={"demo.scene": SCENE.replace(
-        "<classicscene>", "<classicscene><thumbnaillist><thumbnail><filename>$SCENE_DIR/images/t.png</filename>"
-                          "</thumbnail></thumbnaillist>"), "images/t.png": "png"}))
     assert r["missing"] == [] and r["verdict"] == "ready"
+
+
+def test_scene_files_the_job_does_not_place_are_missing(tmp_path):
+    # A folder the scene reaches only through a file it names that is not there: the job places nothing from it.
+    scene = SCENE.replace("<classicscene>", "<classicscene><image><filename>$SCENE_DIR/textures/gone.png</filename></image>")
+    r = survey.survey(make(tmp_path, "Unplaced1", jsim=jsim(), extra_files={"demo.scene": scene, "textures/t.png": "png"}))
+    assert r["missing"] == ["scene files the job does not place"] and r["verdict"] == "near"
 
 
 def test_motion_kinds(tmp_path):
