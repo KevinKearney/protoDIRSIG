@@ -1221,3 +1221,10 @@ Close round 18's gaps, then the SatSim pass-through adapter (prompt.md round 19)
 11. Star catalogs are not assets; a single-file SatSim configuration may not name any file.
 12. Peak memory in the reference document is RUSAGE_CHILDREN after each run (706 MB), which also covers the probe's import; no per-run cgroup measurement.
 13. MANIFOLD questions C-34 to C-38 unanswered.
+
+## round 20
+
+Status markers made checkable, documents verified from a cold start, report protocol (prompt.md round 20). Preflight 2026-10-11T21:52:21-04:00, time cap 4 h, deadline 2026-10-12T01:52:21-04:00. Start 3dd039b (round 19's last commit; tree clean). State: `.claude_mem/round20_state.md`. Commit trailer: Co-Authored-By alone (the reminder supplies no Claude-Session line).
+
+- **1, preflight.** Round 19 finished (its final gate and OPEN list are logged; 3dd039b is its documents commit and the tip). Suite at start 1532 passed, 2 skipped. Marker counts per file are in the state file. The step 1 commit touches only `.claude_mem/`, which no test or check reads (grep: only test_api_contract mentions it, to forbid citing it from api/), so its gate is the start-of-round suite at HEAD plus round 19's final checks at the same HEAD.
+- Step 7 started at preflight in the background (two single-thread LightCurve1 renders, concurrent, each in its own work root under `~/.local/state/protodirsig/r20-lightcurve/`, `probe_determinism.py --conditions C1 --timeout 1800`): the 30-minute cap is applied as the per-render timeout, since a single-thread render was estimated at 39 to 46 min (3.1-3.7 x the 749 s default-thread time).
