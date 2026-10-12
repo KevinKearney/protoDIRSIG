@@ -72,7 +72,8 @@ SIMULATION = {"DensityMap1": "demo.sim", "MaterialMap1": "w_mixing.sim", "PointC
               "InstanceOptions1": "glist_demo.sim", "VertexNormals1": "demo.sim", "BumpMap1": "demo.sim",
               "LeafStack1": "demo.sim", "MacbethColorChecker1": "demo.sim", "MappedTherm1": "map_therm.sim",
               "TriBar1": "demo.sim", "Thermal2": "demo.sim", "PrimitiveObjects2": "demo.sim",
-              "RollingShutter1": "global.sim", "SubObjectMotion1": "demo.sim", "SubObjectMotion2": "demo.sim"}
+              "RollingShutter1": "global.sim", "SubObjectMotion1": "demo.sim", "SubObjectMotion2": "demo.sim",
+              "Polarization2": "sphere.sim", "Polarization4": "pi.sim", "Fireball1": "demo.sim"}
 KNOWN = [
     ("simulation file: the layered job's jsim is written by dirfm (plugins BasicPlatform, BasicAtmosphere, and "
      "SpiceEphemeris unless the .atm fixes the Sun), not the demo's own file"),
