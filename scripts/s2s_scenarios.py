@@ -735,6 +735,215 @@ def run_spec3(p, scene_hash=None):
     return spec
 
 
+# --- SatSim parity (round 31): the same geometry as SatSim configurations, run as authored ----------------------------
+#
+# SatSim's run spec is the pass-through form (`satsim-engine/1`): its descriptor is opaque, so the geometry, the sensor
+# and the exposure live in a generated SatSim configuration (`manifold_config_repo/satsim/s2s/`), and the spec carries
+# the shared numbers only under `descriptor.extras`. These specs are written beside the DIRSIG families and indexed in
+# `index.json` (`engine: satsim`); they are not composed (the composer's pass-through form is DIRSIG's) and have no
+# id-snapshot entry. The numbers are family III's: a sphere of radius 0.25 m and reflectance REFLECTANCE at 25 km, and
+# family I's 20 m plate at 25 km, seen by auror-nir (500 x 500 pixels of 10 um behind a 306 mm focal length, 85 mm
+# aperture) for 5 ms, with no relative motion.
+# - Geometry: SatSim states positions in GCRS (km) at an epoch. The target stands 7000 km from the geocentre toward the
+#   Sun (SUN_GCRS: the Sun's direction at EPOCH from de421, the library asset SatSim reads; computed once and stated
+#   here so that the generator needs no ephemeris), the observer 25 km from it in the plane of the Sun's direction and
+#   SATSIM_W, at the phase angle from the Sun's direction. Both move with the same circular velocity along SATSIM_V
+#   (two-body), so the relative speed is zero; the observer rate-tracks the target.
+# - Radiometry: SatSim has no band, aperture or irradiance; a Lambertian sphere's magnitude is -26.74 (the Sun) less
+#   2.5 log10 of (2/3) rho R^2 Phi(a) / d^2, and `fpa.zeropoint` is the magnitude that gives 1 pe/s. The zeropoint is set
+#   so that the Sun's -26.74 gives what the aperture collects from the uniform atmosphere's irradiance through the
+#   sensor-spec's channel: N_E = F pi / (rho omega), with F the full-pixel rate of a plate of reflectance rho facing the
+#   Sun at nadir and omega the pixel's solid angle. F is the paraxial value of the family's full pixel (the rendered
+#   2.82847e16 e/m^2 in 5 ms divided by DIRSIG's exact-cone factor 1/(1 + 1/(4 N^2))); the `cone` variant keeps the
+#   factor. The plate, which SatSim cannot model, is a sprite: a uniform square of the plate's size in oversampled
+#   pixels with the plate's expected flux stated as pe/s (flux-matched by construction).
+# - Clean frames: no stars, no noise, a galactic background of 99 mag per square arcsecond, float32 output, the
+#   ground-truth planes saved.
+
+SATSIM_DIR_REL = "satsim/s2s"
+SATSIM_DIR = LIBRARY / SATSIM_DIR_REL
+SUN_GCRS = (-0.998309307155257, -0.0533331808370300, -0.0231105834845224)
+SATSIM_TARGET_KM = 7000.0
+SATSIM = {"range_m": 25000.0, "sphere_radius_m": 0.25, "full_pixel_e_per_m2_5ms": 2.82847e16, "spatial_osf": 3,
+          "frame_period_s": 1.0 / FRAME_RATE, "plate_side_m": 20.0}
+SATSIM_PHASES = (0.0, 60.0, 120.0, 150.0)
+SATSIM_EXPOSURES = (0.001, 0.02)
+SATSIM_PSFS = ("gaussian", "none")
+DIRSIG_SPREAD_SIGMA_PX = 0.18      # round 30's fit of DIRSIG5's own spread (pixel convolved with a Gaussian)
+GM_EARTH = 398600.4418             # km^3/s^2, SatSim's two-body constant
+
+
+def _unit(v):
+    n = math.sqrt(sum(c * c for c in v))
+    return tuple(c / n for c in v)
+
+
+def _cross(a, b):
+    return (a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0])
+
+
+SATSIM_W = _unit(_cross(SUN_GCRS, (0.0, 0.0, 1.0)))     # in the equatorial plane, normal to the Sun's direction
+SATSIM_V = _unit(_cross(SUN_GCRS, SATSIM_W))            # the orbit's direction of motion, normal to both
+
+
+def satsim_numbers():
+    """The SatSim configuration's numbers from the run spec's own: IFOV and field of view, the paraxial full-pixel rate
+    F (pe/s), the irradiance rate N_E (pe/s at the aperture from the uniform atmosphere's irradiance) and the zeropoints
+    (`paraxial`, `cone`), and the Gaussian PSF's energy on detector that matches DIRSIG5's spread."""
+    f, p = sensor_numbers()
+    n_f = 306.0 / 85.0
+    cone = 1.0 / (1.0 + 1.0 / (4.0 * n_f ** 2))
+    ifov = p / f
+    full_parax = SATSIM["full_pixel_e_per_m2_5ms"] / cone * p ** 2 / 0.005        # pe/s in one full pixel
+    n_e = full_parax * math.pi / (REFLECTANCE * ifov ** 2)
+    erf = math.erf(0.5 / (math.sqrt(2.0) * DIRSIG_SPREAD_SIGMA_PX))
+    return {"ifov_rad": ifov, "fov_deg": math.degrees(NATIVE * ifov), "cone_factor": cone,
+            "full_pixel_pe_per_s": full_parax, "irradiance_pe_per_s": n_e,
+            "zeropoint": {"paraxial": -26.74 + 2.5 * math.log10(n_e), "cone": -26.74 + 2.5 * math.log10(n_e * cone)},
+            "gaussian_eod": erf ** 2}
+
+
+def satsim_grid():
+    """The SatSim points: the sphere at each SATSIM_PHASES value (5 ms, POPPY PSF, paraxial zeropoint), at the other
+    exposures, with the other PSFs and with the cone zeropoint (phase 0), and the plate sprite (5 ms)."""
+    base = {"target": "sphere", "phase_deg": 0.0, "exposure_s": 0.005, "psf": "poppy", "zeropoint": "paraxial"}
+    pts = [{**base, "phase_deg": a} for a in SATSIM_PHASES]
+    pts += [{**base, "exposure_s": e} for e in SATSIM_EXPOSURES]
+    pts += [{**base, "psf": m} for m in SATSIM_PSFS]
+    pts += [{**base, "zeropoint": "cone"}, {**base, "target": "plate"}]
+    return pts
+
+
+def satsim_name(p):
+    tail = "" if p["psf"] == "poppy" else f"-psf{p['psf']}"
+    tail += "" if p["zeropoint"] == "paraxial" else f"-zp{p['zeropoint']}"
+    return f"s2s-satsim-{p['target']}-a{_num_tag(p['phase_deg'])}-e{_num_tag(p['exposure_s'], 1e3, 'ms')}{tail}"
+
+
+def satsim_states(phase_deg):
+    """(target, observer) GCRS positions (km) and their common velocity (km/s) for a phase angle."""
+    a = math.radians(phase_deg)
+    t = tuple(SATSIM_TARGET_KM * c for c in SUN_GCRS)
+    u = tuple(math.cos(a) * s + math.sin(a) * w for s, w in zip(SUN_GCRS, SATSIM_W))
+    o = tuple(tc + SATSIM["range_m"] / 1000.0 * uc for tc, uc in zip(t, u))
+    v = tuple(math.sqrt(GM_EARTH / SATSIM_TARGET_KM) * c for c in SATSIM_V)
+    return [round(c, 9) for c in t], [round(c, 9) for c in o], [round(c, 9) for c in v]
+
+
+def _psf(mode, numbers):
+    if mode == "gaussian":
+        return {"mode": "gaussian", "eod": round(numbers["gaussian_eod"], 6)}
+    if mode == "none":
+        return {"mode": "none"}
+    # the channel's Gaussian response (0.85 um, FWHM 0.15 um) sampled at the centre and +-1 sigma, weighted by it
+    sigma = 0.15 / 2.3548
+    wl = [0.85 - sigma, 0.85, 0.85 + sigma]
+    return {"mode": "poppy", "optical_system": [{"type": "CircularAperture", "kwargs": {"radius": 0.0425}}],
+            "wavelengths": [round(w * 1e-6, 12) for w in wl], "weights": [0.27406862, 0.45186276, 0.27406862],
+            "size": [32, 32]}
+
+
+def satsim_config(p):
+    """The SatSim configuration (a dict) of point `p`."""
+    nums = satsim_numbers()
+    t, o, v = satsim_states(p["phase_deg"])
+    when = [int(x) for x in EPOCH[:10].split("-")] + [int(EPOCH[11:13]), int(EPOCH[14:16]), float(EPOCH[17:19])]
+    target = {"mode": "twobody", "position": t, "velocity": v, "epoch": 0}
+    if p["target"] == "sphere":
+        target["model"] = {"mode": "lambertian_sphere", "diameter": 2 * SATSIM["sphere_radius_m"],
+                           "albedo": REFLECTANCE}
+    else:
+        side_px = SATSIM["plate_side_m"] / footprint(SATSIM["range_m"])
+        target["model"] = {"mode": "sprite", "filename": "input/plate.fits"}
+        target["pe"] = round(side_px ** 2 * nums["full_pixel_pe_per_s"], 3)
+    return {
+        "version": 1,
+        "sim": {"mode": "fftconv2p", "spatial_osf": SATSIM["spatial_osf"], "temporal_osf": 1, "padding": 8,
+                "samples": 1, "psf_sample_frequency": "once", "enable_shot_noise": False,
+                "save_ground_truth": True, "save_movie": False, "save_czml": False},
+        "fpa": {"height": NATIVE, "width": NATIVE, "y_fov": round(nums["fov_deg"], 9),
+                "x_fov": round(nums["fov_deg"], 9), "dark_current": 0, "gain": 1, "bias": 0,
+                "zeropoint": round(nums["zeropoint"][p["zeropoint"]], 6),
+                "a2d": {"fwc": 1.0e15, "gain": 1, "bias": 0, "dtype": "float32"},
+                "noise": {"read": 0, "electronic": 0}, "psf": _psf(p["psf"], nums),
+                "time": {"exposure": p["exposure_s"], "gap": round(SATSIM["frame_period_s"] - p["exposure_s"], 9)},
+                "num_frames": 1},
+        "background": {"galactic": 99},
+        "geometry": {"time": when,
+                     "site": {"position": o, "velocity": v, "epoch": 0, "gimbal": {"rotation": 0},
+                              "track": {"mode": "rate", "position": t, "velocity": v, "epoch": when}},
+                     "stars": {"mode": "none", "motion": {"mode": "none"}},
+                     "obs": {"list": [target]}},
+    }
+
+
+def _fits_image(data, width):
+    """A minimal FITS file: one 2-D 32-bit float image (big-endian), rows of `width` values from `data`."""
+    rows = len(data) // width
+    cards = ["SIMPLE  =                    T", "BITPIX  =                  -32", "NAXIS   =                    2",
+             f"NAXIS1  = {width:20d}", f"NAXIS2  = {rows:20d}", "END"]
+    head = "".join(c.ljust(80) for c in cards)
+    head += " " * (-len(head) % 2880)
+    import struct
+    body = struct.pack(f">{len(data)}f", *data)
+    return head.encode("ascii") + body + b"\0" * (-len(body) % 2880)
+
+
+def satsim_plate_sprite():
+    """The plate's sprite: a uniform square, the plate's side in oversampled pixels (rounded), in a zero border."""
+    n = round(SATSIM["plate_side_m"] / footprint(SATSIM["range_m"]) * SATSIM["spatial_osf"])
+    size = n + 2
+    return _fits_image([1.0 if 0 < r <= n and 0 < c <= n else 0.0 for r in range(size) for c in range(size)], size)
+
+
+def satsim_files():
+    """{relative path under SATSIM_DIR: bytes} of the generated SatSim configurations (a directory for the plate,
+    which names its sprite)."""
+    out = {}
+    for p in satsim_grid():
+        text = (f"# GENERATED by scripts/s2s_scenarios.py - do not edit\n# SatSim configuration for {satsim_name(p)} "
+                "(space-to-space parity with DIRSIG, round 31)\n" + yaml.safe_dump(satsim_config(p), sort_keys=False,
+                                                                                    width=120))
+        if p["target"] == "plate":
+            out[f"{satsim_name(p)}/config.yaml"] = text.encode()
+            out[f"{satsim_name(p)}/plate.fits"] = satsim_plate_sprite()
+        else:
+            out[f"{satsim_name(p)}.yaml"] = text.encode()
+    return out
+
+
+def satsim_spec(p):
+    """The SatSim `run-spec/1` document of point `p` (pass-through, opaque descriptor, the shared numbers in extras)."""
+    name = satsim_name(p)
+    ref = f"{SATSIM_DIR_REL}/{name}" + ("" if p["target"] == "plate" else ".yaml")
+    path = LIBRARY / ref
+    digest = directory_digest(path) if path.is_dir() else sha256_file(path)
+    nums = satsim_numbers()
+    counterpart = (point3_name({"kind": "phase", "group": "unresolved", "look_deg": p["phase_deg"] / 2,
+                                "solar_zenith_deg": p["phase_deg"] / 2}) if p["target"] == "sphere"
+                   else point_name({"object_class": "hyperresolved", **BASELINE["hyperresolved"]}))
+    return {"spec_version": "run-spec/1", "descriptor": {
+        "meta": {"name": name, "tags": ["s2s", "space-to-space", "satsim", p["target"]],
+                 "description": f"Space-to-space parity: SatSim images the geometry of the DIRSIG spec {counterpart} "
+                                "(see descriptor.extras). Written by scripts/s2s_scenarios.py.\n"},
+        "origin": {"kind": "synthetic", "engine": "satsim"},
+        "fidelity": {"modeled": ["a Lambertian sphere's phase function and range (SatSim's model)" if p["target"] ==
+                                 "sphere" else "a flux-matched sprite of the plate's size", "the PSF named in extras"],
+                     "approximated": ["the Sun as -26.74 mag; the zeropoint carries the irradiance of the DIRSIG "
+                                      "uniform atmosphere through the sensor-spec's channel"],
+                     "absent": ["Earth background", "stars", "detector noise", "a plate's own shading (sprite)"],
+                     "valid_for": "Cross-engine comparison with DIRSIG on one geometry; not a sensor-performance "
+                                  "prediction.\n"},
+        "opaque": {"source": "passthrough"},
+        "extras": {"s2s.engine_counterpart": counterpart, "s2s.target": p["target"], "s2s.range_m": SATSIM["range_m"],
+                   "s2s.relative_speed": 0.0, "s2s.phase_deg": p["phase_deg"], "s2s.exposure_s": p["exposure_s"],
+                   "s2s.psf": p["psf"], "s2s.zeropoint": p["zeropoint"], "s2s.epoch": EPOCH,
+                   "s2s.aperture_diameter_m": 0.085, "s2s.focal_length_m": 0.306, "s2s.pixel_pitch_m": 1e-5,
+                   "s2s.reflectance": REFLECTANCE, "s2s.cone_factor": round(nums["cone_factor"], 9)}},
+        "engine": {"mode": "passthrough", "config": {"name": ref, "content_hash": digest}, "seed": 1, "device": "cpu"},
+        "resources": {"cpu_threads": 1}}
+
+
 # --- the run specs ----------------------------------------------------------------------------------------------------
 
 def _ref(rel, root=LIBRARY):
@@ -839,6 +1048,11 @@ def family(scene_hash=None):
         name = point3_name(p)
         files[f"{name}.yaml"] = dump(spec)
         index.append({"name": name, "run_id": run_id(spec, SENSORS), "family": 3, **p})
+    for p in satsim_grid():                       # SatSim's pass-through specs: their configurations must be written
+        spec = satsim_spec(p)
+        name = satsim_name(p)
+        files[f"{name}.yaml"] = dump(spec)
+        index.append({"name": name, "run_id": run_id(spec, SENSORS), "family": "satsim", "engine": "satsim", **p})
     files["index.json"] = json.dumps(index, indent=1) + "\n"
     return files
 
@@ -888,6 +1102,16 @@ def main(argv=None):
         stray = sorted(str(p.relative_to(sdir)) for p in sdir.rglob("*") if p.is_file()
                        and str(p.relative_to(sdir)) not in scene) if sdir.is_dir() else []
         problems += [f"scene {sdir.name}/{rel}: not generated" for rel in stray]
+    satsim = satsim_files()
+    if not args.check:
+        for rel, data in satsim.items():
+            path = SATSIM_DIR / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+    problems += [f"{SATSIM_DIR_REL}/{rel}: differs from the generated bytes" for rel, data in satsim.items()
+                 if not (SATSIM_DIR / rel).is_file() or (SATSIM_DIR / rel).read_bytes() != data]
+    problems += [f"{SATSIM_DIR_REL}/{p.relative_to(SATSIM_DIR)}: not generated" for p in sorted(SATSIM_DIR.rglob("*"))
+                 if p.is_file() and str(p.relative_to(SATSIM_DIR)) not in satsim] if SATSIM_DIR.is_dir() else []
     if problems:                                  # the specs' scene hash would be wrong: stop here
         print("\n".join(problems))
         return 1
@@ -899,7 +1123,8 @@ def main(argv=None):
                 old.unlink()
         for fname, text in files.items():
             (OUT / fname).write_text(text)
-        print(f"wrote {', '.join(f'{d.relative_to(ROOT)}/' for d, _ in scenes)} and {len(files) - 1} run specs "
+        print(f"wrote {', '.join(f'{d.relative_to(ROOT)}/' for d, _ in scenes)}, {SATSIM_DIR.relative_to(ROOT)}/ and "
+              f"{len(files) - 1} run specs "
               f"in {OUT.relative_to(ROOT)}/")
     else:
         have = {p.name: p.read_text() for p in OUT.glob("*")} if OUT.is_dir() else {}

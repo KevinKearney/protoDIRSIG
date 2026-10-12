@@ -9,3 +9,5 @@
 - baseline suite at 142b06b, alone, no edits: 1690 passed, 2 skipped (7 min 53 s)
 - A renders: 27 native (about 25 min) + 3 discarded from the below-origin layout + one 64 x 64 probe; diagnostics 22 small renders (seeds, truth, fixed convergence)
 - step A: gate 1693 passed, 2 skipped (8 min 31 s, alone); eleven checks 0 (s2s_scenarios 111 specs); boundary 23 passed; core and snapshot unchanged
+- B SatSim: 10 committed specs + 7 scratch variations (each 12-15 s, one at a time); DIRSIG: one native plate render (75 s)
+- step B: gate 1695 passed, 2 skipped (8 min 49 s, alone); eleven checks 0 (s2s_scenarios 121 specs); boundary 23 passed; core and snapshot unchanged

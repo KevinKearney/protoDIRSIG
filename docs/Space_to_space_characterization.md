@@ -322,3 +322,81 @@ Consequences for the documents: the sensor-spec has no PSF member, and DIRSIG5 d
 (The bar level is the median of the bar pixels at full level, rows 340 to 480. The sphere is summed over a 100-pixel box about it; behind it is the plate's black band.) At 75 degrees the background has fallen to 0.26 of its zenith value and the sphere to 0.46 of its own. The ratio between the two changes by a factor of 1.8, as the two functions predict.
 
 **Tests.** `tests/test_s2s_scenarios.py` adds family III's engine-free checks and one 16 x 16 render pair: with the Sun at the zenith the sphere's image is symmetric, and with the Sun 60 degrees toward +x the −x columns are dark.
+
+## SatSim parity on one geometry (round 31)
+
+**The baseline and how each engine states it.** The family's baseline is the hyperresolved 20 m plate at 25 km (`s2s-hyperresolved-r25km-v0mps-e5ms-l0-z0-d0`) and, as the sub-pixel point object, family III's 0.25 m Lambertian sphere at the same range (`s2s3-phase-unresolved-*`). Both have no relative motion, a 5 ms exposure and the `auror-nir` sensor (85 mm aperture, 306 mm focal length, 10 µm pitch, 500 x 500). `scripts/s2s_scenarios.py` writes the same geometry for SatSim: ten SatSim configurations in `manifold_config_repo/satsim/s2s/` and ten SatSim run specs (`s2s-satsim-*` in `manifold_run_specs/s2s/`, indexed with `engine: satsim`). The SatSim specs are generated beside the DIRSIG families, not composed: the composer's pass-through form is DIRSIG's. They have no id-snapshot entry. Each was run through `LocalBackend` with the SatSim adapter (`docs/SatSim_reference_run.md`), seed 1, CPU, one thread, one run at a time: 12 to 15 s each.
+
+| Shared number | DIRSIG run spec | SatSim configuration (the run spec is pass-through) |
+|---|---|---|
+| Range 25 km | `engine.motion` static position 25 km from the target | observer and target as GCRS states 25 km apart (two-body, `geometry.site` and `geometry.obs.list[]`) |
+| Relative speed 0 | static platform and target | both on the same circular velocity (7.546 km/s); the observer rate-tracks the target |
+| Exposure 5 ms (and 1, 20) | `descriptor.settings[0].exposure_time` | `fpa.time.exposure` |
+| Look angle | the static pose off the scene's nadir | no Earth in SatSim: the observer–target line is placed freely; not a parameter of the signal |
+| Sun angle (phase) | `engine.atmosphere.uniform.fixed_ephemeris` (zenith and azimuth in the scene frame; the epoch does not move it) | the Sun from de421 at `geometry.time`: the target is put 7000 km from the geocentre toward the Sun, the observer at the phase angle from the Sun's direction |
+| Aperture, focal length, pitch | the sensor-spec, rendered into the platform file | pitch / focal length as the field of view (0.936206 degrees for 500 pixels); the aperture, the channel, throughput and QE only through `fpa.zeropoint` and the POPPY PSF. SatSim writes `FOCALLEN` and `APTDIA` as 0 |
+| Target radiometry | the scene's reflectance and the uniform atmosphere's irradiance (0.1 W cm⁻² µm⁻¹) | the Lambertian sphere model (albedo 0.5, diameter 0.5 m) against a −26.74 mag Sun; `fpa.zeropoint` 19.586255 makes −26.74 mag equal to what the aperture collects from that irradiance (paraxial) |
+| The plate | a Lambertian plate in the scene | not expressible: a sprite (a uniform square of 73 oversampled pixels, 24.33 pixels, for 24.48) carrying the plate's expected flux as `pe`, so its flux matches by construction |
+| PSF | none stated; DIRSIG5 applies its own spread (round 30, C3) | POPPY: an 85 mm circular aperture at 0.786, 0.85 and 0.914 µm weighted by the channel's Gaussian; variants: a Gaussian with energy-on-detector 0.989 (σ 0.18 pixel, DIRSIG's fitted spread) and none |
+| Clean frame | no noise model | no shot, read or dark noise, no stars, galactic background 99 mag per square arcsecond; float32 output; the ground-truth planes saved |
+
+The expectation is family III's. The sphere's flux is (2/3) π R² / g² × Φ(a) full pixels. A full pixel is S_full in DIRSIG's units. In SatSim it is the paraxial rate F = 5.76606e8 pe/s, which is S_full without DIRSIG's exact-cone factor 0.981075.
+
+### Results
+
+| Spec | Phase (deg) | Exposure (ms) | PSF | Expected (pe) | SatSim truth plane (target_pe) / expected | SatSim frame / expected | Peak / sum | 3 x 3 / sum | Frame sha256 (16) | DIRSIG, same geometry: equivalent px / expected |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `s2s-satsim-sphere-a0-e5ms` | 0 | 5 | POPPY | 565,394 | 1.000000 | 0.99904 | 0.484 | 0.949 | `5b1f2869202c6f15` | 0.981 (σ over seeds 0.04) |
+| `s2s-satsim-sphere-a60-e5ms` | 60 | 5 | POPPY | 344,323 | 1.000086 | 0.99843 | 0.485 | 0.950 | `6d7abbb412e18441` | 0.986 |
+| `s2s-satsim-sphere-a120-e5ms` | 120 | 5 | POPPY | 61,627 | 1.000240 | 0.99272 | 0.488 | 0.956 | `4ed11aac3e80f7cc` | 1.051 |
+| `s2s-satsim-sphere-a150-e5ms` | 150 | 5 | POPPY | 8,378 | 1.000511 | 0.97748 | 0.495 | 0.970 | `ade9beb610098441` | 1.112 (σ over seeds 0.24) |
+| `s2s-satsim-sphere-a0-e1ms` | 0 | 1 | POPPY | 113,079 | 1.000000 | 0.99509 | 0.486 | 0.953 | `237d22580fd15591` | (plates: × 0.2000, round 29) |
+| `s2s-satsim-sphere-a0-e20ms` | 0 | 20 | POPPY | 2,261,574 | 1.000000 | 0.99976 | 0.484 | 0.949 | `34e9cf509d5d15ba` | (plates: × 4.0000) |
+| `s2s-satsim-sphere-a0-e5ms-psfgaussian` | 0 | 5 | Gaussian, eod 0.989 | 565,394 | 0.987384 | 0.98738 | 0.551 | 1.000 | `bdc4398d8f5ea33d` | |
+| `s2s-satsim-sphere-a0-e5ms-psfnone` | 0 | 5 | none | 565,394 | 1.000000 | 1.00000 | 1.000 | 1.000 | `2ba51dcc8a96f6cb` | |
+| `s2s-satsim-sphere-a0-e5ms-zpcone` | 0 | 5 | POPPY, cone zeropoint | 565,394 | 0.981075 | 0.98013 | 0.484 | 0.949 | `152bde3216819bb7` | |
+| `s2s-satsim-plate-a0-e5ms` | 0 | 5 | POPPY | 1,727,715,461 | 1.000000 | 1.00000 | 0.002 | 0.015 | `0f74aeb511c15925` | 1.00095 (`ec690ca81d5ec602`, round 29's image reproduced) |
+
+**What agrees.**
+- The sphere's phase scaling: SatSim's Lambertian model is the same function. With the real Sun at four phase angles its truth plane is within 5.1e-4 of the analytic value. DIRSIG's labelled sphere follows the same function within its hit-count scatter (A).
+- Exposure scaling is exact in both: SatSim's truth plane × 0.2000 and × 4.0000; DIRSIG's plates the same (round 29).
+- The integrated signal agrees in each engine's own units. In absolute photo-electrons the two differ by the cone factor alone (below).
+- Neither engine streaks a target at zero relative speed: SatSim's start, mid and end positions are identical.
+
+**Every difference, with its cause where a controlled variation shows it.**
+1. **Absolute scale: DIRSIG's exact aperture cone (cause shown).** In photo-electrons SatSim's sphere is 1/0.981075 = 1.0193 of DIRSIG's expectation. DIRSIG renders every surface, a sub-pixel sphere included, with the exact-cone factor 1/(1 + 1/(4N²)) (round 29). SatSim's chain is a point source on the aperture area, with no f-number. Variation: the zeropoint that carries the factor (`zpcone`) gives 0.981075 of the paraxial expectation, DIRSIG's own to 1e-6.
+2. **The small excess at large phase angles: the apparent Sun (cause shown).** The truth plane's 0.9e-4, 2.4e-4 and 5.1e-4 at 60, 120 and 150 degrees are what a 20.4″ shift of the Sun gives through Φ′(a)/Φ(a). SatSim takes the Sun's apparent direction (light time and annual aberration), the configurations the geometric one. Variations: with light transit and stellar aberration off the excess is unchanged (`range` becomes exactly 25.000 km); with the configurations built on the apparent direction, the truth plane is 1.000000 at 120 and 150 degrees.
+3. **The frame below the truth plane: SatSim floors every pixel to a whole count (cause shown).** It does so even with float32 output. The POPPY PSF's tails, under one count per pixel, are lost: 0.1 % at 0 degrees and 5 ms, 2.3 % at 150 degrees, 0.5 % at 1 ms, 0.02 % at 20 ms. The loss falls as the counts rise. With no PSF the frame equals the truth plane.
+4. **The Gaussian PSF loses 1.3 % of the flux (cause shown).** At energy-on-detector 0.989 (σ 0.18 pixel, 0.55 oversampled pixel) the truth plane holds 0.987384 of the expectation. Variation: at 0.8 (a wider kernel) it holds 1.000000. The narrow kernel's sampled normalization loses the flux.
+5. **PSF and encircled energy: different models (as measured).** SatSim's POPPY PSF from the 85 mm aperture puts 0.484 of the point's flux in the brightest pixel, 0.949 in 3 x 3 and 0.969 in 5 x 5, with the point 0.27 pixel from a pixel centre. DIRSIG states no PSF and applies its own spread (σ about 0.18 pixel). For an unresolved object it also ends sampling outside the hypersampled 3 x 3 pixels (A: 20 paths, no hit), so all its flux lies inside them. The plate's edge shows the same contrast. DIRSIG at the default sampling: 0.18 and 0.21 in the partial pixels and 0 outside. Round 30 measured 0.070 outside at 1000 paths. SatSim with POPPY: 0.043, 0.013 and 0.008 one, two and three pixels outside. A like-for-like comparison would put both points at the same sub-pixel position (OPEN).
+6. **The plate's footprint: a sprite on the oversampled grid (cause shown).** 616 pixels at least half full, against DIRSIG's 576 and the plate's 599.27 pixel area. The sprite's side is a whole number of oversampled pixels (73, 24.33 pixels), and its edges land at a third of a pixel (edge pixels 0.80 and 0.50).
+7. **Where the sprite lands (cause shown).** Its centroid is 11.9 pixels from the tracked target's position along both axes. Variation: a sprite 26 oversampled pixels larger moves it to 16.2 pixels. The shift grows with half the sprite's size (4.33 pixels predicted, 4.36 measured), so a sprite is not centred on its object's position. SatSim's own code carries a "TODO need to investigate +1 shift" there.
+
+**Time and frame conventions.**
+
+| | DIRSIG (through the SDK) | SatSim |
+|---|---|---|
+| Epoch | `descriptor.collection.epoch` (UTC, `Z`), DIRSIG's reference date-time `2026-09-26T18:50:25.0000+00:00` | `geometry.time`, a UTC list `[2026, 9, 26, 18, 50, 25.0]`; Skyfield's TT internally |
+| Exposure window | [task time, task time + exposure]: `relative_time_window` [0.0, 0.005] (and round 30's streaks start at the task time) | [t, t + exposure] for frame 0 (`docs/SatSim_probe.md`, code) |
+| Frame time stamped | none in the image; the log's window | `DATE-OBS`, `TIME-OBS`, `SH-UT001` and the annotation's `time` are mid-exposure (18:50:25.0025); `SH-UT002` is mid + exposure (18:50:25.0075), half an exposure past the end |
+| Spatial frame | scene ENU at a geodetic origin (39 N, 120 W); the platform pose in `sceneenu` | GCRS (km); the WCS `RADESYS` `GAPPT` |
+| Sun | a fixed direction in the scene frame from `fixed_ephemeris`; the epoch does not move it | de421 at the epoch, apparent (2 above) |
+| Light time, aberration | none | on by default (light transit and stellar aberration); they change the annotated range by up to 2 m at 25 km and not the target's flux |
+
+`docs/SatSim_probe.md` described `DATE-OBS` as the observation start; it is mid-exposure (corrected there).
+
+### The adapter seam: what the shared `run-spec/1` carries
+
+- **DIRSIG reads the engine block and part of the descriptor.** Assembling the job for the plate's spec and for variants with one member changed (scratch, no render): `collection.epoch` changes the tasks file, `settings[0].exposure_time` and `gain` change the platform file. `collection.geometry.range` doubled, `collection.illumination.regime`, `extras`, `meta.description` and `fidelity.valid_for` leave every job file byte-identical. The geometry DIRSIG renders comes from `engine.motion`, and nothing checks the descriptor's range against it.
+- **SatSim reads only its engine block.** Its descriptor must be opaque: a SatSim spec with `collection`, `sensor` or `settings` beside `opaque` is refused by the schema, and without `opaque` by the pass-through rule. The shared numbers can therefore live only in `descriptor.extras`, where neither engine reads them. Everything SatSim renders is in the configuration, whose content hash is in the engine block.
+- **The run id.** It is the hash of the whole resolved spec, so every field either engine ignores still changes it. The direction is safe: two runs that render the same can differ in id, but two that render differently cannot share one. There is one exception, found here. The SatSim adapter's admission scan for files a configuration names (`$import`, `$cache`, `path`, `file`) does not include the sprite model's `filename`. A single-file configuration naming a sprite, even at an absolute path outside the library, is admitted (`config_problems` returns no problem). The sprite is then neither staged nor hashed, so two different sprites could run under one id. The family's plate uses a directory reference, so its sprite is hashed with it, and names it `input/plate.fits`, the path where the launcher stages the directory (BACKLOG).
+
+### The audit's SatSim cells after round 31
+
+| Axis | Unresolved | Hyperresolved |
+|---|---|---|
+| Platform motion | measured at zero relative speed: a space observer on a two-body GCRS state rate-tracking a co-moving target; no streak | measured as above with the plate as a sprite |
+| Target motion | expressible, unmeasured (no relative speed run) | expressible, unmeasured |
+| Shutter blur | exposure scaling measured (exact in the truth plane, 1 to 20 ms); blur unmeasured | unmeasured |
+| Off-nadir look angle | no Earth in SatSim: not a parameter of a target's signal against space | as unresolved |
+| Sun angle | measured: 0, 60, 120, 150 degrees from the real Sun, the Lambertian phase function to 5.1e-4 (the apparent Sun, 2 above) | not expressible: a sprite has no shading or phase |

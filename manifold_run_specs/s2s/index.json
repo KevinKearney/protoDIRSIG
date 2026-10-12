@@ -1123,5 +1123,115 @@
   "group": "background",
   "look_deg": 0.0,
   "solar_zenith_deg": 75.0
+ },
+ {
+  "name": "s2s-satsim-sphere-a0-e5ms",
+  "run_id": "ab9c2e468fd6f76b1ee7b023efa627b4d1166edcdffcc4511047282e74958ff4",
+  "family": "satsim",
+  "engine": "satsim",
+  "target": "sphere",
+  "phase_deg": 0.0,
+  "exposure_s": 0.005,
+  "psf": "poppy",
+  "zeropoint": "paraxial"
+ },
+ {
+  "name": "s2s-satsim-sphere-a60-e5ms",
+  "run_id": "78f4b594354c5d1f01facb82917fab4d7e95edf0b6e601667e9d0777691471b6",
+  "family": "satsim",
+  "engine": "satsim",
+  "target": "sphere",
+  "phase_deg": 60.0,
+  "exposure_s": 0.005,
+  "psf": "poppy",
+  "zeropoint": "paraxial"
+ },
+ {
+  "name": "s2s-satsim-sphere-a120-e5ms",
+  "run_id": "b5d5cbae19602c0d4bc3d501dd85903850575782cb71c0e3aa8e593d4366354c",
+  "family": "satsim",
+  "engine": "satsim",
+  "target": "sphere",
+  "phase_deg": 120.0,
+  "exposure_s": 0.005,
+  "psf": "poppy",
+  "zeropoint": "paraxial"
+ },
+ {
+  "name": "s2s-satsim-sphere-a150-e5ms",
+  "run_id": "dbae40eb02582ef74d657a8e117f499ff6b4629cac1be0c2f88c4773a17e0b30",
+  "family": "satsim",
+  "engine": "satsim",
+  "target": "sphere",
+  "phase_deg": 150.0,
+  "exposure_s": 0.005,
+  "psf": "poppy",
+  "zeropoint": "paraxial"
+ },
+ {
+  "name": "s2s-satsim-sphere-a0-e1ms",
+  "run_id": "7079db26882c5a40cf9b084008954e0237cbd5d6547dfb9250fa8b797c4532da",
+  "family": "satsim",
+  "engine": "satsim",
+  "target": "sphere",
+  "phase_deg": 0.0,
+  "exposure_s": 0.001,
+  "psf": "poppy",
+  "zeropoint": "paraxial"
+ },
+ {
+  "name": "s2s-satsim-sphere-a0-e20ms",
+  "run_id": "a97416e4516638f433b5d03dd4da520722ad67ff048167533e0dc48056329eb8",
+  "family": "satsim",
+  "engine": "satsim",
+  "target": "sphere",
+  "phase_deg": 0.0,
+  "exposure_s": 0.02,
+  "psf": "poppy",
+  "zeropoint": "paraxial"
+ },
+ {
+  "name": "s2s-satsim-sphere-a0-e5ms-psfgaussian",
+  "run_id": "8fda00ace5994c4d0142286d79c2e8bd20a6bd1a1125fa788f2dc2b556e85fbc",
+  "family": "satsim",
+  "engine": "satsim",
+  "target": "sphere",
+  "phase_deg": 0.0,
+  "exposure_s": 0.005,
+  "psf": "gaussian",
+  "zeropoint": "paraxial"
+ },
+ {
+  "name": "s2s-satsim-sphere-a0-e5ms-psfnone",
+  "run_id": "55fd21e0bec536adf23a1f0974d8548123ca6620e15137372fc2dc4314f52e8d",
+  "family": "satsim",
+  "engine": "satsim",
+  "target": "sphere",
+  "phase_deg": 0.0,
+  "exposure_s": 0.005,
+  "psf": "none",
+  "zeropoint": "paraxial"
+ },
+ {
+  "name": "s2s-satsim-sphere-a0-e5ms-zpcone",
+  "run_id": "909fa296d89d2df415ba4ab07825b8ca6e3612fdb6ce598cba43720c4e2982e6",
+  "family": "satsim",
+  "engine": "satsim",
+  "target": "sphere",
+  "phase_deg": 0.0,
+  "exposure_s": 0.005,
+  "psf": "poppy",
+  "zeropoint": "cone"
+ },
+ {
+  "name": "s2s-satsim-plate-a0-e5ms",
+  "run_id": "bedda2478500a8a406e49f92ee4dfaffea0455d65d4bc6cd378a193dea4e27ba",
+  "family": "satsim",
+  "engine": "satsim",
+  "target": "plate",
+  "phase_deg": 0.0,
+  "exposure_s": 0.005,
+  "psf": "poppy",
+  "zeropoint": "paraxial"
  }
 ]

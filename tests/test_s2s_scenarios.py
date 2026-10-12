@@ -11,7 +11,12 @@ moving a plate toward +x from the start of the exposure, and the orbit form hold
 
 Family III (round 31): its grid spans the phase angle, its scene (`scenes/s2s_sun/`) and the sphere's expectation; a
 16 x 16 render pair shows the Sun at solar azimuth 90 lighting the sphere from +x.
+
+SatSim parity (round 31): the SatSim specs (pass-through, indexed with `engine: satsim`) and their generated
+configurations state the shared geometry; a 16 x 16 SatSim run of the sphere at full phase holds the expected
+photo-electrons (skipped where SatSim's interpreter or its assets are absent).
 """
+import hashlib
 import importlib.util
 import json
 import math
@@ -259,3 +264,102 @@ def test_the_sun_lights_the_sphere_from_plus_x(tmp_path):
     side = _render3(tmp_path, {**point, "solar_zenith_deg": 60.0})
     assert side[:, :4].mean() > 0.5 * full.max()
     assert side[:, 15].mean() < 0.01 * side[:, :4].mean()
+
+
+# --- SatSim parity (round 31): the same geometry as SatSim configurations ---------------------------------------------
+
+def test_the_satsim_specs_state_the_shared_geometry_in_their_configurations():
+    """Each SatSim spec is pass-through (an opaque descriptor: the shared numbers can only be extras) and indexed apart
+    from the DIRSIG families; its configuration puts the observer 25 km from the target at the phase angle from the Sun's
+    direction, both on the same velocity, and states the sensor's field of view, exposure and zeropoint."""
+    index = {e["name"]: e for e in json.loads((s2s.OUT / "index.json").read_text())}
+    nums = s2s.satsim_numbers()
+    assert nums["ifov_rad"] == pytest.approx(1e-5 / 0.306)
+    assert nums["cone_factor"] == pytest.approx(1 / (1 + 1 / (4 * (306 / 85) ** 2)))
+    phases = set()
+    for p in s2s.satsim_grid():
+        name = s2s.satsim_name(p)
+        spec = yaml.safe_load((s2s.OUT / f"{name}.yaml").read_text())
+        assert index[name]["engine"] == "satsim" and index[name]["family"] == "satsim"
+        assert spec["engine"]["mode"] == "passthrough" and spec["descriptor"]["origin"]["engine"] == "satsim"
+        assert set(spec["descriptor"]) == {"meta", "origin", "fidelity", "opaque", "extras"}
+        cfg = s2s.satsim_config(p)
+        assert cfg["fpa"]["time"]["exposure"] == p["exposure_s"] == spec["descriptor"]["extras"]["s2s.exposure_s"]
+        assert cfg["fpa"]["y_fov"] == pytest.approx(math.degrees(500 * nums["ifov_rad"]), rel=1e-8)
+        t = np.array(cfg["geometry"]["obs"]["list"][0]["position"])
+        o = np.array(cfg["geometry"]["site"]["position"])
+        assert np.linalg.norm(o - t) == pytest.approx(25.0, rel=1e-9)
+        cos_a = np.dot(o - t, s2s.SUN_GCRS) / np.linalg.norm(o - t)
+        assert math.degrees(math.acos(min(1.0, cos_a))) == pytest.approx(p["phase_deg"], abs=1e-4)
+        assert cfg["geometry"]["obs"]["list"][0]["velocity"] == cfg["geometry"]["site"]["velocity"]
+        phases.add(p["phase_deg"])
+    assert len(phases) >= 3
+    on_disk = {str(q.relative_to(s2s.SATSIM_DIR)): q.read_bytes() for q in s2s.SATSIM_DIR.rglob("*") if q.is_file()}
+    assert on_disk == s2s.satsim_files()
+
+
+def _fits_image(path):
+    """The primary image of a FITS file (BITPIX -32, 16 or 32, with BZERO and BSCALE), read without astropy."""
+    raw = path.read_bytes()
+    cards, at = {}, 0
+    while True:
+        block = raw[at:at + 2880].decode("ascii")
+        at += 2880
+        for i in range(0, 2880, 80):
+            card = block[i:i + 80]
+            if card[:8].strip() == "END":
+                break
+            if card[8:10] == "= ":
+                cards[card[:8].strip()] = card[10:].split("/")[0].strip()
+        else:
+            continue
+        break
+    dtype = {"-32": ">f4", "16": ">i2", "32": ">i4"}[cards["BITPIX"]]
+    shape = (int(cards["NAXIS2"]), int(cards["NAXIS1"]))
+    data = np.frombuffer(raw, dtype=dtype, count=shape[0] * shape[1], offset=at).reshape(shape).astype(float)
+    return data * float(cards.get("BSCALE", 1)) + float(cards.get("BZERO", 0))
+
+
+def _satsim_why_not():
+    from test_satsim_integration import WHY_NOT
+    return WHY_NOT
+
+
+@pytest.mark.satsim
+def test_a_16_by_16_satsim_run_of_the_sphere_at_full_phase(tmp_path):
+    """The sphere at full phase on a 16 x 16 focal plane (the same IFOV, no PSF), through LocalBackend: the frame holds
+    the expected photo-electrons, (2/3) pi R^2 / footprint^2 full pixels at the paraxial rate, to one count, in one pixel
+    near the centre."""
+    why = _satsim_why_not()
+    if why:
+        pytest.skip(why)
+    from backend_conformance import wait_for
+    from manifold.sim.backend import LocalBackend
+    p = s2s.satsim_grid()[0]
+    assert p["phase_deg"] == 0.0 and p["target"] == "sphere"
+    cfg = s2s.satsim_config(p)
+    nums = s2s.satsim_numbers()
+    cfg["fpa"]["height"] = cfg["fpa"]["width"] = 16
+    cfg["fpa"]["y_fov"] = cfg["fpa"]["x_fov"] = math.degrees(16 * nums["ifov_rad"])
+    cfg["fpa"]["psf"] = {"mode": "none"}         # every photo-electron in one pixel: the frame keeps them all
+    lib = tmp_path / "library"
+    (lib / "satsim" / "assets").mkdir(parents=True)
+    for name in ("de421.bsp", "finals2000A.all"):
+        (lib / "satsim" / "assets" / name).symlink_to((CONFIG_REPO / "satsim" / "assets" / name).resolve())
+    path = lib / "satsim" / "sphere.yaml"
+    path.write_text(yaml.safe_dump(cfg, sort_keys=False))
+    spec = s2s.satsim_spec(p)
+    spec["engine"]["config"] = {"name": "satsim/sphere.yaml",
+                                "content_hash": "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()}
+    (tmp_path / "spec.yaml").write_text(yaml.safe_dump(spec, sort_keys=False))
+    backend = LocalBackend(tmp_path / "work", lib)
+    final = wait_for(backend, backend.submit_run(str(tmp_path / "spec.yaml"))["run_id"], ("rendered", "failed"),
+                     timeout=300)
+    assert final["state"] == "rendered", final["errors"]
+    frame = next(a for a in final["artifacts"] if a["name"].startswith("ImageFiles_") and a["name"].endswith(".fits"))
+    img = _fits_image(Path(frame["uri"].removeprefix("file://")))
+    g = s2s.footprint(s2s.SATSIM["range_m"])
+    expected = 2 / 3 * math.pi * s2s.SATSIM["sphere_radius_m"] ** 2 / g ** 2 * nums["full_pixel_pe_per_s"] * p["exposure_s"]
+    assert abs(img.sum() - expected) <= 1.0 and (img > 0).sum() == 1
+    r, c = np.unravel_index(img.argmax(), img.shape)
+    assert 6 <= r <= 9 and 6 <= c <= 9
