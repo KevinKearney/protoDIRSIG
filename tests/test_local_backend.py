@@ -93,8 +93,9 @@ class TestLocalBackend(BackendConformance):
 
     def run_processes(self, backend, run_id):
         backend._poll_children()
-        pgid = (backend.store.read_record(run_id).get("worker") or {}).get("pgid")
-        return _pgid_members(pgid) if pgid else []
+        record = backend.store.read_record(run_id)
+        pgids = [(record.get(k) or {}).get("pgid") for k in ("worker", "engine_process")]   # the engine has its own
+        return [pid for pgid in pgids if pgid for pid in _pgid_members(pgid)]
 
     def passthrough_backend(self, tmp_path, library):
         import json as _json

@@ -316,3 +316,91 @@ def test_the_dummy_installed_from_its_wheel_is_discovered_runs_and_uninstalls(ve
     after = _in_venv(python, WHEEL_LIST)
     assert after["ids"] == [i for i in got["ids"] if i != "dummy"]
     assert not list((venv / "lib").glob("python*/site-packages/manifold/engines/dummy"))
+
+
+CANCEL = """
+import json, os, sys, time
+from pathlib import Path
+sys.path.insert(0, 'tests')
+import manifold.sim
+from manifold.sim.backend import LocalBackend
+from backend_conformance import wait_for
+top = Path({top!r})
+b = LocalBackend(top / "work_cancel", top / "assets", library=top / "manifold_run_specs")
+
+
+def members(pgid):
+    out = []
+    for p in Path("/proc").iterdir():
+        if p.name.isdigit():
+            try:
+                stat = (p / "stat").read_text()
+            except OSError:
+                continue
+            fields = stat[stat.rindex(")") + 2:].split()
+            if fields[0] not in "ZX" and int(fields[2]) == pgid:
+                out.append(int(p.name))
+    return out
+
+
+out = {{}}
+slow = b.submit_run("dummy_slow")["run_id"]
+slow_dir = b.store.run_dir(slow)
+deadline = time.monotonic() + 60
+while len(list((slow_dir / "output").glob("frame-*.txt"))) < 2 and time.monotonic() < deadline:
+    time.sleep(0.1)
+t0 = time.monotonic()
+out["first"] = b.cancel_run(slow)
+out["cancel_s"] = time.monotonic() - t0
+out["listed"] = b.list_artifacts(slow)["artifacts"]
+out["second"] = b.cancel_run(slow)
+out["listed_again"] = b.list_artifacts(slow)["artifacts"]
+rec = b.store.read_record(slow)
+out["record"] = {{k: rec.get(k) for k in ("cancellation", "artifact_roles", "frames_written", "engine_process", "worker")}}
+out["alive"] = [p for k in ("worker", "engine_process") for p in members((rec.get(k) or {{}}).get("pgid") or -1)]
+out["on_disk"] = sorted(p.name for p in (slow_dir / "output").iterdir())
+time.sleep(1.5)
+out["later"] = b.get_run(slow)
+quick = wait_for(b, b.submit_run("dummy_quick")["run_id"], ("rendered", "failed", "cancelled"), timeout=120)
+out["quick"] = quick
+out["quick_cancel"] = b.cancel_run(quick["run_id"])
+out["quick_listed"] = b.list_artifacts(quick["run_id"])["artifacts"]
+print(json.dumps(out, default=str))
+"""
+
+
+@pytest.fixture(scope="module")
+def cancelled(site, library):
+    return _run(CANCEL.format(top=str(library)), site)
+
+
+def test_a_run_cancelled_mid_run_lists_its_partial_artifacts(cancelled):
+    first, listed, rec = cancelled["first"], cancelled["listed"], cancelled["record"]
+    assert first["state"] == "cancelled" and first["verdict"] == "incomplete"
+    names = [a["name"] for a in listed]
+    frames = [n for n in names if n.startswith("frame-")]
+    assert names[0] == "run_spec.json" and listed[0]["role"] == "config"
+    assert len(frames) >= 2 and "dummy.log" in names and "DONE" not in cancelled["on_disk"]
+    assert frames == sorted(n for n in cancelled["on_disk"] if n.startswith("frame-"))   # every frame left is listed
+    assert [a.get("frame") for a in listed if a["name"] in frames] == list(range(len(frames)))
+    assert {a["name"]: a["role"] for a in listed} == rec["artifact_roles"]        # roles as for a normal run
+    assert all(len(a["sha256"]) == 64 and a["uri"].startswith("file://") for a in listed)
+    c = rec["cancellation"]
+    assert c["verdict"] == "incomplete" and "end-of-run marker" in c["message"] and c["collected"] == len(listed)
+    assert c["engine_stopped"] in ("SIGTERM", "SIGKILL") and rec["frames_written"] == len(frames)
+    assert rec["engine_process"]["pgid"] != rec["worker"]["pgid"]
+    assert cancelled["alive"] == []                                      # worker and engine groups both gone
+    assert cancelled["cancel_s"] < 25                                    # bounded: grace, then SIGKILL
+    assert cancelled["later"]["state"] == "cancelled" and cancelled["later"]["verdict"] == "incomplete"
+
+
+def test_cancelling_twice_changes_nothing(cancelled):
+    assert cancelled["second"] == cancelled["later"] == cancelled["first"]
+    assert cancelled["listed_again"] == cancelled["listed"]
+
+
+def test_cancelling_a_rendered_run_changes_nothing(cancelled):
+    quick = cancelled["quick"]
+    assert quick["state"] == "rendered" and quick["verdict"] == "complete"
+    assert cancelled["quick_cancel"] == quick
+    assert cancelled["quick_listed"] == quick["artifacts"]

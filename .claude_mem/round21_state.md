@@ -5,3 +5,5 @@
 - commit trailer: Co-Authored-By alone
 - step C probe started 2026-10-11T23:08:15-04:00: `setsid nohup timeout 120m python scripts/probe_determinism.py --work ~/.local/state/protodirsig/r21-lightcurve --results ~/.local/state/protodirsig/sweeps/r15-20261011/sweep/results.jsonl --demos LightCurve1 --conditions C1 --timeout 3900`; PID 733969 (`timeout`, process-group leader, pgid 733969), python child 733970; output `~/.local/state/protodirsig/r21-lightcurve/probe.out`. Two single-thread renders one after the other (C1 rep 1 then rep 2), never concurrent; 120-minute cap on the whole process, 65 minutes per render.
 - step A: gate 1575 passed, 2 skipped (second run; first failed on a C-n citation in api/README)
+- step B: code and docs in working tree; targeted tests 74 passed
+- step B: gate 1578 passed, 2 skipped

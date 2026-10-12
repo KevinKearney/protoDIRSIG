@@ -450,7 +450,9 @@ class LocalBackend:
 
     def cancel_run(self, run_id):
         """Cancel an `accepted` or `running` run: the state becomes `cancelled` first (a worker then never overwrites
-        it), then the worker's process group gets SIGTERM, and SIGKILL after 10 s. A final run is returned unchanged."""
+        it), then the worker's process group gets SIGTERM, and SIGKILL after 10 s. A worker whose engine is running
+        stops the engine's process group and lists what it collected (`manifold.sim.worker`); if the engine's group
+        outlives the worker, it gets SIGTERM and SIGKILL here too. A final run is returned unchanged."""
         self._poll_children()
         status = self.store.read_status(run_id)
         if status["state"] in FINAL:
@@ -461,6 +463,9 @@ class LocalBackend:
         pgid = (self.store.read_record(run_id).get("worker") or {}).get("pgid")
         if pgid and pgid != os.getpgid(0):
             self._terminate(pgid)
+        engine_pgid = (self.store.read_record(run_id).get("engine_process") or {}).get("pgid")
+        if engine_pgid and engine_pgid != os.getpgid(0):
+            self._terminate(engine_pgid)                      # the worker was killed before it stopped its engine
         self.store.update_record(run_id, {"finished_at": utc_now(), "cancelled_at": utc_now()})
         return self.store.read_status(run_id, reap=False)
 

@@ -2,7 +2,7 @@
 library sample twice with one seed gives byte-identical frames, annotations and `config.json`; another seed differs; one
 thread equals the default; a library without the ephemeris is refused at admission naming the asset, so no SatSim
 process starts and nothing connects; SIGTERM mid-run leaves a cancelled run whose collector says `incomplete` with the
-written frames; a bad configuration fails within seconds with the traceback head. About 40 s of SatSim time in all.
+written frames, and the run lists them; a bad configuration fails within seconds with the traceback head. About 40 s of SatSim time in all.
 Every run is network-free: each checks that the launcher's guard recorded no connection attempt."""
 import hashlib
 import json
@@ -161,6 +161,14 @@ def test_sigterm_mid_run_leaves_a_cancelled_run_and_an_incomplete_collection(tmp
     assert c.verdict == "incomplete" and 2 <= written < 40 and f"{written} of 40 frames written" in c.message
     assert sum(a.role == "product" for a in c.artifacts) == written
     assert not (run_dir / "output" / "satsim_result.json").exists()
+    listed = backend.list_artifacts(run_id)["artifacts"]               # the worker collected them when cancelled
+    assert listed[0]["name"] == "run_spec.json" and listed[0]["role"] == "config"
+    assert sum(r["role"] == "product" for r in listed) == written
+    assert {r["name"] for r in listed if r["role"] == "product"} == \
+        {a.name or a.path.name for a in c.artifacts if a.role == "product"}
+    cancellation = backend.store.read_record(run_id)["cancellation"]
+    assert cancellation["verdict"] == "incomplete" and cancellation["collected"] == len(listed)
+    assert backend.get_run(run_id)["state"] == "cancelled" and backend.get_run(run_id)["verdict"] == "incomplete"
 
 
 def test_a_bad_configuration_fails_within_seconds_with_the_traceback_head(tmp_path):
