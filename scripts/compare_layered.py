@@ -2,12 +2,15 @@
 """Render a DIRSIG demo in the layered form and as authored (pass-through), and compare the images.
 
     python scripts/compare_layered.py DensityMap1 [PointCollectors2 ...] [--work DIR] [--seed 1] [--timeout 1800]
+    python scripts/compare_layered.py --source NAME=DIR:SIMULATION [...] [--work DIR]
 
 Per demo, one render at a time, everything under `--work` (default: the state directory's
 `manifold/layered-comparison/`, outside the repository):
 
 1. The demo's archive (`$DIRSIG_HOME/demos/zips/<Name>.zip`) is extracted into a private engine-asset library,
-   `<work>/<Name>/config_repo/demo_dirs/<Name>/`.
+   `<work>/<Name>/config_repo/demo_dirs/<Name>/`. With `--source NAME=DIR:SIMULATION` the demo is a directory instead
+   (a scene folder that is no install demo, for example a scene a user received): DIR is copied there, read only,
+   and SIMULATION is the simulation file's path inside it.
 2. Layers are derived from the demo's own files and written under `<work>/<Name>/layers/` (a recipe, a scenario and an
    engine profile; `manifold_sensors/` is the sensor library): the scene and the platform by reference with stamped
    hashes (the platform `as_authored`), the atmosphere as `basic` with `uniform` or `simple` read from the demo's
@@ -111,8 +114,17 @@ def _dirsig_home():
     return Path(home)
 
 
+SOURCES = {}                                   # NAME -> a directory demo (`--source`), copied instead of a zip
+
+
 def extract(name, target):
-    """The demo's archive extracted into `target` (replaced). Returns `target`."""
+    """The demo's archive extracted into `target` (replaced), or a `--source` directory copied there. Returns
+    `target`."""
+    if name in SOURCES:
+        if target.exists():
+            shutil.rmtree(target)
+        shutil.copytree(SOURCES[name], target, symlinks=False)
+        return target
     zpath = _dirsig_home() / "demos" / "zips" / f"{name}.zip"
     if target.exists():
         shutil.rmtree(target)
@@ -175,8 +187,12 @@ def static_pose(ppd):
     if attrs["rotationframe"] != "sceneenu" or attrs["angletype"] != "absolute" or attrs["spatialunits"] != "meters":
         raise ValueError(f"{ppd.name}: {attrs} is not a scene-ENU absolute pose in metres")
     loc = entries[0].find("position/location")
-    if loc.get("frame") != "scene":
-        raise ValueError(f"{ppd.name}: location frame {loc.get('frame')!r}")
+    if loc is not None:
+        frame = loc.get("frame", loc.get("type"))    # DIRSIG's demos write frame=, older files (and dirfm) type=
+    else:                                            # the older element form <scenelocation> (DIRSIG's Documents scenes)
+        loc, frame = entries[0].find("position/scenelocation"), "scene"
+    if loc is None or frame != "scene":
+        raise ValueError(f"{ppd.name}: location frame {frame!r}")
     xyz = [float(loc.findtext(f"point/{a}")) for a in "xyz"]
     angles = [float(entries[0].findtext(f"orientation/eulerangles/cartesiantriple/{a}")) for a in "xyz"]
     return {"kind": "static", "position": {"frame": "scene", "xyz": xyz},
@@ -435,16 +451,31 @@ def table(results):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("demos", nargs="+", choices=sorted(SIMULATION))
+    ap.add_argument("demos", nargs="*", metavar="DEMO", help=f"an install demo: {', '.join(sorted(SIMULATION))}")
+    ap.add_argument("--source", action="append", default=[], metavar="NAME=DIR:SIMULATION",
+                    help="a directory demo: NAME, the folder (copied, read only) and its simulation file's path in it")
     ap.add_argument("--work", type=Path, default=None)
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--timeout", type=float, default=1800.0)
     a = ap.parse_args(argv)
+    unknown = sorted(set(a.demos) - set(SIMULATION))
+    if unknown:
+        ap.error(f"not a demo this script knows: {', '.join(unknown)}")
+    names = list(a.demos)
+    for item in a.source:
+        name, _, rest = item.partition("=")
+        folder, _, simulation = rest.rpartition(":")
+        if not (name and folder and simulation) or not (Path(folder) / simulation).is_file():
+            raise SystemExit(f"--source {item}: expected NAME=DIR:SIMULATION with DIR/SIMULATION a file")
+        SOURCES[name], SIMULATION[name] = Path(folder).resolve(), simulation
+        names.append(name)
+    if not names:
+        ap.error("name a demo or a --source")
     work = a.work or default_work_root().parent / "layered-comparison"
     if work.resolve().is_relative_to(ROOT.resolve()):
         raise SystemExit(f"--work {work} is inside the repository; native-size renders are written outside it")
     work.mkdir(parents=True, exist_ok=True)
-    results = [run_demo(n, work, a.seed, a.timeout) for n in a.demos]
+    results = [run_demo(n, work, a.seed, a.timeout) for n in names]
     (work / "results.json").write_text(json.dumps(results, indent=2, sort_keys=True))
     print(table(results))
     for r in results:

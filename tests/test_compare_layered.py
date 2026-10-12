@@ -210,3 +210,27 @@ def test_write_layers_states_no_working_folder_when_none_is_needed(tmp_path, mon
     _, notes = cl.write_layers("Synth2", tmp_path / "layers", config_repo, 1)
     assert "working_folder" not in _engine(tmp_path / "layers", "Synth2")
     assert not any(n.startswith("engine.working_folder") for n in notes)
+
+
+@pytest.mark.parametrize("position", ['<location type="scene"><point><x>-1.5</x><y>2</y><z>300</z></point></location>',
+                                      '<scenelocation><point><x>-1.5</x><y>2</y><z>300</z></point></scenelocation>'])
+def test_the_older_ppd_position_forms_give_the_same_pose(tmp_path, position):
+    """DIRSIG's Documents-folder scenes write `<location type="scene">` (foxbat) or `<scenelocation>` (urban) where its
+    demos write `<location frame="scene">`; all three are the same scene-frame position (round 32)."""
+    p, q = tmp_path / "a.ppd", tmp_path / "b.ppd"
+    p.write_text(PPD.format(jitter="", entries=ENTRY))
+    old = '<location frame="scene"><point><x>-1.5</x><y>2</y><z>300</z></point></location>'
+    q.write_text(PPD.format(jitter="", entries=ENTRY.replace(old, position)))
+    assert cl.static_pose(q) == cl.static_pose(p)
+    q.write_text(PPD.format(jitter="", entries=ENTRY.replace(old, old.replace('frame="scene"', 'frame="ecef"'))))
+    with pytest.raises(ValueError, match="location frame 'ecef'"):
+        cl.static_pose(q)
+
+
+def test_a_directory_source_needs_its_simulation_file_and_a_demo_name_must_be_known(tmp_path):
+    with pytest.raises(SystemExit, match="NAME=DIR:SIMULATION"):
+        cl.main(["--source", f"scene={tmp_path}:shots/none.sim", "--work", str(tmp_path / "work")])
+    with pytest.raises(SystemExit):
+        cl.main(["NotADemo", "--work", str(tmp_path / "work")])
+    with pytest.raises(SystemExit):
+        cl.main(["--work", str(tmp_path / "work")])

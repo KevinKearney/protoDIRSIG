@@ -10,3 +10,5 @@
 - step A: gate 1695 passed, 2 skipped (8 min 48 s, alone); eleven checks 0 (s2s_measure absent until B); boundary 23 passed; core and snapshot unchanged
 - B renders: 62 native re-renders + 3 through Workspace, 3320 s logged (incl. overhead); family III read from ~/r31scratch/work; runs kept in ~/r32scratch/runs
 - step B: gate 1733 passed, 2 skipped (8 min 4 s, alone); twelve checks 0 (s2s_measure 89 records); boundary 23; core and snapshot unchanged
+- step C extra: four one-thread foxbat renders (pass-through, layered+angle, all-in, angle+compiled scene: byte-identical); C render total ~27 min
+- step C (final gate): 1736 passed, 2 skipped (7 min 58 s, alone, rerun after the one-thread doc edits); twelve checks 0; boundary 23; git diff a2d992f -- packages/core tests/data/id_snapshot.json empty
