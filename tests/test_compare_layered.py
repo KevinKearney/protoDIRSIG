@@ -49,10 +49,28 @@ def test_the_files_a_sim_and_a_jsim_name(tmp_path):
                                                     "tasks_filename": "t.tasks"}}]
     (tmp_path / "b.jsim").write_text(json.dumps([{"scene_list": [{"inputs": "./x.scene"}], "plugin_list": plugins}]))
     assert cl.simulation_inputs(tmp_path, "b.jsim")["scene"] == "x.scene"
+    # SpiceEphemeris without inputs is the plugin the layered job adds itself (Indoors1); with inputs, or any other
+    # plugin, it is refused.
     plugins.append({"name": "SpiceEphemeris", "inputs": {}})
     (tmp_path / "c.jsim").write_text(json.dumps([{"scene_list": [{"inputs": "./x.scene"}], "plugin_list": plugins}]))
+    assert cl.simulation_inputs(tmp_path, "c.jsim")["platform"] == "p.platform"
+    plugins[-1]["inputs"] = {"kernel": "x.bsp"}
+    (tmp_path / "d.jsim").write_text(json.dumps([{"scene_list": [{"inputs": "./x.scene"}], "plugin_list": plugins}]))
     with pytest.raises(ValueError, match="SpiceEphemeris"):
-        cl.simulation_inputs(tmp_path, "c.jsim")
+        cl.simulation_inputs(tmp_path, "d.jsim")
+    plugins[-1] = {"name": "FixedEphemeris", "inputs": {}}
+    (tmp_path / "e.jsim").write_text(json.dumps([{"scene_list": [{"inputs": "./x.scene"}], "plugin_list": plugins}]))
+    with pytest.raises(ValueError, match="FixedEphemeris"):
+        cl.simulation_inputs(tmp_path, "e.jsim")
+
+
+@pytest.mark.parametrize("origin", [
+    '<location frame="geodetic"><latitude>44.4</latitude><longitude>-73.2</longitude></location>',
+    "<geodeticlocation><latitude>44.4</latitude><longitude>-73.2</longitude><altitude>0</altitude></geodeticlocation>",
+], ids=["location", "geodeticlocation"])
+def test_the_scene_origin_in_either_form(tmp_path, origin):
+    (tmp_path / "x.scene").write_text(f"<classicscene><sceneorigin>{origin}</sceneorigin></classicscene>")
+    assert cl.scene_origin(tmp_path / "x.scene") == (44.4, -73.2)
 
 
 def test_a_one_entry_ppd_is_a_static_pose_and_others_are_refused(tmp_path):
@@ -94,3 +112,15 @@ def test_the_image_comparison(tmp_path):
 def test_a_work_folder_inside_the_repository_is_refused():
     with pytest.raises(SystemExit, match="inside the repository"):
         cl.main(["DensityMap1", "--work", str(ROOT / "outputs" / "layered")])
+
+
+def test_the_demo_angles_replace_only_the_generated_angles(tmp_path):
+    demo = tmp_path / "demo.ppd"
+    demo.write_text(PPD.format(jitter="", entries=ENTRY))
+    generated = ("<platformmotion><data><entry><position><location type=\"scene\"><point><x>-1.500</x><y>2.000</y>"
+                 "<z>300.000</z></point></location></position><orientation><eulerangles><cartesiantriple><x>0.100000</x>"
+                 "<y>0.000000</y><z>3.141593</z></cartesiantriple></eulerangles></orientation></entry></data></platformmotion>")
+    out = cl._demo_angles(generated, demo)
+    assert "<x>0.1</x><y>0</y><z>3.14159265</z>" in out                     # the demo's text, as written there
+    assert out.replace("<x>0.1</x><y>0</y><z>3.14159265</z>", "") == generated.replace(
+        "<x>0.100000</x><y>0.000000</y><z>3.141593</z>", "")                 # nothing else changed

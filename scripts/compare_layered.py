@@ -23,11 +23,13 @@ Per demo, one render at a time, everything under `--work` (default: the state di
 5. Attribution, when the layered image differs from the same-seed pass-through one: the layered job's own input folder
    is copied and rendered once more by `dirsig5` directly (same seed, a scratch HOME) with the demo's own motion file
    in place of the generated one, and its image digests are compared with the pass-through's. A diagnostic outside the
-   recipe and the SDK; the recipe is not changed.
+   recipe and the SDK; the recipe is not changed. Then once more with the generated motion file whose Euler angles
+   alone are replaced by the demo's text (dirfm writes them to six decimals), to separate the angles from the rest.
 
 Results go to `<work>/results.json` and a markdown table to stdout; `docs/DIRSIG_layered_comparison.md` holds the
 numbers and digests from a run of this script (hand-copied; no output byte, no demo value). A render that exceeds
-`--timeout` is cancelled, and a render that fails or times out stops that demo (recorded as `stopped`, with the error).
+`--timeout` is cancelled, and a render that fails or times out stops that demo (recorded as `stopped`, with the error);
+after a failed layered render the two pass-through renders still run, so a diagnostic has their digests.
 """
 import argparse
 import hashlib
@@ -58,7 +60,10 @@ GENERATOR = {"tool": "dirfm", "revision": "93195cee1ccc4f31a214e114d94c493a1d4cc
 STAND_IN_SENSOR = "synthetic_600_200_vis_1920.yaml"
 STAND_IN_ENTRY = "synthetic-600-200-vis-1920"
 # The simulation file each demo's reference ran (docs/DIRSIG_demo_sweep.md).
-SIMULATION = {"DensityMap1": "demo.sim", "MaterialMap1": "w_mixing.sim", "PointCollectors2": "framing.jsim"}
+SIMULATION = {"DensityMap1": "demo.sim", "MaterialMap1": "w_mixing.sim", "PointCollectors2": "framing.jsim",
+              "ColorFilterArray1": "bayer.sim", "BayerPattern1": "bayer_hdf.sim", "LensDistortion1": "demo.jsim",
+              "ReflectanceMap1": "demo.sim", "Telecentricity1": "demo.jsim", "PolyFill1": "demo.sim",
+              "PrimitiveObjects1": "demo.sim", "Indoors1": "demo.jsim"}
 KNOWN = [
     ("simulation file: the layered job's jsim is written by dirfm (plugins BasicPlatform, BasicAtmosphere, and "
      "SpiceEphemeris unless the .atm fixes the Sun), not the demo's own file"),
@@ -69,6 +74,8 @@ KNOWN = [
     ("scene compile: dirfm runs scene2hdf with --threads <cpu count> and the seed; the pass-through runner runs it with "
      "neither"),
     ("cache: the layered job runs with the user's HOME (DIRSIG material cache); the pass-through run with a per-run HOME"),
+    ("working folder: the pass-through job runs in the demo's folder, the layered job in its input folder (the scene "
+     "copy in a subfolder, the platform at its library path); a name DIRSIG resolves from the working folder differs"),
     ("descriptor: the layered run's sensor-spec is a library stand-in, checked but not applied (as_authored platform); "
      "its collection is the scene origin and the pose's height"),
 ]
@@ -114,6 +121,8 @@ def simulation_inputs(demo_dir, simulation):
         doc = json.loads(path.read_text())[0]
         plugins = {p["name"]: p.get("inputs", {}) for p in doc["plugin_list"]}
         extra = sorted(set(plugins) - {"BasicAtmosphere", "BasicPlatform"})
+        if extra == ["SpiceEphemeris"] and not plugins["SpiceEphemeris"]:   # the plugin the layered job adds itself
+            extra = []
         if extra:
             raise ValueError(f"{simulation}: plugins the layered form does not write: {extra}")
         bp = plugins["BasicPlatform"]
@@ -162,7 +171,8 @@ def epoch_and_windows(tasks):
 
 
 def scene_origin(scene):
-    loc = et.parse(str(scene)).getroot().find("sceneorigin/location")
+    origin = et.parse(str(scene)).getroot().find("sceneorigin")
+    loc = origin.find("location") if origin.find("location") is not None else origin.find("geodeticlocation")
     return float(loc.findtext("latitude")), float(loc.findtext("longitude"))
 
 
@@ -220,8 +230,14 @@ def write_layers(name, layers, config_repo, seed):
              f"atmosphere: {sorted(uniform)}" + ("" if "fixed_ephemeris" in uniform else "; no fixed Sun in the .atm, "
                                                  "so the layered job adds SpiceEphemeris"),
              f"tasks: {len(windows)} window(s)"]
-    if SIMULATION[name].endswith(".jsim") and "fixed_ephemeris" in uniform:
-        notes.append("the demo's jsim names no ephemeris plugin; DIRSIG takes the .atm's fixed Sun in both forms")
+    if SIMULATION[name].endswith(".jsim"):
+        plugins = [p["name"] for p in json.loads((demo_dir / SIMULATION[name]).read_text())[0]["plugin_list"]]
+        if "fixed_ephemeris" in uniform and "SpiceEphemeris" in plugins:
+            raise ValueError(f"{SIMULATION[name]}: SpiceEphemeris beside a fixed Sun; the loader refuses that pair")
+        if "fixed_ephemeris" in uniform:
+            notes.append("the demo's jsim names no ephemeris plugin; DIRSIG takes the .atm's fixed Sun in both forms")
+        elif "SpiceEphemeris" in plugins:
+            notes.append("the demo's jsim names SpiceEphemeris (no inputs), as the layered job does")
     return key, notes
 
 
@@ -283,8 +299,21 @@ def compare(a, b):
     return rec
 
 
-def attribute_motion(ws, layered, demo_dir, motion_rel, seed, scratch, timeout):
-    """Digests of the layered job re-rendered with the demo's own motion file (see the module docstring, step 5)."""
+def _demo_angles(generated, demo_ppd):
+    """The generated `.ppd` text with only its Euler angles replaced by the demo's, as the demo writes them."""
+    import re
+    want = [et.parse(str(demo_ppd)).getroot().findtext(f"data/entry/orientation/eulerangles/cartesiantriple/{a}")
+            for a in "xyz"]
+    m = re.search(r"<cartesiantriple>.*?</cartesiantriple>", generated, re.S)
+    block = m.group(0)
+    for a, v in zip("xyz", want):
+        block = re.sub(fr"<{a}>[^<]*</{a}>", f"<{a}>{v.strip()}</{a}>", block, count=1)
+    return generated[:m.start()] + block + generated[m.end():]
+
+
+def attribute_motion(ws, layered, demo_dir, motion_rel, seed, scratch, timeout, angles_only=False):
+    """Digests of the layered job re-rendered with the demo's own motion file, or with the generated one whose Euler
+    angles alone are the demo's (`angles_only`; see the module docstring, step 5)."""
     import os
     import subprocess
     from manifold.engines.dirsig.adapter import locate_dirsig
@@ -292,7 +321,11 @@ def attribute_motion(ws, layered, demo_dir, motion_rel, seed, scratch, timeout):
     if scratch.exists():
         shutil.rmtree(scratch)
     shutil.copytree(src, scratch / "input", symlinks=True)
-    shutil.copy2(demo_dir / motion_rel, scratch / "input" / "motion" / "motion.ppd")
+    target = scratch / "input" / "motion" / "motion.ppd"
+    if angles_only:
+        target.write_text(_demo_angles(target.read_text(), demo_dir / motion_rel))
+    else:
+        shutil.copy2(demo_dir / motion_rel, target)
     (scratch / "home").mkdir()
     out = scratch / "output"
     out.mkdir()
@@ -322,9 +355,12 @@ def run_demo(name, work, seed, timeout):
         targets[label] = str(path)
     for label, target in targets.items():                                  # one render at a time
         out["runs"][label] = render(ws, target, timeout)
-        if out["runs"][label]["state"] != "rendered":                 # a failure or a timeout is a result; stop here
-            out["stopped"] = f"{label}: {out['runs'][label]['state']}"
-            return out
+        if out["runs"][label]["state"] != "rendered":                 # a failure or a timeout is a result
+            out.setdefault("stopped", f"{label}: {out['runs'][label]['state']}")
+            if label != "layered":                                    # the references are still rendered after a
+                return out                                            # failed layered run, for diagnostics
+    if "stopped" in out:
+        return out
     layered = _images(out["runs"]["layered"])
     out["comparisons"] = {}
     for label in ("passthrough_same_seed", "passthrough_no_seed"):
@@ -336,10 +372,12 @@ def run_demo(name, work, seed, timeout):
     if any(isinstance(c, dict) and c["sha256_a"] != c["sha256_b"] for c in same.values()):
         demo_dir = config_repo / "demo_dirs" / name
         motion = simulation_inputs(demo_dir, SIMULATION[name])["motion"]
-        rec = attribute_motion(ws, out["runs"]["layered"], demo_dir, motion, seed, base / "attribution", timeout)
         target = {n: c["sha256_b"] for n, c in same.items() if isinstance(c, dict)}
-        rec["matches_passthrough_same_seed"] = {n: rec["sha256"].get(n) == s for n, s in target.items()}
-        out["attribution_demo_motion"] = rec
+        for key, angles_only in (("attribution_demo_motion", False), ("attribution_demo_angles", True)):
+            rec = attribute_motion(ws, out["runs"]["layered"], demo_dir, motion, seed, base / key, timeout,
+                                   angles_only=angles_only)
+            rec["matches_passthrough_same_seed"] = {n: rec["sha256"].get(n) == s for n, s in target.items()}
+            out[key] = rec
     return out
 
 
@@ -379,6 +417,8 @@ def main(argv=None):
         if "attribution_demo_motion" in r:
             print(f"{r['demo']}: with the demo's own motion file, identical to the same-seed pass-through: "
                   f"{r['attribution_demo_motion']['matches_passthrough_same_seed']}")
+            print(f"{r['demo']}: with the demo's Euler angles alone, identical to the same-seed pass-through: "
+                  f"{r['attribution_demo_angles']['matches_passthrough_same_seed']}")
     return 0
 
 

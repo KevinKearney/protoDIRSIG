@@ -124,6 +124,27 @@ def test_scene_files_the_job_does_not_place_are_missing(tmp_path):
     assert r["missing"] == ["scene files the job does not place"] and r["verdict"] == "near"
 
 
+def test_a_geometry_list_found_only_from_the_working_folder_is_missing(tmp_path):
+    # Named by a bare name, beside the scene and not in its gdbdirectory: DIRSIG searches the working folder.
+    scene = SCENE.replace("geometry/demo.glist", "demo.glist").replace(
+        "<odbdirectory>.</odbdirectory>", "<gdbdirectory>$SCENE_DIR/geometry</gdbdirectory>")
+    r = survey.survey(make(tmp_path, "Beside1", jsim=jsim(), extra_files={"demo.scene": scene, "demo.glist": GLIST},
+                           drop=("geometry/demo.glist",)))
+    assert r["missing"] == ["geometry lists DIRSIG finds only from the working folder"] and r["verdict"] == "near"
+    found = scene.replace("$SCENE_DIR/geometry</gdbdirectory>", "$SCENE_DIR</gdbdirectory>")
+    r = survey.survey(make(tmp_path, "Beside2", jsim=jsim(), extra_files={"demo.scene": found, "demo.glist": GLIST},
+                           drop=("geometry/demo.glist",)))
+    assert r["missing"] == [] and r["verdict"] == "ready"
+
+
+def test_files_the_platform_names_are_missing(tmp_path):
+    plat = platform(extra="<pixelmap><filename format='hdf'>pixels.hdf</filename></pixelmap><x><filename/></x>")
+    r = survey.survey(make(tmp_path, "PlatFile1", jsim=jsim(), plat=plat, extra_files={"pixels.hdf": "hdf"}))
+    assert r["missing"] == ["files the platform names"] and r["verdict"] == "near"
+    r = survey.survey(make(tmp_path, "PlatFile2", jsim=jsim(), plat=plat))          # named but not shipped: not counted
+    assert r["missing"] == [] and r["verdict"] == "ready"
+
+
 def test_motion_kinds(tmp_path):
     moving = PPD.replace("<data><entry/></data>", "<data><entry/><entry/><entry/></data>")
     r = survey.survey(make(tmp_path, "Moving1", jsim=jsim(), extra_files={"demo.ppd": moving}))
