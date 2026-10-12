@@ -13,3 +13,5 @@
 - A, a first batch killed both-e20ms at the per-render 170 s timeout (no result used); each later render ran as its own background command
 - A judgment: family II's look and orbit groups are in the same generated scene and specs as the blur groups (one asset), committed with step A; B adds the look measurements
 - step A: gate 1689 passed, 2 skipped (7 min 46 s, alone); eleven checks 0; boundary 23 passed; core and snapshot unchanged
+- B renders: 6 native look renders (~8 min) + one native truth render of l75 (35 s)
+- step B: gate 1690 passed, 2 skipped (7 min 55 s, alone); eleven checks 0; boundary 23 passed; core and snapshot unchanged

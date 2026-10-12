@@ -188,3 +188,13 @@ def test_the_orbit_form_holds_its_lookat_point_through_the_exposure(tmp_path):
     assert short.sum() > 0
     assert np.array_equal(short > 0, long > 0)                       # the same pixels: no streak over 20 ms
     assert long.sum() / short.sum() == pytest.approx(200.0, rel=1e-6)
+
+
+@needs_dirsig
+def test_sixty_degrees_off_nadir_the_plate_is_foreshortened_by_the_cosine(tmp_path):
+    """The 20 m plate 60 degrees off nadir at 25 km: 24.48 pixels along y fill the 16-row window, and 12.24 pixels
+    along x lie inside it, so the window sums to 16 x 12.24 full pixels (the background behind is black)."""
+    img = _render2(tmp_path, {"kind": "look", "group": "look", "exposure_s": 0.005, "look_deg": 60.0})
+    full = img.max()
+    ex = s2s.expected2({"kind": "look", "group": "look", "exposure_s": 0.005, "look_deg": 60.0})
+    assert img.sum() / full == pytest.approx(16 * ex["side_px"] * 0.5, rel=0.01)
