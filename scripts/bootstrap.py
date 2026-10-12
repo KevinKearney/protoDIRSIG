@@ -24,7 +24,9 @@ overwritten. Each entry is extracted into a temporary directory and moved into p
 its sha256, size and source URL; SatSim's ephemeris and IERS snapshot), which the engine-asset library sees through a
 link. `--status` verifies each (ok, missing, mismatch) and fetches nothing; without `--status` a missing one is fetched
 from its URL into a temporary file, kept only when its size and sha256 match the pin, and made read-only; a mismatching
-file is reported, never replaced. Nothing is fetched unless the user runs the command.
+file is reported, never replaced. A pin with a `tracked` member (the IERS snapshot, which cannot be re-fetched) is
+restored from that committed copy under `external/snapshots/` instead, offline, after the same check. Nothing is fetched
+unless the user runs the command.
 """
 import argparse
 import hashlib
@@ -284,7 +286,8 @@ def pinned_status(pin, root=ROOT):
 
 def fetch_pinned(pin, root=ROOT, opener=None):
     """Fetch a missing pinned asset from its URL and keep it only if size and sha256 match. Returns a message;
-    raises AssetError on a refusal (the downloaded bytes are discarded)."""
+    raises AssetError on a refusal (the downloaded bytes are discarded). A pin with a `tracked` member (the
+    repository-relative path of a committed copy) is restored from that copy instead, offline, under the same check."""
     import urllib.request
     path = Path(root) / pin["path"]
     state = pinned_status(pin, root)
@@ -294,7 +297,15 @@ def fetch_pinned(pin, root=ROOT, opener=None):
         raise AssetError(f"{pin['path']} exists and does not match its pin; not replaced (move it aside to fetch)")
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(f".{path.name}.{uuid.uuid4().hex}.part")
+    tracked = pin.get("tracked")
     try:
+        if tracked:                                      # a committed copy: restored offline, never fetched
+            shutil.copyfile(Path(root) / tracked, tmp)
+            if hashlib.sha256(tmp.read_bytes()).hexdigest() != pin["sha256"] or tmp.stat().st_size != pin["size"]:
+                raise AssetError(f"{pin['path']}: the tracked copy {tracked} does not match the pin; not restored")
+            tmp.chmod(0o444)
+            os.replace(tmp, path)
+            return f"restored  {pin['path']} (from {tracked})"
         with (opener or urllib.request.urlopen)(pin["url"]) as src, open(tmp, "wb") as out:
             shutil.copyfileobj(src, out)
         got = hashlib.sha256(tmp.read_bytes()).hexdigest()

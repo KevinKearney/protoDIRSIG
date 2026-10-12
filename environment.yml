@@ -1,12 +1,6 @@
 # Conda environment for protoDIRSIG.
-# dirfm is not on PyPI/conda-forge; install it editable from the sibling
-# checkout after creating this environment:
-#   conda env create -f environment.yml
-#   conda activate protodirsig
-#   pip install -e /home/kevin-kearney/dev/dirsig-file-maker
-#   pip install --no-build-isolation --no-deps -e packages/core
-#   pip install --no-build-isolation --no-deps -e packages/sim
-#   pip install --no-build-isolation --no-deps -e packages/engine-dirsig
+# dirfm is not on PyPI/conda-forge; the install order after creating this environment
+# is in docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md, section 11 (Reproduce from zero).
 name: protodirsig
 channels:
   - conda-forge

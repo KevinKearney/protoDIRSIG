@@ -318,6 +318,41 @@ def test_bootstrap_verifies_and_fetches_a_pinned_asset_only_when_asked(tmp_path)
     assert not (tmp_path / "store" / "x.bsp").exists() and not list((tmp_path / "store").glob(".*part"))
 
 
+def test_bootstrap_restores_a_tracked_snapshot_offline(tmp_path):
+    """A pin with a `tracked` copy is restored from it, read-only, without calling the opener; a tracked copy that
+    differs from the pin is refused and nothing is placed."""
+    bs = _bootstrap()
+    data = b"a dated table"
+    (tmp_path / "snapshots").mkdir()
+    (tmp_path / "snapshots" / "t.all").write_bytes(data)
+    pin = {"kind": "asset", "path": "store/t.all", "library": "satsim/assets/t.all", "url": "https://example.invalid/t",
+           "sha256": hashlib.sha256(data).hexdigest(), "size": len(data), "snapshot": "2026-10-11",
+           "tracked": "snapshots/t.all"}
+    calls = []
+    opener = lambda url: calls.append(url) or _Served(b"a newer table")    # noqa: E731
+    assert bs.fetch_pinned(pin, tmp_path, opener) == "restored  store/t.all (from snapshots/t.all)"
+    assert calls == [] and (tmp_path / "store" / "t.all").read_bytes() == data
+    assert oct((tmp_path / "store" / "t.all").stat().st_mode & 0o777) == "0o444"
+    (tmp_path / "store" / "t.all").chmod(0o644)
+    (tmp_path / "store" / "t.all").unlink()
+    (tmp_path / "snapshots" / "t.all").write_bytes(b"edited")
+    with pytest.raises(bs.AssetError, match="tracked copy snapshots/t.all does not match"):
+        bs.fetch_pinned(pin, tmp_path, opener)
+    assert calls == [] and not (tmp_path / "store" / "t.all").exists() and not list((tmp_path / "store").glob(".*part"))
+
+
+def test_the_iers_snapshot_is_committed_with_its_pinned_digest():
+    pins = json.loads((ROOT / "external" / "pins.json").read_text())
+    tracked = {n: p for n, p in pins.items() if "tracked" in p}
+    assert list(tracked) == ["satsim-iers-finals2000A"]
+    pin = tracked["satsim-iers-finals2000A"]
+    copy = ROOT / pin["tracked"]
+    assert copy.stat().st_size == pin["size"] and hashlib.sha256(copy.read_bytes()).hexdigest() == pin["sha256"]
+    listed = subprocess.run(["git", "-C", str(ROOT), "ls-files", "--error-unmatch", pin["tracked"]], capture_output=True)
+    ignored = subprocess.run(["git", "-C", str(ROOT), "check-ignore", "-q", pin["tracked"]])
+    assert listed.returncode == 0 or ignored.returncode == 1                 # tracked, or at least not ignored
+
+
 def test_bootstrap_status_and_install_skip_asset_pins(tmp_path):
     bs = _bootstrap()
     pins = {"a": {"kind": "asset", "path": "p", "library": "l", "url": "u", "sha256": "0" * 64, "size": 1}}

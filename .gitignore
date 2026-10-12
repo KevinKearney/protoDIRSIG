@@ -25,6 +25,8 @@ notebooks/dev/
 external/*
 !external/pins.json
 !external/README.md
+# The dated IERS snapshot SatSim's pin names (public data; it cannot be re-fetched), restored by bootstrap.py assets
+!external/snapshots/
 
 # Working prompt for Claude Code; not versioned
 /prompt.md

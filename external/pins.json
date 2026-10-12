@@ -37,7 +37,8 @@
     "size": 3769212,
     "url": "https://datacenter.iers.org/data/9/finals2000A.all",
     "snapshot": "2026-10-11",
+    "tracked": "external/snapshots/finals2000A.all",
     "last_measured": "2026-10-08",
-    "note": "IERS Earth orientation (finals2000A, IAU 2000), a frozen snapshot of the auto-updating table, taken 2026-10-11 (astropy's download on the SatSim probe's first run; measured values to 2026-10-08, predictions after). Copied from ~/.astropy/cache. The URL serves the current table, which differs: a fetch is verified against this digest and refused when it does not match, so the snapshot itself must be kept (it cannot be re-fetched)."
+    "note": "IERS Earth orientation (finals2000A, IAU 2000), a frozen snapshot of the auto-updating table, taken 2026-10-11 (astropy's download on the SatSim probe's first run; measured values to 2026-10-08, predictions after). Copied from ~/.astropy/cache. The URL serves the current table, which differs: a fetch is verified against this digest and refused when it does not match, so the snapshot itself must be kept (it cannot be re-fetched); a copy is committed at the `tracked` path, from which bootstrap.py assets restores it offline."
   }
 }
