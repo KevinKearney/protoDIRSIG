@@ -115,6 +115,8 @@ class ResolvedRun:
                                           # up ("along_track"), scene_origin (lat, lon deg, from the .scene)
     uniform_atmosphere: dict | None = None  # engine.atmosphere.uniform (plugin basic): the values the job's .atm is
                                             # written from (basic_atmosphere); atmosphere_db and weather are then None
+    platform_as_authored: bool = False      # engine.platform.as_authored: `platform` is copied into the job as it is,
+                                            # not rendered from the sensor-spec (integration_samples is then None)
 
     def atmosphere_plugin(self, db=None):
         """`NewAtmosphere` over `db`, or over the resolved library database if not given. Pass the job's
@@ -239,6 +241,13 @@ def resolve_run(spec, run_spec_path, config_repo, sensor_library=None):
                            pointer="/descriptor/collection/epoch")
 
     scene, plat = eng["scenes"][0], eng["platform"]
+    as_authored = plat.get("as_authored", False) is True
+    if as_authored:
+        for member in ("channel_response", "integration_samples"):
+            if member in plat:
+                raise RunSpecError(f"engine.platform.{member} is given with as_authored: the platform file is used as "
+                                   "authored, not rendered from the sensor-spec, so the value would not be applied",
+                                   pointer=f"/engine/platform/{member}")
     channel_response = plat.get("channel_response", "tabulated")
     if channel_response not in ("tabulated", "native"):
         raise RunSpecError(f"engine.platform.channel_response is {channel_response!r}; expected 'tabulated' or 'native'",
@@ -296,7 +305,7 @@ def resolve_run(spec, run_spec_path, config_repo, sensor_library=None):
         epoch=epoch.astimezone(timezone.utc),
         output_prefix=plat["output_prefix"],
         split_channels=bool(plat["split_channels"]),
-        integration_samples=int(plat["integration_samples"]),
+        integration_samples=None if as_authored else int(plat["integration_samples"]),
         atmosphere_db=None if uniform is not None else _root_file(
             config_repo, atm["database"]["ref"]["name"], "atmosphere database", atm["database"]["ref"],
             "/engine/atmosphere/database/ref"),
@@ -311,6 +320,7 @@ def resolve_run(spec, run_spec_path, config_repo, sensor_library=None):
         motion_kind=kind,
         orbit=orbit_values if kind == "orbit" else None,
         uniform_atmosphere=uniform,
+        platform_as_authored=as_authored,
     )
 
 
@@ -407,6 +417,8 @@ def check_library_files(spec, run):
 
     from manifold.engines.dirsig.platform_gen import PlatformGenError, check_template, render_platform
     from manifold.core.spectral import SpectralError
+    if run.platform_as_authored:
+        return [LibraryProblem(b, "/engine/platform/ref") for b in authored_platform_problems(run.platform)]
     bad = check_template(run.platform)
     if bad:
         return [LibraryProblem(b, "/engine/platform/ref") for b in bad]
@@ -420,6 +432,20 @@ def check_library_files(spec, run):
                             run.integration_samples, run.sensor_library, Path(tmp) / "x.platform", run.channel_response)
     except (PlatformGenError, SpectralError, KeyError) as e:
         return [f"platform could not be rendered from the sensor-spec: {type(e).__name__}: {e}"]
+    return []
+
+
+def authored_platform_problems(path):
+    """Problems that stop a platform file from being used as authored: it must parse as a DIRSIG `<platform>` with at
+    least one focal plane. Nothing else is checked here; DIRSIG's dry run reads the rest."""
+    try:
+        root = et.parse(str(path)).getroot()
+    except et.XMLSyntaxError as e:
+        return [f"platform {Path(path).name} does not parse: {e}"]
+    if root.tag != "platform":
+        return [f"platform {Path(path).name}: root element <{root.tag}>, expected <platform>"]
+    if root.find(".//focalplane") is None:
+        return [f"platform {Path(path).name} has no <focalplane>"]
     return []
 
 

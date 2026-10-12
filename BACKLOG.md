@@ -195,9 +195,12 @@ Ranked by how many of the coverage survey's `near` demos each feature would make
 1. BasicAtmosphere `.atm` with uniform radiative transfer: 31 / 31 / 27; the cheapest references take about 4 s (DensityMap1, MaterialMap1) and PointCollectors2 6 s. Built in round 22 as `engine.atmosphere.uniform` (uniform radiative transfer, uniform weather from an installation weather file, an optional fixed Sun; CONOPS section 3.2); what remains is items 2 and 3, turbulence and lunar values.
 2. BasicAtmosphere `.atm` with simple radiative transfer: 26 / 23 / 15 (DeltaMotion1, BumpMap2 and BundledMaterials1 at about 4 s).
 3. BasicAtmosphere `.atm` with classic radiative transfer: 5 / 4 / 2 (Balfour1 at about 4 s).
-4. A platform form for demo platforms: a demo's own `.platform` is not a platform_gen template (PointCollectors2's lacks `temporalintegration`); every layered comparison above needs it, so it ranks with item 1 in practice.
+4. A platform form for demo platforms: a demo's own `.platform` is not a platform_gen template (PointCollectors2's lacks `temporalintegration`); every layered comparison above needs it, so it ranks with item 1 in practice. Built in round 22 as `engine.platform.as_authored` (the file by ref and hash, copied as it is). The other form is "A demo camera as a sensor-spec" below.
 5. FourCurveAtmosphere: 3 / 3 / 2 (CurveMap1 at about 4 s).
 6. Uniform weather without a ThermWeather file: 2 / 1 / 1 (Brdf1 through `demo.sim`, 204 s; Brdf1's `demo.jsim` needs a missing database).
+
+### A demo camera as a sensor-spec
+The form of a demo platform not chosen in round 22 (`engine.platform.as_authored` was): `platform_gen` writes an electron image from a template plus a sensor-spec; a demo camera states radiance (`fluxunits="watts"`, `areaunits="cm2"`), a rectangular or gaussian `normalize="true"` channel, sub-element spatial sampling and flips. Needs an image-units member (or a template per unit) and values that, for a licensed demo, can only be derived at bootstrap into a gitignored layer (the licensed-value overlay). It would make the descriptor's sensor the rendered one, which `as_authored` does not.
 
 ### Tagged demos: loader gaps, ranked
 From `docs/DIRSIG_tagged_demo_features.md`, which reads the 18 tagged demos (URSO relevance and SDA) feature by feature. Ranked by the number of tagged demos that need each feature. First layered targets: Indoors1 for URSO (items 1 and 2 only; 8 s, deterministic, names `SpiceEphemeris`) and MoonSat2 for SDA (items 1, 2, 6 and 10; 4 s; radiance identical in every probe condition). Not built.
@@ -206,7 +209,7 @@ From `docs/DIRSIG_tagged_demo_features.md`, which reads the 18 tagged demos (URS
 Needed by all 18 tagged demos (URSO 9, SDA 9): simple, uniform and classic radiative transfer with `turbulence` and uniform weather from an installation `.wth`. The uniform form with installation weather and a fixed Sun is built (`engine.atmosphere.uniform`, round 22); simple and classic radiative transfer, turbulence and lunar values remain. The same feature as items 1 to 3 and 6 of "Loader features for demos".
 
 #### 2. Demo platform form
-Needed by 16 (URSO 9, SDA 7): a demo's `.platform` as authored, or a sensor-spec holding a demo camera's values with its radiance image units (`platform_gen` writes an electron image from a template plus a sensor-spec). Same as item 4 of "Loader features for demos" and the licensed-value overlay. With item 1 it makes Indoors1, Sources6, SubPixelObject1, SubPixelObject2 (and IESSources1, see 11) layered.
+Needed by 16 (URSO 9, SDA 7): a demo's `.platform` as authored (built in round 22, `engine.platform.as_authored`), or a sensor-spec holding a demo camera's values with its radiance image units (`platform_gen` writes an electron image from a template plus a sensor-spec; "A demo camera as a sensor-spec"). Same as item 4 of "Loader features for demos" and the licensed-value overlay. With item 1 it makes Indoors1, Sources6, SubPixelObject1, SubPixelObject2 (and IESSources1, see 11) layered.
 
 #### 3. Simulation options file
 Needed by 6 (URSO 4: Sources1, Sources3, Sources4, Sources5; SDA 2: Ssa1, MoonSat1): the `<options>` file of a legacy `.sim` (secondary-source and atmosphere entries). No engine member carries it; decide between carrying the file and mapping its entries to `engine.run` options (some have `dirsig5` command-line counterparts). With 1 and 2 it completes the URSO set.

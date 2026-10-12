@@ -189,10 +189,13 @@ class Simulation:
         scene._fname = ref_file                                     # private attribute: write() returns it as-is
         # Library assets keep their manifold_config_repo-relative paths; motion and tasks are generated.
         inputs = {}
-        # The platform is rendered from the library template, the sensor-spec and `settings`.
-        inputs["platform"] = render_platform(r.platform, r.sensor, r.settings[0]["entry_id"], r.settings,
-                                             r.integration_samples, r.sensor_library,
-                                             in_dir / r.platform.relative_to(lib), r.channel_response).path
+        # The platform is rendered from the library template, the sensor-spec and `settings`, or copied as authored.
+        if r.platform_as_authored:
+            inputs["platform"] = copy_input(r.platform, in_dir / r.platform.relative_to(lib))
+        else:
+            inputs["platform"] = render_platform(r.platform, r.sensor, r.settings[0]["entry_id"], r.settings,
+                                                 r.integration_samples, r.sensor_library,
+                                                 in_dir / r.platform.relative_to(lib), r.channel_response).path
         if r.uniform_atmosphere is not None:                        # a .atm written from the spec, weather inside it
             atm = write_atm(r.uniform_atmosphere, in_dir / UNIFORM_ATM)
         else:
@@ -296,7 +299,7 @@ class Simulation:
         info_log = json.loads(log_info.read_text())
         frames = [Frame(task_index=c["task_index"], time_window=list(c["relative_time_window"]),
                         image=Path(c["plugin_data"]["filename"]),
-                        truth=[Path(t) for t in c["plugin_data"]["truth_filenames"] if t])
+                        truth=[Path(t) for t in c["plugin_data"].get("truth_filenames", []) if t])
                   for c in info_log["capture_list"]]
         propagator = None
         if self.resolved.motion_kind == "orbit":

@@ -55,7 +55,7 @@
       }
     },
     "platform": {
-      "description": "The library .platform template the generator renders the job's platform from, and how it renders it.",
+      "description": "The library .platform template the generator renders the job's platform from, and how it renders it; or, with as_authored, a platform file used as it is.",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -91,6 +91,10 @@
             "tabulated",
             "native"
           ]
+        },
+        "as_authored": {
+          "description": "true (proposed): the ref is the job's .platform as authored, copied into the job byte for byte and covered by its content hash, not a template rendered from the sensor-spec; the descriptor's sensor and settings are then checked but not applied, and integration_samples and channel_response are refused. Absent or false: the template form.",
+          "type": "boolean"
         }
       }
     },
