@@ -535,3 +535,14 @@ def test_the_launcher_fails_at_once_when_an_asset_is_not_staged(tmp_path):
     result = json.loads((tmp_path / "output" / "satsim_result.json").read_text())
     assert res.returncode == 1 and "asset 'de421.bsp' is not staged" in result["message"]
     assert not (tmp_path / "output" / "network_attempts.log").exists()
+
+
+def test_the_worker_rebuilds_the_satsim_adapter_the_backend_admitted_with():
+    from manifold.sim.worker import EngineSetMismatch, engine_set
+    reg = registry()
+    reg.find("satsim")                                                    # loaded, as admission loads it
+    described = reg.describe()
+    assert described[0]["target"] == "manifold.engines.satsim.adapter:SatsimAdapter" and described[0]["loaded"]
+    assert engine_set({"engines": described}).describe() == described
+    with pytest.raises(EngineSetMismatch, match="'satsim'"):
+        engine_set({"engines": [{**described[0], "adapter_version": "9.9.9"}]})

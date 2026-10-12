@@ -5,3 +5,4 @@
 testpaths = ["tests"]       # external/ holds dirfm's own demos/test_*.py; they are not this suite
 tmp_path_retention_policy = "failed"   # a passing test's tmp_path (job inputs, renders) is deleted at its teardown
 filterwarnings = ["ignore:LocalRegistry is deprecated:DeprecationWarning"]   # the notebook-era tests still use it
+markers = ["satsim: runs SatSim through its own interpreter (skipped, with the reason, when it is not found)"]
