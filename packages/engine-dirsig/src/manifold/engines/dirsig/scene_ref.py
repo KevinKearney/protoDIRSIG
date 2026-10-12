@@ -114,7 +114,7 @@ def working_folder_files(scene_file, platform_file):
     """`[(name, source, named_by)]`: the files DIRSIG looks for in the working folder, the folder it runs in, which is
     the demo's folder for a pass-through run and the job's input folder for a layered one (measured on BayerPattern1
     and Telecentricity1, `docs/DIRSIG_layered_comparison.md`). `name` is the path relative to the working folder,
-    `source` the file it is copied from, `named_by` the file that names it. Two rules:
+    `source` the file it is copied from, `named_by` the file that names it. Four rules:
 
     - a file the `.platform` names in a `<filename>` by a relative name that lies relative to the platform's folder
       (BayerPattern1's `pixels.hdf`; DIRSIG does not look beside the platform file);
@@ -127,9 +127,16 @@ def working_folder_files(scene_file, platform_file):
       relative to the scene's folder and not relative to its `<emsdirectory>`, or with an empty `<emsdirectory>`
       (DIRSIG looks in the working folder and the `emsdirectory` only: Polarization5's `./materials/*.brdf`,
       `./materials/grass.fit` and `./materials/grass.ems`; in the working folder only when the `emsdirectory` is empty:
-      BundledMaterials1's `bundles/*.mat.hdf`). Other keys are not followed: a `TEMP_SOLVER` `FILENAME` is found
-      without the working folder (DataDrivenTempSolver1), and the rest are unmeasured. A name that starts with a
-      variable (`$SCENE_DIR/...`) is not a working-folder name.
+      BundledMaterials1's `bundles/*.mat.hdf`);
+    - a file the material file names in an `EMISSIVITY_PROP` `FILENAME`, a `TEMP_SOLVER` `IMAGE_FILENAME`, a texture
+      `IMAGE` `FILENAME` or a `MATERIAL_MAP` `IMAGE_FILENAME` (`MATERIAL_UNHELD_KEYS`) by a relative name that lies
+      relative to the scene's folder, where the job's scene copy does not hold that name in the entry's folder (the
+      `emsdirectory` or the `mapdirectory`), with an image's ENVI header (DIRSIG looks in the working folder and that
+      folder only: MappedTherm1's `roof_metal_gray.ems` beside the `.scene` with `emsdirectory` `$SCENE_DIR`, its
+      `values.img` and `values.img.hdr`; ChipMaker2's `materials/*.ems`, `maps/texture.png` and `maps/material.png`).
+    Other keys are not followed: a `TEMP_SOLVER` `FILENAME` is found without the working folder
+    (DataDrivenTempSolver1), and the rest are unmeasured. A name that starts with a variable (`$SCENE_DIR/...`) is not
+    a working-folder name.
 
     Empty for a scene and platform that need none, which is every library scene and platform: their jobs are
     assembled as before. Sorted by name; a name found twice is kept once (the first source in rule order)."""
@@ -163,6 +170,8 @@ def working_folder_files(scene_file, platform_file):
                     out.setdefault(member, ((top / name).parent / member, Path(name).name))
         for name, source, named_by in _material_working_folder_files(scene, top):
             out.setdefault(name, (source, named_by))
+        for name, source, named_by in _material_unheld_files(scene_file, scene, top):
+            out.setdefault(name, (source, named_by))
     return [(name, src, by) for name, (src, by) in sorted(out.items())]
 
 
@@ -186,6 +195,77 @@ def _material_working_folder_files(scene, top):
         name = Path(text).as_posix()
         if (top / name).is_file() and not (ems is not None and (ems / name).is_file()):
             out.append((name, top / name, Path(mat).name))
+    return out
+
+
+# (block, key, the scene element naming the other folder DIRSIG searches): entries whose file DIRSIG looks for in the
+# working folder and that folder only (round 27, measured by dry runs: MappedTherm1's `roof_metal_gray.ems` is found in
+# the working folder or the `emsdirectory`, its `values.img` in the working folder or the `mapdirectory`, neither in the
+# scene's folder; ChipMaker2's `materials/*.ems`, a texture's `maps/texture.png` and a material map's `maps/material.png`
+# likewise).
+MATERIAL_UNHELD_KEYS = (("EMISSIVITY_PROP", "FILENAME", "emsdirectory"),
+                        ("TEMP_SOLVER", "IMAGE_FILENAME", "mapdirectory"),
+                        ("IMAGE", "FILENAME", "mapdirectory"),
+                        ("MATERIAL_MAP", "IMAGE_FILENAME", "mapdirectory"))   # measured
+ENVI_HEADERS = ("{name}.hdr", "{stem}.hdr")      # the headers DIRSIG's ENVI reader tries for an image, in order (measured)
+
+
+def _material_entries(text):
+    """`[(block, key, value)]` of a material file's `KEY = value` lines, `block` the innermost enclosing `NAME {`."""
+    stack, out = [], []
+    for line in text.splitlines():
+        s = line.strip()
+        m = re.match(r"^(\w+)\s*\{", s)
+        if m:
+            stack.append(m.group(1))
+        elif s.startswith("}"):
+            stack = stack[:-1]
+        else:
+            m = re.match(r"^(\w+)\s*=\s*(\S+)", s)
+            if m and stack:
+                out.append((stack[-1], m.group(1), m.group(2)))
+    return out
+
+
+def _material_unheld_files(scene_file, scene, top):
+    """`[(name, source, named_by)]` of `working_folder_files`' fourth rule: a file the scene's material file names in a
+    `MATERIAL_UNHELD_KEYS` entry by a relative name that lies relative to the scene's folder and that the job's scene
+    copy does not hold at that name in the entry's folder (the `emsdirectory` or `mapdirectory`: the copy holds the
+    linked folders, `ASSET_DIRS`, and what `scene_named_paths` places); for an `IMAGE_FILENAME`, also the ENVI header
+    beside it (`ENVI_HEADERS`, the first that exists)."""
+    mat = _relative_name(scene.findtext("matfilename"))
+    if mat is None or not (top / mat).is_file():
+        return []
+    files, dirs = scene_named_paths(scene_file)
+
+    def held(path):
+        try:
+            rel = path.resolve().relative_to(top.resolve()).as_posix()
+        except ValueError:
+            return False
+        return (rel.split("/")[0] in ASSET_DIRS and (top / rel.split("/")[0]).is_dir()) or rel in files or any(
+            rel.startswith(d + "/") for d in dirs)
+
+    keys = {(block, key): tag for block, key, tag in MATERIAL_UNHELD_KEYS}
+    out = []
+    for block, key, text in _material_entries((top / mat).read_text("latin-1")):
+        if (block, key) not in keys:
+            continue
+        text = text.strip('"').replace("\\", "/")
+        if text.startswith("$") or text.startswith("/") or ".." in Path(text).parts:
+            continue
+        name = Path(text).as_posix()
+        folder_text = (scene.findtext(keys[block, key]) or "").strip()
+        folder = top / (_relative_name(folder_text) or "") if folder_text else None
+        if not (top / name).is_file() or (folder is not None and (folder / name).is_file() and held(folder / name)):
+            continue
+        out.append((name, top / name, Path(mat).name))
+        if key == "IMAGE_FILENAME":
+            for form in ENVI_HEADERS:
+                header = Path(form.format(name=name, stem=Path(name).with_suffix("").as_posix()))
+                if (top / header).is_file():
+                    out.append((header.as_posix(), top / header, Path(mat).name))
+                    break
     return out
 
 

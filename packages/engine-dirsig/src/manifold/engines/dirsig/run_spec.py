@@ -376,7 +376,7 @@ def _working_folder(eng, config_repo, scene, platform):
         raise RunSpecError(f"engine.working_folder[{i}] is {name}, a file DIRSIG does not look for in this job's "
                            "working folder (neither a <filename> of the platform, a geometry list of the scene "
                            "beside it and outside its gdbdirectory, nor a material-file entry relative to the scene's "
-                           "folder and outside its emsdirectory names it)", pointer=f"/engine/working_folder/{i}/name")
+                           "folder and outside its emsdirectory, nor one the job's scene copy does not hold, names it)", pointer=f"/engine/working_folder/{i}/name")
     return tuple(out)
 
 

@@ -242,6 +242,75 @@ def _working_folder_material_files(demo, scene):
     return sorted(set(out))
 
 
+# (block, key, the scene element naming the other folder DIRSIG searches), as `scene_ref.MATERIAL_UNHELD_KEYS`: DIRSIG
+# looks for these files in the working folder and that folder only (MappedTherm1 and ChipMaker2, measured).
+MATERIAL_UNHELD_KEYS = (("EMISSIVITY_PROP", "FILENAME", "emsdirectory"),
+                        ("TEMP_SOLVER", "IMAGE_FILENAME", "mapdirectory"),
+                        ("IMAGE", "FILENAME", "mapdirectory"),
+                        ("MATERIAL_MAP", "IMAGE_FILENAME", "mapdirectory"))   # measured
+
+
+def _working_folder_unheld_files(demo, scene):
+    """Files the scene's material file names in a `MATERIAL_UNHELD_KEYS` entry by a relative path that lies relative to
+    the scene's folder, where the job's scene copy does not hold that path in the entry's folder (the `emsdirectory` or
+    `mapdirectory`; the copy holds `geometry/`, `materials/`, `maps/` and what the `.scene` names): the job places them
+    in the working folder (`scene_ref.working_folder_files`, fourth rule), with an `IMAGE_FILENAME`'s ENVI header
+    (`<name>.hdr`, else `<stem>.hdr`). MappedTherm1's `values.img`, `values.img.hdr` and `roof_metal_gray.ems`;
+    ChipMaker2's `materials/*.ems`, `maps/texture.png` and `maps/material.png` (measured: with them placed the layered dry
+    run passes, and without one of them it stops on it). A name that starts with a variable is not counted."""
+    root = _xml(demo.read(scene), posixpath.basename(scene))
+    top = posixpath.dirname(scene)
+
+    def rel_dir(tag):
+        return re.sub(r"^\$SCENE_DIR/?", "", (root.findtext(tag) or "").strip()).rstrip("/")
+
+    mat = rel_dir("matfilename")
+    member = posixpath.normpath(posixpath.join(top, mat)) if mat else None
+    if member not in demo.infos:
+        return []
+    named = set()
+    for el in root.iter():
+        if isinstance(el.tag, str) and len(el) == 0 and (el.text or "").strip():
+            named.add(posixpath.normpath(posixpath.join(top, re.sub(r"^\$SCENE_DIR/?", "", el.text.strip()))))
+    named.discard(posixpath.normpath(top) if top else ".")
+
+    def held(name):
+        rel = posixpath.relpath(name, top) if top else name
+        return not rel.startswith("../") and (rel.split("/")[0] in SCENE_ASSET_DIRS or name in named
+                                              or any(name.startswith(n + "/") for n in named))
+
+    keys = {(block, key): tag for block, key, tag in MATERIAL_UNHELD_KEYS}
+    stack, out = [], []
+    for line in demo.read(member).decode("latin-1").splitlines():
+        s = line.strip()
+        m = re.match(r"^(\w+)\s*\{", s)
+        if m:
+            stack.append(m.group(1))
+            continue
+        if s.startswith("}"):
+            stack = stack[:-1]
+            continue
+        m = re.match(r"^(\w+)\s*=\s*(\S+)", s)
+        if not m or not stack or (stack[-1], m.group(1)) not in keys:
+            continue
+        text = m.group(2).strip('"').replace("\\", "/")
+        if not text or text.startswith("$") or posixpath.isabs(text) or ".." in text.split("/"):
+            continue
+        tag = keys[stack[-1], m.group(1)]
+        folder_text = (root.findtext(tag) or "").strip()
+        inside = posixpath.normpath(posixpath.join(top, rel_dir(tag), text)) if folder_text else None
+        if posixpath.normpath(posixpath.join(top, text)) not in demo.infos or (
+                inside in demo.infos and held(inside)):
+            continue
+        out.append(posixpath.normpath(text))
+        if m.group(1) == "IMAGE_FILENAME":
+            for header in (f"{text}.hdr", f"{posixpath.splitext(text)[0]}.hdr"):
+                if posixpath.normpath(posixpath.join(top, header)) in demo.infos:
+                    out.append(posixpath.normpath(header))
+                    break
+    return sorted(set(out))
+
+
 def _unplaced_material_files(demo, scene):
     """Files the scene's material file names (any `...FILE...` key) that a layered job holds nowhere: the name resolves,
     against the scene's folder, its `emsdirectory`, its `mapdirectory` or the material file's folder, only to members
@@ -264,7 +333,7 @@ def _unplaced_material_files(demo, scene):
         if isinstance(el.tag, str) and len(el) == 0 and (el.text or "").strip():
             named.add(posixpath.normpath(posixpath.join(top, re.sub(r"^\$SCENE_DIR/?", "", el.text.strip()))))
     named.discard(posixpath.normpath(top) if top else ".")                 # the folder itself: named files only
-    placed_by_folder = set(_working_folder_material_files(demo, scene))
+    placed_by_folder = set(_working_folder_material_files(demo, scene)) | set(_working_folder_unheld_files(demo, scene))
 
     def placed(name):
         rel = posixpath.relpath(name, top) if top else name
@@ -427,6 +496,7 @@ def _survey(demo, rec):
             missing.append("scene files the job does not place")
         rec["working_folder"] += _working_folder_lists(demo, s)   # placed by the job (engine.working_folder)
         rec["working_folder"] += _working_folder_material_files(demo, s)   # placed by the job (engine.working_folder)
+        rec["working_folder"] += _working_folder_unheld_files(demo, s)   # placed by the job (engine.working_folder)
         if _unplaced_material_files(demo, s):
             missing.append("material files the job does not place")
     if not scenes:
@@ -592,7 +662,7 @@ def render(records, demos_label="external/dirsig/demos/zips"):
     lines = ["# DIRSIG demo coverage", "",
              f"Which of DIRSIG's {len(records)} shipped demos the SDK could regenerate today, and what each still needs. Generated by `python scripts/survey_demos.py --out docs/DIRSIG_demo_coverage.md` from the demo archives in the DIRSIG installation (`{demos_label}`), read in place; regenerate it after a loader feature lands. It is derived from file names, plugin and element names, counts and sizes only, and contains no demo file contents.",
              "",
-             "A verdict compares a demo's simulation file, platform, motion and atmosphere with what the SDK's engine body and loader cover (the run-spec contract's engine block and `run_spec.resolve_run`): `ready` needs nothing new (one scene whose files the job places: those in its `geometry/`, `materials/` and `maps/` folders, in a folder it names inside its own, or named by it there (one level into a named `.glist` or `.odb`), `NewAtmosphere` with a `ThermWeather` file or a uniform or simple `BasicAtmosphere` `.atm` naming an installation weather file (`engine.atmosphere.uniform`, `engine.atmosphere.simple`), SPICE or the `.atm`'s ephemeris, static or orbit motion, one imaging instrument); `near` needs exactly one missing feature; `far` needs two or more, or has a non-imaging sensor; `unparsed` means the layout was not understood, with the reason. A value that cannot be read is `unknown`. A legacy `.sim` carries its atmosphere and uniform weather in one `.atm` file, counted as one feature, and its ephemeris is implicit. The demo's own platform file is used as authored (`engine.platform.as_authored`), so its camera features (recognized by element name: lens distortion, point spread function, field selectors, capture methods, polarizers and so on) are listed under `Camera (as authored)` and are not missing; several instruments or focal planes, a moving mount, an external clock (it captures at its trigger times, several in one task window, and the SDK's dry-run check expects one capture per window; Thermal2, measured) and a non-imaging sensor still are. Files DIRSIG looks for in the working folder, which in a layered job is not the demo's folder (measured, `docs/DIRSIG_layered_comparison.md`), are placed there by the job when they are a geometry list the `.scene` names by a bare name that lies beside it and not in its `gdbdirectory` (with the files that list names), a file the `.platform` names in a `<filename>`, or a file the material file names in a `PARAMETER_FILE`, `BRDF_FIT_FILE`, `EMISSIVITY_FILE` or `BUNDLE_FILENAME` entry relative to the scene's folder and not to its `emsdirectory` (or with an empty `emsdirectory`) (`engine.working_folder`); other material-file keys are not counted (a `TEMP_SOLVER` `FILENAME` is found without the working folder; the rest are unmeasured). A file the material file names (any key) that the job holds nowhere, because it lies in the scene's folder outside the linked folders and is not named by the `.scene` or placed in the working folder, is missing (MappedTherm1's `values.img` and `roof_metal_gray.ems`, measured). What the survey cannot see is not counted (a `.ppd` pose in another frame or units, an `.atm`'s turbulence or lunar values, which the uniform and simple forms do not carry), so `ready` and `near` are upper bounds on readiness. Scene size is the `.scene` file and the archive members it references.",
+             "A verdict compares a demo's simulation file, platform, motion and atmosphere with what the SDK's engine body and loader cover (the run-spec contract's engine block and `run_spec.resolve_run`): `ready` needs nothing new (one scene whose files the job places: those in its `geometry/`, `materials/` and `maps/` folders, in a folder it names inside its own, or named by it there (one level into a named `.glist` or `.odb`), `NewAtmosphere` with a `ThermWeather` file or a uniform or simple `BasicAtmosphere` `.atm` naming an installation weather file (`engine.atmosphere.uniform`, `engine.atmosphere.simple`), SPICE or the `.atm`'s ephemeris, static or orbit motion, one imaging instrument); `near` needs exactly one missing feature; `far` needs two or more, or has a non-imaging sensor; `unparsed` means the layout was not understood, with the reason. A value that cannot be read is `unknown`. A legacy `.sim` carries its atmosphere and uniform weather in one `.atm` file, counted as one feature, and its ephemeris is implicit. The demo's own platform file is used as authored (`engine.platform.as_authored`), so its camera features (recognized by element name: lens distortion, point spread function, field selectors, capture methods, polarizers and so on) are listed under `Camera (as authored)` and are not missing; several instruments or focal planes, a moving mount, an external clock (it captures at its trigger times, several in one task window, and the SDK's dry-run check expects one capture per window; Thermal2, measured) and a non-imaging sensor still are. Files DIRSIG looks for in the working folder, which in a layered job is not the demo's folder (measured, `docs/DIRSIG_layered_comparison.md`), are placed there by the job when they are a geometry list the `.scene` names by a bare name that lies beside it and not in its `gdbdirectory` (with the files that list names), a file the `.platform` names in a `<filename>`, a file the material file names in a `PARAMETER_FILE`, `BRDF_FIT_FILE`, `EMISSIVITY_FILE` or `BUNDLE_FILENAME` entry relative to the scene's folder and not to its `emsdirectory` (or with an empty `emsdirectory`), or a file it names in an `EMISSIVITY_PROP` `FILENAME`, a `TEMP_SOLVER` `IMAGE_FILENAME`, a texture `IMAGE` `FILENAME` or a `MATERIAL_MAP` `IMAGE_FILENAME` relative to the scene's folder where the job's scene copy does not hold it in the `emsdirectory` or `mapdirectory`, with an image's ENVI header (MappedTherm1, ChipMaker2; measured) (`engine.working_folder`); other material-file keys are not counted (a `TEMP_SOLVER` `FILENAME` is found without the working folder; the rest are unmeasured). A file the material file names (any key) that the job holds nowhere, because it lies in the scene's folder outside the linked folders and is not named by the `.scene` or placed in the working folder, is missing (measured on MappedTherm1 before its files were placed). What the survey cannot see is not counted (a `.ppd` pose in another frame or units, an `.atm`'s turbulence or lunar values, which the uniform and simple forms do not carry), so `ready` and `near` are upper bounds on readiness. Scene size is the `.scene` file and the archive members it references.",
              "", "## Summary", "", "| Verdict | Demos |", "|---|---|"]
     lines += [f"| `{v}` | {counts.get(v, 0)} |" for v in VERDICT_ORDER]
     lines += ["", "## Missing features, by the demos each would unlock", "",

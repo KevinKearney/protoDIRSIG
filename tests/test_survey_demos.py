@@ -193,11 +193,34 @@ def test_material_files_the_job_does_not_place_are_missing(tmp_path):
     files = {"demo.scene": scene, "materials/demo.mat": mat, "gray.ems": "ems", "values.img": "img"}
     r = survey.survey(make(tmp_path, "Unplaced2", jsim=jsim(), extra_files=files))
     assert r["missing"] == ["material files the job does not place"] and r["verdict"] == "near"
+    assert r["working_folder"] == ["values.img"]          # round 27: a TEMP_SOLVER IMAGE_FILENAME is placed; gray.ems,
+                                                          # a FILENAME outside an EMISSIVITY_PROP block, is not
     files = {"demo.scene": scene, "materials/demo.mat": mat.replace("values.img", "materials/values.img"),
              "gray.ems": "ems", "materials/values.img": "img"}
     files["demo.scene"] = scene.replace("<odbdirectory>", "<notes>gray.ems</notes><odbdirectory>")
     r = survey.survey(make(tmp_path, "Unplaced3", jsim=jsim(), extra_files=files))
     assert r["missing"] == [] and r["verdict"] == "ready"
+
+
+def test_material_files_the_scene_copy_does_not_hold_are_placed(tmp_path):
+    # Round 27, measured on MappedTherm1 and ChipMaker2: an EMISSIVITY_PROP FILENAME, a TEMP_SOLVER IMAGE_FILENAME (with
+    # its ENVI header), a texture IMAGE FILENAME or a MATERIAL_MAP IMAGE_FILENAME relative to the scene's folder, where
+    # the scene copy does not hold it in the emsdirectory or mapdirectory, is looked for in the working folder, where
+    # the job copies it: listed, not missing.
+    scene = SCENE.replace("<odbdirectory>", "<emsdirectory>$SCENE_DIR</emsdirectory><mapdirectory>$SCENE_DIR/maps"
+                          "</mapdirectory><odbdirectory>")
+    mat = ("MATERIAL_ENTRY {\n  SURFACE_PROPERTIES {\n    EMISSIVITY_PROP {\n      FILENAME = gray.ems\n    }\n  }\n"
+           "  TEMP_SOLVER {\n    IMAGE_FILENAME = values.img\n  }\n  MATERIAL_MAP {\n    IMAGE_FILENAME = maps/m.png\n"
+           "    IMAGE_FILENAME = n.png\n  }\n}\n")
+    files = {"demo.scene": scene, "materials/demo.mat": mat, "gray.ems": "ems", "values.img": "img",
+             "values.img.hdr": "hdr", "maps/m.png": "png", "maps/n.png": "png"}
+    r = survey.survey(make(tmp_path, "Unheld1", jsim=jsim(), extra_files=files))
+    assert r["missing"] == [] and r["verdict"] == "ready"
+    assert sorted(r["working_folder"]) == ["gray.ems", "maps/m.png", "values.img", "values.img.hdr"]   # n.png: held
+    # An unmeasured block (a REFLECTANCE_PROP IMAGE_FILENAME, EarthClouds1's form) beside the .scene stays missing.
+    files["materials/demo.mat"] = mat.replace("TEMP_SOLVER", "REFLECTANCE_PROP")
+    r = survey.survey(make(tmp_path, "Unheld2", jsim=jsim(), extra_files=files))
+    assert r["missing"] == ["material files the job does not place"] and "values.img" not in r["working_folder"]
 
 
 def test_an_external_clock_is_missing(tmp_path):

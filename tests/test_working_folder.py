@@ -369,3 +369,153 @@ def test_every_library_scene_needs_nothing():
     assert len(scenes) > 1
     for scene in scenes:
         assert working_folder_files(scene, CONFIG_REPO / "platforms" / "AurorNIRDetector" / "AurorNIRDetector.platform") == [], scene
+
+
+# Files a material file names that the job's scene copy does not hold (round 27). Measured by dry runs: DIRSIG looks for
+# an `EMISSIVITY_PROP` `FILENAME` in the working folder and the `emsdirectory` only, and for a `TEMP_SOLVER`
+# `IMAGE_FILENAME`, a texture `IMAGE` `FILENAME` or a `MATERIAL_MAP` `IMAGE_FILENAME` in the working folder and the
+# `mapdirectory` only (MappedTherm1's `roof_metal_gray.ems` beside its `.scene` with `emsdirectory` `$SCENE_DIR`, and its
+# `values.img`, which needs its ENVI header beside it; ChipMaker2's `materials/*.ems`, `maps/texture.png` and
+# `maps/material.png`).
+UNHELD_SCENE = SCENE.replace("$SCENE_DIR/optical</emsdirectory>", "$SCENE_DIR</emsdirectory>")
+UNHELD = """MATERIAL_ENTRY {
+    ID = ball
+    SURFACE_PROPERTIES {
+        EMISSIVITY_PROP_NAME = ClassicEmissivity
+        EMISSIVITY_PROP {
+            FILENAME = beside.ems
+            FILENAME = geometry/linked.ems
+        }
+        REFLECTANCE_PROP {
+            IMAGE_FILENAME = r.png
+        }
+        TEXTURE_MAP {
+            IMAGE_LIST {
+                IMAGE {
+                    FILENAME = maps/t.png
+                    FILENAME = u.png
+                }
+            }
+        }
+    }
+    TEMP_SOLVER_NAME = MappedTherm
+    TEMP_SOLVER {
+        IMAGE_FILENAME = v.img
+        IMAGE_FILENAME = w.img
+        IMAGE_FILENAME = gone.img
+        FILENAME = s.txt
+    }
+    MATERIAL_MAP {
+        IMAGE_FILENAME = maps/m.png
+        IMAGE_FILENAME = $SCENE_DIR/m.png
+        IMAGE_FILENAME = ../up.png
+    }
+}
+"""
+CLASSIC = """MATERIAL_ENTRY {
+    ID = ball
+    NAME = Classic
+    DOUBLE_SIDED = TRUE
+    SURFACE_PROPERTIES {
+        EMISSIVITY_PROP_NAME = ClassicEmissivity
+        EMISSIVITY_PROP {
+            FILENAME = ball.ems
+        }
+    }
+    RAD_SOLVER_NAME = Simple
+    RAD_SOLVER {
+        QUALITY = LOW
+    }
+}
+"""
+CLASSIC_REL = "scenes/classic/ball.scene"
+
+
+def test_files_a_material_file_names_that_the_scene_copy_does_not_hold(tmp_path):
+    scene = write_scene(tmp_path / "ball", scene=UNHELD_SCENE)
+    top = scene.parent
+    (top / "ball.mat").write_text(UNHELD)
+    (top / "maps").mkdir()
+    for rel in ("beside.ems", "geometry/linked.ems", "r.png", "maps/t.png", "u.png", "maps/u.png", "v.img",
+                "v.img.hdr", "w.img", "w.hdr", "s.txt", "maps/m.png", "m.png"):
+        (top / rel).write_text(rel)
+    (tmp_path / "up.png").write_text("outside the scene's folder")
+    platform = tmp_path / "plain.platform"
+    platform.write_text(PLATFORM)
+    # Not listed: a file the copy holds where DIRSIG looks (`geometry/` is linked; `maps/u.png` in the mapdirectory),
+    # an unmeasured block (`REFLECTANCE_PROP`), a `TEMP_SOLVER` `FILENAME`, an absent file, a variable, `..`.
+    assert working_folder_files(scene, platform) == [(n, top / n, "ball.mat") for n in (
+        "beside.ems", "maps/m.png", "maps/t.png", "v.img", "v.img.hdr", "w.hdr", "w.img")]
+
+
+def test_a_file_the_scene_copy_holds_in_the_emsdirectory_needs_nothing(tmp_path):
+    scene = write_scene(tmp_path / "ball", scene=SCENE)                          # emsdirectory $SCENE_DIR/optical
+    top = scene.parent
+    (top / "ball.mat").write_text(CLASSIC)
+    (top / "optical").mkdir()                                                   # named by the .scene: linked in the copy
+    (top / "optical" / "ball.ems").write_text(EMS)
+    (top / "ball.ems").write_text(EMS)
+    platform = tmp_path / "plain.platform"
+    platform.write_text(PLATFORM)
+    assert working_folder_files(scene, platform) == []
+
+
+@pytest.fixture(scope="module")
+def classic(tmp_path_factory):
+    """A library whose sphere's material file names its emissivity file beside the `.scene` in a `ClassicEmissivity`
+    `FILENAME`, with the `emsdirectory` `$SCENE_DIR`, as MappedTherm1's does: the scene copy does not hold it."""
+    lib = tmp_path_factory.mktemp("working_folder_unheld") / "config_repo"
+    folder = lib / "scenes" / "classic"
+    write_scene(folder, scene=UNHELD_SCENE)
+    (folder / "ball.mat").write_text(CLASSIC)
+    (folder / "ball.ems").write_text(EMS)
+    (lib / REL).parent.mkdir(parents=True)
+    (lib / REL).write_text(PLATFORM)
+    return lib
+
+
+def classic_spec(lib, working=True):
+    spec = authored_spec(lib)
+    spec["engine"]["scenes"] = [{"ref": {"name": CLASSIC_REL, "content_hash": directory_digest(lib / "scenes" / "classic")},
+                                 "offset": [0, 0, 0]}]
+    spec["engine"]["motion"]["position"]["xyz"] = [0.0, 0.0, 1000.0]
+    spec["engine"]["motion"]["orientation"]["euler"]["angles"] = [0.0, 0.0, 0.0]
+    if working:
+        spec["engine"]["working_folder"] = [entry(lib, "ball.ems", "scenes/classic/ball.ems")]
+    return spec
+
+
+def test_an_unheld_material_file_is_required_resolved_copied_and_in_the_run_id(tmp_path, classic):
+    with pytest.raises(RunSpecError, match=r"ball.mat names ball.ems, which DIRSIG looks for in the job's working "
+                                           r"folder; list it in engine.working_folder") as e:
+        _resolve(tmp_path, classic_spec(classic, working=False), classic)
+    assert e.value.pointer == "/engine/working_folder"
+    spec = classic_spec(classic)
+    assert schema_errors(spec) == []
+    assert _resolve(tmp_path, spec, classic).working_folder == (("ball.ems", classic / "scenes/classic/ball.ems"),)
+    path = tmp_path / "spec.yaml"
+    path.write_text(yaml.safe_dump(spec, sort_keys=False))
+    sim = Simulation.from_run_spec(path, classic, tmp_path / "work", SENSORS)
+    assert sim.resolved is not None, sim.resolve_error
+    in_dir = tmp_path / "work" / "input"
+    sim._assemble(in_dir, tmp_path / "work" / "output")
+    assert not (in_dir / "ball.ems").is_symlink() and (in_dir / "ball.ems").read_text() == EMS
+    assert not (in_dir / "auror_ref" / "ball.ems").exists()                         # the scene copy does not hold it
+    other = classic_spec(classic)
+    other["engine"]["working_folder"][0]["ref"]["content_hash"] = "sha256:" + "1" * 64
+    assert run_id(spec, SENSORS) != run_id(other, SENSORS)
+
+
+@needs_dirsig
+def test_a_16_by_16_render_finds_the_unheld_emissivity_file_in_the_working_folder(tmp_path, classic):
+    from manifold.sim.backend import LocalBackend
+    path = tmp_path / "classic.yaml"
+    path.write_text(yaml.safe_dump(classic_spec(classic), sort_keys=False))
+    before = fingerprint(classic)
+    backend = LocalBackend(tmp_path / "work", classic, sensor_library=SENSORS)
+    status = wait_for(backend, backend.submit_run(str(path))["run_id"], ("rendered", "failed", "cancelled"), timeout=300)
+    assert status["state"] == "rendered", status
+    in_dir = next((tmp_path / "work").rglob("input/auror_ref")).parent
+    assert (in_dir / "ball.ems").read_text() == EMS
+    assert fingerprint(classic) == before
+    shutil.rmtree(tmp_path / "work", ignore_errors=True)
