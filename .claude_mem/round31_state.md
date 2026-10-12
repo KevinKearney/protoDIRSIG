@@ -11,3 +11,4 @@
 - step A: gate 1693 passed, 2 skipped (8 min 31 s, alone); eleven checks 0 (s2s_scenarios 111 specs); boundary 23 passed; core and snapshot unchanged
 - B SatSim: 10 committed specs + 7 scratch variations (each 12-15 s, one at a time); DIRSIG: one native plate render (75 s)
 - step B: gate 1695 passed, 2 skipped (8 min 49 s, alone); eleven checks 0 (s2s_scenarios 121 specs); boundary 23 passed; core and snapshot unchanged
+- step C: gate 1695 passed, 2 skipped (8 min 19 s, alone); eleven checks 0; boundary 23 passed; git diff 142b06b -- packages/core tests/data/id_snapshot.json empty. Final gate = C gate.

@@ -400,3 +400,22 @@ The expectation is family III's. The sphere's flux is (2/3) π R² / g² × Φ(a
 | Shutter blur | exposure scaling measured (exact in the truth plane, 1 to 20 ms); blur unmeasured | unmeasured |
 | Off-nadir look angle | no Earth in SatSim: not a parameter of a target's signal against space | as unresolved |
 | Sun angle | measured: 0, 60, 120, 150 degrees from the real Sun, the Lambertian phase function to 5.1e-4 (the apparent Sun, 2 above) | not expressible: a sprite has no shading or phase |
+
+## After round 31
+
+### The audit's DIRSIG cells after round 31
+
+Round 30's table stands for platform motion, target motion, shutter blur and look angle. The Sun-angle row, now on a sphere (A), where the phase angle changes the signal:
+
+| Axis | Unresolved | Hyperresolved |
+|---|---|---|
+| Sun angle (phase angle) | measured, 0 to 150 degrees on a 0.25 m labelled sphere at 25 km: the Lambertian phase function within the hit-count scatter (seed σ 0.04 at 0 degrees, 0.24 at 150; 0.996 at 200,000 paths); unlabelled, one hit or none at 150 degrees | measured, 0 to 150 degrees on a 10 m sphere: the phase function to 1.0012–1.0098 (1000 fixed paths: 0.9998–1.0005), independent of the look/Sun split; the Sun's zenith against a barred background, cos θs for the background to 1.5e-4 |
+
+### Axes the SDK cannot express (round 31)
+
+- **Phase angle.** It is derived, not stated: a DIRSIG spec states the platform pose and the Sun's zenith and azimuth (`fixed_ephemeris`), a SatSim configuration states positions and an epoch, and the phase angle is recorded only in `descriptor.extras`.
+- **Sampling of a mostly dark unresolved object.** As in round 29: the label and the hypersampling multiplier are scene and template content, not members; at the template's multiplier a sphere lit at 150 degrees rests on about 40 hits.
+- **Where geometry may stand.** A surface 500 m below the scene origin's altitude is inside the earth core and does not render; no member or documented option states the core's extent.
+- **One geometry for two engines.** The descriptor cannot carry SatSim's geometry (an opaque descriptor), and DIRSIG does not read the descriptor's range; the shared numbers are written twice, in each engine's own terms, with `descriptor.extras` as the only common record.
+- **A plate in SatSim.** Not expressible except as a flux-matched sprite; SatSim's only target with physical radiometry is the Lambertian sphere.
+- **A PSF on the DIRSIG side.** As in round 30: no member; SatSim states one in its configuration (POPPY from the aperture, or a Gaussian).
