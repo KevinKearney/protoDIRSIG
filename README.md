@@ -23,7 +23,7 @@ for a in ws.list_artifacts(status.run_id).artifacts:
 
 `LocalRegistry` (the notebooks' entry point, `manifold.engines.dirsig.registry.LocalRegistry`) still works and is deprecated in favour of `Workspace`. Code written against the pre-rename `protodirsig` package runs through the deprecated compatibility shim, `pip install --no-build-isolation --no-deps -e packages/compat-protodirsig` (it warns on import and is removed one release after MANIFOLD adopts the `manifold` packages).
 
-`notebooks/stage_01`–`stage_03` run the reference job, the conformance path and a three-sensor sweep.
+The stage notebooks, `notebooks/stage_01_auror_from_runspec.ipynb` to `notebooks/stage_05_sdk_auror_demo.ipynb`, run the reference job, the conformance path, a three-sensor sweep, a LEO pass, and the SDK end to end through `Workspace`; the last is `built / internal`, executed by `tests/test_stage05_notebook.py`.
 
 ## Environment setup
 
@@ -40,7 +40,7 @@ pip install pytest ruff openapi-spec-validator                # the dev tools (p
 python -m ipykernel install --user --name protodirsig --display-name "Python (protodirsig)"
 ```
 
-The last step registers a Jupyter kernel named `protodirsig` — select it when opening any notebook under `notebooks/`. DIRSIG's own `PATH`/`DIRSIG_HOME` setup is done **inside each notebook's first cell**, not at the shell level: a Jupyter kernel does not inherit an interactive shell's `PATH`, so every tutorial notebook sets `os.environ["DIRSIG_HOME"]` and prepends its `bin/` to `os.environ["PATH"]` explicitly and asserts `scene2hdf`/`dirsig5` resolve before doing anything else.
+The last step registers a Jupyter kernel named `protodirsig` — select it when opening any notebook under `notebooks/`. DIRSIG's own `PATH`/`DIRSIG_HOME` setup is done **inside each notebook's first cell**, not at the shell level: a Jupyter kernel does not inherit an interactive shell's `PATH`, so every tutorial notebook sets `os.environ["DIRSIG_HOME"]` and prepends its `bin/` to `os.environ["PATH"]` explicitly and asserts `scene2hdf`/`dirsig5` resolve before doing anything else (`stage_05_sdk_auror_demo` instead asks the SDK whether the DIRSIG engine is available and skips, with the reason, every cell that needs it).
 
 To update the environment after `environment.yml` changes:
 
