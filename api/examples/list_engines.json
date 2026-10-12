@@ -82,10 +82,48 @@
             },
             "scratch_bytes": 268435456,
             "network": "none",
-            "assets": [],
+            "assets": [
+              {
+                "name": "de421.bsp",
+                "ref": {
+                  "name": "satsim/assets/de421.bsp",
+                  "content_hash": "sha256:a20a7139da04cbc462454634918e9a9ca69127044e2cc9d4f9c16e238d2deedc"
+                },
+                "env": "MANIFOLD_SATSIM_EPHEMERIS",
+                "description": "JPL planetary ephemeris DE421, read by skyfield"
+              },
+              {
+                "name": "finals2000A.all",
+                "ref": {
+                  "name": "satsim/assets/finals2000A.all",
+                  "content_hash": "sha256:0baf00f67a39ab362a3e4f07d2a1f084842178523f56bcf5a861e7ac084d411a"
+                },
+                "env": "MANIFOLD_SATSIM_IERS",
+                "description": "IERS finals2000A Earth orientation, snapshot of 2026-10-11, read by astropy with downloads off"
+              }
+            ],
             "interpreter": "<the Python of the engine's own environment, found on this host>"
           },
-          "assets": [],
+          "assets": [
+            {
+              "name": "de421.bsp",
+              "ref": {
+                "name": "satsim/assets/de421.bsp",
+                "content_hash": "sha256:a20a7139da04cbc462454634918e9a9ca69127044e2cc9d4f9c16e238d2deedc"
+              },
+              "env": "MANIFOLD_SATSIM_EPHEMERIS",
+              "description": "JPL planetary ephemeris DE421, read by skyfield"
+            },
+            {
+              "name": "finals2000A.all",
+              "ref": {
+                "name": "satsim/assets/finals2000A.all",
+                "content_hash": "sha256:0baf00f67a39ab362a3e4f07d2a1f084842178523f56bcf5a861e7ac084d411a"
+              },
+              "env": "MANIFOLD_SATSIM_IERS",
+              "description": "IERS finals2000A Earth orientation, snapshot of 2026-10-11, read by astropy with downloads off"
+            }
+          ],
           "schemas": [
             {
               "schema_id": "https://schemas.manifold.example/contracts/satsim-engine-1.schema.json",

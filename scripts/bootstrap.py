@@ -19,6 +19,12 @@ link member and a name `dirhash/1` forbids are refused; an existing file that di
 overwritten. Each entry is extracted into a temporary directory and moved into place only after its digest verifies.
 `--status` classifies each entry as ok, missing, mismatch or no source, extracting nothing. Standard library only;
 `packages/core/src/manifold/core/dirhash.py` is loaded by file path.
+
+`assets` also covers the pinned data assets of `external/pins.json` (`kind: asset`: a file under `external/assets/`,
+its sha256, size and source URL; SatSim's ephemeris and IERS snapshot), which the engine-asset library sees through a
+link. `--status` verifies each (ok, missing, mismatch) and fetches nothing; without `--status` a missing one is fetched
+from its URL into a temporary file, kept only when its size and sha256 match the pin, and made read-only; a mismatching
+file is reported, never replaced. Nothing is fetched unless the user runs the command.
 """
 import argparse
 import hashlib
@@ -79,6 +85,8 @@ def status(pins, external=EXTERNAL, environ=None):
     """One line per dependency: (name, state, detail). state: ok, mismatch, dirty, missing."""
     rows = []
     for name, pin in pins.items():
+        if pin["kind"] == "asset":                       # data assets: `assets` verifies and fetches them
+            continue
         path = Path(external) / DIRS[name]
         if pin["kind"] == "git":
             if not path.exists():
@@ -114,6 +122,8 @@ def install(pins, links=None, external=EXTERNAL, environ=None):
     external.mkdir(exist_ok=True)
     msgs = []
     for name, pin in pins.items():
+        if pin["kind"] == "asset":
+            continue
         path = external / DIRS[name]
         if path.exists() or path.is_symlink():
             msgs.append(f"{name}: present, left alone")
@@ -263,10 +273,67 @@ def materialize(entry, library=LIBRARY, dirsig=EXTERNAL / "dirsig"):
     return f"placed    {entry['path']}"
 
 
-def assets(library=LIBRARY, dirsig=EXTERNAL / "dirsig", only=None, status_only=False, out=print):
-    """The `assets` command. Returns the exit code: 0 when every selected entry is ok (or was placed)."""
+def pinned_status(pin, root=ROOT):
+    """`ok`, `missing` or `mismatch` for a pinned data asset (`kind: asset` in pins.json); reads, never fetches."""
+    path = Path(root) / pin["path"]
+    if not path.is_file():
+        return "missing"
+    ok = path.stat().st_size == pin["size"] and hashlib.sha256(path.read_bytes()).hexdigest() == pin["sha256"]
+    return "ok" if ok else "mismatch"
+
+
+def fetch_pinned(pin, root=ROOT, opener=None):
+    """Fetch a missing pinned asset from its URL and keep it only if size and sha256 match. Returns a message;
+    raises AssetError on a refusal (the downloaded bytes are discarded)."""
+    import urllib.request
+    path = Path(root) / pin["path"]
+    state = pinned_status(pin, root)
+    if state == "ok":
+        return f"ok        {pin['path']}"
+    if state == "mismatch":
+        raise AssetError(f"{pin['path']} exists and does not match its pin; not replaced (move it aside to fetch)")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f".{path.name}.{uuid.uuid4().hex}.part")
+    try:
+        with (opener or urllib.request.urlopen)(pin["url"]) as src, open(tmp, "wb") as out:
+            shutil.copyfileobj(src, out)
+        got = hashlib.sha256(tmp.read_bytes()).hexdigest()
+        if got != pin["sha256"] or tmp.stat().st_size != pin["size"]:
+            raise AssetError(f"{pin['path']}: {pin['url']} served {tmp.stat().st_size} bytes with sha256 {got[:16]}..., "
+                             f"not the pinned {pin['size']} bytes {pin['sha256'][:16]}...; discarded"
+                             + (f" (a snapshot taken {pin['snapshot']}: the URL now serves a newer table)"
+                                if pin.get("snapshot") else ""))
+        tmp.chmod(0o444)
+        os.replace(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)
+    return f"fetched   {pin['path']}"
+
+
+def pinned_assets(pins_path=None):
+    return {n: p for n, p in load_pins(pins_path).items() if p.get("kind") == "asset"}
+
+
+def assets(library=LIBRARY, dirsig=EXTERNAL / "dirsig", only=None, status_only=False, out=print, pins_path=None,
+           root=ROOT, opener=None):
+    """The `assets` command. Returns the exit code: 0 when every selected entry is ok (or was placed). The pinned data
+    assets are included for the repository's own library, or when `pins_path` names a pins file."""
     entries = [e for e in load_manifest(library)["assets"] if only is None or e["path"].startswith(only)]
     failed = 0
+    pinned = pinned_assets(pins_path) if pins_path is not None or Path(library) == LIBRARY else {}
+    for name, pin in pinned.items():
+        if only is not None and not pin["library"].startswith(only):
+            continue
+        if status_only:
+            state = pinned_status(pin, root)
+            failed += state != "ok"
+            out(f"{state:9s} {pin['path']} ({name})")
+            continue
+        try:
+            out(fetch_pinned(pin, root, opener))
+        except (AssetError, OSError) as e:
+            failed += 1
+            out(f"failed    {e}")
     for entry in entries:
         if status_only:
             state = asset_status(entry, library, dirsig)

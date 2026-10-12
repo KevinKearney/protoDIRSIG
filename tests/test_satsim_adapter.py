@@ -45,11 +45,28 @@ def spec_for(ref, seed=1, **engine):
             "engine": {"mode": "passthrough", "config": ref, "seed": seed, "device": "cpu", **engine}}
 
 
+ASSET_STORE = ROOT / "manifold_config_repo" / "satsim" / "assets"
+
+
+def assets_present():
+    from manifold.core.resources import asset_problems
+    decl = [(a.name, a.ref, a.env) for a in satsim_adapter.ASSETS]
+    return not asset_problems(decl, ROOT / "manifold_config_repo")
+
+
+needs_assets = pytest.mark.skipif(not assets_present(), reason="the pinned SatSim assets are absent (external/assets/"
+                                  "satsim; python scripts/bootstrap.py assets)")
+
+
 @pytest.fixture
 def library(tmp_path):
+    """A library holding the probe configuration and, linked, the pinned assets (copied when they are tampered)."""
+    if not assets_present():
+        pytest.skip("the pinned SatSim assets are absent (external/assets/satsim; python scripts/bootstrap.py assets)")
     lib = tmp_path / "library"
     (lib / "satsim" / "probe").mkdir(parents=True)
     shutil.copy2(PROBE_CONFIG, lib / "satsim" / "probe" / "config.yaml")
+    (lib / "satsim" / "assets").symlink_to(ASSET_STORE.resolve(), target_is_directory=True)
     return lib
 
 
@@ -219,3 +236,89 @@ def test_the_sdk_and_the_adapter_import_with_satsim_tensorflow_and_numpy_blocked
     res = subprocess.run([sys.executable, "-c", BLOCKED], capture_output=True, text=True, env=env)
     assert res.returncode == 0, res.stderr[-2000:]
     assert res.stdout.strip() == "ok []"
+
+
+# --- assets ---------------------------------------------------------------------------------------------------------
+
+def test_the_declared_assets_are_the_pinned_ones():
+    pins = json.loads((ROOT / "external" / "pins.json").read_text())
+    pinned = {p["library"]: p for p in pins.values() if p.get("kind") == "asset"}
+    assert sorted(pinned) == sorted(a.ref["name"] for a in satsim_adapter.ASSETS)
+    for a in satsim_adapter.ASSETS:
+        pin = pinned[a.ref["name"]]
+        assert a.ref["content_hash"] == "sha256:" + pin["sha256"] and pin["url"].startswith("https://")
+        assert Path(pin["path"]).name == a.name                     # staged under its file name (skyfield's lookup)
+    iers = pinned["satsim/assets/finals2000A.all"]
+    assert iers["snapshot"] == "2026-10-11" and iers["last_measured"] == "2026-10-08"
+    assert SatsimAdapter().fingerprint()["satsim"]["assets"] == {a.name: a.ref["content_hash"]
+                                                                 for a in satsim_adapter.ASSETS}
+
+
+@pytest.mark.parametrize("which", ["de421.bsp", "finals2000A.all"])
+def test_an_absent_or_altered_asset_is_refused_naming_it(library, which):
+    ref = file_ref(library)
+    (library / "satsim" / "assets").unlink()
+    (library / "satsim" / "assets").mkdir()
+    for a in satsim_adapter.ASSETS:
+        if a.name != which:
+            (library / "satsim" / "assets" / a.name).symlink_to(ASSET_STORE.resolve() / a.name)
+    _, mismatches, _ = _check(spec_for(ref), library)
+    assert any(f"asset {which!r}" in m and "not found" in m for m in mismatches), mismatches
+    (library / "satsim" / "assets" / which).write_bytes(b"not the pinned bytes")
+    _, mismatches, _ = _check(spec_for(ref), library)
+    assert any(f"asset {which!r}" in m and "does not match" in m for m in mismatches), mismatches
+
+
+def _bootstrap():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("bootstrap_under_test", ROOT / "scripts" / "bootstrap.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+class _Served:
+    def __init__(self, data):
+        import io
+        self.f = io.BytesIO(data)
+
+    def __enter__(self):
+        return self.f
+
+    def __exit__(self, *a):
+        return False
+
+
+def test_bootstrap_verifies_and_fetches_a_pinned_asset_only_when_asked(tmp_path):
+    """No network: the opener is a stand-in. Status reads only; a fetch keeps bytes that match the pin and discards
+    others, naming the snapshot; an existing different file is never replaced."""
+    bs = _bootstrap()
+    data = b"ephemeris bytes"
+    pin = {"kind": "asset", "path": "store/x.bsp", "library": "satsim/assets/x.bsp", "url": "https://example.invalid/x",
+           "sha256": hashlib.sha256(data).hexdigest(), "size": len(data)}
+    pins = tmp_path / "pins.json"
+    pins.write_text(json.dumps({"x": pin}))
+    calls = []
+    opener = lambda url: calls.append(url) or _Served(data)            # noqa: E731
+    lines = []
+    assert bs.assets(library=tmp_path / "lib", status_only=True, out=lines.append, pins_path=pins, root=tmp_path,
+                     opener=opener) == 1
+    assert lines == ["missing   store/x.bsp (x)"] and calls == []
+    assert bs.assets(library=tmp_path / "lib", out=lines.append, pins_path=pins, root=tmp_path, opener=opener) == 0
+    assert calls == ["https://example.invalid/x"] and (tmp_path / "store" / "x.bsp").read_bytes() == data
+    assert oct((tmp_path / "store" / "x.bsp").stat().st_mode & 0o777) == "0o444"
+    (tmp_path / "store" / "x.bsp").chmod(0o644)
+    (tmp_path / "store" / "x.bsp").write_bytes(b"other")
+    with pytest.raises(bs.AssetError, match="not replaced"):
+        bs.fetch_pinned(pin, tmp_path, opener)
+    (tmp_path / "store" / "x.bsp").unlink()
+    snap = {**pin, "snapshot": "2026-10-11"}
+    with pytest.raises(bs.AssetError, match="snapshot taken 2026-10-11"):
+        bs.fetch_pinned(snap, tmp_path, lambda url: _Served(b"a newer table"))
+    assert not (tmp_path / "store" / "x.bsp").exists() and not list((tmp_path / "store").glob(".*part"))
+
+
+def test_bootstrap_status_and_install_skip_asset_pins(tmp_path):
+    bs = _bootstrap()
+    pins = {"a": {"kind": "asset", "path": "p", "library": "l", "url": "u", "sha256": "0" * 64, "size": 1}}
+    assert bs.status(pins, external=tmp_path) == [] and bs.install(pins, external=tmp_path) == []

@@ -14,7 +14,30 @@
   "dirsig": {
     "kind": "install",
     "version": "dirsig-2026.38.0.a020954-Linux-x86_64",
-    "search": ["$DIRSIG_HOME", "~/DIRSIG/{version}"],
+    "search": [
+      "$DIRSIG_HOME",
+      "~/DIRSIG/{version}"
+    ],
     "note": "Licensed binary install (about 4 GB); linked, never copied or committed."
+  },
+  "satsim-de421": {
+    "kind": "asset",
+    "path": "external/assets/satsim/de421.bsp",
+    "library": "satsim/assets/de421.bsp",
+    "sha256": "a20a7139da04cbc462454634918e9a9ca69127044e2cc9d4f9c16e238d2deedc",
+    "size": 16788480,
+    "url": "https://ssd.jpl.nasa.gov/ftp/eph/planets/bsp/de421.bsp",
+    "note": "JPL planetary ephemeris DE421, read by SatSim through skyfield (SATSIM_SKYFIELD_LOAD_DIR). Copied on 2026-10-11 from the local skyfield download (outputs/_orbit_data/de421.bsp); a fixed published file, so a fetch from the URL verifies."
+  },
+  "satsim-iers-finals2000A": {
+    "kind": "asset",
+    "path": "external/assets/satsim/finals2000A.all",
+    "library": "satsim/assets/finals2000A.all",
+    "sha256": "0baf00f67a39ab362a3e4f07d2a1f084842178523f56bcf5a861e7ac084d411a",
+    "size": 3769212,
+    "url": "https://datacenter.iers.org/data/9/finals2000A.all",
+    "snapshot": "2026-10-11",
+    "last_measured": "2026-10-08",
+    "note": "IERS Earth orientation (finals2000A, IAU 2000), a frozen snapshot of the auto-updating table, taken 2026-10-11 (astropy's download on the SatSim probe's first run; measured values to 2026-10-08, predictions after). Copied from ~/.astropy/cache. The URL serves the current table, which differs: a fetch is verified against this digest and refused when it does not match, so the snapshot itself must be kept (it cannot be re-fetched)."
   }
 }

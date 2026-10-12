@@ -57,4 +57,8 @@ def test_install_leaves_existing_alone_and_reports_dirty_and_mismatch(tmp_path):
 
 def test_real_pins_file_parses():
     pins = bootstrap.load_pins()
-    assert set(pins) == {"dirfm", "agent-docs", "dirsig"} and len(pins["dirfm"]["commit"]) == 40
+    assert {n for n, p in pins.items() if p["kind"] != "asset"} == {"dirfm", "agent-docs", "dirsig"}
+    assert len(pins["dirfm"]["commit"]) == 40
+    assets = {n: p for n, p in pins.items() if p["kind"] == "asset"}
+    assert set(assets) == {"satsim-de421", "satsim-iers-finals2000A"}
+    assert all(len(p["sha256"]) == 64 and p["size"] > 0 and p["url"].startswith("https://") for p in assets.values())

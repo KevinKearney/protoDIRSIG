@@ -7,6 +7,9 @@ form. SatSim runs in its own interpreter (`interpreter.locate`); `availability()
 (`interpreter.probe_cached`). This module imports neither `satsim`, `tensorflow` nor `numpy`: SatSim is driven, never
 bundled.
 
+Assets: the JPL ephemeris `de421.bsp` and a dated IERS snapshot `finals2000A.all` (`ASSETS`), pinned in
+`external/pins.json`; admission refuses a run whose asset is missing or differs, naming it.
+
 Resources (`resources()`): CPU threads, any count, carried in the four thread variables the probe found effective
 (without a request SatSim runs at TensorFlow's defaults; thread count does not change its outputs, but a requested count
 enters the run id like any `cpu_threads` request); about 1 GiB of memory; scratch space; no network; no GPU (a GPU
@@ -20,7 +23,7 @@ from pathlib import Path, PurePosixPath
 
 from manifold.core.dirhash import directory_digest
 from manifold.core.engine import Collection, EngineInfo, EnvironmentPolicy, LaunchPlan
-from manifold.core.resources import CpuThreads, GpuSlot, ResourceDeclaration
+from manifold.core.resources import AssetDecl, CpuThreads, GpuSlot, ResourceDeclaration
 from manifold.core.run_spec import PLACEHOLDER, RunSpecError
 from manifold.engines.satsim import interpreter
 
@@ -35,6 +38,17 @@ ROOTS = ("fpa", "radar", "passive_rf")
 CONFIG_NAMES = ("config.yaml", "config.yml", "config.json")
 GPU_UNVERIFIED = "SatSim GPU behavior is unverified (no GPU run has been measured); only device cpu is admitted"
 POINTER = "/engine/config"
+# The data SatSim would otherwise download (docs/SatSim_probe.md), as hashed assets of the engine-asset library; the same
+# sha256, size and source URL are pinned in external/pins.json (`kind: asset`), and `scripts/bootstrap.py assets` keeps
+# them. Staged read-only under <run_dir>/assets/<name>; the launcher reads their paths from the variables named here.
+EPHEMERIS = AssetDecl("de421.bsp", {"name": "satsim/assets/de421.bsp", "content_hash":
+                                    "sha256:a20a7139da04cbc462454634918e9a9ca69127044e2cc9d4f9c16e238d2deedc"},
+                      "MANIFOLD_SATSIM_EPHEMERIS", "JPL planetary ephemeris DE421, read by skyfield")
+EARTH_ORIENTATION = AssetDecl("finals2000A.all", {"name": "satsim/assets/finals2000A.all", "content_hash":
+                                                  "sha256:0baf00f67a39ab362a3e4f07d2a1f084842178523f56bcf5a861e7ac084d411a"},
+                              "MANIFOLD_SATSIM_IERS", "IERS finals2000A Earth orientation, snapshot of 2026-10-11, "
+                              "read by astropy with downloads off")
+ASSETS = (EPHEMERIS, EARTH_ORIENTATION)
 
 
 def _version():
@@ -210,11 +224,12 @@ class SatsimAdapter:
     def fingerprint(self, spec=None):
         python, source = self.interpreter()
         probe = interpreter.probe_cached(python) if python else None
-        return {"satsim": {"interpreter": python, "interpreter_source": source, "probe": probe}}
+        return {"satsim": {"interpreter": python, "interpreter_source": source, "probe": probe,
+                           "assets": {a.name: a.ref["content_hash"] for a in ASSETS}}}
 
     def resources(self, spec=None):
         python, _ = self.interpreter()
         return ResourceDeclaration(cpu_threads=CpuThreads(minimum=1, maximum=None, default=None,
                                                           variables=THREAD_VARIABLES),
                                    memory_bytes=MEMORY_BYTES, gpu=GpuSlot(maximum=0), scratch_bytes=SCRATCH_BYTES,
-                                   network="none", interpreter=python)
+                                   network="none", assets=ASSETS, interpreter=python)
