@@ -1560,3 +1560,14 @@ Survey truth, the remaining placed-file demos, more comparisons (prompt.md round
 8. Unmeasured: `SLI_FILENAME` (CurveMap1; needs FourCurveAtmosphere first), a `REFLECTANCE_PROP` `IMAGE_FILENAME` held nowhere (EarthClouds1, not derivable: `FastClouds`, `OrthoImage`).
 9. Next comparisons by cost (ready, identical repeat): NormalMap3, NormalMap2, ExternalTriggers1, Caustics1, Starfield1, ChipMaker1.
 10. Carried: Polarization4/5 pass-through renders slow (not investigated); C-34 to C-42 unanswered; layered jobs use the user's HOME; no layered recipe committed; turbulence and lunar values not carried; `as_authored` descriptor not the rendered camera; round 21's items; 102 unverifiable statements from round 27's audit.
+
+## round 29
+
+Space-to-space characterization I: coverage audit, the first scenario family, first measurements (prompt.md round 29). Preflight 2026-10-12T11:40:43-04:00, time cap 4 h, deadline 2026-10-12T15:40:43-04:00. Start 796ecd5 (round 28's last commit; tree clean). State: `.claude_mem/round29_state.md`. Commit trailer: Co-Authored-By alone.
+
+- **0, preflight.** Tip and tree as required. Baseline suite run alone, no edits: 1677 passed, 2 skipped (8 min 16 s). (A first attempt used `envs/protodirsig/bin/python`, which does not exist; it failed at once and ran nothing.)
+- **A, audit.** Read the sources the prompt names (an Explore agent summarized the survey, sweep and tagged-demo documents with line citations; the orbit, motion, run-spec and SatSim sources read directly). Result in `docs/Space_to_space_characterization.md` (new): what exists, the install demos with orbital geometry, a table of five axes x two classes x two engines. No cell is "measured" for space-to-space at 796ecd5; the platform-motion form is measured for a ground pass only.
+- **A, judgment: SatSim cells.** "expressible, unmeasured" where the probe's mapping table names a SatSim configuration key for the axis (rows 2, 6, 7, 10, 11); "unknown" for every hyperresolved SatSim cell: the probe names a sprite target but nothing shows SatSim resolving an extended object. No SatSim run (C-38 open).
+- **A, judgment: Ssa1.** The survey's prose (`DIRSIG_demo_coverage.md`) and BACKLOG call Ssa1 "a satellite imaging a satellite"; the tagged-demo notes and the survey's own row say a fixed site. Recorded in the new document as a fixed site; the survey prose not edited (a generated report).
+- **A, documents.** CONOPS section 3.2 (orbit paragraph): one sentence pointing to the new document. BACKLOG "Space-object imaging against space": a pointer and the gaps.
+- Step A gate: 1677 passed, 2 skipped (7 min 58 s, alone; step B's files moved out of the tree for the gate); ten checks 0 (s2s_scenarios not yet present); boundary tests 23 passed; `git diff 796ecd5 -- packages/core tests/data/id_snapshot.json` empty.
