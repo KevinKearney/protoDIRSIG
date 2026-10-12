@@ -70,9 +70,9 @@ The legacy `.sim` form names no ephemeris; DIRSIG supplies one implicitly. Where
 
 1. Three point sources whose angular light distributions come from IES photometric files, lighting two boxes.
 2. Features: `BasicAtmosphere` (`simpleradiativetransfer`, `uniformweather`); implicit ephemeris; one scene with `box` primitives and three `pointsource` objects whose source materials name an intensity spectrum and an IES file as the source shape; the IES files sit at the top of the demo folder, not under `geometry/`, `materials/` or `maps/`; `BasicPlatform`: static mount, `generic`, `simple` capture, `central` sampling, tabulated channels, 480 x 240; one-entry `.ppd`; one task.
-3. SDK status: atmosphere supported (`atmosphere.simple`); scene partial: the IES files are named only by the material file (`SOURCE_SHAPE`, bare names, beside the `.scene`), which neither the scene copy nor `engine.working_folder` places (E-SCN), and the layered dry run stops on them (round 27, measured: `Unable to locate file "example1.ies"`, searched in the working folder and the scene's `srcdirectory`; the working folder would serve); platform supported as authored; motion and task supported.
-4. Reference run: rendered, 18.1 s, deterministic (sweep). Survey `ready`, an overstatement: the survey does not follow `SOURCE_SHAPE` entries, so it does not see the IES files.
-5. Gaps: the IES files the material file names (`SOURCE_SHAPE`), which the job does not place (measured). Comparison: exact plausible once they are placed.
+3. SDK status: atmosphere supported (`atmosphere.simple`); scene supported: the IES files are named only by the material file (`SOURCE_SHAPE`, bare names, beside the `.scene`); the layered dry run stopped on them (round 27, measured: `Unable to locate file "example1.ies"`, searched in the working folder and the scene's `srcdirectory`), and since round 28 `engine.working_folder` places them in the working folder (its fifth rule, measured); platform supported as authored; motion and task supported.
+4. Reference run: rendered, 18.1 s, deterministic (sweep). Survey `ready` (since round 28 it follows `SOURCE_SHAPE` entries and counts the IES files as placed).
+5. Gaps: none for the layered form. Comparison (round 28, `docs/DIRSIG_layered_comparison.md`): differs from the same-seed pass-through render only by the pose's position, which dirfm writes to three decimals (the demo's `.ppd` gives the pass-through digests).
 
 ### Sources6 (`demo.sim`)
 
@@ -179,7 +179,7 @@ Counts are the tagged demos whose simulation file needs the feature (URSO / SDA)
 | Rank | Candidate loader feature | URSO | SDA | Unblocks |
 |---|---|---|---|---|
 | 1 | BasicAtmosphere `.atm` with uniform weather from an installation `.wth` (E-ATM, E-WTH): uniform and simple radiative transfer built (`atmosphere.uniform`, `atmosphere.simple`); classic radiative transfer, `turbulence` and lunar values not | 9 | 9 | none alone (classic: MoonSat1 only) |
-| 2 | Demo platform form: built as `engine.platform.as_authored`; a sensor-spec holding a demo camera's values with its radiance units is not (E-PLT, E-UNITS) | 9 | 7 | URSO: Indoors1, Sources6, SubPixelObject1, SubPixelObject2; IESSources1 also needs item 11 (measured) |
+| 2 | Demo platform form: built as `engine.platform.as_authored`; a sensor-spec holding a demo camera's values with its radiance units is not (E-PLT, E-UNITS) | 9 | 7 | URSO: Indoors1, Sources6, SubPixelObject1, SubPixelObject2; IESSources1 with item 11 |
 | 3 | Simulation options file, or the engine-run options it sets (E-OPT) | 4 | 2 | URSO: Sources1, Sources3, Sources4, Sources5 |
 | 4 | Fixed-site LookAt platform motion, with a fixed or an `sgp4` target (E-MOT) | 0 | 3 | SDA: Ssa2 (no DIRSIG 5 reference); with 3, Ssa1 |
 | 5 | `EarthGrid`, and runs without a scene file (E-PLG) | 0 | 3 | SDA: EarthShine1 (with 4) |
@@ -188,7 +188,7 @@ Counts are the tagged demos whose simulation file needs the feature (URSO / SDA)
 | 8 | Non-imaging instruments: the data recorder; the `LightCurve` sensor plugin (E-NI) | 0 | 2 | SDA: StkImport1 (with 5 and 7); LightCurve1 |
 | 9 | LookAt at a moving target from an orbit (E-MOT, the `orbit` kind) | 0 | 1 | SDA: Ssa3 (no DIRSIG 5 reference) |
 | 10 | Ephemeris as authored: a run without an ephemeris plugin when the `.atm` fixes no Sun (built when it does: `fixed_ephemeris`), and evidence that DIRSIG's implicit ephemeris equals `SpiceEphemeris` (equal on MaterialMap1 and LensDistortion1) (E-EPH) | 8 | 5 | SDA: MoonSat2 (with 6); for the `.sim` demos, a check rather than a feature |
-| 11 | Files only a material file names, outside the placed files (IESSources1's `SOURCE_SHAPE` IES files, on which its layered dry run stops; DIRSIG searches the working folder and the `srcdirectory`); files the `.scene` names are copied since round 23 (E-SCN) | 1 | 0 | URSO: IESSources1 |
+| 11 | Files only a material file names, outside the placed files: built for IESSources1's `SOURCE_SHAPE` IES files (round 28, `engine.working_folder`'s fifth rule; DIRSIG searches the working folder and the `srcdirectory`); files the `.scene` names are copied since round 23 (E-SCN) | 1 | 0 | URSO: IESSources1 |
 
 Ranking: by the number of tagged demos that need the feature, then by how cheap their references are. Items 1 and 2 were needed by nearly every tagged demo and are built (classic radiative transfer and turbulence aside); items 3, 10 and 11 also concern URSO demos, the rest are SDA-specific.
 
