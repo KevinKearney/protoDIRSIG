@@ -2,8 +2,8 @@
 
 The native-size comparison itself runs only through the script, outside the repository
 (docs/DIRSIG_layered_comparison.md); here: the files a `.sim` and a `.jsim` name, the static pose of a one-entry `.ppd`
-and its refusals, the epoch and task windows of a `.tasks`, the image comparison, and the refusal of a work folder
-inside the repository.
+and its refusals, the epoch and task windows of a `.tasks`, the image comparison, the refusal of a work folder inside
+the repository, and the `engine.working_folder` that `write_layers` states (the files the loader requires).
 """
 import importlib.util
 import json
@@ -139,3 +139,74 @@ def test_a_demo_atm_is_read_by_its_radiative_transfer_form(tmp_path, rt, form, v
                    "</atmosphericconditions>")
     got_form, block = cl.read_basic_atm(atm)
     assert got_form == form and block == {"radiative_transfer": values, "weather": {"install_file": "mls.wth"}}
+
+
+def _synthetic_demo(config_repo, name, working=True):
+    """A demo folder under `config_repo/demo_dirs/` (`demo.sim` and the files it names). With `working`, it names a file
+    of each kind DIRSIG looks for in the working folder: a platform `<filename>`, a geometry list beside the `.scene`
+    outside its `gdbdirectory` and the file that list names, and a material-file `PARAMETER_FILE` relative to the
+    scene's folder; its `EMISSIVITY_FILE` lies in the `emsdirectory` and is not one."""
+    demo = config_repo / "demo_dirs" / name
+    (demo / "geometry").mkdir(parents=True)
+    (demo / "materials").mkdir()
+    (demo / "demo.sim").write_text('<simulation><scene externalfile="./demo.scene"/><atmosphericconditions '
+                                   'externalfile="./demo.atm"/><platform externalfile="./demo.platform"/><platformmotion '
+                                   'externalfile="./demo.ppd"/><tasklist externalfile="./demo.tasks"/></simulation>')
+    glist = "demo.glist" if working else "geometry/demo.glist"                   # named "demo.glist" either way
+    (demo / "demo.scene").write_text(
+        '<classicscene><sceneorigin><location frame="geodetic"><latitude>44.4</latitude><longitude>-73.2</longitude>'
+        "</location></sceneorigin><gdbdirectory>$SCENE_DIR/geometry</gdbdirectory><geometrylist>"
+        "<geometrylistinclude>demo.glist</geometrylistinclude></geometrylist><matfilename>$SCENE_DIR/materials/demo.mat"
+        "</matfilename><emsdirectory>$SCENE_DIR/materials</emsdirectory></classicscene>")
+    (demo / glist).write_text("<geometrylist><object><basegeometry><obj><filename>shape.obj</filename></obj>"
+                              "</basegeometry></object></geometrylist>")
+    (demo / glist).with_name("shape.obj").write_text("v 0 0 0\n")
+    entries = "PARAMETER_FILE = ./materials/a.brdf\n" if working else ""
+    (demo / "materials" / "demo.mat").write_text(f"MATERIAL_ENTRY {{\n{entries}EMISSIVITY_FILE = b.ems\n}}\n")
+    (demo / "materials" / "a.brdf").write_text("brdf")
+    (demo / "materials" / "b.ems").write_text("ems")
+    named = "<notes><filename>pixels.txt</filename></notes>" if working else ""
+    (demo / "demo.platform").write_text(f"<platform>{named}</platform>")
+    (demo / "pixels.txt").write_text("pixels")
+    (demo / "demo.atm").write_text(
+        "<atmosphericconditions><metadata/><uniformweather><classicdata><filename>$DIRSIG_HOME/lib/data/weather/mls.wth"
+        "</filename></classicdata></uniformweather><uniformradiativetransfer><hemisphereirradiance>1"
+        "</hemisphereirradiance><skyfraction>0.2</skyfraction></uniformradiativetransfer></atmosphericconditions>")
+    (demo / "demo.ppd").write_text(PPD.format(jitter="", entries=ENTRY))
+    (demo / "demo.tasks").write_text(TASKS)
+    return demo
+
+
+def _engine(layers, name):
+    import yaml
+    return yaml.safe_load((layers / "engine_profiles" / f"layered_{name.lower()}.yaml").read_text())["engine"]
+
+
+def test_write_layers_states_the_working_folder_files_the_loader_requires(tmp_path, monkeypatch):
+    from manifold.core.spectral import sha256_file
+    from manifold.engines.dirsig.run_spec import _working_folder
+    monkeypatch.setitem(cl.SIMULATION, "Synth1", "demo.sim")
+    config_repo = tmp_path / "config_repo"
+    demo = _synthetic_demo(config_repo, "Synth1")
+    key, notes = cl.write_layers("Synth1", tmp_path / "layers", config_repo, 1)
+    assert key == "layered_synth1"
+    engine = _engine(tmp_path / "layers", "Synth1")
+    names = [("demo.glist", "demo.glist"), ("materials/a.brdf", "materials/a.brdf"), ("pixels.txt", "pixels.txt"),
+             ("shape.obj", "shape.obj")]
+    assert engine["working_folder"] == [{"name": n, "ref": {"name": f"demo_dirs/Synth1/{rel}",
+                                                            "content_hash": sha256_file(demo / rel)}}
+                                        for n, rel in names]
+    assert ("engine.working_folder: [('demo.glist', 'demo.scene'), ('materials/a.brdf', 'demo.mat'), "
+            "('pixels.txt', 'demo.platform'), ('shape.obj', 'demo.glist')]") in notes
+    # The loader accepts exactly what the script states (no missing, mismatched or unneeded entry).
+    assert _working_folder(engine, config_repo, demo / "demo.scene", demo / "demo.platform") == tuple(
+        (n, config_repo / "demo_dirs" / "Synth1" / rel) for n, rel in names)
+
+
+def test_write_layers_states_no_working_folder_when_none_is_needed(tmp_path, monkeypatch):
+    monkeypatch.setitem(cl.SIMULATION, "Synth2", "demo.sim")
+    config_repo = tmp_path / "config_repo"
+    _synthetic_demo(config_repo, "Synth2", working=False)
+    _, notes = cl.write_layers("Synth2", tmp_path / "layers", config_repo, 1)
+    assert "working_folder" not in _engine(tmp_path / "layers", "Synth2")
+    assert not any(n.startswith("engine.working_folder") for n in notes)
