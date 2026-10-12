@@ -75,6 +75,25 @@ The sweep rendered Ssa1, SpaceRendezVous1 and LightCurve1 once (629 s, 706 s and
 
 Ssa1 is deterministic: three renders, the sweep's and two about 12 hours later, gave one set of digests. LightCurve1 repeats 1,679 of its 1,681 outputs exactly; one frame and the light-curve table differ, which digests alone cannot classify (the table summarizes the frames, so a difference in one frame would appear in it too). SpaceRendezVous1's file is a lidar simulation: run, not analyzed. Every one of these renders peaked at 93 to 99 C.
 
+### Addendum: LightCurve1 at one thread
+
+`scripts/probe_determinism.py --demos LightCurve1 --conditions C1` rendered `box_spin.jsim` twice more, one render after the other, with one thread (`--threads=1`) and DIRSIG's default seed, each in a fresh run directory outside the repository: 2,420.7 s and 2,297.6 s, 1,681 outputs each (13,481,138,890 bytes in all), peak 98 C and 96 C. Per-file sha256 digests were compared with each other and with the three default-thread renders above (the sweep's, from `docs/data/demo_sweep_digests.jsonl.gz`, and the two repeats).
+
+- The two one-thread renders are bit-identical: all 1,681 outputs, `cube_150.img` and `lightcurve.dat` included.
+- Against each default-thread render, only `cube_150.img` differs (16,040,000 bytes on every side), plus `lightcurve.dat` against the first default-thread repeat. The default-thread `cube_150.img` had a different digest in each of the three renders; the one-thread renders share a fourth.
+- `lightcurve.dat` (53,650 bytes): the one-thread renders, the sweep's and the second default-thread repeat share one digest; the first default-thread repeat's differs.
+
+| File | Render | Size (bytes) | sha256 |
+|---|---|---|---|
+| `cube_150.img` | sweep (default threads) | 16,040,000 | `0ef6969840635e4defab3e7c73b16f3dffe32a7edde40d13bbc6fd77618658c5` |
+| `cube_150.img` | repeat 1 (default threads) | 16,040,000 | `9bdc2ce3a48b6742c49926401be01934734b4ffb6645a4dcc6ec970ebd8cfd27` |
+| `cube_150.img` | repeat 2 (default threads) | 16,040,000 | `b5073c939fac63190dfda7c9f8329232573d3c7dcb5e90d6109829709f5369de` |
+| `cube_150.img` | one thread, both renders | 16,040,000 | `666dae5013a3b0b42c78e68417e284e9f2a1edc06219f93fc3e6bc22026c3410` |
+| `lightcurve.dat` | sweep, repeat 2, one thread (both) | 53,650 | `d59ad682cbfb1575d9eb8175d098add15529e1a6c1f612e967c07ae7d6db84f5` |
+| `lightcurve.dat` | repeat 1 (default threads) | 53,650 | `6ceb9e248a692a3d1743fe2ddbf272604a69372efd486bcca8f08b2426f675b2` |
+
+So, for LightCurve1, one thread is bit-identical across repeats, as for the probe's radiance demos. The default-thread files were deleted after hashing, so the byte-level nature of their differences (accumulation order or a different random draw) cannot be classified; the one-thread pair has no difference to classify. Whether the one-thread `cube_150.img` lies within the default-thread spread is not measured.
+
 ## Recommendation for a layered-versus-reference test
 
 - **Exact, where the reference is deterministic.** Render the reference and the layered run with the same seed (default or stated) and, for an exact test, with one thread (`--threads=1`): the probe's C1 pairs were bit-identical for every radiance image. At the default thread count, 82 of 125 sweep demos repeated identically as well, and those can be compared exactly at default threads.

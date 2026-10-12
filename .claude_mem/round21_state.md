@@ -7,3 +7,4 @@
 - step A: gate 1575 passed, 2 skipped (second run; first failed on a C-n citation in api/README)
 - step B: code and docs in working tree; targeted tests 74 passed
 - step B: gate 1578 passed, 2 skipped
+- step C: LightCurve1 one-thread pair bit-identical; addendum; final gate 1578 passed, 2 skipped
