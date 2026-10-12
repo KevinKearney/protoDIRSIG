@@ -205,6 +205,12 @@ class Simulation:
         else:
             inputs["weather"] = copy_input(r.weather, in_dir / r.weather.relative_to(lib))
             atm = copy_input(r.atmosphere_db, in_dir / r.atmosphere_db.name)   # beside the jsim, as received
+        job_names = {"auror_ref", "motion", "tasks", "example.jsim", UNIFORM_ATM, SIMPLE_ATM,
+                     *(p.relative_to(lib).parts[0] for p in (r.platform, r.weather, r.atmosphere_db) if p is not None)}
+        for name, source in r.working_folder:                       # files DIRSIG looks for where it runs: copied
+            if Path(name).parts[0] in job_names:
+                raise RuntimeError(f"job assembly: {name}, a working-folder file, would replace a job file")
+            copy_input(source, in_dir / name)
         motion, tasks = generate_motion(r, in_dir / "motion"), generate_tasks(r, in_dir / "tasks")
         job = DIRSIG(in_dir, out_dir)
         job.add_plugin(PlatformFilesPlugin(inputs["platform"], motion, tasks, split_channels=r.split_channels))

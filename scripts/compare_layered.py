@@ -12,7 +12,8 @@ Per demo, one render at a time, everything under `--work` (default: the state di
    engine profile; `manifold_sensors/` is the sensor library): the scene and the platform by reference with stamped
    hashes (the platform `as_authored`), the atmosphere as `basic` with `uniform` or `simple` read from the demo's
    `.atm` (`basic_atmosphere.read_atm`, `read_simple_atm`), a static pose from its `.ppd`, the epoch and task windows
-   from its `.tasks`, and `engine.run.seed` = `--seed`. The values are the demo's (licensed); they are written only
+   from its `.tasks`, the files DIRSIG looks for in the working folder as `engine.working_folder`
+   (`scene_ref.working_folder_files`), and `engine.run.seed` = `--seed`. The values are the demo's (licensed); they are written only
    under `--work`, never into the repository. The descriptor's sensor is a library stand-in (`STAND_IN_SENSOR`): with
    an as-authored platform it is checked but not applied.
 3. Three renders through `Workspace.local` over that library: the layered recipe, the pass-through form at the same
@@ -53,6 +54,7 @@ from compare_outputs import header_for, read_envi                              #
 from manifold.core.dirhash import directory_digest                            # noqa: E402
 from manifold.core.spectral import sha256_file                                # noqa: E402
 from manifold.engines.dirsig.basic_atmosphere import read_atm, read_simple_atm  # noqa: E402
+from manifold.engines.dirsig.scene_ref import working_folder_files              # noqa: E402
 from manifold.sim import Workspace                                             # noqa: E402
 from manifold.sim.workspace import default_work_root                          # noqa: E402
 
@@ -63,7 +65,8 @@ STAND_IN_ENTRY = "synthetic-600-200-vis-1920"
 SIMULATION = {"DensityMap1": "demo.sim", "MaterialMap1": "w_mixing.sim", "PointCollectors2": "framing.jsim",
               "ColorFilterArray1": "bayer.sim", "BayerPattern1": "bayer_hdf.sim", "LensDistortion1": "demo.jsim",
               "ReflectanceMap1": "demo.sim", "Telecentricity1": "demo.jsim", "PolyFill1": "demo.sim",
-              "PrimitiveObjects1": "demo.sim", "Indoors1": "demo.jsim", "DeltaMotion1": "demo.sim"}
+              "PrimitiveObjects1": "demo.sim", "Indoors1": "demo.jsim", "DeltaMotion1": "demo.sim",
+              "Polarization5": "pi.sim"}
 KNOWN = [
     ("simulation file: the layered job's jsim is written by dirfm (plugins BasicPlatform, BasicAtmosphere, and "
      "SpiceEphemeris unless the .atm fixes the Sun), not the demo's own file"),
@@ -75,7 +78,8 @@ KNOWN = [
      "neither"),
     ("cache: the layered job runs with the user's HOME (DIRSIG material cache); the pass-through run with a per-run HOME"),
     ("working folder: the pass-through job runs in the demo's folder, the layered job in its input folder (the scene "
-     "copy in a subfolder, the platform at its library path); a name DIRSIG resolves from the working folder differs"),
+     "copy in a subfolder, the platform at its library path); a name DIRSIG resolves from the working folder differs "
+     "unless engine.working_folder places the file there (files a platform names, bare-name geometry lists)"),
     ("descriptor: the layered run's sensor-spec is a library stand-in, checked but not applied (as_authored platform); "
      "its collection is the scene origin and the pose's height"),
 ]
@@ -219,9 +223,13 @@ def write_layers(name, layers, config_repo, seed):
                       "altitude_reference": "ellipsoid"}},
                   "geometry": {"regime": "oblique"}, "illumination": {"regime": "daylight"},
                   "atmosphere": {"regime": "unspecified"}, "background": {"regime": "synthetic"}, "targets": []}
+    working = working_folder_files(demo_dir / files["scene"], demo_dir / files["platform"])
+    if working:                                   # files DIRSIG looks for in the working folder (engine.working_folder)
+        engine["working_folder"] = [{"name": n, "ref": {"name": ref(src.relative_to(demo_dir).as_posix()),
+                                                        "content_hash": sha256_file(src)}} for n, src, _ in working]
+    profile = {"origin": {"kind": "synthetic", "engine": "dirsig"}, "engine": engine}
     (layers / "scenarios" / f"{key}.yaml").write_text(yaml.safe_dump({"collection": collection}, sort_keys=False))
-    (layers / "engine_profiles" / f"{key}.yaml").write_text(yaml.safe_dump(
-        {"origin": {"kind": "synthetic", "engine": "dirsig"}, "engine": engine}, sort_keys=False))
+    (layers / "engine_profiles" / f"{key}.yaml").write_text(yaml.safe_dump(profile, sort_keys=False))
     recipe = {"compose": "compose/1",
               "meta": {"name": f"layered-{name.lower()}", "tags": ["dirsig-demo", name.lower(), "layered-comparison"],
                        "description": f"DIRSIG demo {name} in the layered form, derived by scripts/compare_layered.py.\n"},
@@ -238,6 +246,8 @@ def write_layers(name, layers, config_repo, seed):
              f"atmosphere {form}: {sorted(uniform)}" + ("" if "fixed_ephemeris" in uniform else
                                                         "; no fixed Sun in the .atm: the layered job adds SpiceEphemeris"),
              f"tasks: {len(windows)} window(s)"]
+    if working:
+        notes.append(f"engine.working_folder: {[(n, by) for n, _, by in working]}")
     if SIMULATION[name].endswith(".jsim"):
         plugins = [p["name"] for p in json.loads((demo_dir / SIMULATION[name]).read_text())[0]["plugin_list"]]
         if "fixed_ephemeris" in uniform and "SpiceEphemeris" in plugins:

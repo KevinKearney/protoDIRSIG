@@ -192,6 +192,30 @@
           "pattern": "^(?!/)(?!.*(^|/)\\.\\.(/|$))[^\\\\\\n]+\\.(sim|jsim)$"
         }
       }
+    },
+    "working_folder": {
+      "description": "Proposed. The files DIRSIG looks for in the working folder, the folder it runs in (a demo's folder when the demo runs as authored, the job's input folder in the layered form), which the job copies there: a file the platform names in a <filename> by a relative name, and a geometry list the scene names by a bare name that lies beside the .scene and not in its gdbdirectory, with the files that list names beside it. The loader finds them from the scene and platform files and requires this member to list exactly those, each by its name in the working folder and its library ref, so the run id covers their bytes; absent when the job needs none (every library scene and platform).",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "description": "One file.",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "ref"
+        ],
+        "properties": {
+          "name": {
+            "description": "The file's path relative to the working folder, as the platform or the geometry list names it (for example pixels.hdf).",
+            "type": "string",
+            "minLength": 1
+          },
+          "ref": {
+            "$ref": "#/$defs/libraryRef"
+          }
+        }
+      }
     }
   },
   "$defs": {
@@ -862,6 +886,26 @@
           "tasks",
           "atmosphere"
         ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "passthrough"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "description": "The pass-through form runs in the demo's own folder: no working_folder (proposed).",
+        "not": {
+          "required": [
+            "working_folder"
+          ]
+        }
       }
     }
   ]

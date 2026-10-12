@@ -1617,18 +1617,18 @@ Cache: every attempt ran with a per-run `HOME`, so DIRSIG's material caches star
 
 ### Layered-comparison candidates
 
-The survey marks 47 demos `near` (one loader feature away) and 63 `ready` (none missing). 96 of them now have a pass-through reference; ranked by its cost, they are the candidates for a layered re-expression and comparison (a `ready` demo's missing feature is "none").
+The survey marks 43 demos `near` (one loader feature away) and 66 `ready` (none missing). 95 of them now have a pass-through reference; ranked by its cost, they are the candidates for a layered re-expression and comparison (a `ready` demo's missing feature is "none").
 
 | Rank | Demo | Simulation | Reference wall time (s) | Deterministic | Missing feature (survey) |
 |---|---|---|---|---|---|
 | 1 | ColorFilterArray1 | bayer.sim | 4.0 | yes | none |
 | 2 | DeltaMotion1 | demo.sim | 4.0 | yes | none |
 | 3 | Balfour1 | demo.sim | 4.1 | yes | BasicAtmosphere .atm (classicradiativetransfer, uniformweather) |
-| 4 | BayerPattern1 | bayer_hdf.sim | 4.1 | yes | files the platform names |
+| 4 | BayerPattern1 | bayer_hdf.sim | 4.1 | yes | none |
 | 5 | BumpMap2 | demo.sim | 4.1 | yes | none |
 | 6 | BundledMaterials1 | w_bundles.jsim | 4.1 | yes | none |
 | 7 | CurveMap1 | demo.jsim | 4.1 | yes | FourCurveAtmosphere |
-| 8 | DataDrivenArray2 | w_gain.sim | 4.1 | yes | files the platform names |
+| 8 | DataDrivenArray2 | w_gain.sim | 4.1 | yes | none |
 | 9 | DataDrivenTempSolver1 | demo.sim | 4.1 | yes | none |
 | 10 | DecalMap1 | demo.sim | 4.1 | yes | none |
 | 11 | DensityMap1 | demo.sim | 4.1 | yes | none |
@@ -1641,7 +1641,7 @@ The survey marks 47 demos `near` (one loader feature away) and 63 `ready` (none 
 | 18 | NormalMap1 | demo.sim | 4.1 | yes | .ppd waypoint motion |
 | 19 | ReflectanceMap1 | demo.sim | 4.1 | yes | none |
 | 20 | Sources4 | demo.sim | 4.1 | yes | simulation options file |
-| 21 | Telecentricity1 | demo.jsim | 4.1 | yes | geometry lists DIRSIG finds only from the working folder |
+| 21 | Telecentricity1 | demo.jsim | 4.1 | yes | none |
 | 22 | TemporalIntegration1 | blur_off.sim | 4.1 | yes | none |
 | 23 | TemporalIntegration2 | blur_off.sim | 4.1 | yes | .ppd waypoint motion |
 | 24 | Balfour2 | single.sim | 6.1 | yes | none |
@@ -1706,7 +1706,7 @@ The survey marks 47 demos `near` (one loader feature away) and 63 `ready` (none 
 | 83 | GlistPopulations1 | demo_daily.sim | 88.2 | no | BasicAtmosphere .atm (classicradiativetransfer, uniformweather) |
 | 84 | Caustics1 | clear_water.jsim | 100.3 | yes | none |
 | 85 | FlexMotion1 | multi_frame.sim | 114.3 | no | none |
-| 86 | Thermal2 | demo.sim | 116.3 | yes | files the platform names |
+| 86 | Thermal2 | demo.sim | 116.3 | yes | none |
 | 87 | Parking1 | demo_assimp.sim | 132.2 | no | none |
 | 88 | Starfield1 | demo.jsim | 154.2 | yes | none |
 | 89 | FourCurveAtm1 | default_w_path.jsim | 160.3 | yes | FourCurveAtmosphere |
@@ -1714,13 +1714,12 @@ The survey marks 47 demos `near` (one loader feature away) and 63 `ready` (none 
 | 91 | TrafficLights1 | demo.jsim | 194.4 | yes | plugin TrafficLight |
 | 92 | Brdf1 | demo.sim | 204.3 | yes | weather without a ThermWeather file |
 | 93 | ChipMaker1 | demo.sim | 212.3 | yes | none |
-| 94 | Polarization5 | pi.sim | 230.4 | yes | files the platform names |
-| 95 | Polarization4 | pi.sim | 244.3 | yes | several instruments or focal planes |
-| 96 | Polarization1 | nadir.sim | 310.6 | not tested | BasicAtmosphere .atm (classicradiativetransfer, uniformweather) |
+| 94 | Polarization5 | pi.sim | 230.4 | yes | material files DIRSIG finds only from the working folder |
+| 95 | Polarization1 | nadir.sim | 310.6 | not tested | BasicAtmosphere .atm (classicradiativetransfer, uniformweather) |
 
-`ready` demos without a reference: FastCloud1 (failed), Polarization2 (failed), Polarization3 (failed).
+`ready` demos without a reference: FastCloud1 (failed), Polarization3 (failed).
 
-`near` demos without a reference: Blackadar1 (failed), Cloudview1 (failed), FocusDistance1 (timeout), HdfWater1 (failed), Muses2 (failed), ReflectanceInversion1 (failed), Refraction1 (failed), SpatialResponse1 (failed), Ssa2 (skipped: dirsig4), Ssa3 (skipped: dirsig4), Thermal1 (failed).
+`near` demos without a reference: Blackadar1 (failed), Cloudview1 (failed), FocusDistance1 (timeout), HdfWater1 (failed), Muses2 (failed), Polarization2 (failed), ReflectanceInversion1 (failed), Refraction1 (failed), SpatialResponse1 (failed), Ssa2 (skipped: dirsig4), Ssa3 (skipped: dirsig4), Thermal1 (failed).
 
 <!-- summarize_sweep: end -->
 

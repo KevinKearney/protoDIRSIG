@@ -50,6 +50,7 @@ a `.scene` ref the `dirhash/1` digest of the scene directory (`manifold.core.dir
 sit beside the `.scene` file. The `sha256:<hash>` placeholder is not verified.
 """
 import copy
+import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -62,6 +63,7 @@ from manifold.core.run_spec import (PLACEHOLDER, LibraryProblem, RunSpecError, _
                                     _pointer, _root_file, _verify_directory_hash, _verify_hash,  # noqa: F401
                                     default_sensor_library, is_inline_sensor, load_run_spec, load_sensor_spec,  # noqa: F401
                                     sha256_file, unstamped_refs)  # noqa: F401
+from manifold.engines.dirsig.scene_ref import working_folder_files
 
 
 # dirfm-bound names, imported only when a job is built (ResolvedRun.atmosphere_plugin, ephemeris_plugin), so loading,
@@ -120,6 +122,9 @@ class ResolvedRun:
                                             # DIRSIG's SimpleAtm radiative transfer (basic_atmosphere.write_simple_atm)
     platform_as_authored: bool = False      # engine.platform.as_authored: `platform` is copied into the job as it is,
                                             # not rendered from the sensor-spec (integration_samples is then None)
+    working_folder: tuple = ()              # ((name, library file)): files DIRSIG looks for in the working folder,
+                                            # copied there by the job (scene_ref.working_folder_files); each listed in
+                                            # engine.working_folder with its library ref, so the run id covers it
 
     def atmosphere_plugin(self, db=None):
         """`NewAtmosphere` over `db`, or over the resolved library database if not given. Pass the job's
@@ -301,12 +306,13 @@ def resolve_run(spec, run_spec_path, config_repo, sensor_library=None):
     scene_path = _scene_file(config_repo, scene["ref"]["name"], scene["ref"], "/engine/scenes/0/ref")
     if kind == "orbit":
         orbit_values["scene_origin"] = _scene_origin(scene_path)
+    platform_path = _root_file(config_repo, plat["ref"]["name"], "platform", plat["ref"], "/engine/platform/ref")
     return ResolvedRun(
         name=desc["meta"]["name"],
         origin=dict(desc["origin"]),
         scene=scene_path,
         scene_offset=list(scene.get("offset", [0, 0, 0])),
-        platform=_root_file(config_repo, plat["ref"]["name"], "platform", plat["ref"], "/engine/platform/ref"),
+        platform=platform_path,
         motion_position=[float(v) for v in motion["position"]["xyz"]] if kind == "static" else None,
         motion_orientation={"order": euler["order"], "units": euler["units"],
                             "angles": [float(v) for v in euler["angles"]]} if kind == "static" else None,
@@ -331,7 +337,46 @@ def resolve_run(spec, run_spec_path, config_repo, sensor_library=None):
         uniform_atmosphere=uniform,
         simple_atmosphere=simple,
         platform_as_authored=as_authored,
+        working_folder=_working_folder(eng, config_repo, scene_path, platform_path),
     )
+
+
+def _working_folder(eng, config_repo, scene, platform):
+    """The `ResolvedRun.working_folder` of a run: the files DIRSIG looks for in the working folder
+    (`scene_ref.working_folder_files`), which `engine.working_folder` (proposed) must list exactly, each as
+    `{name, ref: {name: <its library path>, content_hash}}`, so its bytes are in the run id. A missing, mismatched or
+    unneeded entry is refused. A run whose scene and platform need no such file (every library scene and platform)
+    states none and resolves as before."""
+    stated = {}
+    for i, f in enumerate(eng.get("working_folder") or []):
+        name = f.get("name") if isinstance(f, dict) else None
+        if not isinstance(name, str) or name in stated:
+            raise RunSpecError(f"engine.working_folder[{i}].name is {name!r}: a name, once",
+                               pointer=f"/engine/working_folder/{i}/name")
+        stated[name] = (i, f.get("ref"))
+    library = Path(os.path.normpath(config_repo))
+    out = []
+    for name, source, named_by in working_folder_files(scene, platform):
+        try:
+            rel = Path(os.path.normpath(source)).relative_to(library).as_posix()
+        except ValueError:
+            raise RunSpecError(f"{named_by} names {name}, which DIRSIG looks for in the working folder, and it lies "
+                               f"outside the engine-asset library ({source})", pointer="/engine/scenes/0/ref/name")
+        if name not in stated:
+            raise RunSpecError(f"{named_by} names {name}, which DIRSIG looks for in the job's working folder; list it "
+                               f"in engine.working_folder as {{name: {name}, ref: {{name: {rel}, content_hash}}}}, so "
+                               "the job places it there and the run id covers it", pointer="/engine/working_folder")
+        i, ref = stated.pop(name)
+        if not isinstance(ref, dict) or ref.get("name") != rel:
+            raise RunSpecError(f"engine.working_folder[{i}] ({name}) must reference {rel}, the file {named_by} names; "
+                               f"got {ref!r:.80}", pointer=f"/engine/working_folder/{i}/ref/name")
+        _verify_hash(library / rel, ref, "working-folder file", f"/engine/working_folder/{i}/ref")
+        out.append((name, library / rel))
+    for name, (i, _) in sorted(stated.items(), key=lambda kv: kv[1][0]):
+        raise RunSpecError(f"engine.working_folder[{i}] is {name}, a file DIRSIG does not look for in this job's "
+                           "working folder (neither a <filename> of the platform nor a geometry list of the scene "
+                           "beside it and outside its gdbdirectory names it)", pointer=f"/engine/working_folder/{i}/name")
+    return tuple(out)
 
 
 def _resolve_uniform_atmosphere(eng, member="uniform"):

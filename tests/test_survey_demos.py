@@ -133,25 +133,44 @@ def test_scene_files_the_job_does_not_place_are_missing(tmp_path):
     assert r["missing"] == ["scene files the job does not place"] and r["verdict"] == "near"
 
 
-def test_a_geometry_list_found_only_from_the_working_folder_is_missing(tmp_path):
-    # Named by a bare name, beside the scene and not in its gdbdirectory: DIRSIG searches the working folder.
+def test_a_geometry_list_found_only_from_the_working_folder_is_placed(tmp_path):
+    # Named by a bare name, beside the scene and not in its gdbdirectory: DIRSIG searches the working folder, where the
+    # job copies it (engine.working_folder, Telecentricity1 measured byte-identical), so it is listed, not missing.
     scene = SCENE.replace("geometry/demo.glist", "demo.glist").replace(
         "<odbdirectory>.</odbdirectory>", "<gdbdirectory>$SCENE_DIR/geometry</gdbdirectory>")
     r = survey.survey(make(tmp_path, "Beside1", jsim=jsim(), extra_files={"demo.scene": scene, "demo.glist": GLIST},
                            drop=("geometry/demo.glist",)))
-    assert r["missing"] == ["geometry lists DIRSIG finds only from the working folder"] and r["verdict"] == "near"
+    assert r["missing"] == [] and r["verdict"] == "ready" and r["working_folder"] == ["demo.glist"]
     found = scene.replace("$SCENE_DIR/geometry</gdbdirectory>", "$SCENE_DIR</gdbdirectory>")
     r = survey.survey(make(tmp_path, "Beside2", jsim=jsim(), extra_files={"demo.scene": found, "demo.glist": GLIST},
                            drop=("geometry/demo.glist",)))
-    assert r["missing"] == [] and r["verdict"] == "ready"
+    assert r["missing"] == [] and r["verdict"] == "ready" and r["working_folder"] == []
 
 
-def test_files_the_platform_names_are_missing(tmp_path):
+def test_files_the_platform_names_are_placed(tmp_path):
+    # DIRSIG reads them from the working folder, where the job copies them (BayerPattern1 measured byte-identical).
     plat = platform(extra="<pixelmap><filename format='hdf'>pixels.hdf</filename></pixelmap><x><filename/></x>")
     r = survey.survey(make(tmp_path, "PlatFile1", jsim=jsim(), plat=plat, extra_files={"pixels.hdf": "hdf"}))
-    assert r["missing"] == ["files the platform names"] and r["verdict"] == "near"
+    assert r["missing"] == [] and r["verdict"] == "ready" and r["working_folder"] == ["pixels.hdf"]
     r = survey.survey(make(tmp_path, "PlatFile2", jsim=jsim(), plat=plat))          # named but not shipped: not counted
+    assert r["missing"] == [] and r["verdict"] == "ready" and r["working_folder"] == []
+
+
+def test_material_files_found_only_from_the_working_folder_are_missing(tmp_path):
+    # A PARAMETER_FILE or BRDF_FIT_FILE relative to the scene's folder and not to its emsdirectory (Polarization5,
+    # measured); a TEMP_SOLVER FILENAME is not counted (DataDrivenTempSolver1 renders without it in the working folder).
+    mat = ("MATERIAL_ENTRY {\n  REFLECTANCE_PROP {\n    PARAMETER_FILE = ./materials/a.brdf\n  }\n"
+           "  TEMP_SOLVER {\n    FILENAME = materials/t.txt\n  }\n}\n")
+    scene = SCENE.replace("<odbdirectory>", "<emsdirectory>$SCENE_DIR/materials</emsdirectory><odbdirectory>")
+    files = {"demo.scene": scene, "materials/demo.mat": mat, "materials/a.brdf": "brdf", "materials/t.txt": "0 300"}
+    r = survey.survey(make(tmp_path, "MatFile1", jsim=jsim(), extra_files=files))
+    assert r["missing"] == ["material files DIRSIG finds only from the working folder"] and r["verdict"] == "near"
+    files["materials/demo.mat"] = mat.replace("./materials/a.brdf", "a.brdf")                  # in the emsdirectory
+    r = survey.survey(make(tmp_path, "MatFile2", jsim=jsim(), extra_files=files))
     assert r["missing"] == [] and r["verdict"] == "ready"
+    files["materials/demo.mat"] = mat.replace("PARAMETER_FILE", "BRDF_FIT_FILE")
+    r = survey.survey(make(tmp_path, "MatFile3", jsim=jsim(), extra_files=files))
+    assert r["missing"] == ["material files DIRSIG finds only from the working folder"]
 
 
 def test_motion_kinds(tmp_path):

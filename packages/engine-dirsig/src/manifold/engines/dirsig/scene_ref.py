@@ -101,6 +101,61 @@ def scene_named_paths(scene_file, asset_dirs=ASSET_DIRS):
     return tuple(sorted(files)), tuple(sorted(dirs))
 
 
+def _relative_name(text):
+    """`text` as a name relative to a folder (`$SCENE_DIR/` removed, backslashes as slashes), or None when it is empty,
+    absolute, names a variable or leaves the folder."""
+    text = re.sub(r"^\$SCENE_DIR/?", "", (text or "").strip().replace("\\", "/"))
+    if not text or text.startswith(("$", "/")) or ".." in Path(text).parts:
+        return None
+    return Path(text).as_posix()
+
+
+def working_folder_files(scene_file, platform_file):
+    """`[(name, source, named_by)]`: the files DIRSIG looks for in the working folder, the folder it runs in, which is
+    the demo's folder for a pass-through run and the job's input folder for a layered one (measured on BayerPattern1
+    and Telecentricity1, `docs/DIRSIG_layered_comparison.md`). `name` is the path relative to the working folder,
+    `source` the file it is copied from, `named_by` the file that names it. Two rules:
+
+    - a file the `.platform` names in a `<filename>` by a relative name that lies relative to the platform's folder
+      (BayerPattern1's `pixels.hdf`; DIRSIG does not look beside the platform file);
+    - a geometry list the `.scene` names in a `<geometrylistinclude>` by a relative name that lies beside the `.scene`
+      and not in its `<gdbdirectory>` (DIRSIG looks in the working folder and the `gdbdirectory` only), and every file
+      that list names in a `<filename>` that lies beside the list and not in the `gdbdirectory` (Telecentricity1's
+      `demo.glist` and `Sphere.obj`).
+
+    Empty for a scene and platform that need neither, which is every library scene and platform: their jobs are
+    assembled as before. Sorted by name; a name found twice is kept once (the first source in rule order)."""
+    scene_file, platform_file = Path(scene_file), Path(platform_file)
+    out = {}
+
+    def parse(path):
+        try:
+            return et.parse(str(path)).getroot()
+        except (et.XMLSyntaxError, OSError):
+            return None
+
+    plat = parse(platform_file)
+    for el in (plat.iter("filename") if plat is not None else ()):
+        name = _relative_name(el.text)
+        if name is not None and (platform_file.parent / name).is_file():
+            out.setdefault(name, (platform_file.parent / name, platform_file.name))
+    scene = parse(scene_file)
+    if scene is not None:
+        top = scene_file.parent
+        gdb = top / (_relative_name(scene.findtext("gdbdirectory")) or "")
+        for el in scene.iter("geometrylistinclude"):
+            name = _relative_name(el.text)
+            if name is None or not (top / name).is_file() or (gdb / name).is_file():
+                continue
+            out.setdefault(name, (top / name, scene_file.name))
+            listing = parse(top / name)
+            for item in (listing.iter("filename") if listing is not None else ()):
+                member = _relative_name(item.text)
+                if member is not None and ((top / name).parent / member).is_file() and not (gdb / member).is_file():
+                    out.setdefault(member, ((top / name).parent / member, Path(name).name))
+    return [(name, src, by) for name, (src, by) in sorted(out.items())]
+
+
 def copy_input(src, dst):
     """Copy one read-only input file to `dst`, asserted byte-identical. Returns `dst`. Used so a
     job references its own copy, never the original: in the stage jobs, the manifold_config_repo platform,
