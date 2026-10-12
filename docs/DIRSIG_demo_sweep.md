@@ -1617,7 +1617,7 @@ Cache: every attempt ran with a per-run `HOME`, so DIRSIG's material caches star
 
 ### Layered-comparison candidates
 
-The survey marks 44 demos `near` (one loader feature away) and 65 `ready` (none missing). 95 of them now have a pass-through reference; ranked by its cost, they are the candidates for a layered re-expression and comparison (a `ready` demo's missing feature is "none").
+The survey marks 42 demos `near` (one loader feature away) and 68 `ready` (none missing). 96 of them now have a pass-through reference; ranked by its cost, they are the candidates for a layered re-expression and comparison (a `ready` demo's missing feature is "none").
 
 | Rank | Demo | Simulation | Reference wall time (s) | Deterministic | Missing feature (survey) |
 |---|---|---|---|---|---|
@@ -1626,7 +1626,7 @@ The survey marks 44 demos `near` (one loader feature away) and 65 `ready` (none 
 | 3 | Balfour1 | demo.sim | 4.1 | yes | BasicAtmosphere .atm (classicradiativetransfer, uniformweather) |
 | 4 | BayerPattern1 | bayer_hdf.sim | 4.1 | yes | none |
 | 5 | BumpMap2 | demo.sim | 4.1 | yes | none |
-| 6 | BundledMaterials1 | w_bundles.jsim | 4.1 | yes | material files DIRSIG finds only from the working folder |
+| 6 | BundledMaterials1 | w_bundles.jsim | 4.1 | yes | none |
 | 7 | CurveMap1 | demo.jsim | 4.1 | yes | FourCurveAtmosphere |
 | 8 | DataDrivenArray2 | w_gain.sim | 4.1 | yes | none |
 | 9 | DataDrivenTempSolver1 | demo.sim | 4.1 | yes | none |
@@ -1714,12 +1714,13 @@ The survey marks 44 demos `near` (one loader feature away) and 65 `ready` (none 
 | 91 | TrafficLights1 | demo.jsim | 194.4 | yes | plugin TrafficLight |
 | 92 | Brdf1 | demo.sim | 204.3 | yes | weather without a ThermWeather file |
 | 93 | ChipMaker1 | demo.sim | 212.3 | yes | none |
-| 94 | Polarization5 | pi.sim | 230.4 | yes | material files DIRSIG finds only from the working folder |
-| 95 | Polarization1 | nadir.sim | 310.6 | not tested | BasicAtmosphere .atm (classicradiativetransfer, uniformweather) |
+| 94 | Polarization5 | pi.sim | 230.4 | yes | none |
+| 95 | Polarization4 | pi.sim | 244.3 | yes | several instruments or focal planes |
+| 96 | Polarization1 | nadir.sim | 310.6 | not tested | BasicAtmosphere .atm (classicradiativetransfer, uniformweather) |
 
-`ready` demos without a reference: FastCloud1 (failed), Polarization3 (failed).
+`ready` demos without a reference: FastCloud1 (failed), Polarization2 (failed), Polarization3 (failed).
 
-`near` demos without a reference: Blackadar1 (failed), Cloudview1 (failed), FocusDistance1 (timeout), HdfWater1 (failed), Muses2 (failed), Polarization2 (failed), ReflectanceInversion1 (failed), Refraction1 (failed), SpatialResponse1 (failed), Ssa2 (skipped: dirsig4), Ssa3 (skipped: dirsig4), Thermal1 (failed).
+`near` demos without a reference: Blackadar1 (failed), Cloudview1 (failed), FocusDistance1 (timeout), HdfWater1 (failed), Muses2 (failed), ReflectanceInversion1 (failed), Refraction1 (failed), SpatialResponse1 (failed), Ssa2 (skipped: dirsig4), Ssa3 (skipped: dirsig4), Thermal1 (failed).
 
 <!-- summarize_sweep: end -->
 

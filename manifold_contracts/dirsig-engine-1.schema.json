@@ -194,7 +194,7 @@
       }
     },
     "working_folder": {
-      "description": "Proposed. The files DIRSIG looks for in the working folder, the folder it runs in (a demo's folder when the demo runs as authored, the job's input folder in the layered form), which the job copies there: a file the platform names in a <filename> by a relative name, and a geometry list the scene names by a bare name that lies beside the .scene and not in its gdbdirectory, with the files that list names beside it. The loader finds them from the scene and platform files and requires this member to list exactly those, each by its name in the working folder and its library ref, so the run id covers their bytes; absent when the job needs none (every library scene and platform).",
+      "description": "Proposed. The files DIRSIG looks for in the working folder, the folder it runs in (a demo's folder when the demo runs as authored, the job's input folder in the layered form), which the job copies there: a file the platform names in a <filename> by a relative name, a geometry list the scene names by a bare name that lies beside the .scene and not in its gdbdirectory, with the files that list names beside it, and a file the scene's material file names in a PARAMETER_FILE, BRDF_FIT_FILE, EMISSIVITY_FILE or BUNDLE_FILENAME entry by a relative name that lies relative to the scene's folder and not to its emsdirectory (or with an empty emsdirectory). The loader finds them from the scene and platform files and requires this member to list exactly those, each by its name in the working folder and its library ref, so the run id covers their bytes; absent when the job needs none (every library scene and platform).",
       "type": "array",
       "minItems": 1,
       "items": {

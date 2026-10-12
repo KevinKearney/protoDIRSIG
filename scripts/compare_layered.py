@@ -78,7 +78,7 @@ KNOWN = [
     ("epoch's written form: dirfm writes the .tasks reference time in UTC, the demo with its offset; the same instant, "
      "but thermal renders differ (Balfour2, DataDrivenTempSolver1)"),
     ("scene offset: dirfm writes the scene entry with offset \"0,0,0\", the demo's simulation file with none; some "
-     "scenes render differently at the level of floating-point rounding (BumpMap2, DataDrivenArray2)"),
+     "scenes render differently at the level of floating-point rounding (BumpMap2, DataDrivenArray2, Polarization5)"),
     (".atm: written from the derived uniform or simple values; the demo's <metadata>, <turbulence> and lunar ephemeris "
      "values are not carried"),
     ("scene compile: dirfm runs scene2hdf with --threads <cpu count> and the seed; the pass-through runner runs it with "
@@ -86,7 +86,8 @@ KNOWN = [
     ("cache: the layered job runs with the user's HOME (DIRSIG material cache); the pass-through run with a per-run HOME"),
     ("working folder: the pass-through job runs in the demo's folder, the layered job in its input folder (the scene "
      "copy in a subfolder, the platform at its library path); a name DIRSIG resolves from the working folder differs "
-     "unless engine.working_folder places the file there (files a platform names, bare-name geometry lists)"),
+     "unless engine.working_folder places the file there (files a platform names, bare-name geometry lists, files "
+     "a material file names in the measured keys)"),
     ("descriptor: the layered run's sensor-spec is a library stand-in, checked but not applied (as_authored platform); "
      "its collection is the scene origin and the pose's height"),
 ]

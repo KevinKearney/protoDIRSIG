@@ -121,9 +121,17 @@ def working_folder_files(scene_file, platform_file):
     - a geometry list the `.scene` names in a `<geometrylistinclude>` by a relative name that lies beside the `.scene`
       and not in its `<gdbdirectory>` (DIRSIG looks in the working folder and the `gdbdirectory` only), and every file
       that list names in a `<filename>` that lies beside the list and not in the `gdbdirectory` (Telecentricity1's
-      `demo.glist` and `Sphere.obj`).
+      `demo.glist` and `Sphere.obj`);
+    - a file the scene's material file (its `<matfilename>`) names in a `PARAMETER_FILE`, `BRDF_FIT_FILE`,
+      `EMISSIVITY_FILE` or `BUNDLE_FILENAME` entry (`MATERIAL_WORKING_FOLDER_KEYS`) by a relative name that lies
+      relative to the scene's folder and not relative to its `<emsdirectory>`, or with an empty `<emsdirectory>`
+      (DIRSIG looks in the working folder and the `emsdirectory` only: Polarization5's `./materials/*.brdf`,
+      `./materials/grass.fit` and `./materials/grass.ems`; in the working folder only when the `emsdirectory` is empty:
+      BundledMaterials1's `bundles/*.mat.hdf`). Other keys are not followed: a `TEMP_SOLVER` `FILENAME` is found
+      without the working folder (DataDrivenTempSolver1), and the rest are unmeasured. A name that starts with a
+      variable (`$SCENE_DIR/...`) is not a working-folder name.
 
-    Empty for a scene and platform that need neither, which is every library scene and platform: their jobs are
+    Empty for a scene and platform that need none, which is every library scene and platform: their jobs are
     assembled as before. Sorted by name; a name found twice is kept once (the first source in rule order)."""
     scene_file, platform_file = Path(scene_file), Path(platform_file)
     out = {}
@@ -153,7 +161,32 @@ def working_folder_files(scene_file, platform_file):
                 member = _relative_name(item.text)
                 if member is not None and ((top / name).parent / member).is_file() and not (gdb / member).is_file():
                     out.setdefault(member, ((top / name).parent / member, Path(name).name))
+        for name, source, named_by in _material_working_folder_files(scene, top):
+            out.setdefault(name, (source, named_by))
     return [(name, src, by) for name, (src, by) in sorted(out.items())]
+
+
+MATERIAL_WORKING_FOLDER_KEYS = ("PARAMETER_FILE", "BRDF_FIT_FILE", "EMISSIVITY_FILE", "BUNDLE_FILENAME")   # measured
+
+
+def _material_working_folder_files(scene, top):
+    """`[(name, source, named_by)]` of `working_folder_files`' material-file rule, for the parsed `.scene` `scene` in
+    the folder `top`."""
+    mat = _relative_name(scene.findtext("matfilename"))
+    if mat is None or not (top / mat).is_file():
+        return []
+    ems_text = (scene.findtext("emsdirectory") or "").strip()
+    ems = top / (_relative_name(ems_text) or "") if ems_text else None     # empty: the working folder only
+    keys = "|".join(MATERIAL_WORKING_FOLDER_KEYS)
+    out = []
+    for text in re.findall(rf"^\s*(?:{keys})\s*=\s*(\S+)", (top / mat).read_text("latin-1"), re.M):
+        text = text.strip('"').replace("\\", "/")
+        if text.startswith("$") or text.startswith("/") or ".." in Path(text).parts:
+            continue
+        name = Path(text).as_posix()
+        if (top / name).is_file() and not (ems is not None and (ems / name).is_file()):
+            out.append((name, top / name, Path(mat).name))
+    return out
 
 
 def copy_input(src, dst):

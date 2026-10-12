@@ -156,27 +156,31 @@ def test_files_the_platform_names_are_placed(tmp_path):
     assert r["missing"] == [] and r["verdict"] == "ready" and r["working_folder"] == []
 
 
-def test_material_files_found_only_from_the_working_folder_are_missing(tmp_path):
-    # A PARAMETER_FILE or BRDF_FIT_FILE relative to the scene's folder and not to its emsdirectory (Polarization5,
-    # measured); a TEMP_SOLVER FILENAME is not counted (DataDrivenTempSolver1 renders without it in the working folder).
-    mat = ("MATERIAL_ENTRY {\n  REFLECTANCE_PROP {\n    PARAMETER_FILE = ./materials/a.brdf\n  }\n"
-           "  TEMP_SOLVER {\n    FILENAME = materials/t.txt\n  }\n}\n")
+def test_material_files_found_only_from_the_working_folder_are_placed(tmp_path):
+    # A PARAMETER_FILE, BRDF_FIT_FILE or EMISSIVITY_FILE relative to the scene's folder and not to its emsdirectory
+    # (Polarization5, measured): DIRSIG looks for it in the working folder, where the job copies it (engine.working_folder),
+    # so it is listed, not missing. A TEMP_SOLVER FILENAME is not counted (DataDrivenTempSolver1 renders without it in the
+    # working folder), nor an unmeasured key.
+    mat = ("MATERIAL_ENTRY {\n  REFLECTANCE_PROP {\n    PARAMETER_FILE = ./materials/a.brdf\n"
+           "    TXT_FILENAME = ./materials/u.txt\n  }\n  TEMP_SOLVER {\n    FILENAME = materials/t.txt\n  }\n}\n")
     scene = SCENE.replace("<odbdirectory>", "<emsdirectory>$SCENE_DIR/materials</emsdirectory><odbdirectory>")
-    files = {"demo.scene": scene, "materials/demo.mat": mat, "materials/a.brdf": "brdf", "materials/t.txt": "0 300"}
+    files = {"demo.scene": scene, "materials/demo.mat": mat, "materials/a.brdf": "brdf", "materials/t.txt": "0 300",
+             "materials/u.txt": "txt"}
     r = survey.survey(make(tmp_path, "MatFile1", jsim=jsim(), extra_files=files))
-    assert r["missing"] == ["material files DIRSIG finds only from the working folder"] and r["verdict"] == "near"
+    assert r["missing"] == [] and r["verdict"] == "ready" and r["working_folder"] == ["materials/a.brdf"]
     files["materials/demo.mat"] = mat.replace("./materials/a.brdf", "a.brdf")                  # in the emsdirectory
     r = survey.survey(make(tmp_path, "MatFile2", jsim=jsim(), extra_files=files))
-    assert r["missing"] == [] and r["verdict"] == "ready"
-    files["materials/demo.mat"] = mat.replace("PARAMETER_FILE", "BRDF_FIT_FILE")
-    r = survey.survey(make(tmp_path, "MatFile3", jsim=jsim(), extra_files=files))
-    assert r["missing"] == ["material files DIRSIG finds only from the working folder"]
+    assert r["missing"] == [] and r["verdict"] == "ready" and r["working_folder"] == []
+    for key in ("BRDF_FIT_FILE", "EMISSIVITY_FILE"):
+        files["materials/demo.mat"] = mat.replace("PARAMETER_FILE", key)
+        r = survey.survey(make(tmp_path, f"MatFile3{key}", jsim=jsim(), extra_files=files))
+        assert r["missing"] == [] and r["working_folder"] == ["materials/a.brdf"]
     # A material bundle with an empty emsdirectory: DIRSIG searches the working folder only (BundledMaterials1).
     bundle = SCENE.replace("<odbdirectory>", "<emsdirectory></emsdirectory><odbdirectory>")
     files = {"demo.scene": bundle, "materials/demo.mat": "MATERIAL_ENTRY {\n  BUNDLE_FILENAME = bundles/a.mat.hdf\n}\n",
              "bundles/a.mat.hdf": "hdf"}
     r = survey.survey(make(tmp_path, "MatFile4", jsim=jsim(), extra_files=files))
-    assert r["missing"] == ["material files DIRSIG finds only from the working folder"]
+    assert r["missing"] == [] and r["verdict"] == "ready" and r["working_folder"] == ["bundles/a.mat.hdf"]
 
 
 def test_motion_kinds(tmp_path):

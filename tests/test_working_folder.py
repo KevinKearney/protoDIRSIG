@@ -4,9 +4,11 @@ their library refs, so the run id covers their bytes), and `Simulation` copies t
 is where DIRSIG runs a layered job. Measured on BayerPattern1 (`pixels.hdf`, named by its platform) and Telecentricity1
 (`demo.glist` beside its `.scene`, outside its `gdbdirectory`, and the `Sphere.obj` it names): with the files there
 both layered renders are byte-identical to their same-seed pass-through renders (`docs/DIRSIG_layered_comparison.md`).
+Files a material file names by the measured keys (Polarization5, BundledMaterials1) follow the same path.
 The library's scenes and platforms need none, so existing jobs and run ids are unchanged (tests/test_id_snapshot.py).
 The files here are written by the test (no demo bytes); the render is a 16 x 16 view of a sphere whose geometry list
-lies beside its `.scene` and not in its `gdbdirectory`."""
+lies beside its `.scene` and not in its `gdbdirectory`, and another of a sphere whose emissivity file is named relative
+to its scene's folder and not to its `emsdirectory`."""
 import shutil
 from pathlib import Path
 
@@ -208,3 +210,162 @@ def test_a_16_by_16_render_finds_the_list_in_the_working_folder(tmp_path, librar
     assert not (in_dir / "ball.glist").is_symlink() and (in_dir / "ball.glist").read_text() == GLIST
     assert fingerprint(library) == before
     shutil.rmtree(tmp_path / "work", ignore_errors=True)
+
+
+# Files a material file names (round 26). Measured: DIRSIG looks for a `PARAMETER_FILE`, `BRDF_FIT_FILE` or
+# `EMISSIVITY_FILE` in the working folder and the `emsdirectory` only (Polarization5: each missing file stops its layered
+# dry run in turn, `./materials/grass.ems` last), and for a `BUNDLE_FILENAME` in the working folder only when the
+# `emsdirectory` is empty (BundledMaterials1). A `TEMP_SOLVER` `FILENAME` is found without them (DataDrivenTempSolver1).
+NAMES = """MATERIAL_ENTRY {
+    ID = ball
+    SURFACE_PROPERTIES {
+        REFLECTANCE_PROP {
+            PARAMETER_FILE = ./optical/a.brdf
+            BRDF_FIT_FILE = ./optical/b.fit
+            EMISSIVITY_FILE = ./optical/c.ems
+            EMISSIVITY_FILE = d.ems
+            EMISSIVITY_FILE = optical/both.ems
+            EMISSIVITY_FILE = $SCENE_DIR/optical/c.ems
+            EMISSIVITY_FILE = ../up.ems
+            EMISSIVITY_FILE = ./optical/absent.ems
+            TXT_FILENAME = ./optical/u.txt
+        }
+    }
+    BUNDLE_FILENAME = "bundles/e.mat.hdf"
+    TEMP_SOLVER {
+        FILENAME = ./optical/t.txt
+    }
+}
+"""
+EMS = "1\n" + "1.0\n" * 91 + "CURVE_BEGIN\n0.20 0.50\n20.00 0.50\n"     # the "new" .ems format: one flat curve
+PAINTED = """MATERIAL_ENTRY {
+    NAME = Painted
+    ID = ball
+    SPECIFIC_HEAT = 0.1000
+    THERMAL_CONDUCTIVITY = 20.0000
+    MASS_DENSITY = 1.0000
+    SPECULARITY = 0.10
+    SOLAR_ABSORPTION = 0.2500
+    THERMAL_EMISSIVITY = 0.9000
+    EXPOSED_AREA = 0.4500
+    EMISSIVITY_FILE = ./optical/ball.ems
+    THICKNESS = 4.0
+}
+"""
+PAINTED_REL = "scenes/painted/ball.scene"
+
+
+def write_named(folder, scene=SCENE, mat=NAMES):
+    """A sphere scene (emsdirectory `$SCENE_DIR/optical`) whose material file names files by the measured keys."""
+    write_scene(folder, scene=scene)
+    (folder / "ball.mat").write_text(mat)
+    (folder / "optical" / "optical").mkdir(parents=True)
+    (folder / "bundles").mkdir()
+    for rel in ("optical/a.brdf", "optical/b.fit", "optical/c.ems", "optical/d.ems", "optical/both.ems",
+                "optical/optical/both.ems", "optical/u.txt", "optical/t.txt", "bundles/e.mat.hdf"):
+        (folder / rel).write_text(rel)
+    (folder.parent / "up.ems").write_text("outside the scene's folder")
+    return folder / "ball.scene"
+
+
+def test_files_a_material_file_names_relative_to_the_scene_and_outside_its_emsdirectory(tmp_path):
+    scene = write_named(tmp_path / "ball")
+    platform = tmp_path / "plain.platform"
+    platform.write_text(PLATFORM)
+    top = scene.parent
+    assert working_folder_files(scene, platform) == [
+        ("bundles/e.mat.hdf", top / "bundles/e.mat.hdf", "ball.mat"),
+        ("optical/a.brdf", top / "optical/a.brdf", "ball.mat"),
+        ("optical/b.fit", top / "optical/b.fit", "ball.mat"),
+        ("optical/c.ems", top / "optical/c.ems", "ball.mat")]
+
+
+def test_with_an_empty_emsdirectory_every_named_file_is_from_the_working_folder(tmp_path):
+    scene = write_named(tmp_path / "ball", scene=SCENE.replace("$SCENE_DIR/optical</emsdirectory>", "</emsdirectory>"),
+                        mat="MATERIAL_ENTRY {\n    BUNDLE_FILENAME = bundles/e.mat.hdf\n    EMISSIVITY_FILE = optical/d.ems\n}\n")
+    platform = tmp_path / "plain.platform"
+    platform.write_text(PLATFORM)
+    top = scene.parent
+    assert working_folder_files(scene, platform) == [("bundles/e.mat.hdf", top / "bundles/e.mat.hdf", "ball.mat"),
+                                                     ("optical/d.ems", top / "optical/d.ems", "ball.mat")]
+
+
+def test_a_material_file_that_names_none_or_is_absent_needs_nothing(tmp_path):
+    scene = write_named(tmp_path / "ball", mat=MAT)
+    platform = tmp_path / "plain.platform"
+    platform.write_text(PLATFORM)
+    assert working_folder_files(scene, platform) == []
+    (scene.parent / "ball.mat").unlink()
+    assert working_folder_files(scene, platform) == []
+
+
+@pytest.fixture(scope="module")
+def painted(tmp_path_factory):
+    """A library whose sphere's material file names its emissivity file relative to the scene's folder, which is not
+    relative to the `emsdirectory` (`$SCENE_DIR/optical`), as Polarization5's does."""
+    lib = tmp_path_factory.mktemp("working_folder_mat") / "config_repo"
+    folder = lib / "scenes" / "painted"
+    write_scene(folder, scene=SCENE)
+    (folder / "ball.mat").write_text(PAINTED)
+    (folder / "optical").mkdir()
+    (folder / "optical" / "ball.ems").write_text(EMS)
+    (lib / REL).parent.mkdir(parents=True)
+    (lib / REL).write_text(PLATFORM)
+    return lib
+
+
+def painted_spec(lib, working=True):
+    spec = authored_spec(lib)
+    spec["engine"]["scenes"] = [{"ref": {"name": PAINTED_REL, "content_hash": directory_digest(lib / "scenes" / "painted")},
+                                 "offset": [0, 0, 0]}]
+    spec["engine"]["motion"]["position"]["xyz"] = [0.0, 0.0, 1000.0]
+    spec["engine"]["motion"]["orientation"]["euler"]["angles"] = [0.0, 0.0, 0.0]
+    if working:
+        spec["engine"]["working_folder"] = [entry(lib, "optical/ball.ems", "scenes/painted/optical/ball.ems")]
+    return spec
+
+
+def test_a_material_file_entry_is_required_resolved_and_copied(tmp_path, painted):
+    with pytest.raises(RunSpecError, match=r"ball.mat names optical/ball.ems, which DIRSIG looks for in the job's "
+                                           r"working folder; list it in engine.working_folder") as e:
+        _resolve(tmp_path, painted_spec(painted, working=False), painted)
+    assert e.value.pointer == "/engine/working_folder"
+    spec = painted_spec(painted)
+    assert schema_errors(spec) == []
+    assert _resolve(tmp_path, spec, painted).working_folder == (
+        ("optical/ball.ems", painted / "scenes/painted/optical/ball.ems"),)
+    path = tmp_path / "spec.yaml"
+    path.write_text(yaml.safe_dump(spec, sort_keys=False))
+    sim = Simulation.from_run_spec(path, painted, tmp_path / "work", SENSORS)
+    assert sim.resolved is not None, sim.resolve_error
+    in_dir = tmp_path / "work" / "input"
+    sim._assemble(in_dir, tmp_path / "work" / "output")
+    copy = in_dir / "optical" / "ball.ems"
+    assert not copy.is_symlink() and copy.read_text() == EMS
+    other = painted_spec(painted)
+    other["engine"]["working_folder"][0]["ref"]["content_hash"] = "sha256:" + "1" * 64
+    assert run_id(spec, SENSORS) != run_id(other, SENSORS)
+
+
+@needs_dirsig
+def test_a_16_by_16_render_finds_the_emissivity_file_in_the_working_folder(tmp_path, painted):
+    from manifold.sim.backend import LocalBackend
+    path = tmp_path / "painted.yaml"
+    path.write_text(yaml.safe_dump(painted_spec(painted), sort_keys=False))
+    before = fingerprint(painted)
+    backend = LocalBackend(tmp_path / "work", painted, sensor_library=SENSORS)
+    status = wait_for(backend, backend.submit_run(str(path))["run_id"], ("rendered", "failed", "cancelled"), timeout=300)
+    assert status["state"] == "rendered", status
+    in_dir = next((tmp_path / "work").rglob("input/auror_ref")).parent
+    assert (in_dir / "optical" / "ball.ems").read_text() == EMS
+    assert fingerprint(painted) == before
+    shutil.rmtree(tmp_path / "work", ignore_errors=True)
+
+
+def test_every_library_scene_needs_nothing():
+    # The material-file rule included: every .scene in the library (Tahoe, the demo folders kept there) needs no file in
+    # the working folder, so their jobs and run ids are unchanged.
+    scenes = sorted(CONFIG_REPO.rglob("*.scene"))
+    assert len(scenes) > 1
+    for scene in scenes:
+        assert working_folder_files(scene, CONFIG_REPO / "platforms" / "AurorNIRDetector" / "AurorNIRDetector.platform") == [], scene
