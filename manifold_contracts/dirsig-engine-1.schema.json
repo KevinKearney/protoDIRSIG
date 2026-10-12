@@ -519,7 +519,7 @@
       ]
     },
     "atmosphere": {
-      "description": "The atmosphere model. four_curve and basic are the adopted plugins (A.8.7); their members are not modelled by this version, except basic's `uniform` (proposed). new_atmosphere (proposed) reads a prebuilt NewAtmosphere database from the library.",
+      "description": "The atmosphere model. four_curve and basic are the adopted plugins (A.8.7); their members are not modelled by this version, except basic's `uniform` and `simple` (proposed), which exclude each other. new_atmosphere (proposed) reads a prebuilt NewAtmosphere database from the library.",
       "type": "object",
       "required": [
         "plugin"
