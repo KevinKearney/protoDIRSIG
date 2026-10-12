@@ -4,7 +4,7 @@ info:
   version: sdk-api/1
   summary: Compose, validate, submit and inspect DIRSIG runs from layered YAML.
   description: >-
-    Status: proposed. This document is the REST form of the manifold SDK's operation set; the Python facade
+    Status: `built, partial / internal`: no REST server serves it yet (`tests/test_api_contract.py`). This document is the REST form of the manifold SDK's operation set; the Python facade
     exposes the same operations, with the same inputs, outputs and errors, over a local backend that needs no
     server. Composition and validation are pure. Submission is admitted synchronously and executed asynchronously:
     a submission that passes admission returns a run or sweep id at once, and its state is then read by id. Run
@@ -23,7 +23,7 @@ tags:
   - name: runs
     description: Submission, state, cancellation and artifacts.
   - name: engines
-    description: The engines the backend can run (proposed). An engine is added by installing a distribution that registers an adapter.
+    description: The engines the backend can run (`built / internal`, `tests/backend_conformance.py`). An engine is added by installing a distribution that registers an adapter.
 
 paths:
   /sensors:
@@ -328,7 +328,7 @@ paths:
     get:
       operationId: list_engines
       tags: [engines]
-      summary: List the engines (proposed).
+      summary: List the engines.
       description: Every engine registered with the backend, available or not, with its adapter version, the engine-block modes and contracts it serves, the reason an unavailable one cannot be used, and the resources and external assets it declares. A run spec whose `descriptor.origin.engine` is not an available engine here is refused at admission.
       responses:
         "200":

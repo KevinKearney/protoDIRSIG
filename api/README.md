@@ -1,8 +1,12 @@
 # manifold SDK API contract
 
-Status: proposed. Contract version `sdk-api/1`.
+Status: `built, partial / internal`: `LocalBackend` and `Workspace` implement every operation (`tests/test_local_backend.py`); `RemoteBackend` and a REST server are not built. Contract version `sdk-api/1`.
 
-This folder is the contract of the manifold SDK: the operations it offers, their inputs, outputs and errors, and the payload schemas they exchange. The SDK's Python class and its REST wrapper are to be written and tested against it. The SDK class is a hand-written facade over a `Backend` protocol with two implementations: `LocalBackend` (`manifold.sim.backend`, built: a run store under a work root and a worker process per run), which needs no server; and `RemoteBackend`, a REST client generated from `openapi.yaml` (not built). Nothing here is implemented beyond what `operations.md` marks `built` or `partial`.
+<!-- status-legend -->
+Status markers (mirrored from the CONOPS legend, Part II; `scripts/status_markers.py --check` enforces them). Build axis: `planned` (no code at HEAD), `built, partial` (code at HEAD, its limits stated in the same sentence or row), `built` (code at HEAD, with its evidence named: a test file or test, a conformance suite, or an executed notebook). Agreement axis: `open` (a question for MANIFOLD, no position taken), `proposed` (offered to MANIFOLD, not agreed), `agreed` (the C-n row's Outcome in the CONOPS records acceptance), `internal` (an SDK-side contract not offered to MANIFOLD). A marker is one term of each axis, `build / agreement`, for example `built / internal`; `open` alone marks a question with nothing built. A table carries a Build column and an Agreement column. Everything in this folder is `internal`: whether MANIFOLD adopts a part of it is asked in the CONOPS convergence table (section 10).
+<!-- /status-legend -->
+
+This folder is the contract of the manifold SDK: the operations it offers, their inputs, outputs and errors, and the payload schemas they exchange. The SDK's Python class and its REST wrapper are to be written and tested against it. The SDK class is a hand-written facade over a `Backend` protocol with two implementations: `LocalBackend` (`manifold.sim.backend`, built: a run store under a work root and a worker process per run), which needs no server; and `RemoteBackend`, a REST client generated from `openapi.yaml` (not built). Nothing here is implemented beyond what the Build column of `operations.md` marks built or built, partial.
 
 ## The Python facade
 
@@ -20,7 +24,7 @@ Two controlled drawings illustrate the contract: `docs/diagrams/sdk_api.png` (th
 
 ## Contract version
 
-`sdk-api/1` is the version of the whole folder: the operations, the schemas and the OpenAPI document change together. A change that removes or renames an operation, a field or a state, or changes the meaning of one, needs a new version. Adding an optional member stays within `sdk-api/1`; such additions are marked `proposed` in the schema that carries them: `list_engines`, an artifact reference's `role` and a run status's `verdict`.
+`sdk-api/1` is the version of the whole folder: the operations, the schemas and the OpenAPI document change together. A change that removes or renames an operation, a field or a state, or changes the meaning of one, needs a new version. Adding an optional member stays within `sdk-api/1`; such additions are marked `built / internal` in the schema that carries them (`tests/backend_conformance.py`, `tests/test_artifact_roles.py`): `list_engines`, an artifact reference's `role` and a run status's `verdict`.
 
 ## Out of scope
 

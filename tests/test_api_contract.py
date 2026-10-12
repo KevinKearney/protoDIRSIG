@@ -136,7 +136,7 @@ def test_openapi_document_validates():
     osv = pytest.importorskip("openapi_spec_validator", reason="openapi-spec-validator (dev extra) not installed")
     osv.validate(OPENAPI, base_uri=(API / "openapi.yaml").as_uri())
     assert OPENAPI["openapi"].startswith("3.1") and OPENAPI["info"]["version"] == "sdk-api/1"
-    assert "proposed" in OPENAPI["info"]["description"].lower()
+    assert "`built, partial / internal`" in OPENAPI["info"]["description"]
 
 
 def test_openapi_paths_are_the_operations_and_follow_the_error_rules():
@@ -265,11 +265,13 @@ def _symbol(dotted):
     return None
 
 
-def test_every_operation_names_existing_code_or_is_a_gap():
+def test_every_operation_names_existing_code_or_is_planned():
     for row in OPERATIONS:
         dotted = [t for t in re.findall(r"`([A-Za-z_][\w.]*)`", row["Today"]) if "." in t]
-        assert row["Status"] in ("built", "partial", "gap"), row["Operation"]
-        if row["Status"] != "gap":
+        build = re.match(r"`([^`]+)`", row["Build"])
+        assert build and build.group(1) in ("built", "built, partial", "planned"), row["Operation"]
+        assert row["Agreement"] == "`internal`", row["Operation"]
+        if build.group(1) != "planned":
             assert dotted, f"{row['Operation']}: not a gap, but names no existing code"
         for t in dotted:
             assert _symbol(t) is not None, f"{row['Operation']}: `{t}` does not exist"

@@ -1,6 +1,6 @@
 # manifold SDK API: requirements
 
-Status: proposed. Contract version `sdk-api/1`.
+Status: `built, partial / internal`: `LocalBackend` and `Workspace` implement every operation (`tests/test_local_backend.py`); `RemoteBackend` and a REST server are not built. Contract version `sdk-api/1`.
 
 These are the requirements the SDK API is written against. Each one is verified by an existing test, or marked `gap` where no test covers it yet. `Status` is `met` (built and tested), `partial` (part of it is built or tested, the rest is not) or `gap` (not built). The operations that serve each requirement are listed in `operations.md`.
 

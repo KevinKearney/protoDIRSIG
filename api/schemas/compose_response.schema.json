@@ -69,7 +69,7 @@
             "type": "string"
           },
           "sensor": {
-            "description": "The sensor file the run uses, as named in the recipe, for example `auror-nir.yaml`; null for a pass-through run (proposed), which names no library sensor.",
+            "description": "The sensor file the run uses, as named in the recipe, for example `auror-nir.yaml`; null for a pass-through run (`built / internal`, `tests/test_passthrough.py`), which names no library sensor.",
             "type": [
               "string",
               "null"

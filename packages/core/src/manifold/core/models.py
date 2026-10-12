@@ -178,14 +178,14 @@ class ArtifactRef(_Model):
         the zero-based index of that capture, in task order. Absent for an artifact that belongs to the run as a
         whole (the run spec, the engine logs).
     role : str, optional
-        `proposed`. What the artifact is to a user of the run, from a free vocabulary of lowercase words whose
-        initial set is: `product` (the engine's output imagery or data), `truth` (truth images or annotations that
-        describe a product), `preview` (an image for looking at, not measurement), `log` (what the engine or the
-        worker reported while running), `config` (the inputs as executed: the resolved run spec, the engine's own
-        configuration files) and `metadata` (descriptions of other artifacts: image headers, scene or orbit
-        descriptions). A client treats a role it does not know as an opaque label. The engine's adapter assigns it,
-        never a file name rule of the backend; the resolved run spec is `config`. Every reference a backend builds
-        carries it; a reference stored before roles existed has none.
+        `built / internal` (`tests/test_artifact_roles.py`). What the artifact is to a user of the run, from a free
+        vocabulary of lowercase words whose initial set is: `product` (the engine's output imagery or data), `truth`
+        (truth images or annotations that describe a product), `preview` (an image for looking at, not measurement),
+        `log` (what the engine or the worker reported while running), `config` (the inputs as executed: the resolved
+        run spec, the engine's own configuration files) and `metadata` (descriptions of other artifacts: image
+        headers, scene or orbit descriptions). A client treats a role it does not know as an opaque label. The
+        engine's adapter assigns it, never a file name rule of the backend; the resolved run spec is `config`. Every
+        reference a backend builds carries it; a reference stored before roles existed has none.
     """
     name: str
     sha256: str
@@ -269,9 +269,9 @@ class ComposeResponse(_Model):
 
 @dataclasses.dataclass(frozen=True)
 class EngineList(_Model):
-    """Proposed. The engines registered with the backend: each engine id an adapter serves, whether its adapter is
-    available, and what it declares. An engine is added by installing a distribution that registers an adapter;
-    nothing else in the SDK names it.
+    """`built / internal` (`tests/backend_conformance.py`). The engines registered with the backend: each engine id an
+    adapter serves, whether its adapter is available, and what it declares. An engine is added by installing a
+    distribution that registers an adapter; nothing else in the SDK names it.
 
     Attributes
     ----------
@@ -414,11 +414,11 @@ class RunStatus(_Model):
         logs once written, and the image, its header and the truth images once the run has `rendered`. The same list
         `list_artifacts` returns.
     verdict : Literal['complete', 'incomplete', 'failed'], optional
-        `proposed`. For a run in a final state, what its engine's adapter concluded from what the run left, which
-        does not rest on the exit status alone: `complete` (every expected output was written; the state is
-        `rendered`), `incomplete` (the run stopped before it finished: cancelled, its worker gone, or its engine's
-        end-of-run evidence missing) or `failed` (the engine ran to its end and reported failure, or the run could
-        not start). Absent while the run is `accepted` or `running`.
+        `built / internal` (`tests/test_artifact_roles.py`). For a run in a final state, what its engine's adapter
+        concluded from what the run left, which does not rest on the exit status alone: `complete` (every expected
+        output was written; the state is `rendered`), `incomplete` (the run stopped before it finished: cancelled,
+        its worker gone, or its engine's end-of-run evidence missing) or `failed` (the engine ran to its end and
+        reported failure, or the run could not start). Absent while the run is `accepted` or `running`.
     """
     run_id: str
     name: str
@@ -621,7 +621,7 @@ class ComposeResponseRun(_Model):
         The run's name, its `descriptor.meta.name`.
     sensor : str | None
         The sensor file the run uses, as named in the recipe, for example `auror-nir.yaml`; null for a pass-through
-        run (proposed), which names no library sensor.
+        run (`built / internal`, `tests/test_passthrough.py`), which names no library sensor.
     run_spec : dict
         The composed `run-spec/1` document. Its `descriptor.sensor` is a reference `{ref: {name, content_hash}}` or,
         with `inline_sensor`, the `sensor` block of a `sensor-spec/1` document. Every composed run spec validates
@@ -669,15 +669,16 @@ class EngineListItem(_Model):
     source : str | None
         The distribution that registered the adapter, as the backend identifies it, or null.
     resources : dict | None
-        The resource slots the adapter declares for a run (proposed: CPU threads, memory, GPUs, scratch space,
-        network, assets, an external interpreter), or null when it declares none or did not load.
+        The resource slots the adapter declares for a run (`built / internal`, `tests/test_resources.py`: CPU
+        threads, memory, GPUs, scratch space, network, assets, an external interpreter), or null when it declares
+        none or did not load.
     assets : tuple[dict, ...]
-        The external assets the adapter requires, each named with its library reference and content digest
-        (proposed); empty when it requires none.
+        The external assets the adapter requires, each named with its library reference and content digest (`built /
+        internal`, `tests/test_satsim_adapter.py`); empty when it requires none.
     schemas : tuple[EngineListItemSchema, ...]
-        Proposed. Every engine-block schema the engine contributes, so a client in any language can fetch it and
-        apply it as admission does: the run-spec schema alone leaves the engine block open and is not sufficient for
-        admission. Empty when the adapter did not load.
+        `built / internal` (`tests/test_admission_vectors.py`). Every engine-block schema the engine contributes, so
+        a client in any language can fetch it and apply it as admission does: the run-spec schema alone leaves the
+        engine block open and is not sufficient for admission. Empty when the adapter did not load.
     """
     engine_id: str
     available: bool

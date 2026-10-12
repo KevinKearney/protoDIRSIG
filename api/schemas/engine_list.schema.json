@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Engine list",
-  "description": "Proposed. The engines registered with the backend: each engine id an adapter serves, whether its adapter is available, and what it declares. An engine is added by installing a distribution that registers an adapter; nothing else in the SDK names it.",
+  "description": "`built / internal` (`tests/backend_conformance.py`). The engines registered with the backend: each engine id an adapter serves, whether its adapter is available, and what it declares. An engine is added by installing a distribution that registers an adapter; nothing else in the SDK names it.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -75,14 +75,14 @@
             ]
           },
           "resources": {
-            "description": "The resource slots the adapter declares for a run (proposed: CPU threads, memory, GPUs, scratch space, network, assets, an external interpreter), or null when it declares none or did not load.",
+            "description": "The resource slots the adapter declares for a run (`built / internal`, `tests/test_resources.py`: CPU threads, memory, GPUs, scratch space, network, assets, an external interpreter), or null when it declares none or did not load.",
             "type": [
               "object",
               "null"
             ]
           },
           "assets": {
-            "description": "The external assets the adapter requires, each named with its library reference and content digest (proposed); empty when it requires none.",
+            "description": "The external assets the adapter requires, each named with its library reference and content digest (`built / internal`, `tests/test_satsim_adapter.py`); empty when it requires none.",
             "type": "array",
             "items": {
               "description": "One required asset.",
@@ -90,7 +90,7 @@
             }
           },
           "schemas": {
-            "description": "Proposed. Every engine-block schema the engine contributes, so a client in any language can fetch it and apply it as admission does: the run-spec schema alone leaves the engine block open and is not sufficient for admission. Empty when the adapter did not load.",
+            "description": "`built / internal` (`tests/test_admission_vectors.py`). Every engine-block schema the engine contributes, so a client in any language can fetch it and apply it as admission does: the run-spec schema alone leaves the engine block open and is not sufficient for admission. Empty when the adapter did not load.",
             "type": "array",
             "items": {
               "description": "One engine-block schema.",
