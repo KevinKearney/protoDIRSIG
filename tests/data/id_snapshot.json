@@ -5,6 +5,7 @@
   "manifold_run_specs/demo_pointcollectors2_passthrough.yaml": "0ee025143676ad443fa41ff7c511bb5260b96bff8284c117aca05be85a670944",
   "manifold_run_specs/leo_pass_tahoe.yaml": "b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37",
   "manifold_run_specs/pointcollectors2_demo.yaml": "6754dff29a5415880a8c4061496321e2b30e2977d73eb083bce88b07c08bf624",
+  "manifold_run_specs/satsim/tahoe_worldview2.yaml": "81fe69a103a32acdc8a1015e36724faa9d3ed8152488806dbd8a93f24adc5a3d",
   "manifold_run_specs/sensor_sweep_tahoe--auror-nir.yaml": "24878693c8764443db4df620dd95fcf1e8c31e491b55a4f384083008d24b0e35",
   "manifold_run_specs/sensor_sweep_tahoe--deepscan_850_306_nir_1280.yaml": "d194086c470dc2a272db8f17b37c07d638af143d37d7bda36f4823e06067ed0e",
   "manifold_run_specs/sensor_sweep_tahoe--synthetic_600_200_vis_1920.yaml": "37ee7518568b19baab7b25d75f072f8edaebfe1e399770f9b85f6bd48e65c95a",

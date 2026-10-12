@@ -7,7 +7,8 @@
 What it holds:
 - `recipes`: for each committed recipe (`manifold_run_specs/recipes/*.yaml`, pass-through and demo recipes included),
   the run id of each run it composes to and its sweep id (a one-run recipe has a one-run sweep id).
-- `generated_specs`: the run id of each committed generated run spec (`manifold_run_specs/*.yaml`).
+- `generated_specs`: the run id of each committed generated run spec (`manifold_run_specs/*.yaml`), and of each
+  hand-written SatSim run spec (`manifold_run_specs/satsim/*.yaml`; the composer has no SatSim form).
 - `vectors`: the run ids of every composed document in `manifold_contracts/vectors/compose/`, the sweep id of each
   case that composes, the identity vectors (`run_ids.json`, the pass-through spec's run id and directory digest, the
   `dirhash/1` tree digest), and the orbit vector (the sha256 of its data files and of the propagated ITRS positions
@@ -71,7 +72,7 @@ def _recipes(skipped):
 
 def _generated(skipped):
     out = {}
-    for path in sorted(RUN_SPECS.glob("*.yaml")):
+    for path in sorted([*RUN_SPECS.glob("*.yaml"), *RUN_SPECS.glob("satsim/*.yaml")]):
         key = path.relative_to(ROOT).as_posix()
         spec = yaml.safe_load(path.read_text())
         reason = _missing_asset(spec)
