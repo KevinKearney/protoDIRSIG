@@ -272,3 +272,53 @@ Consequences for the documents: the sensor-spec has no PSF member, and DIRSIG5 d
 - **An Earth background beside a target.** The run spec takes one `engine.scenes` entry; no member adds an Earth model. A planar background is scene content (B).
 - **A PSF.** The sensor-spec has none. DIRSIG5 applies an aperture-dependent spread of its own (C3), and only a `<psf>` in the platform file, not a member, changes it.
 - **Look angle and phase angle in the descriptor.** As in round 29: recorded under `descriptor.extras`.
+
+## Scenario family III (round 31): Sun and phase angle on a Lambertian sphere
+
+`scripts/s2s_scenarios.py` also writes family III: 27 specs (`s2s3-*`, indexed after family II with `family: 3`) and a third generated scene, `manifold_config_repo/scenes/s2s_sun/`, so that families I and II stay byte-identical. The targets are DIRSIG's analytic sphere primitive (`<sphere>` in the geometry list, with a scene material by `matid`, as the install's MERL and Brdf1 scenes use it), not facets, so the shape carries no facet error. Reflectance 0.5 (`SimpleReflectance`). Every spec keeps family I's template: `auror-nir`, one thread, seed 1, the 500 x 500 window, 5 ms, the uniform atmosphere with a `fixed_ephemeris` Sun, a static platform at a slant range of 25 km.
+
+| Group | Scene content (scene ENU) | Role |
+|---|---|---|
+| `hyperresolved` | a 10 m radius sphere at (0, 0, 1000 m); a black 400 m backstop 30 m below its centre | 24.48 pixels across |
+| `unresolved` | a 0.25 m radius sphere named `::IMPORTANT::` at (5 km, 0, 1000 m); a backstop 10 m below | 0.61 pixel across, hypersampled |
+| `unresolved_plain` | the same sphere without the label at (−5 km, 0, 1000 m) | the label's effect |
+| `background` | a 10 m sphere at (0, 5 km, 1000 m); family II's barred black plate (bars of reflectance 0.25 on its −y side) 500 m below it | the Sun's zenith changes the background and the sphere differently |
+
+**The phase angle and the expectation.** The platform is placed toward −x from the sphere at the look angle off nadir (`pose`), and the Sun stands toward +x at the solar zenith, solar azimuth 90. The phase angle is look + solar zenith. In the phase sweep each is half the angle, from 0 to 150 degrees in nine steps, so both stay above the horizon and the backstop below the sphere catches every line of sight past its limb (up to 75 degrees off nadir). A Lambertian sphere of radius R and reflectance ρ under irradiance E has the radiant intensity (2/3) ρ E R² Φ(a), with Φ(a) = (sin a + (π − a) cos a) / π. In the family's units, full pixels of a plate facing the Sun and the sensor (round 29's S_full = 2.82847e16 e⁻ m⁻² at 5 ms), the expectation is (2/3) π R² / g² × Φ(a), with g the pixel footprint (0.8170 m at 25 km): 313.777 pixels at full phase for the 10 m sphere and 0.19611 for the 0.25 m sphere. A 64 x 64 probe confirmed the direction first: with the Sun 60 degrees toward +x, the lit side is at decreasing column (scene +x, round 30's image direction) and the terminator 5 m toward −x, where R cos 60° puts it.
+
+**Measured while building: the earth core hides geometry below the origin.** The first layout put the spheres at the origin's altitude and the barred plate 500 m below them. The bars did not render. The three renders from that layout are all-zero outside the sphere, and the sphere's integrated signal is unchanged (1.0011 of the expectation at 0 degrees). Raising every group by 1 km rendered the bars at 0.5 of a full pixel, as their reflectance gives. This fits round 30's account of the earth core as an absorbing ellipsoid about 430 m below the origin's altitude: a surface below it is inside it. The family keeps every surface above the origin's altitude.
+
+### A: the phase sweep (native 500 x 500, one thread)
+
+| Phase (deg) | Look, solar zenith (deg) | Φ(a) | 10 m sphere: expected (px) | Equivalent px | Ratio | Pixels lit | Peak / S_full | Image sha256 (16) | 0.25 m sphere `::IMPORTANT::`: expected (px) | Equivalent px | Ratio | Pixels lit | Image sha256 (16) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0 | 0, 0 | 1.0000 | 313.78 | 314.14 | 1.0012 | 527 | 0.998 | `5e3e1d1d5864333a` | 0.19611 | 0.19239 | 0.981 | 4 | `bfc3d34b2f5dac00` |
+| 20 | 10, 10 | 0.9442 | 296.25 | 296.61 | 1.0012 | 508 | 0.998 | `48cb9ee78409a4fa` | 0.18516 | 0.18104 | 0.978 | 4 | `fff1ed0698302a0b` |
+| 40 | 20, 20 | 0.8004 | 251.15 | 251.62 | 1.0019 | 469 | 0.998 | `85a431dccdebeb8a` | 0.15697 | 0.15394 | 0.981 | 4 | `fb8557cd35d02ae7` |
+| 60 | 30, 30 | 0.6090 | 191.09 | 191.40 | 1.0016 | 402 | 0.998 | `8cdce3ec6973c90b` | 0.11943 | 0.11779 | 0.986 | 4 | `cb15c76db7f9e894` |
+| 80 | 40, 40 | 0.4099 | 128.63 | 128.84 | 1.0016 | 323 | 0.984 | `0b3c363dd57244d8` | 0.08039 | 0.08061 | 1.003 | 4 | `b71fc03fd494036a` |
+| 100 | 50, 50 | 0.2363 | 74.14 | 74.37 | 1.0031 | 241 | 0.876 | `c47bcdacd9295284` | 0.04634 | 0.04831 | 1.042 | 4 | `902faf309c63e641` |
+| 120 | 60, 60 | 0.1090 | 34.20 | 34.28 | 1.0022 | 163 | 0.679 | `530b0ecdb8e6b5a0` | 0.02138 | 0.02247 | 1.051 | 4 | `6e976cd235cf1cad` |
+| 135 | 67.5, 67.5 | 0.0483 | 15.16 | 15.29 | 1.0087 | 113 | 0.448 | `2dd8bc9bc6a474e5` | 0.00947 | 0.01099 | 1.161 | 4 | `75f508d29d81170d` |
+| 150 | 75, 75 | 0.0148 | 4.65 | 4.69 | 1.0098 | 77 | 0.225 | `b5205cf6f9cd9395` | 0.00291 | 0.00323 | 1.112 | 3 | `afbf4e7cabb6e88e` |
+
+(Equivalent pixels: the frame's sum over S_full; the backstops are black, so the sum is the sphere's. Render wall time 22 to 77 s each, about 25 minutes for the family's 27 renders.)
+
+**Hyperresolved.** The 10 m sphere follows the phase function to between 1.0012 and 1.0098 from 0 to 150 degrees. The angle alone sets the signal, not how it is split between the look and the Sun: at 60 degrees, all of it in the Sun (look 0, zenith 60), half and half, and all of it in the look (look 60, zenith 0) give 191.43, 191.40 and 191.38 equivalent pixels (images `2eb733fcb35290c6`, `8cdce3ec6973c90b`, `75835e349378d4f8`). The residual is sampling scatter, which grows as the lit crescent narrows to a few edge pixels. 64 x 64 controlled variations of the same specs: at 0 degrees seeds 1 to 3 give 0.9999, 1.0005 and 1.0004, and a fixed 1000 paths per pixel (a focal-plane `<convergence>`) gives 1.0005. At 150 degrees seeds 1 to 3 give 0.9994, 0.9739 and 1.0024, and 1000 paths give 0.9998.
+
+**Unresolved, and what the label does where little is lit.** The labelled 0.25 m sphere's ratio scatters about 1: 0.98 at small angles, then 1.04 to 1.16 from 100 degrees. The scatter is the hit count of round 29, now applied to a lit fraction that shrinks with the angle. A 16 x 16 truth render (`samplecount`) shows that the label hypersamples the sphere's 3 x 3 pixels at 2000 paths at every phase angle, the same at 0 and 150 degrees. The other pixels take 20 paths and stop. The paths that find the lit part fall with the angle: about 0.29 of a pixel of disc × 2000 ≈ 590 at 0 degrees, and about 40 at 150 degrees, where the lit part is about 7 % of the disc. Five seeds at 16 x 16 give 0.970, 0.990, 1.054, 1.007, 0.956 at 0 degrees (σ 0.04) and 1.116, 1.263, 1.093, 0.681, 1.256 at 150 degrees (σ 0.24). With a focal-plane `<convergence>` of 2000 paths, multiplied by the template's 100 to 200,000 on the sphere's pixels, 150 degrees gives 0.996. The integrated signal of an unresolved sphere therefore follows the phase function to within the hit-count scatter. At the template's sampling that scatter is a few percent near full phase and about a quarter at 150 degrees. No pass or fail threshold is set here.
+
+**Without the label.** The unlabelled sphere takes 20 paths in every pixel (truth). It reads 1.033 and 1.032 of the expectation at 0 and 80 degrees (3 and 2 pixels lit, `fcbe3884480e7d52`, `48c400d0ff30e53f`). At 150 degrees it is one pixel at 0.935 (`cc386bd70172654c`), a single hit; the 16 x 16 render of the same spec is all zero. A sphere that is mostly dark is therefore lost without the label, or rests on one hit, at a size the label still resolves. Both requirements stand from round 29: a surface behind the object, and the label.
+
+**The Sun against the background.** The `background` group, at nadir, under a solar zenith of 0, 30, 60 and 75 degrees. The barred plate is Lambertian and flat, so its bars follow cos θs. The sphere follows Φ(θs), since at nadir the phase angle is the solar zenith. The two illumination geometries are measured in one frame:
+
+| Solar zenith | Bar level / S_full, measured (cos θs × 0.5) | Ratio | Sphere: expected (px) | Equivalent px | Ratio | Image sha256 (16) |
+|---|---|---|---|---|---|---|
+| 0 | 0.50000 (0.50000) | 1.00000 | 313.78 | 314.37 | 1.0019 | `3d88d4c5e99bc25d` |
+| 30 | 0.43302 (0.43301) | 1.00001 | 276.39 | 277.03 | 1.0023 | `94b06d5fdb11549a` |
+| 60 | 0.25002 (0.25000) | 1.00006 | 191.09 | 191.50 | 1.0022 | `9d896cbd0bedeb21` |
+| 75 | 0.12943 (0.12941) | 1.00015 | 143.85 | 144.22 | 1.0026 | `fcfa4fb762d48484` |
+
+(The bar level is the median of the bar pixels at full level, rows 340 to 480. The sphere is summed over a 100-pixel box about it; behind it is the plate's black band.) At 75 degrees the background has fallen to 0.26 of its zenith value and the sphere to 0.46 of its own. The ratio between the two changes by a factor of 1.8, as the two functions predict.
+
+**Tests.** `tests/test_s2s_scenarios.py` adds family III's engine-free checks and one 16 x 16 render pair: with the Sun at the zenith the sphere's image is symmetric, and with the Sun 60 degrees toward +x the −x columns are dark.

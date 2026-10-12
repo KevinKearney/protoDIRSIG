@@ -26,6 +26,12 @@ What it writes (docs/Space_to_space_characterization.md is the account):
   target motion and both; look angle 0 to 75 degrees against the background; the `orbit` form tracking a plate. Its
   plates are the scene's highest geometry and every path inside the scene is under 10 km: a surface about 20 km along
   the ray inside the scene was measured not to be hit (docs/Space_to_space_characterization.md).
+- family III (round 31; `grid3`, `run_spec3`, `scene3_files`): `manifold_config_repo/scenes/s2s_sun/`, a third generated
+  scene of DIRSIG analytic spheres (a hyperresolved and a labelled and an unlabelled unresolved sphere over black
+  backstops, and a sphere over family II's barred plate), 1 km above the origin's altitude, and the `s2s3-*` specs: the
+  phase angle from 0 to 150 degrees (look and solar zenith each half of it), the same angle split all into the Sun or
+  all into the look, and the Sun's zenith against the barred background. The expectation is the Lambertian sphere's
+  phase function (`phase_function`, `expected3`).
 
 The grid is one axis at a time about one baseline per object class (`baseline`, `GRID`), not the full product (which
 `grid(full=True)` gives). Axes and how each is expressed with existing members:
@@ -568,6 +574,167 @@ def run_spec2(p, scene_hash=None):
     return spec
 
 
+# --- family III: Sun and phase angle on a Lambertian sphere (round 31) ------------------------------------------------
+#
+# A third generated scene, `s2s_sun` (SCENE3_DIR), so that families I and II stay byte-identical. The targets are DIRSIG's
+# analytic sphere primitive (`<sphere>` in the geometry list, as the install's MERL and Brdf1 scenes use), not facets, of
+# reflectance REFLECTANCE (SimpleReflectance, a scene material by `matid`). Groups, kilometres apart so that one frame
+# holds one group, the spheres' centres SUN3["base_z"] above the origin's altitude and every top at most 10 m above
+# them (the paths inside the scene stay short). The base height is measured: a background first placed 500 m below the
+# origin's altitude did not render (DIRSIG's earth core, an absorbing ellipsoid about 430 m below it, hides it).
+# - `hyperresolved`: a 10 m radius sphere (24.5 pixels across at 25 km), a black 400 m square backstop 30 m below its
+#   centre (it catches every line of sight past the limb up to 75 degrees off nadir).
+# - `unresolved`: a 0.25 m radius sphere named `::IMPORTANT::` (0.61 pixel across), a backstop 10 m below.
+# - `unresolved_plain`: the same sphere without the label.
+# - `background`: a 10 m sphere with family II's barred black plate (SUN3["depth"] below it, bars on its -y side), so
+#   that the Sun's zenith changes the background as cos(zenith) and the sphere by the phase function.
+# The phase angle is look + solar zenith: the platform is placed toward -x (`pose`) and the Sun stands toward +x
+# (solar azimuth 90). A Lambertian sphere of radius R and reflectance rho under irradiance E has the radiant intensity
+# (2/3) rho E R^2 Phi(a), with Phi(a) = (sin a + (pi - a) cos a) / pi; in the family's units (full pixels of a plate
+# facing the Sun and the sensor) that is (2/3) pi R^2 / footprint^2 times Phi(a).
+
+SCENE3_NAME = "s2s_sun"
+SCENE3_DIR = LIBRARY / "scenes" / SCENE3_NAME
+SCENE3_REF = f"scenes/{SCENE3_NAME}/{SCENE3_NAME}.scene"
+SUN3 = {"range_m": 25000.0, "depth": 500.0, "solar_azimuth_deg": 90.0, "base_z": 1000.0}
+# group -> sphere radius (m), centre (scene ENU, m), instance name, backstop depth below the centre (m; None: bars)
+SPHERES = {
+    "hyperresolved": (10.0, (0.0, 0.0, SUN3["base_z"]), "sphere_10m", 30.0),
+    "unresolved": (0.25, (5000.0, 0.0, SUN3["base_z"]), "::IMPORTANT::sphere_0p25m", 10.0),
+    "unresolved_plain": (0.25, (-5000.0, 0.0, SUN3["base_z"]), "sphere_0p25m_plain", 10.0),
+    "background": (10.0, (0.0, 5000.0, SUN3["base_z"]), "bg_sphere", None),
+}
+PHASES = (0.0, 20.0, 40.0, 60.0, 80.0, 100.0, 120.0, 135.0, 150.0)
+PLAIN_PHASES = (0.0, 80.0, 150.0)
+SPLIT_PHASE = 60.0                 # the hyperresolved sphere at this phase also with all of it in the look or in the Sun
+BACKGROUND_ZENITHS = (0.0, 30.0, 60.0, 75.0)
+MATERIAL_IDS = {"sphere": 1}
+
+
+def phase_function(a_deg):
+    """The Lambertian sphere's phase function, (sin a + (pi - a) cos a) / pi: 1 at full phase, 0 at a = 180 degrees."""
+    a = math.radians(a_deg)
+    return (math.sin(a) + (math.pi - a) * math.cos(a)) / math.pi
+
+
+def _scene3_mat():
+    return MATERIAL.format().replace("ID           = plate", f"ID           = {MATERIAL_IDS['sphere']}") \
+        .replace("NAME         = plate", "NAME         = sphere").replace("TXT_FILENAME = ref.txt",
+                                                                        "TXT_FILENAME = sphere.txt")
+
+
+def _sphere(name, radius, centre):
+    return ["  <object>", "    <basegeometry>", "      <sphere>", f"        <matid>{MATERIAL_IDS['sphere']}</matid>",
+            f"        <radius>{radius:g}</radius>", f"        <center><point>{_xyz((0.0, 0.0, 0.0))}</point></center>",
+            "      </sphere>", "    </basegeometry>", f'    <staticinstance name="{name}">',
+            f"      <translation><point>{_xyz(centre)}</point></translation>", "    </staticinstance>", "  </object>"]
+
+
+def _sun_glist():
+    out = ["<geometrylist>"]
+    for group, (radius, centre, name, depth) in SPHERES.items():
+        out += _sphere(name, radius, centre)
+        x, y, z = centre
+        if depth is not None:
+            out += _instance("backstop", "staticinstance", f"{group}_backstop", (x, y, z - depth))
+        else:
+            out += _instance("bars_blur", "staticinstance", f"{group}_bars", (x, y, z - SUN3["depth"] + 1.0))
+            out += _instance("black_blur", "staticinstance", f"{group}_black", (x, y, z - SUN3["depth"]))
+    return "\n".join(out + ["</geometrylist>"]) + "\n"
+
+
+def scene3_files():
+    """{relative path: text} of the family III scene directory."""
+    files = {f"{SCENE3_NAME}.scene": _scene_xml().replace(SCENE_NAME, SCENE3_NAME).replace(
+                 "Space-to-space target plates", "Space-to-space Lambertian spheres").replace(
+                 "Lambertian squares, no ground", "analytic spheres, backstops and a barred plate, no ground"),
+             "geometry/lists/targets.glist": _sun_glist(), f"materials/{SCENE3_NAME}.mat": _scene3_mat(),
+             "materials/sphere.txt": "".join(f"{w:.1f}   {REFLECTANCE:.2f}\n"
+                                             for w in (0.2, 0.4, 0.8, 1.0, 1.5, 2.0, 2.5, 3.0))}
+    bundles = {"backstop": ([(-BACKSTOP["side"] / 2, BACKSTOP["side"] / 2, -BACKSTOP["side"] / 2,
+                              BACKSTOP["side"] / 2)], 0.0),
+               "bars_blur": _bundles2()["bars_blur"], "black_blur": _bundles2()["black_blur"]}
+    for bundle, (rects, rho) in bundles.items():
+        files[f"geometry/bundles/{bundle}/{bundle}.glist"] = _bundle_glist(f"{bundle}.obj")
+        files[f"geometry/bundles/{bundle}/{bundle}.obj"] = _rects_obj(rects)
+        files[f"geometry/bundles/{bundle}/plate.mat"] = MATERIAL.format()
+        files[f"geometry/bundles/{bundle}/ref.txt"] = "".join(f"{w:.1f}   {rho:.2f}\n"
+                                                             for w in (0.2, 0.4, 0.8, 1.0, 1.5, 2.0, 2.5, 3.0))
+    return files
+
+
+def grid3():
+    """Family III's points, in a fixed order: the phase sweep of the hyperresolved and the labelled unresolved sphere
+    (look and solar zenith each half the phase angle), the hyperresolved sphere at SPLIT_PHASE with the whole angle in
+    the Sun and then in the look, the unlabelled sphere at PLAIN_PHASES, and the background group at nadir under each
+    BACKGROUND_ZENITHS value."""
+    pts = [{"kind": "phase", "group": g, "look_deg": a / 2, "solar_zenith_deg": a / 2}
+           for g in ("hyperresolved", "unresolved") for a in PHASES]
+    pts += [{"kind": "phase", "group": "hyperresolved", "look_deg": 0.0, "solar_zenith_deg": SPLIT_PHASE},
+            {"kind": "phase", "group": "hyperresolved", "look_deg": SPLIT_PHASE, "solar_zenith_deg": 0.0}]
+    pts += [{"kind": "phase", "group": "unresolved_plain", "look_deg": a / 2, "solar_zenith_deg": a / 2}
+            for a in PLAIN_PHASES]
+    pts += [{"kind": "background", "group": "background", "look_deg": 0.0, "solar_zenith_deg": z}
+            for z in BACKGROUND_ZENITHS]
+    return pts
+
+
+def point3_name(p):
+    tail = f"-l{_num_tag(p['look_deg'])}-z{_num_tag(p['solar_zenith_deg'])}"
+    if p["kind"] == "background":
+        return f"s2s3-background-z{_num_tag(p['solar_zenith_deg'])}"
+    return f"s2s3-phase-{p['group'].replace('_', '')}-a{_num_tag(p['look_deg'] + p['solar_zenith_deg'])}{tail}"
+
+
+def expected3(p):
+    """The run spec's own numbers for a family III point: the phase angle, the pixel footprint (m), the sphere's
+    diameter in pixels, its full-phase signal in full pixels ((2/3) pi R^2 / footprint^2), the phase function and their
+    product; for the background group also the background's footprint and its signal per bar pixel relative to the
+    Sun at the zenith (cos of the solar zenith)."""
+    radius = SPHERES[p["group"]][0]
+    a = p["look_deg"] + p["solar_zenith_deg"]
+    g = footprint(SUN3["range_m"])
+    full = 2.0 / 3.0 * math.pi * radius ** 2 / g ** 2
+    out = {"phase_deg": a, "footprint_m": g, "diameter_px": 2 * radius / g, "full_phase_px": full,
+           "phase_function": phase_function(a), "expected_px": full * phase_function(a)}
+    if p["kind"] == "background":
+        out["background_footprint_m"] = footprint(SUN3["range_m"] + SUN3["depth"])
+        out["background_cos_sun"] = math.cos(math.radians(p["solar_zenith_deg"]))
+    return out
+
+
+def run_spec3(p, scene_hash=None):
+    """The `run-spec/1` document of family III point `p`: family I's template (sensor, settings, uniform atmosphere,
+    one thread, seed 1) with the scene, the pose, the Sun and the descriptor's words changed."""
+    name = point3_name(p)
+    ex = expected3(p)
+    base = {"object_class": "hyperresolved", **BASELINE["hyperresolved"], "range_m": SUN3["range_m"],
+            "look_deg": p["look_deg"], "solar_zenith_deg": p["solar_zenith_deg"]}
+    spec = run_spec(base, scene_hash="0" * 64)
+    desc, eng = spec["descriptor"], spec["engine"]
+    radius, centre, instance, _ = SPHERES[p["group"]]
+    pos, angles = pose(base, centre)
+    eng["motion"]["position"]["xyz"], eng["motion"]["orientation"]["euler"]["angles"] = pos, angles
+    eng["atmosphere"]["uniform"]["fixed_ephemeris"]["solar_azimuth"] = SUN3["solar_azimuth_deg"]
+    what = (f"the {p['group'].replace('_', ' ')} sphere (radius {radius:g} m"
+            f"{', labelled ::IMPORTANT::' if instance.startswith('::IMPORTANT::') else ''}"
+            f"{', a barred plate ' + format(SUN3['depth'], 'g') + ' m behind' if p['kind'] == 'background' else ''}) "
+            f"seen from {SUN3['range_m'] / 1000:g} km, {p['look_deg']:g} deg off nadir, Sun at "
+            f"{p['solar_zenith_deg']:g} deg zenith on the far side (phase {ex['phase_deg']:g} deg), exposure 5 ms")
+    desc["meta"] = {"name": name, "tags": ["s2s", "space-to-space", "family-3", p["kind"]],
+                    "description": f"Space-to-space family III: {what}. Written by scripts/s2s_scenarios.py.\n"}
+    desc["fidelity"]["modeled"][0] = "reflected sunlight from a Lambertian sphere"
+    desc["fidelity"]["absent"] = ["Earth background", "stars", "detector noise"]
+    desc["fidelity"]["approximated"].append("optics blur: DIRSIG5's own aperture-dependent spread (no PSF is stated)")
+    desc["extras"] = {"s2s.family": 3, "s2s.kind": p["kind"], "s2s.group": p["group"],
+                      "s2s.sphere_radius_m": radius, "s2s.look_deg": p["look_deg"],
+                      "s2s.solar_zenith_deg": p["solar_zenith_deg"], "s2s.solar_azimuth_deg": SUN3["solar_azimuth_deg"],
+                      "s2s.phase_deg": ex["phase_deg"], "s2s.exposure_s": 0.005}
+    eng["scenes"][0]["ref"] = {"name": SCENE3_REF, "content_hash": scene_hash or _ref(SCENE3_REF)["content_hash"]}
+    eng["platform"]["output_prefix"] = "s2s3_"
+    return spec
+
+
 # --- the run specs ----------------------------------------------------------------------------------------------------
 
 def _ref(rel, root=LIBRARY):
@@ -667,6 +834,11 @@ def family(scene_hash=None):
         name = point2_name(p)
         files[f"{name}.yaml"] = dump(spec)
         index.append({"name": name, "run_id": run_id(spec, SENSORS), "family": 2, **p})
+    for p in grid3():
+        spec = run_spec3(p)
+        name = point3_name(p)
+        files[f"{name}.yaml"] = dump(spec)
+        index.append({"name": name, "run_id": run_id(spec, SENSORS), "family": 3, **p})
     files["index.json"] = json.dumps(index, indent=1) + "\n"
     return files
 
@@ -695,7 +867,7 @@ def main(argv=None):
     ap.add_argument("--check", action="store_true", help="compare with the committed files; exit 1 on a difference")
     ap.add_argument("--list", action="store_true", help="print each grid point and its derived geometry")
     args = ap.parse_args(argv)
-    scenes = ((SCENE_DIR, scene_files()), (SCENE2_DIR, scene2_files()))
+    scenes = ((SCENE_DIR, scene_files()), (SCENE2_DIR, scene2_files()), (SCENE3_DIR, scene3_files()))
     if args.list:
         for p in grid():
             ex = expected(p)
@@ -703,6 +875,9 @@ def main(argv=None):
         for p in grid2():
             ex = expected2(p)
             print(point2_name(p), json.dumps({k: (round(v, 4) if isinstance(v, float) else v) for k, v in ex.items()}))
+        for p in grid3():
+            ex = expected3(p)
+            print(point3_name(p), json.dumps({k: (round(v, 4) if isinstance(v, float) else v) for k, v in ex.items()}))
         return 0
     problems = []
     for sdir, scene in scenes:
@@ -724,7 +899,7 @@ def main(argv=None):
                 old.unlink()
         for fname, text in files.items():
             (OUT / fname).write_text(text)
-        print(f"wrote {SCENE_DIR.relative_to(ROOT)}/ and {SCENE2_DIR.relative_to(ROOT)}/ and {len(files) - 1} run specs "
+        print(f"wrote {', '.join(f'{d.relative_to(ROOT)}/' for d, _ in scenes)} and {len(files) - 1} run specs "
               f"in {OUT.relative_to(ROOT)}/")
     else:
         have = {p.name: p.read_text() for p in OUT.glob("*")} if OUT.is_dir() else {}

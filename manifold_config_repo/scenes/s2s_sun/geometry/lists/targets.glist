@@ -1,0 +1,90 @@
+<geometrylist>
+  <object>
+    <basegeometry>
+      <sphere>
+        <matid>1</matid>
+        <radius>10</radius>
+        <center><point><x>0.0</x><y>0.0</y><z>0.0</z></point></center>
+      </sphere>
+    </basegeometry>
+    <staticinstance name="sphere_10m">
+      <translation><point><x>0.0</x><y>0.0</y><z>1000.0</z></point></translation>
+    </staticinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/backstop/backstop.glist</filename></glist>
+    </basegeometry>
+    <staticinstance name="hyperresolved_backstop">
+      <translation><point><x>0.0</x><y>0.0</y><z>970.0</z></point></translation>
+    </staticinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <sphere>
+        <matid>1</matid>
+        <radius>0.25</radius>
+        <center><point><x>0.0</x><y>0.0</y><z>0.0</z></point></center>
+      </sphere>
+    </basegeometry>
+    <staticinstance name="::IMPORTANT::sphere_0p25m">
+      <translation><point><x>5000.0</x><y>0.0</y><z>1000.0</z></point></translation>
+    </staticinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/backstop/backstop.glist</filename></glist>
+    </basegeometry>
+    <staticinstance name="unresolved_backstop">
+      <translation><point><x>5000.0</x><y>0.0</y><z>990.0</z></point></translation>
+    </staticinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <sphere>
+        <matid>1</matid>
+        <radius>0.25</radius>
+        <center><point><x>0.0</x><y>0.0</y><z>0.0</z></point></center>
+      </sphere>
+    </basegeometry>
+    <staticinstance name="sphere_0p25m_plain">
+      <translation><point><x>-5000.0</x><y>0.0</y><z>1000.0</z></point></translation>
+    </staticinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/backstop/backstop.glist</filename></glist>
+    </basegeometry>
+    <staticinstance name="unresolved_plain_backstop">
+      <translation><point><x>-5000.0</x><y>0.0</y><z>990.0</z></point></translation>
+    </staticinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <sphere>
+        <matid>1</matid>
+        <radius>10</radius>
+        <center><point><x>0.0</x><y>0.0</y><z>0.0</z></point></center>
+      </sphere>
+    </basegeometry>
+    <staticinstance name="bg_sphere">
+      <translation><point><x>0.0</x><y>5000.0</y><z>1000.0</z></point></translation>
+    </staticinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/bars_blur/bars_blur.glist</filename></glist>
+    </basegeometry>
+    <staticinstance name="background_bars">
+      <translation><point><x>0.0</x><y>5000.0</y><z>501.0</z></point></translation>
+    </staticinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/black_blur/black_blur.glist</filename></glist>
+    </basegeometry>
+    <staticinstance name="background_black">
+      <translation><point><x>0.0</x><y>5000.0</y><z>500.0</z></point></translation>
+    </staticinstance>
+  </object>
+</geometrylist>

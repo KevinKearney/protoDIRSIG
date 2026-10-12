@@ -8,6 +8,9 @@ library and the committed files are read only; renders write to tmp_path.
 
 Family II (round 30): its grid, its own scene (`scenes/s2s_blur/`) and its expectations; 16 x 16 renders show heading 90
 moving a plate toward +x from the start of the exposure, and the orbit form holding its LookAt plate over 20 ms.
+
+Family III (round 31): its grid spans the phase angle, its scene (`scenes/s2s_sun/`) and the sphere's expectation; a
+16 x 16 render pair shows the Sun at solar azimuth 90 lighting the sphere from +x.
 """
 import importlib.util
 import json
@@ -198,3 +201,61 @@ def test_sixty_degrees_off_nadir_the_plate_is_foreshortened_by_the_cosine(tmp_pa
     full = img.max()
     ex = s2s.expected2({"kind": "look", "group": "look", "exposure_s": 0.005, "look_deg": 60.0})
     assert img.sum() / full == pytest.approx(16 * ex["side_px"] * 0.5, rel=0.01)
+
+
+# --- family III (round 31): Lambertian spheres, Sun and phase angle --------------------------------------------------
+
+def test_family_three_spans_the_phase_angles_and_names_its_own_scene():
+    a, b = s2s.grid3(), s2s.grid3()
+    assert a == b
+    names = [s2s.point3_name(p) for p in a]
+    assert len(names) == len(set(names)) == len(a)
+    assert not set(names) & ({s2s.point_name(p) for p in s2s.grid()} | {s2s.point2_name(p) for p in s2s.grid2()})
+    for group in ("hyperresolved", "unresolved"):
+        phases = sorted({p["look_deg"] + p["solar_zenith_deg"] for p in a if p["group"] == group})
+        assert len(phases) >= 8 and phases[0] <= 5 and phases[-1] >= 145, (group, phases)
+    assert {p["solar_zenith_deg"] for p in a if p["kind"] == "background"} >= {0.0, 60.0}
+    index = {e["name"]: e for e in json.loads((s2s.OUT / "index.json").read_text())}
+    for p in a:
+        spec = yaml.safe_load((s2s.OUT / f"{s2s.point3_name(p)}.yaml").read_text())
+        assert spec["engine"]["scenes"][0]["ref"]["name"] == s2s.SCENE3_REF
+        assert index[s2s.point3_name(p)]["family"] == 3
+        sun = spec["engine"]["atmosphere"]["uniform"]["fixed_ephemeris"]
+        assert sun["solar_zenith"] == p["solar_zenith_deg"] and sun["solar_azimuth"] == 90.0
+    on_disk = {str(q.relative_to(s2s.SCENE3_DIR)): q.read_text() for q in s2s.SCENE3_DIR.rglob("*") if q.is_file()}
+    assert on_disk == s2s.scene3_files()
+    assert "<sphere>" in on_disk["geometry/lists/targets.glist"]
+
+
+def test_the_lambertian_sphere_expectation():
+    assert s2s.phase_function(0.0) == pytest.approx(1.0)
+    assert s2s.phase_function(90.0) == pytest.approx(1 / math.pi)
+    assert s2s.phase_function(180.0) == pytest.approx(0.0, abs=1e-12)
+    ex = s2s.expected3({"kind": "phase", "group": "hyperresolved", "look_deg": 30.0, "solar_zenith_deg": 30.0})
+    g = s2s.footprint(s2s.SUN3["range_m"])
+    assert ex["phase_deg"] == 60.0
+    assert ex["full_phase_px"] == pytest.approx(2 / 3 * math.pi * 10.0 ** 2 / g ** 2)
+    assert ex["expected_px"] == pytest.approx(ex["full_phase_px"] * s2s.phase_function(60.0))
+
+
+def _render3(tmp_path, point, roi=16):
+    from manifold.engines.dirsig.simulation import Simulation
+    spec = s2s.run_spec3(point)
+    spec["descriptor"]["settings"][0]["roi"] = {"Width": roi, "Height": roi, "OffsetX": None, "OffsetY": None}
+    path = tmp_path / f"{s2s.point3_name(point)}.yaml"
+    path.write_text(yaml.safe_dump(spec, sort_keys=False))
+    result = Simulation(path, CONFIG_REPO, work_dir=tmp_path / path.stem, sensor_library=s2s.SENSORS).run(threads=1)
+    return compare_outputs.read_envi(result.image)[0]
+
+
+@needs_dirsig
+def test_the_sun_lights_the_sphere_from_plus_x(tmp_path):
+    """The 10 m sphere at nadir, 16 x 16 pixels (about 13 m) about its centre. With the Sun at the zenith the image is
+    symmetric; with the Sun 60 degrees from the zenith toward +x (solar azimuth 90) the terminator lies 5 m toward -x
+    from the centre, so the columns toward -x (increasing column) are dark and those toward +x lit."""
+    point = {"kind": "phase", "group": "hyperresolved", "look_deg": 0.0, "solar_zenith_deg": 0.0}
+    full = _render3(tmp_path, point)
+    assert full.min() > 0 and full[:, :8].sum() == pytest.approx(full[:, 8:].sum(), rel=0.02)
+    side = _render3(tmp_path, {**point, "solar_zenith_deg": 60.0})
+    assert side[:, :4].mean() > 0.5 * full.max()
+    assert side[:, 15].mean() < 0.01 * side[:, :4].mean()

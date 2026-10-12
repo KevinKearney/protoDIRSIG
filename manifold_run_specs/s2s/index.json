@@ -880,5 +880,248 @@
   "group": "orbit",
   "exposure_s": 0.02,
   "look_deg": null
+ },
+ {
+  "name": "s2s3-phase-hyperresolved-a0-l0-z0",
+  "run_id": "50a22d617f5ec80d55f2b28fac02679d2b7c2787ed4890d18752cb0984b5eaca",
+  "family": 3,
+  "kind": "phase",
+  "group": "hyperresolved",
+  "look_deg": 0.0,
+  "solar_zenith_deg": 0.0
+ },
+ {
+  "name": "s2s3-phase-hyperresolved-a20-l10-z10",
+  "run_id": "3a746e09c3062bfe55466482c890acaf510c2a6fc6f67660be582a1622c671c4",
+  "family": 3,
+  "kind": "phase",
+  "group": "hyperresolved",
+  "look_deg": 10.0,
+  "solar_zenith_deg": 10.0
+ },
+ {
+  "name": "s2s3-phase-hyperresolved-a40-l20-z20",
+  "run_id": "3e9c4ac32617eb295a87e907a18b5ba0af5fc1373797a85cadc9fc78e922f6b9",
+  "family": 3,
+  "kind": "phase",
+  "group": "hyperresolved",
+  "look_deg": 20.0,
+  "solar_zenith_deg": 20.0
+ },
+ {
+  "name": "s2s3-phase-hyperresolved-a60-l30-z30",
+  "run_id": "e35211f4067653a3c820943305fbf4031e02bb8bf34f3d8141c899cb793f89dc",
+  "family": 3,
+  "kind": "phase",
+  "group": "hyperresolved",
+  "look_deg": 30.0,
+  "solar_zenith_deg": 30.0
+ },
+ {
+  "name": "s2s3-phase-hyperresolved-a80-l40-z40",
+  "run_id": "1da469e8841111dc4984996f62f735cd92024317bc3599aff87508a742324e86",
+  "family": 3,
+  "kind": "phase",
+  "group": "hyperresolved",
+  "look_deg": 40.0,
+  "solar_zenith_deg": 40.0
+ },
+ {
+  "name": "s2s3-phase-hyperresolved-a100-l50-z50",
+  "run_id": "4ce49e509121f4fa896d2b15eba696933217946500039c023482f1174608ccfe",
+  "family": 3,
+  "kind": "phase",
+  "group": "hyperresolved",
+  "look_deg": 50.0,
+  "solar_zenith_deg": 50.0
+ },
+ {
+  "name": "s2s3-phase-hyperresolved-a120-l60-z60",
+  "run_id": "a0dc3c7d2cf13c2a6d4112b8f4fc045a24e601e439616e50619b02991176b56f",
+  "family": 3,
+  "kind": "phase",
+  "group": "hyperresolved",
+  "look_deg": 60.0,
+  "solar_zenith_deg": 60.0
+ },
+ {
+  "name": "s2s3-phase-hyperresolved-a135-l67p5-z67p5",
+  "run_id": "a9186b0f3b1004826c48d97491ff99e7efd34ba084d0a5fde5bcd09ce8646cb4",
+  "family": 3,
+  "kind": "phase",
+  "group": "hyperresolved",
+  "look_deg": 67.5,
+  "solar_zenith_deg": 67.5
+ },
+ {
+  "name": "s2s3-phase-hyperresolved-a150-l75-z75",
+  "run_id": "e430420e49faa82d3bd60326a9ea8fc0d94507b27eed071c0a385b89c39e0be6",
+  "family": 3,
+  "kind": "phase",
+  "group": "hyperresolved",
+  "look_deg": 75.0,
+  "solar_zenith_deg": 75.0
+ },
+ {
+  "name": "s2s3-phase-unresolved-a0-l0-z0",
+  "run_id": "191f7e38f8fc8aa93e12c37daaa94d2f5e628fb4fb5286ac0bbc4945d8007a18",
+  "family": 3,
+  "kind": "phase",
+  "group": "unresolved",
+  "look_deg": 0.0,
+  "solar_zenith_deg": 0.0
+ },
+ {
+  "name": "s2s3-phase-unresolved-a20-l10-z10",
+  "run_id": "835662458c0edab76d50843080a61ddc2a306bf011cc5d3a62dc6743d17e3424",
+  "family": 3,
+  "kind": "phase",
+  "group": "unresolved",
+  "look_deg": 10.0,
+  "solar_zenith_deg": 10.0
+ },
+ {
+  "name": "s2s3-phase-unresolved-a40-l20-z20",
+  "run_id": "798212d39311bf04a337d5abb4e268001630c747ad963702343ecab6d0793c9b",
+  "family": 3,
+  "kind": "phase",
+  "group": "unresolved",
+  "look_deg": 20.0,
+  "solar_zenith_deg": 20.0
+ },
+ {
+  "name": "s2s3-phase-unresolved-a60-l30-z30",
+  "run_id": "e14aaec87a9c2e312dd138c23297240ad14531ada01ed7b2b247381846758145",
+  "family": 3,
+  "kind": "phase",
+  "group": "unresolved",
+  "look_deg": 30.0,
+  "solar_zenith_deg": 30.0
+ },
+ {
+  "name": "s2s3-phase-unresolved-a80-l40-z40",
+  "run_id": "54c6c2334c061efd12ce8647d5f13f643a418e9f83812cb2737d4c8c3e6d351d",
+  "family": 3,
+  "kind": "phase",
+  "group": "unresolved",
+  "look_deg": 40.0,
+  "solar_zenith_deg": 40.0
+ },
+ {
+  "name": "s2s3-phase-unresolved-a100-l50-z50",
+  "run_id": "b2250328b61f5ab2caa56ae4ead5acca68fbf6ae5c8ca3e283b63a91424d3a51",
+  "family": 3,
+  "kind": "phase",
+  "group": "unresolved",
+  "look_deg": 50.0,
+  "solar_zenith_deg": 50.0
+ },
+ {
+  "name": "s2s3-phase-unresolved-a120-l60-z60",
+  "run_id": "9b4c45c7ba6799ec377920b2237de549c9f460690b48c881c0d28640a104bd8f",
+  "family": 3,
+  "kind": "phase",
+  "group": "unresolved",
+  "look_deg": 60.0,
+  "solar_zenith_deg": 60.0
+ },
+ {
+  "name": "s2s3-phase-unresolved-a135-l67p5-z67p5",
+  "run_id": "514e851de33fe793c4d9350629539de4df9283c34ff731fbb5ab4f0412ef9cc8",
+  "family": 3,
+  "kind": "phase",
+  "group": "unresolved",
+  "look_deg": 67.5,
+  "solar_zenith_deg": 67.5
+ },
+ {
+  "name": "s2s3-phase-unresolved-a150-l75-z75",
+  "run_id": "2bfedfa0c6dcb8e8c475ef027b6851ae75f88d65c2b621e3893d99a7c00bcd89",
+  "family": 3,
+  "kind": "phase",
+  "group": "unresolved",
+  "look_deg": 75.0,
+  "solar_zenith_deg": 75.0
+ },
+ {
+  "name": "s2s3-phase-hyperresolved-a60-l0-z60",
+  "run_id": "8e6d9d67c1f7ae095ae250f6c28678063a7b859f0ca7ea6917c493f251ec282f",
+  "family": 3,
+  "kind": "phase",
+  "group": "hyperresolved",
+  "look_deg": 0.0,
+  "solar_zenith_deg": 60.0
+ },
+ {
+  "name": "s2s3-phase-hyperresolved-a60-l60-z0",
+  "run_id": "fe177ca45407de019ab6cc1ad3ab3b12c14c09c494705735c3995e671a6b6e8a",
+  "family": 3,
+  "kind": "phase",
+  "group": "hyperresolved",
+  "look_deg": 60.0,
+  "solar_zenith_deg": 0.0
+ },
+ {
+  "name": "s2s3-phase-unresolvedplain-a0-l0-z0",
+  "run_id": "9490d4145935360dd9c9d81518d0a96018f137a5be939e044af413d27300aedd",
+  "family": 3,
+  "kind": "phase",
+  "group": "unresolved_plain",
+  "look_deg": 0.0,
+  "solar_zenith_deg": 0.0
+ },
+ {
+  "name": "s2s3-phase-unresolvedplain-a80-l40-z40",
+  "run_id": "c2e55d27384fd200eb6678e2a3f846cb2e58dc73f9a41efb97ecee7de53cfb99",
+  "family": 3,
+  "kind": "phase",
+  "group": "unresolved_plain",
+  "look_deg": 40.0,
+  "solar_zenith_deg": 40.0
+ },
+ {
+  "name": "s2s3-phase-unresolvedplain-a150-l75-z75",
+  "run_id": "a7d1e9ad61f5d6a699d8a66407b24e18f1aa67d77a3b08c96a724211c96556a2",
+  "family": 3,
+  "kind": "phase",
+  "group": "unresolved_plain",
+  "look_deg": 75.0,
+  "solar_zenith_deg": 75.0
+ },
+ {
+  "name": "s2s3-background-z0",
+  "run_id": "92819647f7e9472823f2e588d2552c8bdd05535b47660dd2765d06c86c84c872",
+  "family": 3,
+  "kind": "background",
+  "group": "background",
+  "look_deg": 0.0,
+  "solar_zenith_deg": 0.0
+ },
+ {
+  "name": "s2s3-background-z30",
+  "run_id": "47bcdfb518a3861c381b42e4172c8ee6cc51ef4c037592374aacb4288a732aac",
+  "family": 3,
+  "kind": "background",
+  "group": "background",
+  "look_deg": 0.0,
+  "solar_zenith_deg": 30.0
+ },
+ {
+  "name": "s2s3-background-z60",
+  "run_id": "230ba920ae51a1b4b655ec308e9ddd3da2ec346b7bdba977ba13b96dd66968b4",
+  "family": 3,
+  "kind": "background",
+  "group": "background",
+  "look_deg": 0.0,
+  "solar_zenith_deg": 60.0
+ },
+ {
+  "name": "s2s3-background-z75",
+  "run_id": "dc3522774b579f108b1db6018b3689895173feb86c9cd67e6814624c2d1791af",
+  "family": 3,
+  "kind": "background",
+  "group": "background",
+  "look_deg": 0.0,
+  "solar_zenith_deg": 75.0
  }
 ]
