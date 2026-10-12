@@ -50,6 +50,9 @@ from manifold.core.run_spec import RunSpecError, is_inline_sensor, load_run_spec
 from manifold.engines.dirsig.run_spec import check_library_files, resolve_run  # noqa: F401
 from manifold.engines.dirsig.run_spec import resolve_run as resolve_auror_run  # noqa: F401 -- deprecated alias, for the notebooks
 from manifold.engines.dirsig.scene_ref import copy_input, reference_scene
+from manifold.engines.dirsig.basic_atmosphere import write_atm
+
+UNIFORM_ATM = "uniform.atm"     # the job's written .atm (engine.atmosphere.uniform), beside the jsim
 
 
 def schema_errors(spec, registry=None):
@@ -185,18 +188,24 @@ class Simulation:
         scene = SCENE(r.scene.stem)
         scene._fname = ref_file                                     # private attribute: write() returns it as-is
         # Library assets keep their manifold_config_repo-relative paths; motion and tasks are generated.
-        inputs = {"weather": copy_input(r.weather, in_dir / r.weather.relative_to(lib))}
+        inputs = {}
         # The platform is rendered from the library template, the sensor-spec and `settings`.
         inputs["platform"] = render_platform(r.platform, r.sensor, r.settings[0]["entry_id"], r.settings,
                                              r.integration_samples, r.sensor_library,
                                              in_dir / r.platform.relative_to(lib), r.channel_response).path
-        db = copy_input(r.atmosphere_db, in_dir / r.atmosphere_db.name)   # beside the jsim, as received
+        if r.uniform_atmosphere is not None:                        # a .atm written from the spec, weather inside it
+            atm = write_atm(r.uniform_atmosphere, in_dir / UNIFORM_ATM)
+        else:
+            inputs["weather"] = copy_input(r.weather, in_dir / r.weather.relative_to(lib))
+            atm = copy_input(r.atmosphere_db, in_dir / r.atmosphere_db.name)   # beside the jsim, as received
         motion, tasks = generate_motion(r, in_dir / "motion"), generate_tasks(r, in_dir / "tasks")
         job = DIRSIG(in_dir, out_dir)
         job.add_plugin(PlatformFilesPlugin(inputs["platform"], motion, tasks, split_channels=r.split_channels))
-        job.add_plugin(r.atmosphere_plugin(db))
-        job.add_plugin(r.ephemeris_plugin())
-        job.add_plugin(ThermWeatherFilePlugin(inputs["weather"]))
+        job.add_plugin(r.atmosphere_plugin(atm))
+        if r.ephemeris_plugin() is not None:
+            job.add_plugin(r.ephemeris_plugin())
+        if "weather" in inputs:
+            job.add_plugin(ThermWeatherFilePlugin(inputs["weather"]))
         job.add_scene(scene, r.scene_offset)
         job.set_seed(r.seed)
         return job

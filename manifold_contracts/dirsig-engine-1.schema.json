@@ -491,7 +491,7 @@
       ]
     },
     "atmosphere": {
-      "description": "The atmosphere model. four_curve and basic are the adopted plugins (A.8.7); their members are not modelled by this version. new_atmosphere (proposed) reads a prebuilt NewAtmosphere database from the library.",
+      "description": "The atmosphere model. four_curve and basic are the adopted plugins (A.8.7); their members are not modelled by this version, except basic's `uniform` (proposed). new_atmosphere (proposed) reads a prebuilt NewAtmosphere database from the library.",
       "type": "object",
       "required": [
         "plugin"
@@ -543,7 +543,111 @@
             }
           }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "plugin": {
+                "const": "basic"
+              }
+            },
+            "required": [
+              "plugin",
+              "uniform"
+            ]
+          },
+          "then": {
+            "description": "The basic form with uniform (proposed): the generator writes the job's BasicAtmosphere .atm from these values.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "plugin",
+              "uniform"
+            ],
+            "properties": {
+              "plugin": {
+                "description": "basic.",
+                "const": "basic"
+              },
+              "uniform": {
+                "description": "A uniform-radiative-transfer BasicAtmosphere .atm written from stated values (proposed): uniform radiative transfer, uniform weather from an installation weather file and, optionally, a fixed Sun. A run that states it names no atmosphere file and no library weather file; with fixed_ephemeris it names no ephemeris plugin (DIRSIG replaces the .atm's fixed ephemeris with a plugin). The loader refuses a uniform block without weather.",
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "radiative_transfer"
+                ],
+                "properties": {
+                  "radiative_transfer": {
+                    "description": "DIRSIG's UniformAtm: a spectrally constant total irradiance from the hemisphere, split into direct (from the Sun) and diffuse by the sky fraction; no extinction and no path radiance.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "hemisphere_irradiance",
+                      "sky_fraction"
+                    ],
+                    "properties": {
+                      "hemisphere_irradiance": {
+                        "description": "The spectrally constant total irradiance from the hemisphere above the scene, in DIRSIG's units for UniformAtm (written as <hemisphereirradiance>).",
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "sky_fraction": {
+                        "description": "The fraction of the total that is diffuse (from the sky rather than the Sun), 0 to 1 (written as <skyfraction>).",
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      }
+                    }
+                  },
+                  "weather": {
+                    "description": "The uniform weather: a weather file shipped with the DIRSIG installation, read by DIRSIG's thermal model.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "install_file"
+                    ],
+                    "properties": {
+                      "install_file": {
+                        "description": "The file's name in the installation's lib/data/weather folder, for example mls.wth; written as $DIRSIG_HOME/lib/data/weather/<install_file>. It is covered by the DIRSIG installation's fingerprint, not by a content hash.",
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9_.-]+\\.wth$"
+                      }
+                    }
+                  },
+                  "fixed_ephemeris": {
+                    "description": "A fixed Sun position written into the .atm (DIRSIG sets up a FixedEphemeris from it); angles relative to the scene ENU origin.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "units",
+                      "solar_zenith",
+                      "solar_azimuth"
+                    ],
+                    "properties": {
+                      "units": {
+                        "description": "The angle units.",
+                        "enum": [
+                          "radians",
+                          "degrees"
+                        ]
+                      },
+                      "solar_zenith": {
+                        "description": "The solar zenith angle.",
+                        "type": "number"
+                      },
+                      "solar_azimuth": {
+                        "description": "The solar azimuth angle, east of north.",
+                        "type": "number"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
     },
     "weather": {
       "description": "The thermal weather file. source library: a file in the engine-asset library; source install: a file shipped with the DIRSIG installation, whose members this version does not model.",

@@ -192,7 +192,7 @@ Expressing a demo in layers needs its camera, epoch and pose, which live only in
 
 ### Loader features for demos, ranked by the demo sweep
 Ranked by how many of the coverage survey's `near` demos each feature would make expressible in layers and that now have a deterministic pass-through reference to compare against (`docs/DIRSIG_demo_sweep.md`, "Layered-comparison candidates"; counts are near / with a reference / with an identical repeat).
-1. BasicAtmosphere `.atm` with uniform radiative transfer: 31 / 31 / 27; the cheapest references take about 4 s (DensityMap1, MaterialMap1) and PointCollectors2 6 s. One loader feature with items 2 and 3.
+1. BasicAtmosphere `.atm` with uniform radiative transfer: 31 / 31 / 27; the cheapest references take about 4 s (DensityMap1, MaterialMap1) and PointCollectors2 6 s. Built in round 22 as `engine.atmosphere.uniform` (uniform radiative transfer, uniform weather from an installation weather file, an optional fixed Sun; CONOPS section 3.2); what remains is items 2 and 3, turbulence and lunar values.
 2. BasicAtmosphere `.atm` with simple radiative transfer: 26 / 23 / 15 (DeltaMotion1, BumpMap2 and BundledMaterials1 at about 4 s).
 3. BasicAtmosphere `.atm` with classic radiative transfer: 5 / 4 / 2 (Balfour1 at about 4 s).
 4. A platform form for demo platforms: a demo's own `.platform` is not a platform_gen template (PointCollectors2's lacks `temporalintegration`); every layered comparison above needs it, so it ranks with item 1 in practice.
@@ -203,7 +203,7 @@ Ranked by how many of the coverage survey's `near` demos each feature would make
 From `docs/DIRSIG_tagged_demo_features.md`, which reads the 18 tagged demos (URSO relevance and SDA) feature by feature. Ranked by the number of tagged demos that need each feature. First layered targets: Indoors1 for URSO (items 1 and 2 only; 8 s, deterministic, names `SpiceEphemeris`) and MoonSat2 for SDA (items 1, 2, 6 and 10; 4 s; radiance identical in every probe condition). Not built.
 
 #### 1. BasicAtmosphere `.atm` with uniform weather
-Needed by all 18 tagged demos (URSO 9, SDA 9): simple, uniform and classic radiative transfer with `turbulence` and uniform weather from an installation `.wth` (`run_spec.resolve_run` loads only `new_atmosphere` and a library ThermWeather file). The same feature as items 1 to 3 and 6 of "Loader features for demos".
+Needed by all 18 tagged demos (URSO 9, SDA 9): simple, uniform and classic radiative transfer with `turbulence` and uniform weather from an installation `.wth`. The uniform form with installation weather and a fixed Sun is built (`engine.atmosphere.uniform`, round 22); simple and classic radiative transfer, turbulence and lunar values remain. The same feature as items 1 to 3 and 6 of "Loader features for demos".
 
 #### 2. Demo platform form
 Needed by 16 (URSO 9, SDA 7): a demo's `.platform` as authored, or a sensor-spec holding a demo camera's values with its radiance image units (`platform_gen` writes an electron image from a template plus a sensor-spec). Same as item 4 of "Loader features for demos" and the licensed-value overlay. With item 1 it makes Indoors1, Sources6, SubPixelObject1, SubPixelObject2 (and IESSources1, see 11) layered.

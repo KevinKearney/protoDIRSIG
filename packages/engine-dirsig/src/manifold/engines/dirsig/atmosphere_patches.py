@@ -7,8 +7,13 @@ validates against `["None", "Isacc", "Distort"]`, misspelling DIRSIG's `Isaac` a
 (docs/atm_backends.html).
 Upstream fix for dirfm: initialise these attributes to None in the two `__init__`s, and
 correct the two names.
+
+`BasicAtmosphereFilePlugin` names an existing `.atm` (a uniform atmosphere's, written by `basic_atmosphere`).
 """
-from dirfm.atmosphere import ModtranTapeBackend, NewAtmospherePlugin
+from pathlib import Path
+
+from dirfm.atmosphere import BaseAtmospherePlugin, ModtranTapeBackend, NewAtmospherePlugin
+from dirfm.utilities.paths import relativize_path
 
 MULTIPLE_SCATTERING = ("None", "Isaac", "Disort")          # DIRSIG's spelling (atm_backends.html)
 
@@ -32,3 +37,23 @@ class PatchedNewAtmospherePlugin(NewAtmospherePlugin):
     def __init__(self, fname):
         super().__init__(fname)
         self._info = self._backend = None
+
+
+class BasicAtmosphereFilePlugin(BaseAtmospherePlugin):
+    """`BasicAtmosphere` over an existing `.atm` (the job's file written by `basic_atmosphere.write_atm`). dirfm's
+    `BasicAtmospherePlugin` writes its own `.atm` from dirfm objects (weather path relativized into the job, turbulence
+    always enabled, no ephemeris); this one names the file as it is, as `platform_ref.PlatformFilesPlugin` does."""
+
+    def __init__(self, atm):
+        super().__init__()
+        self._atm = Path(atm)
+
+    def prepare(self, dirs):
+        assert self._atm.is_file(), f"missing atmosphere input: {self._atm}"
+
+    def get_plugin_name(self):
+        return "BasicAtmosphere"
+
+    def get_plugin_inputs(self, dirs=None):
+        name = relativize_path(dirs, self._atm, "root") if dirs is not None else self._atm.as_posix()
+        return {"atmosphere_filename": name}

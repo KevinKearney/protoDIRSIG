@@ -46,7 +46,7 @@
             {
               "schema_id": "https://schemas.manifold.example/contracts/dirsig-engine-1.schema.json",
               "location": "manifold_contracts/dirsig-engine-1.schema.json",
-              "sha256": "56fa8303e63cc5985484ffad74199df1f927c8b29cc5a2e60d54e55256102a78"
+              "sha256": "ee7583748138132059fa57a83db2095805db378940e38b2c95c2781e0474cb2e"
             }
           ]
         },
