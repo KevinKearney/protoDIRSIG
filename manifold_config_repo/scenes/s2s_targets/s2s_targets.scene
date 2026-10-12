@@ -1,0 +1,27 @@
+<classicscene>
+  <metadata>
+    <entry>
+      <name>Description</name>
+      <value><![CDATA[Space-to-space target plates written by scripts/s2s_scenarios.py: Lambertian squares, no ground.]]></value>
+    </entry>
+  </metadata>
+  <sceneorigin>
+    <location frame="geodetic">
+      <latitude>39.0000000000</latitude>
+      <longitude>-120.0000000000</longitude>
+      <altitude>0.0000000000</altitude>
+    </location>
+  </sceneorigin>
+  <properties features="vis,nir,swir" mingsd="0" maxgsd="0"/>
+  <odbdirectory>$SCENE_DIR/geometry</odbdirectory>
+  <gdbdirectory>$SCENE_DIR/geometry</gdbdirectory>
+  <geometrylist enabled="true">
+    <geometrylistinclude name="Targets" enabled="true">lists/targets.glist</geometrylistinclude>
+  </geometrylist>
+  <matfilename>$SCENE_DIR/materials/s2s_targets.mat</matfilename>
+  <emsdirectory>$SCENE_DIR/materials/</emsdirectory>
+  <extdirectory>$SCENE_DIR/materials</extdirectory>
+  <absdirectory>$SCENE_DIR/materials</absdirectory>
+  <srcdirectory>$SCENE_DIR/materials</srcdirectory>
+  <mapdirectory>$SCENE_DIR/maps</mapdirectory>
+</classicscene>

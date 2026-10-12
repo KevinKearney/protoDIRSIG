@@ -7,3 +7,4 @@
 - baseline suite at 796ecd5, alone, no edits: 1677 passed, 2 skipped (8 min 16 s)
 - scratch (outside the repository): ~/r29scratch (measure.py, results/, work/, home/)
 - step A: gate 1677 passed, 2 skipped (7 min 58 s, alone, B's files moved out); ten checks 0; boundary 23 passed; core and snapshot unchanged
+- step B: gate 1684 passed, 2 skipped (7 min 49 s, alone); eleven checks 0; boundary 23 passed; core and snapshot unchanged
