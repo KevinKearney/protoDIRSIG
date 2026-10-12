@@ -80,3 +80,39 @@ def test_allowed(tmp_path, body):
 def test_refused(tmp_path, body, fragment):
     problems = _problems(tmp_path, body)
     assert any(fragment in p for p in problems), problems
+
+
+def _cn_repo(tmp_path, rows, prose="See C-01 and C-02.", extra_doc=None):
+    _repo(tmp_path, "Text.")
+    table = "## 10. Convergence\n\n| ID | Item | Our position | Build | Agreement | Evidence | Outcome |\n" \
+            "|---|---|---|---|---|---|---|\n" + "\n".join(
+                f"| C-{n:02d} | a | b | `planned` | `{a}` | — | |" for n, a in rows)
+    (tmp_path / sm.CONOPS).write_text("# Doc\n\n" + prose + "\n\n" + table + "\n")
+    if extra_doc:
+        (tmp_path / "docs" / "other.md").write_text(extra_doc)
+    return sm.run(tmp_path)
+
+
+def test_cn_table_in_order_and_referenced(tmp_path):
+    problems, notices, _ = _cn_repo(tmp_path, [(1, "proposed"), (2, "proposed"), (3, "open")])
+    assert problems == [] and notices == []
+
+
+def test_cn_rows_out_of_order(tmp_path):
+    problems, _, _ = _cn_repo(tmp_path, [(2, "proposed"), (1, "proposed")])
+    assert any("C-01 follows C-02" in p for p in problems), problems
+
+
+def test_cn_duplicate_row(tmp_path):
+    problems, _, _ = _cn_repo(tmp_path, [(1, "proposed"), (1, "proposed"), (2, "proposed")])
+    assert any("more than one row" in p for p in problems), problems
+
+
+def test_cn_reference_without_row(tmp_path):
+    problems, _, _ = _cn_repo(tmp_path, [(1, "proposed"), (2, "proposed")], extra_doc="As C-09 asks.\n")
+    assert any("docs/other.md:1: C-09 has no row" in p for p in problems), problems
+
+
+def test_cn_unreferenced_row_is_a_notice_not_a_failure(tmp_path):
+    problems, notices, _ = _cn_repo(tmp_path, [(1, "proposed"), (2, "proposed"), (4, "proposed")])
+    assert problems == [] and notices == ["C-04 is referenced nowhere in the CONOPS outside its row and is not `open`"]

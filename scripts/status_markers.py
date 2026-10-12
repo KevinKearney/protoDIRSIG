@@ -48,6 +48,14 @@ Rules, each a failure:
 Scope: the table row for a marker in a table; the paragraph (one line, by this repository's convention) for a marker
 in prose or a bold-lead paragraph; for a marker on a heading, the heading and its section, subsections included, up
 to the next heading of the same or a higher level.
+
+
+C-n table (the table in the CONOPS whose header starts `| ID |`; rules 7 to 9):
+
+7. rows are in ascending numeric order and each id appears once;
+8. every `C-n` referenced in a human document (the scanned documents and every `*.md` under `docs/`) has a row;
+9. every row is referenced from the CONOPS outside the table, or its Agreement is `open` (a question with no
+   section). `--check` does not fail on 9: unreferenced rows are listed as a notice, never deleted.
 """
 import argparse
 import json
@@ -284,9 +292,51 @@ def check_doc(doc, root, accepted, tests):
     return problems, found
 
 
+def cn_rows(doc):
+    """[(line, n, agreement)] of the convergence table, in document order."""
+    out = []
+    for i, (header, cells) in sorted(doc.tables.items()):
+        if header and header[0] == "ID" and cells and CN.fullmatch(cells[0]):
+            a = cells[header.index("Agreement")].strip("`") if "Agreement" in header else ""
+            out.append((i, int(CN.fullmatch(cells[0]).group(1)), a))
+    return out
+
+
+def check_cn(root, docs, conops_text):
+    """Rules 7 and 8 as problems; rule 9 as notices."""
+    problems, notices = [], []
+    conops = docs[CONOPS]
+    rows = cn_rows(conops)
+    ids = [n for _, n, _ in rows]
+    if not rows:
+        return [f"{CONOPS}: no convergence table found"], notices
+    for (i, n, _), (_, m, _) in zip(rows, rows[1:]):
+        if m <= n:
+            problems.append(f"{CONOPS}: C-{m:02d} follows C-{n:02d}: the convergence table is not in ascending order")
+    dup = sorted({n for n in ids if ids.count(n) > 1})
+    for n in dup:
+        problems.append(f"{CONOPS}: C-{n:02d} has more than one row")
+    names = list(docs) + sorted(str(p.relative_to(root)) for p in (root / "docs").rglob("*.md") if str(p.relative_to(root)) not in docs)
+    table_lines = {i for i, _, _ in rows}
+    for name in names:
+        for i, line in enumerate((root / name).read_text().splitlines(), 1):
+            for m in CN.finditer(line):
+                if int(m.group(1)) not in ids:
+                    problems.append(f"{name}:{i}: C-{m.group(1)} has no row in the convergence table")
+    outside = set()
+    for i, line in enumerate(conops_text.splitlines(), 1):
+        if i not in table_lines:
+            outside |= {int(n) for n in CN.findall(line)}
+    for i, n, a in rows:
+        if n not in outside and a != "open":
+            notices.append(f"C-{n:02d} is referenced nowhere in the CONOPS outside its row and is not `open`")
+    return problems, notices
+
+
 def run(root=ROOT):
     """(problems, notices, markers) for the repository at root."""
     docs = {n: Doc(n, (root / n).read_text()) for n in documents(root)}
+    conops_text = (root / CONOPS).read_text()
     accepted = outcomes(docs[CONOPS])
     tests = test_names(root)
     problems, markers = [], []
@@ -294,7 +344,8 @@ def run(root=ROOT):
         p, found = check_doc(doc, root, accepted, tests)
         problems += p
         markers += [(name, i, b, a) for i, b, a in found]
-    return problems, [], markers
+    p, notices = check_cn(root, docs, conops_text)
+    return problems + p, notices, markers
 
 
 def main(argv=None):

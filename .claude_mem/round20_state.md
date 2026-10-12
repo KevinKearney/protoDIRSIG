@@ -19,3 +19,4 @@
 | BACKLOG.md | 0 | 0 | 1 | 0 | 0 | 4 |
 
 The prompt's "3 uses of planned" in the CONOPS: none is a marker at HEAD (one prose "planned in BACKLOG.md"); counted 0.
+- step 2+3: committed f3d709b; 1563 passed, 2 skipped
