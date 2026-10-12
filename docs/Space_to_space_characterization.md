@@ -41,7 +41,7 @@ Cells: **measured** (with the report), **expressible, unmeasured** (existing mem
 | Sun angle (phase angle) | unresolved | expressible, unmeasured: the epoch with `SpiceEphemeris`, or `atmosphere.uniform`/`simple` with `fixed_ephemeris`; the phase angle is derived, not a member; DensityMap1's fixed Sun measured on a ground scene (CONOPS section 9) | expressible, unmeasured: `geometry.time` and a Lambertian-sphere model (phase follows); no descriptor home |
 | Sun angle (phase angle) | hyperresolved | expressible, unmeasured (as above) | unknown |
 
-**Gaps at 796ecd5.** No library scene holds a space object or a space background; no run-spec member moves a target (target motion lives in the scene asset); the `orbit` form's range and speed are the TLE's, so neither is a parameter; the descriptor has no target radiometry, phase angle or look angle (only `collection.geometry.range` and governed terms); the sensor-spec has no PSF, and DIRSIG keeps the template's one-pixel uniform spatial response (CONOPS section 4); nothing measured the handling of a sub-pixel object against an empty background. The SDK cannot set DIRSIG's per-pixel sample count (`--convergence`); `::IMPORTANT::` hypersampling is a scene-asset label and a template value, not a member.
+**Gaps at 796ecd5.** No library scene holds a space object or a space background; no run-spec member moves a target (target motion lives in the scene asset); the `orbit` form's range and speed are the TLE's, so neither is a parameter; the descriptor has no target radiometry, phase angle or look angle (only `collection.geometry.range` and governed terms); the sensor-spec has no PSF, and DIRSIG keeps the template's one-pixel uniform spatial response (CONOPS section 4; corrected in round 30, C3: DIRSIG5 applies an aperture-dependent spread of its own); nothing measured the handling of a sub-pixel object against an empty background. The SDK cannot set DIRSIG's per-pixel sample count (`--convergence`); `::IMPORTANT::` hypersampling is a scene-asset label and a template value, not a member.
 
 ## Scenario family I (round 29)
 
@@ -71,7 +71,7 @@ Cells: **measured** (with the report), **expressible, unmeasured** (existing mem
 
 Every spec states `resources.cpu_threads: 1` (one thread repeats bit for bit, `docs/DIRSIG_determinism.md`), seed 1, the `auror-nir` sensor and the `AurorNIRDetector` template, and a 500 x 500 window: the template's array, since `auror-nir` records no full frame (its `SensorWidth` and `SensorHeight` are null). The grid is one axis at a time about one baseline per class (hyperresolved: 25 km; unresolved: 200 km; nadir, Sun at the zenith, 5 ms, static), plus the sub-pixel block: 63 specs, listed with their run ids in `manifold_run_specs/s2s/index.json`. The full product is available as `grid(full=True)` and is not committed.
 
-**What the family does not state.** A speed other than the moving plates' and the TLE's (the `waypoints` motion form is refused by the loader); a target that moves relative to a moving platform (only one of the two moves in any spec); an Earth background (the scene has none; a finite `GROUND_PLANE` or a terrain scene would be one); stars; a PSF (the sensor-spec has none, and the template's spatial response is one uniform pixel); a phase angle for anything but a flat plate (for a Lambertian plate only the solar zenith changes the signal).
+**What the family does not state.** A speed other than the moving plates' and the TLE's (the `waypoints` motion form is refused by the loader); a target that moves relative to a moving platform (only one of the two moves in any spec); an Earth background (the scene has none; a finite `GROUND_PLANE` or a terrain scene would be one); stars; a PSF (the sensor-spec has none; DIRSIG5 ignores the template's spatial response and applies an aperture-dependent spread of about 0.18 pixel σ, round 30 C3); a phase angle for anything but a flat plate (for a Lambertian plate only the solar zenith changes the signal).
 
 ## First measurements (round 29, DIRSIG only)
 
@@ -141,7 +141,7 @@ Where the plate covers at least a third of a pixel (12.5 and 25 km), the sum nea
 - **Arbitrary relative speed or range under platform motion.** The `orbit` form takes its speed and range from the TLE. The `waypoints` form, which would state them, is refused by the loader.
 - **Sampling of an unresolved object.** The per-pixel sample count and the hypersampling multiplier are not members. The `::IMPORTANT::` label and a surface behind the object, both needed (E2), are scene content.
 - **Look angle, phase angle and target radiometry in the descriptor.** Only the range and governed terms have homes. The family records the rest under `descriptor.extras`.
-- **A PSF.** The sensor-spec has none; DIRSIG keeps the template's one-pixel uniform response.
+- **A PSF.** The sensor-spec has none; DIRSIG keeps the template's one-pixel uniform response. (Corrected in round 30, C3: DIRSIG5 applies an aperture-dependent spread, which a `<psf>` in the platform file replaces.)
 - **SatSim.** Nothing run (C-38). The table's SatSim cells are unchanged.
 
 ## Scenario family II (round 30)
@@ -212,3 +212,42 @@ From 0 to 60 degrees the integrated flux follows the projected area to 0.13 perc
 **Where the geometry stops being valid: 75 degrees.** The line of sight through the plate meets the background plane at x = 1866 m, beyond the plate's edge at 1550 m. 344 of the 500 columns look past the background (343 measured: a truth render of the same frame, byte-identical image, has earth-core fraction 1 across them). Behind the plate there is nothing but the earth core, and the plate's flux falls to 0.957 of the expectation. The truth shows why. A pixel half on the plate took 2 paths and reads 1/2; pixels mostly on it took 17 and 13 paths and read 16/17 and 12/13. Their earth-core fractions are 1/2, 0.06 and 0.08. This is consistent with each pixel stopping at its first path that reaches the earth core. This is round 29's no-backstop failure, met here by the scene's extent. The family's geometry is valid while the line of sight through the target lands on the background plate. It also needs every path inside the scene to be shorter than about 20 km (the layout note above).
 
 **An Earth-like or planar background with existing members.** A planar background is expressible only as scene content: the family's barred plate is one. An Earth surface is not, alongside a target. The DIRSIG run spec takes exactly one `engine.scenes` entry (the resolver refuses two), so the library's Tahoe terrain cannot stand behind a generated target. No member adds an Earth model plugin. Recorded as a gap.
+
+### C: round 29's three unexplained differences
+
+Controlled variations at 16 x 16 unless stated, one thread, through the job the SDK assembles. Each variation edits the assembled job's platform file, the dirsig5 options or the spec's seed; scratch, not committed. Render time used: about 6 minutes of the 60 allowed. Truth bands: `samplecount`, `convergencestatus`, `earthcorefraction`, `voidfraction`, `userscenefraction`.
+
+**1. Empty-background pixels untouched by the convergence options: explained (observed cause).** The cause is the earth core, DIRSIG's absorbing ellipsoid about 430 m below sea level that catches paths leaving the scene. Test case: round 29's no-backstop scene (scratch library copy with the five backstop instances removed) and the labelled 0.5 m plate at 25 km.
+
+| Variation | Paths per pixel | Status | Earth core / void fraction | Ratio to expectation | Image sha256 (16) |
+|---|---|---|---|---|---|
+| as round 29 | 1 everywhere | 4 (radiance 0) | 1 / 0 | 0 | `e5a00aa9991ac8a5` |
+| focal-plane `<convergence>` 100, 1000, 1e-6 | 1 everywhere | 4 | 1 / 0 | 0 | `e5a00aa9991ac8a5` (identical) |
+| `--disable_earth_core` | 20; 2000 on the plate | 0, 4 | 0 / 0.999 | 1.0039 | `60da15fb538acae1` |
+| `--disable_earth_core` and the convergence above | 100; 10000 on the plate | 0, 4 | 0 / 0.999 | 0.9919 | `a3baa2f6bd9c57ba` |
+| with the backstop (the committed scene) | 20; 2000 on the plate | 0, 4 | 0 / 0 | 1.0039 | `60da15fb538acae1` (identical to the core disabled) |
+
+A pixel's sampling ends at its first path that reaches the earth core. When that is the first path the pixel takes one path, whatever the convergence settings. A pixel whose earlier paths hit the plate reads (n − 1)/n of a full pixel, the small-integer fractions round 29 saw (4/5, 3/4, 2/3, 6/7, 1/2). The look sweep's 75-degree frame shows the same: 16/17, 12/13 and 1/2, with earth-core fractions of one path in n. With the core disabled, the plate's pixels are sampled as with a backstop, and the image is byte-identical to the backstop render. A black backstop is therefore exactly equivalent here to removing the core. `--disable_earth_core` is a dirsig5 option, not a run-spec member.
+
+**2. The E1 residual rising with range: explained as sampling scatter (observed).** The 20 m plate's integrated signal moves with the seed alone (`engine.run.seed`; native 500 x 500, default convergence):
+
+| Range | Seed 1 (round 29) | Seed 2 | Seed 3 |
+|---|---|---|---|
+| 50 km | 1.00536 (`3b6459fea3d5b16a`) | 0.99694 (`73dcfc57f93ce5a8`) | 1.00495 (`543309ac395cdf2a`) |
+| 100 km | 1.00816 (`09e3c59874d67ef0`, round 29's image reproduced) | 0.99641 (`5e8ab6ebab8546b1`) | 1.01350 (`3b6db6ae2695e104`) |
+
+The edge pixels take 20 to 100 paths (`samplecount`), and their Monte Carlo scatter, summed over the plate's perimeter, is a larger share of the signal the fewer pixels the plate covers. At 16 x 16 the 100 km sum is 0.99801 to 1.00255 over seeds 1 to 5, 1.0009 at a fixed 1000 paths per pixel, and 1.01857 at a fixed 20. Round 29's monotone rise is one seed's realization; it brackets 1 across seeds.
+
+**3. The pixel-centred 1.224-pixel plate peaking at 0.9025: explained (observed cause).** The cause is a spread applied by the BasicPlatform plugin, set by the aperture. The 20 m plate's edge, at a fixed 1000 paths per pixel, reads 0.0704 in the pixel outside the edge and 0.9283 in the pixel inside, where the geometry gives 0 and 1. The profile is identical at 12.5 and 25 km, so the spread is not defocus. It is unchanged, to the sum, by the template's spatial response (`xwidth`, `ywidth` 0.5; 3 x 3 sub-elements) and by removing the sample strategy. The manual says this plugin ignores the spatial response. The variations that change it:
+
+| Variation (focal plane) | Pixel outside / inside the edge |
+|---|---|
+| none (the template as used) | 0.0704 / 0.9283 |
+| `<psf><width>0.01</width></psf>` | 0.0024 / 0.9982 |
+| `<psf>` width 0.15, 0.2, 0.25, 0.3, 0.35, 0.4 | 0.030, 0.039, 0.049, 0.058, 0.067, 0.078 outside |
+| aperture diameter 42.5 mm (twice the f-number) | 0.145 / 0.856 |
+| aperture diameter 170 mm (half the f-number) | 0.036 / 0.963 |
+
+The spread scales with the f-number, as a diffraction spread would. 1.22 λ N at 0.85 µm and N 3.6 is 3.7 µm, 0.37 pixel, inside the 0.35 to 0.40 bracket of explicit Gaussian widths. The plugin's model is not documented; that is an interpretation, not a measurement. Fitted as the pixel convolved with a Gaussian, the spread has σ = 0.18 pixel (100 km plate, 1000 paths: residual rms 0.0034). That model predicts the 12.5 km unresolved plate's peaks at offsets 0, 0.25, 0.5 and 0.75 as 0.373, 0.698, 0.882 and 0.698. Round 29 rendered 0.381, 0.699, 0.903 and 0.707; at 4000 paths per pixel (×100 hypersampled) the pixel-centred peak is 0.8876. Hypersampling multiplier 1 and the unlabelled plate give 0.90 at 100 paths: the label and multiplier do not cause it. A symmetric spread keeps the sum, so it does not cause item 2.
+
+Consequences for the documents: the sensor-spec has no PSF member, and DIRSIG5 does not keep the template's one-pixel uniform response. It applies an aperture-dependent spread of about 0.18 pixel (σ) for `auror-nir`, unless the platform file states a `<psf>`. The family specs' `fidelity.absent` entry "optics blur (the template's spatial response is one uniform pixel)" is therefore inaccurate. The specs are not regenerated: that would change every family spec's run id, and the text is a fidelity statement, not an input. It is recorded here and in BACKLOG.

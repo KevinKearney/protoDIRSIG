@@ -15,3 +15,5 @@
 - step A: gate 1689 passed, 2 skipped (7 min 46 s, alone); eleven checks 0; boundary 23 passed; core and snapshot unchanged
 - B renders: 6 native look renders (~8 min) + one native truth render of l75 (35 s)
 - step B: gate 1690 passed, 2 skipped (7 min 55 s, alone); eleven checks 0; boundary 23 passed; core and snapshot unchanged
+- C: about 6 min render (16x16 variations, 5 native 100/50 km seed renders, one 82 s 4000-path render); all three explained with observed causes
+- step C: gate 1690 passed, 2 skipped (8 min 11 s, alone); eleven checks 0; boundary 23 passed; core and snapshot unchanged
