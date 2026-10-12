@@ -171,6 +171,12 @@ def test_material_files_found_only_from_the_working_folder_are_missing(tmp_path)
     files["materials/demo.mat"] = mat.replace("PARAMETER_FILE", "BRDF_FIT_FILE")
     r = survey.survey(make(tmp_path, "MatFile3", jsim=jsim(), extra_files=files))
     assert r["missing"] == ["material files DIRSIG finds only from the working folder"]
+    # A material bundle with an empty emsdirectory: DIRSIG searches the working folder only (BundledMaterials1).
+    bundle = SCENE.replace("<odbdirectory>", "<emsdirectory></emsdirectory><odbdirectory>")
+    files = {"demo.scene": bundle, "materials/demo.mat": "MATERIAL_ENTRY {\n  BUNDLE_FILENAME = bundles/a.mat.hdf\n}\n",
+             "bundles/a.mat.hdf": "hdf"}
+    r = survey.survey(make(tmp_path, "MatFile4", jsim=jsim(), extra_files=files))
+    assert r["missing"] == ["material files DIRSIG finds only from the working folder"]
 
 
 def test_motion_kinds(tmp_path):

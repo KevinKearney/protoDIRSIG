@@ -66,12 +66,19 @@ SIMULATION = {"DensityMap1": "demo.sim", "MaterialMap1": "w_mixing.sim", "PointC
               "ColorFilterArray1": "bayer.sim", "BayerPattern1": "bayer_hdf.sim", "LensDistortion1": "demo.jsim",
               "ReflectanceMap1": "demo.sim", "Telecentricity1": "demo.jsim", "PolyFill1": "demo.sim",
               "PrimitiveObjects1": "demo.sim", "Indoors1": "demo.jsim", "DeltaMotion1": "demo.sim",
-              "Polarization5": "pi.sim"}
+              "Polarization5": "pi.sim", "DataDrivenTempSolver1": "demo.sim", "BumpMap2": "demo.sim",
+              "BundledMaterials1": "w_bundles.jsim", "DataDrivenArray2": "w_gain.sim", "DecalMap1": "demo.sim",
+              "GenericMotion1": "demo.sim", "TemporalIntegration1": "blur_off.sim", "Balfour2": "single.sim",
+              "InstanceOptions1": "glist_demo.sim", "VertexNormals1": "demo.sim"}
 KNOWN = [
     ("simulation file: the layered job's jsim is written by dirfm (plugins BasicPlatform, BasicAtmosphere, and "
      "SpiceEphemeris unless the .atm fixes the Sun), not the demo's own file"),
     ("motion and tasks: regenerated from the derived values by dirfm (PlatformPosition .ppd, TASKS .tasks with the epoch "
      "in UTC), not the demo's files; PlatformPosition writes positions to 3 and Euler angles to 6 decimals"),
+    ("epoch's written form: dirfm writes the .tasks reference time in UTC, the demo with its offset; the same instant, "
+     "but thermal renders differ (Balfour2, DataDrivenTempSolver1)"),
+    ("scene offset: dirfm writes the scene entry with offset \"0,0,0\", the demo's simulation file with none; some "
+     "scenes render differently at the level of floating-point rounding (BumpMap2, DataDrivenArray2)"),
     (".atm: written from the derived uniform or simple values; the demo's <metadata>, <turbulence> and lunar ephemeris "
      "values are not carried"),
     ("scene compile: dirfm runs scene2hdf with --threads <cpu count> and the seed; the pass-through runner runs it with "

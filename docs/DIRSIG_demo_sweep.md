@@ -1617,7 +1617,7 @@ Cache: every attempt ran with a per-run `HOME`, so DIRSIG's material caches star
 
 ### Layered-comparison candidates
 
-The survey marks 43 demos `near` (one loader feature away) and 66 `ready` (none missing). 95 of them now have a pass-through reference; ranked by its cost, they are the candidates for a layered re-expression and comparison (a `ready` demo's missing feature is "none").
+The survey marks 44 demos `near` (one loader feature away) and 65 `ready` (none missing). 95 of them now have a pass-through reference; ranked by its cost, they are the candidates for a layered re-expression and comparison (a `ready` demo's missing feature is "none").
 
 | Rank | Demo | Simulation | Reference wall time (s) | Deterministic | Missing feature (survey) |
 |---|---|---|---|---|---|
@@ -1626,7 +1626,7 @@ The survey marks 43 demos `near` (one loader feature away) and 66 `ready` (none 
 | 3 | Balfour1 | demo.sim | 4.1 | yes | BasicAtmosphere .atm (classicradiativetransfer, uniformweather) |
 | 4 | BayerPattern1 | bayer_hdf.sim | 4.1 | yes | none |
 | 5 | BumpMap2 | demo.sim | 4.1 | yes | none |
-| 6 | BundledMaterials1 | w_bundles.jsim | 4.1 | yes | none |
+| 6 | BundledMaterials1 | w_bundles.jsim | 4.1 | yes | material files DIRSIG finds only from the working folder |
 | 7 | CurveMap1 | demo.jsim | 4.1 | yes | FourCurveAtmosphere |
 | 8 | DataDrivenArray2 | w_gain.sim | 4.1 | yes | none |
 | 9 | DataDrivenTempSolver1 | demo.sim | 4.1 | yes | none |
