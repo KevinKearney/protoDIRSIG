@@ -9,3 +9,4 @@
 - step A: gate 1677 passed, 2 skipped (13 min 39 s; step B renders alongside, one at a time); ten checks 0; id snapshot and packages/core unchanged since 9ded055
 - step B: eight rendered (TemperatureMap1, Brdf2, RossLi1, MaterialMap2, PointCollectors1, SubPixelObject1, FastCloud2, VertexNormals2; ~18.5 min of comparison renders plus diagnostics); gate 1677 passed, 2 skipped (7 min 50 s, alone); ten checks 0; id snapshot unchanged
 - step C: gate 1677 passed, 2 skipped (8 min 34 s, alone); ten checks 0; boundary tests 23 passed; id snapshot and packages/core unchanged since 9ded055
+- final gate = C gate at f43f587; time used ~1 h 40 min
