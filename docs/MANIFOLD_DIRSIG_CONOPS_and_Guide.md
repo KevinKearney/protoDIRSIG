@@ -80,7 +80,7 @@ A `manifold_` prefix marks a folder that maps to a future MANIFOLD repository (`
 
 A new user reads `dirfm_tutorials/tutorial_dirfm_basics`, then the stage notebooks in order. Stage 01 shows a run tree built from a run spec, stage 02 shows admission and the logs, and stage 03 shows how a change of sensor reaches the run tree.
 
-Part II is the reference: the contract, the sensor specification, the repository layout, the SDK, the DIRSIG behaviors that matter, and the points of disagreement with the MANIFOLD documents (section 10).
+Part II is the reference: the contract, the sensor specification, the repository layout, the SDK, the DIRSIG behaviors that matter, and the points of disagreement with the MANIFOLD documents (section 10), with every open decision listed in one place, its owner and whether it blocks the 0.1 release (section 10.1).
 
 ## Part II. Reference
 
@@ -649,6 +649,69 @@ One row per interface item. `Outcome` is filled after review with the MANIFOLD t
 | C-41 | `atmosphere.simple` with `plugin: basic` in `dirsig-engine/1` | Beside C-39's uniform form, the SDK states the simple form most DIRSIG demo `.atm` files hold (80 of the shipped files): DIRSIG's SimpleAtm with its one value, the apparent sky temperature, and the same uniform weather and optional fixed Sun; the generator writes the `.atm`, the values enter the run id, and the form excludes `uniform`. Ask: whether MANIFOLD adopts it with C-39 (one `basic` member per radiative-transfer form, or one member with a form discriminator), and the same weather-hash question | `built` | `proposed` | `tests/test_simple_atmosphere.py` | |
 | C-42 | `working_folder` in `dirsig-engine/1` | DIRSIG reads some files from the folder it runs in (a file a platform names, a geometry list beside a `.scene` and outside its `gdbdirectory`, files a material file names), which is not the library layout's folder for a generated job. The SDK lists the files the job places there in the engine block, each a library ref with its content hash, so they are in the run id; the loader finds them from the scene and platform and requires the list to match. Ask: whether MANIFOLD wants such files stated in the engine block, in `resources.assets` (which an adapter does not see at resolution today), or left to the engine package to derive from the scene and platform it already hashes | `built` | `proposed` | `tests/test_working_folder.py` | |
 | C-43 | One capture per task window, checked by the SDK | `Simulation.validate` checks DIRSIG's dry-run log against the spec and refuses a run whose log lists a number of captures other than one per task window (`_check_log`). Two demos as authored capture more: Thermal2's detector array has an external clock whose trigger file lists five times in its one 3600 s window ("log lists 5"), and Polarization4's platform has four focal planes, each capturing once ("log lists 4"). With the check bypassed (outside the SDK), Thermal2's ten outputs equal the same-seed pass-through ones once its listed input differences (the epoch's written form, the scene offset) are restored, and Polarization4's four images once the pose's angles are; the check, not DIRSIG, is what refuses them. Kept unchanged (changing it changes an existing behaviour). Ask: whether MANIFOLD states a run's expected captures (one per task window, or the platform's clock and focal planes), so that a run with several captures per window is admitted and its frames listed | `built` | `open` | `tests/test_check_log.py`; `docs/DIRSIG_layered_comparison.md` | |
+| C-44 | Governed vocabulary values for space-to-space runs | The space-to-space family's run specs (`manifold_run_specs/s2s/`, 111 DIRSIG specs written by `scripts/s2s_scenarios.py`; the 10 SatSim specs are opaque and carry none) state four values that no other run spec in the repository uses: `collection.geometry.regime: space_to_space` (others: `orbital_nadir`, `nadir`), `collection.background.regime: space` (others: `rural`, `synthetic`), `collection.atmosphere.regime: none` (others: `mid_latitude_summer`, `unspecified`) and `collection.targets[].class: space_object` (other: `vehicle_air`). The repository holds no vocabulary registry (`manifold_contracts/README.md` lists "the governed vocabulary" among the folder's contents, but the folder holds schemas and vectors only): `manifold_contracts/run-spec-1.schema.json` types each of these as a free string (a `regime` object requires a string of at least one character; `geometry.regime` and `targets[].class` are plain strings) and its descriptions say the MANIFOLD governed vocabulary decides; admission checks the type only. A governed value would need a definition (what `space_to_space` covers: an observer and a target both above the atmosphere, the Earth absent from or behind the line of sight; what `space` means as a background; whether `none` is an atmosphere regime or the absence of one; what a `space_object` target class contains) and its relation to the existing terms (`orbital_nadir` is a space-to-ground geometry; `unspecified` already exists for an atmosphere not stated). Ask: does MANIFOLD's governed vocabulary admit these four values, under these names or others, and with which definitions; until it answers, the values are the family's own and enter its run ids | — | `open` | `tests/test_s2s_scenarios.py` | |
+
+### 10.1 Decisions needed
+
+Every ask still open at HEAD, in one list: each C-n row of the table above (no row has an Outcome yet, so all are open), the decisions recorded in `BACKLOG.md` and elsewhere that are choices rather than work, and C-44. Owner is who has to decide: MANIFOLD for an ask put to it, Kevin (the author) for a C-n held back and for an SDK-side choice. "Blocks 0.1" applies one rule: the release the BACKLOG item "Release repo plan" describes (the SDK, tests and notebooks under change control; every package is at version 0.0.1 at HEAD) is blocked by a decision whose answer can change an existing contract member, the run-id rule, or the bytes of a reference the repository records; a decision that adds an optional member, or concerns process, documentation or the SDK API only, does not block it. This list states no answer: the positions are the C-n rows'.
+
+| Ask | Item | Owner | Blocks 0.1 | State |
+|---|---|---|---|---|
+| C-01 | `descriptor.sensor` refs resolve against the sensor library; `engine` refs resolve against `manifold_config_repo/` | MANIFOLD | yes | a position offered, not agreed |
+| C-02 | `atmosphere/<name>` flat library path | MANIFOLD | yes | a position offered, not agreed |
+| C-03 | `new_atmosphere` plugin value in A.8.7 (database role `dirsig:atmosphere_db`) | MANIFOLD | yes | a position offered, not agreed |
+| C-04 | Where motion and tasks are generated | MANIFOLD | yes | a question, no position taken |
+| C-05 | Moving-platform motion generation | MANIFOLD | yes | a position offered, not agreed |
+| C-06 | Authority of DIRSIG JSON logs | MANIFOLD | no | a position offered, not agreed |
+| C-07 | Compile-once | MANIFOLD | no | a position offered, not agreed |
+| C-08 | A thread count for `dirsig5` (`--threads`) | MANIFOLD | yes | a question, no position taken |
+| C-09 | `--force_temperature_prediction` as an `engine.run` option | MANIFOLD | no | a question, no position taken |
+| C-10 | `engine.platform.output_prefix` | MANIFOLD | yes | a question, no position taken |
+| C-11 | Illustrative instances in Metadata_v02 §6.11 and Configuration_v02 A.8.10 | MANIFOLD | no | a question, no position taken |
+| C-12 | Strict loader and hashing | MANIFOLD | yes | a question, no position taken |
+| C-14 | Detector manufacturer and model | MANIFOLD | yes | a position offered, not agreed |
+| C-15 | Full frame versus modeled window | MANIFOLD | yes | a position offered, not agreed |
+| C-16 | Spectral references | MANIFOLD | yes | a position offered, not agreed |
+| C-17 | `engine.platform.channel_response` (set by a recipe's `engine_overrides`, section 3.5) | MANIFOLD | yes | a position offered, not agreed |
+| C-18 | One run per sensor | MANIFOLD | yes | a position offered, not agreed |
+| C-19 | Entries per DIRSIG run | Kevin (deferred) | yes | deferred by the author; not put to MANIFOLD yet |
+| C-20 | Product radiometric quantity; is `radiometric_reference` optional? | Kevin (deferred) | yes | deferred by the author; not put to MANIFOLD yet |
+| C-21 | Layered submission and a MANIFOLD input constructor | Kevin (deferred) | yes | deferred by the author; not put to MANIFOLD yet |
+| C-22 | Recording a sweep at registration | Kevin (deferred) | yes | deferred by the author; not put to MANIFOLD yet |
+| C-23 | What a run id covers | Kevin (deferred) | yes | deferred by the author; not put to MANIFOLD yet |
+| C-24 | A status member in library listings | Kevin (deferred) | no | deferred by the author; not put to MANIFOLD yet |
+| C-25 | An opaque descriptor for pass-through runs | Kevin (deferred) | yes | deferred by the author; not put to MANIFOLD yet |
+| C-26 | A pass-through mode in `dirsig-engine/1` | Kevin (deferred) | yes | deferred by the author; not put to MANIFOLD yet |
+| C-27 | Paging artifact listings | Kevin (deferred) | no | deferred by the author; not put to MANIFOLD yet |
+| C-28 | A thread count in the run id | Kevin (deferred) | yes | deferred by the author; not put to MANIFOLD yet |
+| C-29 | Engine registration and an open `origin.engine` | MANIFOLD | yes | a position offered, not agreed |
+| C-30 | Resource slots and the run id | MANIFOLD | yes | a position offered, not agreed |
+| C-31 | Assets and a network-free run | MANIFOLD | yes | a position offered, not agreed |
+| C-32 | Listing the engines of a backend | MANIFOLD | no | a position offered, not agreed |
+| C-33 | An artifact role vocabulary | MANIFOLD | no | a position offered, not agreed |
+| C-34 | Artifact roles and run verdicts in `sdk-api/1` | MANIFOLD | no | a position offered, not agreed |
+| C-35 | SatSim's seed: a required input that enters the run id | MANIFOLD | yes | a position offered, not agreed |
+| C-36 | Asset snapshots and who owns the pins | MANIFOLD | no | a position offered, not agreed |
+| C-37 | Opaque descriptors for a second engine | MANIFOLD | no | a position offered, not agreed |
+| C-38 | License position on bundling SatSim | MANIFOLD | no | a question, no position taken |
+| C-39 | `atmosphere.uniform` with `plugin: basic` in `dirsig-engine/1` | MANIFOLD | yes | a position offered, not agreed |
+| C-40 | `platform.as_authored` in `dirsig-engine/1` | MANIFOLD | yes | a position offered, not agreed |
+| C-41 | `atmosphere.simple` with `plugin: basic` in `dirsig-engine/1` | MANIFOLD | yes | a position offered, not agreed |
+| C-42 | `working_folder` in `dirsig-engine/1` | MANIFOLD | yes | a position offered, not agreed |
+| C-43 | One capture per task window, checked by the SDK | MANIFOLD | no | a question, no position taken |
+| C-44 | Governed vocabulary values for space-to-space runs (`space_to_space`, `space`, `none`, `space_object`) | MANIFOLD | yes | a question, no position taken |
+
+Decisions recorded outside the table (each a choice, not work; none is a C-n row yet):
+
+| Decision | Where it is recorded | Owner | Blocks 0.1 | What it changes |
+|---|---|---|---|---|
+| A collection mode for a cancelled DIRSIG run that reports the outputs it finds, with roles | `BACKLOG.md` "Partial artifacts of a cancelled DIRSIG run" | Kevin | yes | the adapter protocol in `manifold.core`, which engine packages implement |
+| Layered jobs run with the user's `HOME`; pass-through runs with a per-run `HOME` | `scripts/compare_layered.py` (its list of known input differences), `docs/DIRSIG_layered_comparison.md`, section 5 | Kevin | no | where DIRSIG's material caches go; measured not to change outputs (section 5) |
+| A requested `cpu_threads` enters a SatSim run id although SatSim's seeded output was the same at one thread and at the default | section 7.4 ("Resources"), section 3.3, C-30 | Kevin, then MANIFOLD through C-30 | yes | the run id of a SatSim spec that requests threads |
+| dirfm writes a static `.ppd`'s Euler angles to six decimals and its position to three | `BACKLOG.md` "Motion files lose precision in dirfm's `PlatformPosition`" | Kevin | yes | the bytes of every static-pose layered job and so its references (not its run id) |
+| dirfm writes an explicit zero scene offset | `BACKLOG.md` "dirfm writes an explicit zero scene offset" | Kevin | yes | the bytes of every layered job (not its run id) |
+| The epoch's written form (UTC against the scene's local offset) | `BACKLOG.md` "The epoch is written in UTC" | Kevin, then a C-n question | yes | thermal results; the item asks for a stated rule |
+| The descriptor audit with two engines, before any layered SatSim form | `BACKLOG.md` "Descriptor audit with two engines (first)", C-37 | Kevin | yes | the descriptor's members, and the questions put to MANIFOLD |
 
 ## 11. Reproduce from zero
 

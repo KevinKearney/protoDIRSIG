@@ -140,7 +140,7 @@ Where the plate covers at least a third of a pixel (12.5 and 25 km), the sum nea
 - **Target motion as a parameter.** No run-spec member moves a target. The family's moving plates are scene content, one fixed speed per instance.
 - **Arbitrary relative speed or range under platform motion.** The `orbit` form takes its speed and range from the TLE. The `waypoints` form, which would state them, is refused by the loader.
 - **Sampling of an unresolved object.** The per-pixel sample count and the hypersampling multiplier are not members. The `::IMPORTANT::` label and a surface behind the object, both needed (E2), are scene content.
-- **Look angle, phase angle and target radiometry in the descriptor.** Only the range and governed terms have homes. The family records the rest under `descriptor.extras`.
+- **Look angle, phase angle and target radiometry in the descriptor.** Only the range and governed terms have homes. The four governed-term values the families use (`space_to_space`, `space`, `none`, `space_object`) have no vocabulary entry in this repository (C-44). The family records the rest under `descriptor.extras`.
 - **A PSF.** The sensor-spec has none; DIRSIG keeps the template's one-pixel uniform response. (Corrected in round 30, C3: DIRSIG5 applies an aperture-dependent spread, which a `<psf>` in the platform file replaces.)
 - **SatSim.** Nothing run (C-38). The table's SatSim cells are unchanged.
 
