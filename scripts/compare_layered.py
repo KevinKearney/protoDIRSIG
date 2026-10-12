@@ -75,7 +75,10 @@ SIMULATION = {"DensityMap1": "demo.sim", "MaterialMap1": "w_mixing.sim", "PointC
               "RollingShutter1": "global.sim", "SubObjectMotion1": "demo.sim", "SubObjectMotion2": "demo.sim",
               "Polarization2": "sphere.sim", "Polarization4": "pi.sim", "Fireball1": "demo.sim",
               "UvMapping1": "drape_map.sim", "UvMapping2": "demo.sim", "MixtureMap1": "demo.sim",
-              "ExtinctionProp1": "demo.sim", "Pilings1": "demo.sim", "IESSources1": "demo.sim", "ChipMaker2": "demo.sim"}
+              "ExtinctionProp1": "demo.sim", "Pilings1": "demo.sim", "IESSources1": "demo.sim", "ChipMaker2": "demo.sim",
+              "TemperatureMap1": "demo.sim", "Brdf2": "demo.sim", "RossLi1": "demo.sim", "MaterialMap2": "demo.sim",
+              "PointCollectors1": "framing.jsim", "SubPixelObject1": "demo.sim", "FastCloud2": "demo_mat_map.sim",
+              "VertexNormals2": "demo.sim"}
 KNOWN = [
     ("simulation file: the layered job's jsim is written by dirfm (plugins BasicPlatform, BasicAtmosphere, and "
      "SpiceEphemeris unless the .atm fixes the Sun), not the demo's own file"),
