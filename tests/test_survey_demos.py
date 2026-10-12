@@ -183,6 +183,31 @@ def test_material_files_found_only_from_the_working_folder_are_placed(tmp_path):
     assert r["missing"] == [] and r["verdict"] == "ready" and r["working_folder"] == ["bundles/a.mat.hdf"]
 
 
+def test_material_files_the_job_does_not_place_are_missing(tmp_path):
+    # A file the material file names (any key) that lies beside the .scene, outside the linked folders and not named by
+    # the .scene, is held neither by the job's scene copy nor by its working folder (MappedTherm1's values.img and
+    # roof_metal_gray.ems, measured); in materials/ it is linked, and named by the .scene it is copied.
+    scene = SCENE.replace("<odbdirectory>", "<emsdirectory>$SCENE_DIR</emsdirectory><mapdirectory>$SCENE_DIR/maps"
+                          "</mapdirectory><odbdirectory>")
+    mat = "MATERIAL_ENTRY {\n  FILENAME = gray.ems\n  TEMP_SOLVER {\n    IMAGE_FILENAME = values.img\n  }\n}\n"
+    files = {"demo.scene": scene, "materials/demo.mat": mat, "gray.ems": "ems", "values.img": "img"}
+    r = survey.survey(make(tmp_path, "Unplaced2", jsim=jsim(), extra_files=files))
+    assert r["missing"] == ["material files the job does not place"] and r["verdict"] == "near"
+    files = {"demo.scene": scene, "materials/demo.mat": mat.replace("values.img", "materials/values.img"),
+             "gray.ems": "ems", "materials/values.img": "img"}
+    files["demo.scene"] = scene.replace("<odbdirectory>", "<notes>gray.ems</notes><odbdirectory>")
+    r = survey.survey(make(tmp_path, "Unplaced3", jsim=jsim(), extra_files=files))
+    assert r["missing"] == [] and r["verdict"] == "ready"
+
+
+def test_an_external_clock_is_missing(tmp_path):
+    # It captures at its trigger times, several in one task window; the SDK's dry-run check expects one capture per
+    # window (Thermal2, measured), so it is not a camera feature carried as authored.
+    plat = platform(extra="<clock type='external'><filename>triggers.txt</filename></clock>")
+    r = survey.survey(make(tmp_path, "Clock1", jsim=jsim(), plat=plat, extra_files={"triggers.txt": "0\n900\n"}))
+    assert r["missing"] == ["external clock (several captures in a task window)"] and r["verdict"] == "near"
+    assert "external clock (triggers)" not in r["camera"]
+
 def test_motion_kinds(tmp_path):
     moving = PPD.replace("<data><entry/></data>", "<data><entry/><entry/><entry/></data>")
     r = survey.survey(make(tmp_path, "Moving1", jsim=jsim(), extra_files={"demo.ppd": moving}))
