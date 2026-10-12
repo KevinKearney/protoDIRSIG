@@ -260,6 +260,33 @@ def test_a_file_that_is_not_a_zip_is_unparsed(tmp_path):
     assert r["verdict"] == "unparsed" and "not a zip" in r["reason"]
 
 
+def test_temp_solver_filenames_and_source_shapes_the_scene_copy_does_not_hold_are_placed(tmp_path):
+    # Round 28, measured on Fireball1 (a TEMP_SOLVER FILENAME beside the .scene: searched in the working folder and the
+    # scene's seven directory elements) and IESSources1 (SOURCE_SHAPE files beside the .scene: the working folder and
+    # the srcdirectory): the job copies them into the working folder, so they are listed, not missing. A file the copy
+    # holds under a directory element (DataDrivenTempSolver1's materials/temps/, odbdirectory $SCENE_DIR) needs nothing.
+    scene = SCENE.replace("<odbdirectory>.</odbdirectory>", "<odbdirectory>$SCENE_DIR</odbdirectory><srcdirectory>"
+                          "$SCENE_DIR/materials/sources</srcdirectory>")
+    mat = ("MATERIAL_ENTRY {\n  SOURCE_SHAPE = a.ies\n  SOURCE_SHAPE = 10\n  TEMP_SOLVER {\n    FILENAME = t.txt\n"
+           "    FILENAME = materials/temps/held.txt\n  }\n}\n")
+    files = {"demo.scene": scene, "materials/demo.mat": mat, "a.ies": "ies", "t.txt": "txt",
+             "materials/temps/held.txt": "txt"}
+    r = survey.survey(make(tmp_path, "Searched1", jsim=jsim(), extra_files=files))
+    assert r["missing"] == [] and r["verdict"] == "ready"
+    assert sorted(r["working_folder"]) == ["a.ies", "t.txt"]
+
+
+def test_a_demo_dirsig_refuses_as_authored_is_refused(tmp_path):
+    # Measured by running it (the survey's reading cannot see it): Polarization2's own run and its layered and
+    # pass-through runs fail in DIRSIG on the scene's spectral coverage. Its class says so, with what DIRSIG said.
+    r = survey.survey(make(tmp_path, "Polarization2", jsim=jsim()))
+    assert r["verdict"] == "refused" and r["missing"] == [] and "spectral coverage" in r["refused"]
+    text = survey.render([r, survey.survey(make(tmp_path, "Ready1", jsim=jsim()))], "demos")
+    assert "| `refused` | 1 |" in text and "| `ready` | 1 |" in text
+    row = next(ln for ln in text.splitlines() if ln.startswith("| Polarization2 |"))
+    assert "`refused`" in row and "spectral coverage" in row
+
+
 def test_the_table_is_deterministic_and_carries_no_content(tmp_path):
     for name, kw in (("Legacy1", dict(sim=SIM)), ("Ready1", dict(jsim=jsim())), ("Far1", dict(jsim=jsim(), plat=platform("radar")))):
         make(tmp_path, name, **kw)

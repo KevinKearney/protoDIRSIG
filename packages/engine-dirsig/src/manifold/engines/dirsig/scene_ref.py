@@ -114,7 +114,7 @@ def working_folder_files(scene_file, platform_file):
     """`[(name, source, named_by)]`: the files DIRSIG looks for in the working folder, the folder it runs in, which is
     the demo's folder for a pass-through run and the job's input folder for a layered one (measured on BayerPattern1
     and Telecentricity1, `docs/DIRSIG_layered_comparison.md`). `name` is the path relative to the working folder,
-    `source` the file it is copied from, `named_by` the file that names it. Four rules:
+    `source` the file it is copied from, `named_by` the file that names it. Five rules:
 
     - a file the `.platform` names in a `<filename>` by a relative name that lies relative to the platform's folder
       (BayerPattern1's `pixels.hdf`; DIRSIG does not look beside the platform file);
@@ -133,10 +133,15 @@ def working_folder_files(scene_file, platform_file):
       relative to the scene's folder, where the job's scene copy does not hold that name in the entry's folder (the
       `emsdirectory` or the `mapdirectory`), with an image's ENVI header (DIRSIG looks in the working folder and that
       folder only: MappedTherm1's `roof_metal_gray.ems` beside the `.scene` with `emsdirectory` `$SCENE_DIR`, its
-      `values.img` and `values.img.hdr`; ChipMaker2's `materials/*.ems`, `maps/texture.png` and `maps/material.png`).
-    Other keys are not followed: a `TEMP_SOLVER` `FILENAME` is found without the working folder
-    (DataDrivenTempSolver1), and the rest are unmeasured. A name that starts with a variable (`$SCENE_DIR/...`) is not
-    a working-folder name.
+      `values.img` and `values.img.hdr`; ChipMaker2's `materials/*.ems`, `maps/texture.png` and `maps/material.png`);
+    - a file the material file names in a `TEMP_SOLVER` `FILENAME` or a `MATERIAL_ENTRY`'s `SOURCE_SHAPE`
+      (`MATERIAL_SEARCHED_KEYS`) by a relative name that lies relative to the scene's folder, where the job's scene copy
+      does not hold that name in any of the folders DIRSIG searches for the key (a `TEMP_SOLVER` `FILENAME`: the scene's
+      seven directory elements, `emsdirectory` to `mapdirectory`; a `SOURCE_SHAPE`: the `srcdirectory`): Fireball1's
+      `fireball_temp.txt` and IESSources1's `example1.ies` to `example3.ies` (measured); DataDrivenTempSolver1's
+      `TEMP_SOLVER` `FILENAME`s are held (`materials/temps/`, under its `odbdirectory` `$SCENE_DIR`) and need nothing.
+    Other keys are not followed (unmeasured). A name that starts with a variable (`$SCENE_DIR/...`) is not a
+    working-folder name.
 
     Empty for a scene and platform that need none, which is every library scene and platform: their jobs are
     assembled as before. Sorted by name; a name found twice is kept once (the first source in rule order)."""
@@ -171,6 +176,8 @@ def working_folder_files(scene_file, platform_file):
         for name, source, named_by in _material_working_folder_files(scene, top):
             out.setdefault(name, (source, named_by))
         for name, source, named_by in _material_unheld_files(scene_file, scene, top):
+            out.setdefault(name, (source, named_by))
+        for name, source, named_by in _material_searched_files(scene_file, scene, top):
             out.setdefault(name, (source, named_by))
     return [(name, src, by) for name, (src, by) in sorted(out.items())]
 
@@ -227,15 +234,9 @@ def _material_entries(text):
     return out
 
 
-def _material_unheld_files(scene_file, scene, top):
-    """`[(name, source, named_by)]` of `working_folder_files`' fourth rule: a file the scene's material file names in a
-    `MATERIAL_UNHELD_KEYS` entry by a relative name that lies relative to the scene's folder and that the job's scene
-    copy does not hold at that name in the entry's folder (the `emsdirectory` or `mapdirectory`: the copy holds the
-    linked folders, `ASSET_DIRS`, and what `scene_named_paths` places); for an `IMAGE_FILENAME`, also the ENVI header
-    beside it (`ENVI_HEADERS`, the first that exists)."""
-    mat = _relative_name(scene.findtext("matfilename"))
-    if mat is None or not (top / mat).is_file():
-        return []
+def _scene_copy_holds(scene_file, top):
+    """`held(path)`: whether the job's scene copy of `scene_file` (in the folder `top`) holds `path`: the copy holds the
+    linked folders (`ASSET_DIRS`) and what `scene_named_paths` places."""
     files, dirs = scene_named_paths(scene_file)
 
     def held(path):
@@ -245,7 +246,19 @@ def _material_unheld_files(scene_file, scene, top):
             return False
         return (rel.split("/")[0] in ASSET_DIRS and (top / rel.split("/")[0]).is_dir()) or rel in files or any(
             rel.startswith(d + "/") for d in dirs)
+    return held
 
+
+def _material_unheld_files(scene_file, scene, top):
+    """`[(name, source, named_by)]` of `working_folder_files`' fourth rule: a file the scene's material file names in a
+    `MATERIAL_UNHELD_KEYS` entry by a relative name that lies relative to the scene's folder and that the job's scene
+    copy does not hold at that name in the entry's folder (the `emsdirectory` or `mapdirectory`: the copy holds the
+    linked folders, `ASSET_DIRS`, and what `scene_named_paths` places); for an `IMAGE_FILENAME`, also the ENVI header
+    beside it (`ENVI_HEADERS`, the first that exists)."""
+    mat = _relative_name(scene.findtext("matfilename"))
+    if mat is None or not (top / mat).is_file():
+        return []
+    held = _scene_copy_holds(scene_file, top)
     keys = {(block, key): tag for block, key, tag in MATERIAL_UNHELD_KEYS}
     out = []
     for block, key, text in _material_entries((top / mat).read_text("latin-1")):
@@ -266,6 +279,42 @@ def _material_unheld_files(scene_file, scene, top):
                 if (top / header).is_file():
                     out.append((header.as_posix(), top / header, Path(mat).name))
                     break
+    return out
+
+
+# (block, key, the scene elements naming the folders DIRSIG searches besides the working folder): round 28, measured by
+# dry runs. Fireball1's `fireball_temp.txt` (a `TEMP_SOLVER` `FILENAME` beside its `.scene`) is searched for in the
+# working folder and the scene's seven directory elements, not the scene's own folder: found when placed in the working
+# folder, not when placed beside the scene copy. IESSources1's `example1.ies` to `example3.ies` (`SOURCE_SHAPE` entries of
+# its `MATERIAL_ENTRY`s, beside its `.scene`) are searched for in the working folder and the `srcdirectory`: found in the
+# working folder, not beside the scene copy; without `example3.ies` the dry run stops on it.
+MATERIAL_SEARCHED_KEYS = (("TEMP_SOLVER", "FILENAME", ("emsdirectory", "odbdirectory", "gdbdirectory", "extdirectory",
+                                                       "absdirectory", "srcdirectory", "mapdirectory")),
+                          ("MATERIAL_ENTRY", "SOURCE_SHAPE", ("srcdirectory",)))   # measured
+
+
+def _material_searched_files(scene_file, scene, top):
+    """`[(name, source, named_by)]` of `working_folder_files`' fifth rule: a file the scene's material file names in a
+    `MATERIAL_SEARCHED_KEYS` entry by a relative name that lies relative to the scene's folder and that the job's scene
+    copy does not hold at that name in any of the entry's folders (an empty folder element is not searched)."""
+    mat = _relative_name(scene.findtext("matfilename"))
+    if mat is None or not (top / mat).is_file():
+        return []
+    held = _scene_copy_holds(scene_file, top)
+    keys = {(block, key): tags for block, key, tags in MATERIAL_SEARCHED_KEYS}
+    out = []
+    for block, key, text in _material_entries((top / mat).read_text("latin-1")):
+        if (block, key) not in keys:
+            continue
+        text = text.strip('"')
+        name = None if text.startswith("$") else _relative_name(text)          # a variable: not a working-folder name
+        if name is None or not (top / name).is_file():
+            continue
+        texts = ((scene.findtext(tag) or "").strip() for tag in keys[block, key])
+        folders = [top / (_relative_name(t) or "") for t in texts if t]
+        if any((folder / name).is_file() and held(folder / name) for folder in folders):
+            continue
+        out.append((name, top / name, Path(mat).name))
     return out
 
 

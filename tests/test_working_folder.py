@@ -443,9 +443,10 @@ def test_files_a_material_file_names_that_the_scene_copy_does_not_hold(tmp_path)
     platform = tmp_path / "plain.platform"
     platform.write_text(PLATFORM)
     # Not listed: a file the copy holds where DIRSIG looks (`geometry/` is linked; `maps/u.png` in the mapdirectory),
-    # an unmeasured block (`REFLECTANCE_PROP`), a `TEMP_SOLVER` `FILENAME`, an absent file, a variable, `..`.
+    # an unmeasured block (`REFLECTANCE_PROP`), an absent file, a variable, `..`. The `TEMP_SOLVER` `FILENAME` `s.txt` is
+    # listed since round 28 (the fifth rule: the copy does not hold it in any of the scene's directory elements).
     assert working_folder_files(scene, platform) == [(n, top / n, "ball.mat") for n in (
-        "beside.ems", "maps/m.png", "maps/t.png", "v.img", "v.img.hdr", "w.hdr", "w.img")]
+        "beside.ems", "maps/m.png", "maps/t.png", "s.txt", "v.img", "v.img.hdr", "w.hdr", "w.img")]
 
 
 def test_a_file_the_scene_copy_holds_in_the_emsdirectory_needs_nothing(tmp_path):
@@ -518,4 +519,123 @@ def test_a_16_by_16_render_finds_the_unheld_emissivity_file_in_the_working_folde
     in_dir = next((tmp_path / "work").rglob("input/auror_ref")).parent
     assert (in_dir / "ball.ems").read_text() == EMS
     assert fingerprint(classic) == before
+    shutil.rmtree(tmp_path / "work", ignore_errors=True)
+
+
+# Files a material file names in a `TEMP_SOLVER` `FILENAME` or a `SOURCE_SHAPE` that the job's scene copy does not hold
+# where DIRSIG looks (round 28). Measured by dry runs: Fireball1's `fireball_temp.txt` (beside its `.scene`) is searched
+# for in the working folder and the scene's seven directory elements, not the scene's own folder; IESSources1's
+# `example1.ies` to `example3.ies` (beside its `.scene`) in the working folder and the `srcdirectory`. Placed in the
+# working folder both dry runs pass; beside the scene copy they stop on the file. DataDrivenTempSolver1's files lie in
+# `materials/temps/` under its `odbdirectory` `$SCENE_DIR`, which the copy holds.
+SEARCHED = """MATERIAL_ENTRY {
+    ID = ball
+    OPTICAL_DESCRIPTION = SOURCE
+    SOURCE_SHAPE = shape.ies
+    SOURCE_SHAPE = 10
+    SOURCE_SHAPE = held.ies
+    TEMP_SOLVER_NAME = DataDriven
+    TEMP_SOLVER {
+        FILENAME = beside.txt
+        FILENAME = materials/linked.txt
+        FILENAME = $SCENE_DIR/var.txt
+        FILENAME = ../up.txt
+        FILENAME = absent.txt
+    }
+}
+"""
+
+
+def test_files_a_temp_solver_filename_or_source_shape_names_that_the_scene_copy_does_not_hold(tmp_path):
+    scene = write_scene(tmp_path / "ball", scene=UNHELD_SCENE.replace(
+        "<emsdirectory>", "<srcdirectory>$SCENE_DIR/src</srcdirectory><emsdirectory>"))
+    top = scene.parent
+    (top / "ball.mat").write_text(SEARCHED)
+    for rel in ("shape.ies", "held.ies", "src/held.ies", "beside.txt", "materials/linked.txt", "var.txt"):
+        (top / rel).parent.mkdir(parents=True, exist_ok=True)
+        (top / rel).write_text(rel)
+    (tmp_path / "up.txt").write_text("outside the scene's folder")
+    platform = tmp_path / "plain.platform"
+    platform.write_text(PLATFORM)
+    # `src/` is named by the .scene (its srcdirectory, linked in the copy): `held.ies` is held there; `materials/` is
+    # linked; a number, a variable, `..` and an absent file are not working-folder names. `beside.txt` lies in the
+    # emsdirectory (`$SCENE_DIR`), which the copy does not hold it in.
+    assert working_folder_files(scene, platform) == [(n, top / n, "ball.mat") for n in ("beside.txt", "shape.ies")]
+    # A TEMP_SOLVER FILENAME the copy holds under one of the scene's directory elements needs nothing.
+    (top / "ball.mat").write_text(SEARCHED.replace("beside.txt", "materials/linked.txt").replace("shape.ies", "10"))
+    assert working_folder_files(scene, platform) == []
+
+
+DRIVEN = CLASSIC.replace("""    RAD_SOLVER_NAME""", """    TEMP_SOLVER_NAME = DataDriven
+    TEMP_SOLVER {
+        FILENAME = temps.txt
+    }
+    RAD_SOLVER_NAME""")
+TEMPS = "0 293.15\n43200 303.15\n86400 293.15\n"         # time (s), temperature (K), as DataDrivenTempSolver1's files
+DRIVEN_REL = "scenes/driven/ball.scene"
+
+
+@pytest.fixture(scope="module")
+def driven(tmp_path_factory):
+    """A library whose sphere's material file names a `DataDriven` temperature file beside the `.scene` in a
+    `TEMP_SOLVER` `FILENAME`, as Fireball1's does (and its emissivity file beside it, as `classic`'s)."""
+    lib = tmp_path_factory.mktemp("working_folder_searched") / "config_repo"
+    folder = lib / "scenes" / "driven"
+    write_scene(folder, scene=UNHELD_SCENE)
+    (folder / "ball.mat").write_text(DRIVEN)
+    (folder / "ball.ems").write_text(EMS)
+    (folder / "temps.txt").write_text(TEMPS)
+    (lib / REL).parent.mkdir(parents=True)
+    (lib / REL).write_text(PLATFORM)
+    return lib
+
+
+def driven_spec(lib, working=True):
+    spec = authored_spec(lib)
+    spec["engine"]["scenes"] = [{"ref": {"name": DRIVEN_REL, "content_hash": directory_digest(lib / "scenes" / "driven")},
+                                 "offset": [0, 0, 0]}]
+    spec["engine"]["motion"]["position"]["xyz"] = [0.0, 0.0, 1000.0]
+    spec["engine"]["motion"]["orientation"]["euler"]["angles"] = [0.0, 0.0, 0.0]
+    if working:
+        spec["engine"]["working_folder"] = [entry(lib, "ball.ems", "scenes/driven/ball.ems"),
+                                            entry(lib, "temps.txt", "scenes/driven/temps.txt")]
+    return spec
+
+
+def test_a_searched_material_file_is_required_resolved_copied_and_in_the_run_id(tmp_path, driven):
+    spec = driven_spec(driven)
+    spec["engine"]["working_folder"] = spec["engine"]["working_folder"][:1]
+    with pytest.raises(RunSpecError, match=r"ball.mat names temps.txt, which DIRSIG looks for in the job's working "
+                                           r"folder; list it in engine.working_folder") as e:
+        _resolve(tmp_path, spec, driven)
+    assert e.value.pointer == "/engine/working_folder"
+    spec = driven_spec(driven)
+    assert schema_errors(spec) == []
+    assert _resolve(tmp_path, spec, driven).working_folder == (
+        ("ball.ems", driven / "scenes/driven/ball.ems"), ("temps.txt", driven / "scenes/driven/temps.txt"))
+    path = tmp_path / "spec.yaml"
+    path.write_text(yaml.safe_dump(spec, sort_keys=False))
+    sim = Simulation.from_run_spec(path, driven, tmp_path / "work", SENSORS)
+    assert sim.resolved is not None, sim.resolve_error
+    in_dir = tmp_path / "work" / "input"
+    sim._assemble(in_dir, tmp_path / "work" / "output")
+    assert not (in_dir / "temps.txt").is_symlink() and (in_dir / "temps.txt").read_text() == TEMPS
+    assert not (in_dir / "auror_ref" / "temps.txt").exists()                        # the scene copy does not hold it
+    other = driven_spec(driven)
+    other["engine"]["working_folder"][1]["ref"]["content_hash"] = "sha256:" + "1" * 64
+    assert run_id(spec, SENSORS) != run_id(other, SENSORS)
+
+
+@needs_dirsig
+def test_a_16_by_16_render_finds_the_temperature_file_in_the_working_folder(tmp_path, driven):
+    from manifold.sim.backend import LocalBackend
+    path = tmp_path / "driven.yaml"
+    path.write_text(yaml.safe_dump(driven_spec(driven), sort_keys=False))
+    before = fingerprint(driven)
+    backend = LocalBackend(tmp_path / "work", driven, sensor_library=SENSORS)
+    status = wait_for(backend, backend.submit_run(str(path))["run_id"], ("rendered", "failed", "cancelled"), timeout=300)
+    assert status["state"] == "rendered", status
+    in_dir = next((tmp_path / "work").rglob("input/auror_ref")).parent
+    assert (in_dir / "temps.txt").read_text() == TEMPS
+    assert fingerprint(driven) == before
     shutil.rmtree(tmp_path / "work", ignore_errors=True)

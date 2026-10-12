@@ -1617,7 +1617,7 @@ Cache: every attempt ran with a per-run `HOME`, so DIRSIG's material caches star
 
 ### Layered-comparison candidates
 
-The survey marks 42 demos `near` (one loader feature away) and 67 `ready` (none missing). 95 of them now have a pass-through reference; ranked by its cost, they are the candidates for a layered re-expression and comparison (a `ready` demo's missing feature is "none").
+The survey marks 43 demos `near` (one loader feature away) and 66 `ready` (none missing). 96 of them now have a pass-through reference; ranked by its cost, they are the candidates for a layered re-expression and comparison (a `ready` demo's missing feature is "none").
 
 | Rank | Demo | Simulation | Reference wall time (s) | Deterministic | Missing feature (survey) |
 |---|---|---|---|---|---|
@@ -1646,78 +1646,79 @@ The survey marks 42 demos `near` (one loader feature away) and 67 `ready` (none 
 | 23 | TemporalIntegration2 | blur_off.sim | 4.1 | yes | .ppd waypoint motion |
 | 24 | Balfour2 | single.sim | 6.1 | yes | none |
 | 25 | CommandedMount2 | demo_absolute.sim | 6.1 | no | commanded mount |
-| 26 | GeoLocation1 | flex_ecef_ecef.jsim | 6.1 | no | none |
-| 27 | InstanceOptions1 | glist_demo.sim | 6.1 | yes | none |
-| 28 | LemniscateScanMount1 | demo.sim | 6.1 | yes | lemniscate mount |
-| 29 | LineScanMount1 | demo.sim | 6.1 | yes | line mount |
-| 30 | MicroBolometer1 | long_decay.jsim | 6.1 | no | platform jitter |
-| 31 | PointCollectors2 | framing.jsim | 6.1 | yes | none |
-| 32 | PolyFill1 | demo.sim | 6.1 | yes | none |
-| 33 | PrimitiveObjects1 | demo.sim | 6.1 | yes | none |
-| 34 | Skyview1 | demo.sim | 6.1 | yes | BasicAtmosphere .atm (classicradiativetransfer, uniformweather) |
-| 35 | Sources1 | demo.sim | 6.1 | yes | simulation options file |
-| 36 | Sources3 | demo.sim | 6.1 | no | simulation options file |
-| 37 | WhiskScanMount1 | demo.sim | 6.1 | yes | whisk mount |
-| 38 | Indoors1 | demo.jsim | 8.1 | yes | none |
-| 39 | SensorPosition1 | downlook.sim | 8.1 | yes | BasicAtmosphere .atm (classicradiativetransfer, uniformweather) |
-| 40 | Sources5 | demo.sim | 8.1 | yes | simulation options file |
-| 41 | TimeDelayedIntegration1 | long_int.jsim | 8.1 | no | .ppd waypoint motion |
-| 42 | VertexNormals1 | demo.sim | 8.1 | yes | none |
-| 43 | BumpMap1 | demo.sim | 10.1 | yes | none |
-| 44 | LeafStack1 | demo.sim | 10.1 | yes | none |
-| 45 | MacbethColorChecker1 | demo.sim | 10.1 | yes | none |
-| 46 | MappedTherm1 | map_therm.sim | 10.1 | yes | none |
-| 47 | TriBar1 | demo.sim | 10.1 | yes | none |
-| 48 | EarthMap1 | demo.sim | 12.1 | repeat failed | none |
-| 49 | MultiCamera1 | multi.sim | 12.1 | yes | several instruments or focal planes |
-| 50 | PrimitiveObjects2 | demo.sim | 12.1 | yes | none |
-| 51 | RollingShutter1 | global.sim | 12.1 | yes | none |
-| 52 | SubObjectMotion1 | demo.sim | 12.1 | yes | none |
-| 53 | SubObjectMotion2 | demo.sim | 12.1 | yes | none |
-| 54 | UvMapping1 | drape_map.sim | 12.1 | yes | none |
-| 55 | UvMapping2 | demo.sim | 12.1 | yes | none |
-| 56 | MixtureMap1 | demo.sim | 12.2 | yes | none |
-| 57 | ExtinctionProp1 | demo.sim | 14.1 | yes | none |
-| 58 | Pilings1 | demo.sim | 14.1 | yes | none |
-| 59 | IESSources1 | demo.sim | 18.1 | yes | none |
-| 60 | TemperatureMap1 | demo.sim | 18.1 | yes | none |
-| 61 | Brdf2 | demo.sim | 20.1 | yes | none |
-| 62 | Thermal3 | demo.sim | 22.1 | no | none |
-| 63 | CommandedMount1 | demo_absolute.sim | 24.1 | no | commanded mount |
-| 64 | RossLi1 | demo.sim | 24.1 | yes | none |
-| 65 | SumoTraffic1 | multi_scene.jsim | 28.1 | yes | platform jitter |
-| 66 | MaterialMap2 | demo.sim | 30.1 | yes | none |
-| 67 | RegularGrid1 | demo.sim | 30.1 | no | BasicAtmosphere .atm (classicradiativetransfer, uniformweather) |
-| 68 | PointCollectors1 | framing.jsim | 36.1 | yes | none |
-| 69 | Sources6 | demo.sim | 44.1 | no | none |
-| 70 | SubPixelObject1 | demo.sim | 44.1 | yes | none |
-| 71 | BundledObject1 | demo.sim | 48.2 | no | none |
-| 72 | FastCloud2 | demo_mat_map.sim | 52.3 | yes | none |
-| 73 | VertexNormals2 | demo.sim | 54.1 | yes | none |
-| 74 | NormalMap3 | demo.jsim | 54.2 | yes | none |
-| 75 | SubPixelObject2 | demo.sim | 62.1 | no | none |
-| 76 | Muses1 | demo.sim | 64.1 | yes | several instruments or focal planes |
-| 77 | BundledObject2 | demo.sim | 66.1 | no | none |
-| 78 | ChipMaker2 | demo.sim | 66.2 | no | none |
-| 79 | NormalMap2 | demo.sim | 66.2 | yes | none |
-| 80 | ExternalTriggers1 | constant.sim | 68.2 | yes | none |
-| 81 | Brdf3 | demo.jsim | 88.1 | no | FourCurveAtmosphere |
-| 82 | GlistPopulations1 | demo_daily.sim | 88.2 | no | BasicAtmosphere .atm (classicradiativetransfer, uniformweather) |
-| 83 | Caustics1 | clear_water.jsim | 100.3 | yes | none |
-| 84 | FlexMotion1 | multi_frame.sim | 114.3 | no | none |
-| 85 | Thermal2 | demo.sim | 116.3 | yes | external clock (several captures in a task window) |
-| 86 | Parking1 | demo_assimp.sim | 132.2 | no | none |
-| 87 | Starfield1 | demo.jsim | 154.2 | yes | none |
-| 88 | FourCurveAtm1 | default_w_path.jsim | 160.3 | yes | FourCurveAtmosphere |
-| 89 | BackgroundSky1 | demo.jsim | 166.4 | yes | plugin PositionIndependentBackground |
-| 90 | TrafficLights1 | demo.jsim | 194.4 | yes | plugin TrafficLight |
-| 91 | Brdf1 | demo.sim | 204.3 | yes | weather without a ThermWeather file |
-| 92 | ChipMaker1 | demo.sim | 212.3 | yes | none |
-| 93 | Polarization5 | pi.sim | 230.4 | yes | none |
-| 94 | Polarization4 | pi.sim | 244.3 | yes | several instruments or focal planes |
-| 95 | Polarization1 | nadir.sim | 310.6 | not tested | BasicAtmosphere .atm (classicradiativetransfer, uniformweather) |
+| 26 | Fireball1 | demo.sim | 6.1 | yes | several instruments or focal planes |
+| 27 | GeoLocation1 | flex_ecef_ecef.jsim | 6.1 | no | none |
+| 28 | InstanceOptions1 | glist_demo.sim | 6.1 | yes | none |
+| 29 | LemniscateScanMount1 | demo.sim | 6.1 | yes | lemniscate mount |
+| 30 | LineScanMount1 | demo.sim | 6.1 | yes | line mount |
+| 31 | MicroBolometer1 | long_decay.jsim | 6.1 | no | platform jitter |
+| 32 | PointCollectors2 | framing.jsim | 6.1 | yes | none |
+| 33 | PolyFill1 | demo.sim | 6.1 | yes | none |
+| 34 | PrimitiveObjects1 | demo.sim | 6.1 | yes | none |
+| 35 | Skyview1 | demo.sim | 6.1 | yes | BasicAtmosphere .atm (classicradiativetransfer, uniformweather) |
+| 36 | Sources1 | demo.sim | 6.1 | yes | simulation options file |
+| 37 | Sources3 | demo.sim | 6.1 | no | simulation options file |
+| 38 | WhiskScanMount1 | demo.sim | 6.1 | yes | whisk mount |
+| 39 | Indoors1 | demo.jsim | 8.1 | yes | none |
+| 40 | SensorPosition1 | downlook.sim | 8.1 | yes | BasicAtmosphere .atm (classicradiativetransfer, uniformweather) |
+| 41 | Sources5 | demo.sim | 8.1 | yes | simulation options file |
+| 42 | TimeDelayedIntegration1 | long_int.jsim | 8.1 | no | .ppd waypoint motion |
+| 43 | VertexNormals1 | demo.sim | 8.1 | yes | none |
+| 44 | BumpMap1 | demo.sim | 10.1 | yes | none |
+| 45 | LeafStack1 | demo.sim | 10.1 | yes | none |
+| 46 | MacbethColorChecker1 | demo.sim | 10.1 | yes | none |
+| 47 | MappedTherm1 | map_therm.sim | 10.1 | yes | none |
+| 48 | TriBar1 | demo.sim | 10.1 | yes | none |
+| 49 | EarthMap1 | demo.sim | 12.1 | repeat failed | none |
+| 50 | MultiCamera1 | multi.sim | 12.1 | yes | several instruments or focal planes |
+| 51 | PrimitiveObjects2 | demo.sim | 12.1 | yes | none |
+| 52 | RollingShutter1 | global.sim | 12.1 | yes | none |
+| 53 | SubObjectMotion1 | demo.sim | 12.1 | yes | none |
+| 54 | SubObjectMotion2 | demo.sim | 12.1 | yes | none |
+| 55 | UvMapping1 | drape_map.sim | 12.1 | yes | none |
+| 56 | UvMapping2 | demo.sim | 12.1 | yes | none |
+| 57 | MixtureMap1 | demo.sim | 12.2 | yes | none |
+| 58 | ExtinctionProp1 | demo.sim | 14.1 | yes | none |
+| 59 | Pilings1 | demo.sim | 14.1 | yes | none |
+| 60 | IESSources1 | demo.sim | 18.1 | yes | none |
+| 61 | TemperatureMap1 | demo.sim | 18.1 | yes | none |
+| 62 | Brdf2 | demo.sim | 20.1 | yes | none |
+| 63 | Thermal3 | demo.sim | 22.1 | no | none |
+| 64 | CommandedMount1 | demo_absolute.sim | 24.1 | no | commanded mount |
+| 65 | RossLi1 | demo.sim | 24.1 | yes | none |
+| 66 | SumoTraffic1 | multi_scene.jsim | 28.1 | yes | platform jitter |
+| 67 | MaterialMap2 | demo.sim | 30.1 | yes | none |
+| 68 | RegularGrid1 | demo.sim | 30.1 | no | BasicAtmosphere .atm (classicradiativetransfer, uniformweather) |
+| 69 | PointCollectors1 | framing.jsim | 36.1 | yes | none |
+| 70 | Sources6 | demo.sim | 44.1 | no | none |
+| 71 | SubPixelObject1 | demo.sim | 44.1 | yes | none |
+| 72 | BundledObject1 | demo.sim | 48.2 | no | none |
+| 73 | FastCloud2 | demo_mat_map.sim | 52.3 | yes | none |
+| 74 | VertexNormals2 | demo.sim | 54.1 | yes | none |
+| 75 | NormalMap3 | demo.jsim | 54.2 | yes | none |
+| 76 | SubPixelObject2 | demo.sim | 62.1 | no | none |
+| 77 | Muses1 | demo.sim | 64.1 | yes | several instruments or focal planes |
+| 78 | BundledObject2 | demo.sim | 66.1 | no | none |
+| 79 | ChipMaker2 | demo.sim | 66.2 | no | none |
+| 80 | NormalMap2 | demo.sim | 66.2 | yes | none |
+| 81 | ExternalTriggers1 | constant.sim | 68.2 | yes | none |
+| 82 | Brdf3 | demo.jsim | 88.1 | no | FourCurveAtmosphere |
+| 83 | GlistPopulations1 | demo_daily.sim | 88.2 | no | BasicAtmosphere .atm (classicradiativetransfer, uniformweather) |
+| 84 | Caustics1 | clear_water.jsim | 100.3 | yes | none |
+| 85 | FlexMotion1 | multi_frame.sim | 114.3 | no | none |
+| 86 | Thermal2 | demo.sim | 116.3 | yes | external clock (several captures in a task window) |
+| 87 | Parking1 | demo_assimp.sim | 132.2 | no | none |
+| 88 | Starfield1 | demo.jsim | 154.2 | yes | none |
+| 89 | FourCurveAtm1 | default_w_path.jsim | 160.3 | yes | FourCurveAtmosphere |
+| 90 | BackgroundSky1 | demo.jsim | 166.4 | yes | plugin PositionIndependentBackground |
+| 91 | TrafficLights1 | demo.jsim | 194.4 | yes | plugin TrafficLight |
+| 92 | Brdf1 | demo.sim | 204.3 | yes | weather without a ThermWeather file |
+| 93 | ChipMaker1 | demo.sim | 212.3 | yes | none |
+| 94 | Polarization5 | pi.sim | 230.4 | yes | none |
+| 95 | Polarization4 | pi.sim | 244.3 | yes | several instruments or focal planes |
+| 96 | Polarization1 | nadir.sim | 310.6 | not tested | BasicAtmosphere .atm (classicradiativetransfer, uniformweather) |
 
-`ready` demos without a reference: FastCloud1 (failed), Polarization2 (failed), Polarization3 (failed).
+`ready` demos without a reference: FastCloud1 (failed), Polarization3 (failed).
 
 `near` demos without a reference: Blackadar1 (failed), Cloudview1 (failed), FocusDistance1 (timeout), HdfWater1 (failed), Muses2 (failed), ReflectanceInversion1 (failed), Refraction1 (failed), SpatialResponse1 (failed), Ssa2 (skipped: dirsig4), Ssa3 (skipped: dirsig4), Thermal1 (failed).
 
