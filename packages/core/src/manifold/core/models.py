@@ -655,8 +655,8 @@ class EngineListItem(_Model):
     engine_id : str
         The engine id a run spec names in `descriptor.origin.engine`.
     available : bool
-        Whether the adapter loaded: an unavailable engine is listed with the reason, and a run naming it is refused
-        at admission.
+        Whether the engine can run here: its adapter loaded and reports its runtime present; an unavailable engine
+        is listed with the reason, and a run naming it is refused at admission.
     adapter_version : str | None
         The adapter's version, or null when it did not load.
     modes : tuple[str, ...]

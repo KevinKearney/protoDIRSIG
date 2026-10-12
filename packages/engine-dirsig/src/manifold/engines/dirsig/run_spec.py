@@ -39,10 +39,10 @@ checks are `manifold.core.run_spec`'s, re-exported here. The `dirfm`-bound plugi
 only places a job's plugins are built, so loading, resolving, checking and composing a run spec load no engine
 package (tests/test_import_boundary.py).
 
-Loading is a plain `yaml.safe_load`. `AV_MANIFOLD_Metadata_v02.md` §6.15 specifies a strict
-loader (duplicate-key rejection, canonical-JSON hashing, unknown-key rejection). That belongs to
-MANIFOLD's registry side, which is not built yet, so it is not built here: a duplicated key in the
-YAML silently keeps the last value, and no `content_hash` is computed canonically. A stamped hash
+Loading is `manifold.core.run_spec.load_run_spec`, a plain `yaml.safe_load`: a duplicated key in the YAML silently
+keeps the last value (the strict loader of `AV_MANIFOLD_Metadata_v02.md` §6.15 rejects it; not built). Unknown keys are
+refused by the schema check at admission and run ids are canonical-JSON hashes (`manifold.core.identity`); see that
+module's docstring. A stamped hash
 (`scripts/stamp_hashes.py`) is verified when the reference is resolved: on a file ref the sha256 of the file bytes, on
 a `.scene` ref the `dirhash/1` digest of the scene directory (`manifold.core.dirhash`), since the geometry and materials
 sit beside the `.scene` file. The `sha256:<hash>` placeholder is not verified.

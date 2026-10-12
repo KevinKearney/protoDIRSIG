@@ -34,7 +34,7 @@
             "pattern": "^[a-z][a-z0-9_]*$"
           },
           "available": {
-            "description": "Whether the adapter loaded: an unavailable engine is listed with the reason, and a run naming it is refused at admission.",
+            "description": "Whether the engine can run here: its adapter loaded and reports its runtime present; an unavailable engine is listed with the reason, and a run naming it is refused at admission.",
             "type": "boolean"
           },
           "adapter_version": {

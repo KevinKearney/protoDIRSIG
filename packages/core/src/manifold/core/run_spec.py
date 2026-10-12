@@ -12,9 +12,12 @@ Resolving an engine block is the engine's: its adapter (`manifold.core.engine.En
 DIRSIG `manifold.engines.dirsig.run_spec.resolve_run`.
 
 Loading is a plain `yaml.safe_load`. `AV_MANIFOLD_Metadata_v02.md` §6.15 specifies a strict
-loader (duplicate-key rejection, canonical-JSON hashing, unknown-key rejection). That belongs to
-MANIFOLD's registry side, which is not built yet, so it is not built here: a duplicated key in the
-YAML silently keeps the last value, and no `content_hash` is computed canonically.
+loader (duplicate-key rejection, canonical-JSON hashing, unknown-key rejection). Duplicate-key rejection is not built:
+a duplicated key in the YAML silently keeps the last value. The other two are built elsewhere in the SDK, not in this
+module: unknown keys are refused by the schema check at admission (`manifold.core.contract`, except in
+`descriptor.extras` and the members the schemas leave open), and a run id is the sha256 of the RFC 8785 canonical JSON
+of the resolved run spec (`manifold.core.identity`). A ref's `content_hash` is the sha256 of the referenced file's bytes
+(or the `dirhash/1` digest of a directory), not a canonical-JSON hash.
 
 Imports: the standard library, `yaml`, `manifold.core.spectral`, `manifold.core.dirhash` and `manifold.core.errors`.
 """
