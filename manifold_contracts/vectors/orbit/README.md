@@ -1,6 +1,6 @@
 # vectors/orbit/
 
-A golden vector for the propagator behind a moving-platform run: what any replacement for the SDK's propagator (today skyfield's SGP4, `manifold.sim.orbit.propagate`) must reproduce.
+A golden vector for the propagator behind a moving-platform run: what any replacement for the SDK's propagator (today skyfield's SGP4, `manifold.core.orbit.propagate`) must reproduce.
 
 `tle_35946.txt` is the pinned two-line element set for NORAD 35946 (WORLDVIEW-2, element-set epoch 2026-09-22 14:00:09 UTC), in the form `orbit.fetch_tle` writes: a comment line naming its source and fetch time, the name line, and the two element lines. `expected.json` holds 121 samples of that TLE propagated by SGP4 from `epoch_utc` (2026-09-25 16:06:00 UTC, three days after the element-set epoch) at 1 s steps over 120 s: the position in ITRS (ECEF) and in TEME, in metres, to three decimals. It records the tolerance, how the tolerance was set, the skyfield and `sgp4` versions that produced it, and the Earth-orientation data used.
 

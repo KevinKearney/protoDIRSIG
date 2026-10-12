@@ -10,7 +10,7 @@ Tutorial. Non-normative. Part I describes the `.platform` file's object tree as 
 
 ## 1. What the file is
 
-A `.platform` file is one of the five parameter-class inputs of a DIRSIG run tree (role `dirsig:platform`; the five are listed in `AV_MANIFOLD_Configuration_v02` §6.2). It describes the *observing apparatus* and nothing else: no scene, no trajectory, no epoch, no task. Position and attitude of the vehicle come from the motion file; when the instrument observes comes from the tasks file; what it observes comes from the scene. The platform file answers only *what is the instrument, how is it pointed relative to the vehicle, and how does it convert incident radiance into a recorded frame*.
+A `.platform` file is one of the eight parameter-class roles of a DIRSIG run tree (role `dirsig:platform`; the eight are listed in `AV_MANIFOLD_Configuration_v02` §6.2). It describes the *observing apparatus* and nothing else: no scene, no trajectory, no epoch, no task. Position and attitude of the vehicle come from the motion file; when the instrument observes comes from the tasks file; what it observes comes from the scene. The platform file answers only *what is the instrument, how is it pointed relative to the vehicle, and how does it convert incident radiance into a recorded frame*.
 
 The file is XML with a schema-equivalent JSON projection. Attribute-valued nodes are written `@name` below, following the JSON projection's convention; in the XML they are attributes of the element.
 
@@ -89,7 +89,7 @@ The instrument is the optical system: one entrance pupil, one set of optics, one
 
 **`frame`** declares the instrument's reference frame `@type` and whether `location` and `orientation` are written to the output (`@enabled`, `format`). It is an output-reporting control, not a frame *definition* in the sense the descriptor requires.
 
-**`options`** are Monte Carlo controls — `maxbounces`, `samples`, `nodemergeradius`, `repeatableseed`, `nodemapfile`. These describe the *computation*, not the instrument. They belong with `convergence` in `capturemethod` as render-quality knobs, and MANIFOLD routes them to `engine.run` rather than to the sensor description.
+**`options`** are Monte Carlo controls — `maxbounces`, `samples`, `nodemergeradius`, `repeatableseed`, `nodemapfile`. These describe the *computation*, not the instrument. They belong with `convergence` in `capturemethod` as render-quality knobs, and MANIFOLD routes them to `engine.run` rather than to the sensor description (in the SDK at HEAD they stay as the platform template has them; `engine.run` carries only `seed`).
 
 **`source` / `transmitter` / `receiver`** are the active-sensor branch: illumination `spatial` / `spectral` / `temporal` profiles, `polarizer`, `modulation` (`chirprate`), pulse energy and duration. A passive EO/IR instrument leaves these absent. The branch is structurally large and semantically disjoint from the passive path.
 
@@ -129,7 +129,7 @@ This node carries the radiometry, the spectral sampling, the temporal integratio
 
 **Spectral.** `spectralresponse` holds either a `channellist` (explicit channels) or a `channelpattern` (generated), plus a `bandpass` (`minimum`, `maximum`, `delta`, `@spectralunits`). A channel carries `center`, `width`, and `@shape` (`gaussian`, `tophat`, …). The `bandpass` is the **radiative-transfer integration range**, not the filter edge — it bounds where DIRSIG computes spectral radiance, and is typically far wider than any channel.
 
-**Temporal.** `temporalintegration` gives `time` (integration period), `samples` (temporal samples within it), and `@tdi` (time-delay integration stages).
+**Temporal.** `temporalintegration` gives `time` (integration period), `samples` (temporal samples within it), and `@tdi` (time-delay integration on or off; the stage count is the array's `yelementcount`).
 
 **Electronics.** `detectormodel` gives `bitdepth`, `readnoise`, `maxelectrons` (full well), `minelectrons`, `quantumefficiency`, `darkcurrentdensity`. `gainresponse.gainmodel[]` gives per-channel `gain` and `bias`, or a `lut` of `entry` pairs for a non-linear response.
 
@@ -164,6 +164,8 @@ Reading the tree as a model rather than a file format:
 ---
 
 # Part II — Relating the decomposition to `descriptor.sensor`
+
+**Status at HEAD (round 27).** Part II describes the MANIFOLD design (facet v2.0.0, an extractor, MD-13), not this repository's SDK. In the SDK: `descriptor.sensor` is a `sensor-spec/1` document (`manifold_contracts/sensor-spec-1.schema.json`, a proposed subset of the facet in which the lattice member is `focal_planes[].detector`, not `array`, a quantity is `{value, provenance}`, and the closed enumerations of section 6 are not adopted); the run spec has `spec_version`, `descriptor`, `engine` and `resources`; there is no extractor and no sensor-equality check: the generator renders the job's `.platform` from a library template and the sensor-spec (`platform_gen`), or copies a demo's `.platform` as authored (`engine.platform.as_authored`, checked only to parse and hold a focal plane); `engine.run` carries `seed` only.
 
 ## 4. What `descriptor.sensor` is
 
@@ -213,7 +215,7 @@ The descriptor's vocabulary control is not one mechanism but four, and they gove
 
 **(b) External vocabularies, `x-vocabulary`.** The schema names the vocabulary; the members live in `schemas/vocabulary/<axis>.schema.json` of the contracts repository and version independently, and a second validation pass checks membership. `band` → `sensor_band` (L7 band axis: NIR, SWIR, MWIR, LWIR, …). `identity.sensor_class` → `sensor_class` (framing, pushbroom, whiskbroom, staring_array, single_element). `channel.noise_class` → `noise_class`, resolved at registration from `noise_figure` by a per-band, versioned banding rule. `assetRef.role` → `sensor_asset_role` (renamed from `asset_role`). The L3 axes other than `sensor_band` have no vocabulary file yet and are not enforced at M1. Adding a band is a vocabulary release, not a schema release — the distinction that makes the L7 axes extensible without breaking registered descriptors.
 
-**(c) Term identity, `x-term`.** Every field carries an `eoptic:` term resolved in the contracts-repository term registry, which records an external citation where one exists and an explicit null where none does. This is what discharges MD-6. The schema itself carries no external terms.
+**(c) Term identity, `x-term`.** Every descriptor field carries an `eoptic:` term (wrapper members such as `provenance` and `assetRef.locator` do not) resolved in the contracts-repository term registry, which records an external citation where one exists and an explicit null where none does. This is what discharges MD-6. The schema itself carries no external terms.
 
 **(d) Naming discipline.** PascalCase keys are GenICam SFNC feature names adopted verbatim and marked `x-sfnc` (`SensorWidth`, `SensorPixelWidth`, `AdcBitDepth`, `SensorShutterMode`, `DeviceModelName`). snake_case keys are program-minted. An SFNC name is never reused for a quantity SFNC does not name. Two declared departures: `AdcBitDepth` is an integer rather than the SFNC enumeration, to admit non-enumerated converter widths; `SensorShutterMode` adds `Tdi` and `None` to the SFNC values.
 
@@ -238,7 +240,7 @@ This is the sharpest single difference from the platform file. DIRSIG stores `ap
 | `capturemethod.spectralresponse.channellist` | `focal_plane.channels[]` | Direct |
 | `capturemethod.detectormodel` | fields on `channels[]` | Per-plane in DIRSIG, per-channel in the descriptor |
 | `truthcollection[]` | — | No counterpart. L6 concern |
-| `instrument.options`, `convergence`, `samplestrategy` | — | Solver settings → `engine.run` |
+| `instrument.options`, `convergence`, `samplestrategy` | — | Solver settings → `engine.run` (SDK at HEAD: kept in the template; `engine.run` holds `seed` only) |
 | `source` / `transmitter` / `receiver` | — | No counterpart |
 | `clocktable`, `metadata` | — | No counterpart |
 
@@ -248,10 +250,10 @@ Values from `platforms/AurorNIRDetector.platform` of the Auror / Tahoe tree.
 
 | DIRSIG field | Value | `sensor` field | Note |
 |---|---|---|---|
-| `detectorarray.xelementcount` / `yelementcount` | 500 / 500 | `array.SensorWidth` / `SensorHeight` | Direct |
+| `detectorarray.xelementcount` / `yelementcount` | 500 / 500 | `array.SensorWidth` / `SensorHeight` | Direct in the facet; the SDK writes them from `settings.roi` `Width`/`Height` (the full frame when absent) |
 | `detectorarray.xelementspacing` / `yelementspacing` | 10.0 µm | `array.SensorPixelWidth` / `SensorPixelHeight` | Pitch is spacing, not size |
 | `xelementsize / xelementspacing` | 1.0 | `array.fill_factor` | Derived, not stored |
-| `properties.aperturediameter` | 0.085 | `optics.aperture_diameter` | Descriptor requires mm. Source unit unattributed |
+| `properties.aperturediameter` | 0.085 | `optics.aperture_diameter` | Descriptor in mm; DIRSIG's value is metres (0.085 m = 85 mm), the convention `platform_gen` writes |
 | `properties.focallength` | 306.0 | `optics.focal_length` | Unattributed. If mm, f/# = 306/85 = 3.6 |
 | — | | `optics.f_number` | Carried, not derived. Working F/# at the stated conjugate |
 | `properties.aperturethroughput` | 0.875 | `optics.throughput_in_band` | Wrapped: `{value, provenance: specified}` |
@@ -263,14 +265,14 @@ Values from `platforms/AurorNIRDetector.platform` of the Auror / Tahoe tree.
 | `imagefile @fluxunits=electronspersecond` | | none (engine output) | What the image holds is a property of the engine, not of the sensor: electron exposure, `e-/m2` (`platform_gen.IMAGE_QUANTITY`). `radiometric_reference` is the sensor's own calibration, `null` where unknown (CONOPS and Guide, C-20) |
 | `channel @gain` / `@bias` | 1 / 0 | — (`descriptor.settings`) | Per-channel in DIRSIG, per-entry in `settings` |
 | `detectorarray.clock.rate` | 1000 Hz | — (`descriptor.settings` frame rate) | `readout.acquisition_frame_rate_max` is a device limit, not a setting |
-| `capturemethod.temporalintegration` | 0.005 s, 10 samples | — (`descriptor.settings`) | Integration time is a setting, not a device property |
-| `truthcollection` (11 collectors) | | **none** | L6 |
+| `capturemethod.temporalintegration` | 0.005 s, 10 samples | — (`descriptor.settings`) | Integration time is a setting (`settings.exposure_time`), not a device property; the SDK takes the sample count from `engine.platform.integration_samples` |
+| `truthcollection` (11 collections, one collector: GeoLocation) | | **none** | L6 |
 
 ### 8.1 Required descriptor fields with no source in this file
 
 `SensorShutterMode`, `AdcBitDepth`, `timestamp_reference`, `optical_path`, `sensor_system.system_id`, and `reference_frame` (name, origin, handedness, axis convention). These are assigned in the library entry with `provenance: specified` or `modeled`, and their catalog columns are `unvalidated`.
 
-**A qualification worth making.** The claim is true of the *Auror instance*, not of the *format*. `capturemethod.detectormodel` defines `bitdepth`, `readnoise`, `maxelectrons`, `quantumefficiency` and `darkcurrentdensity`; `detectorarray.@rollingreadout` distinguishes rolling from global readout; `temporalintegration.@tdi` gives TDI stages. A platform file that populates these has a genuine source for `AdcBitDepth`, `read_noise`, `full_well`, `qe_peak`, `dark_current`, and the `Global`/`Rolling`/`Tdi` distinction. The extractor should read them where present rather than treating the whole electronics block as unsourced, and the library entry should supply only what the file actually omits. Auror omits `detectormodel` entirely, which is a property of that authored instance.
+**A qualification worth making.** The claim is true of the *Auror instance*, not of the *format*. `capturemethod.detectormodel` defines `bitdepth`, `readnoise`, `maxelectrons`, `quantumefficiency` and `darkcurrentdensity`; `detectorarray.@rollingreadout` distinguishes rolling from global readout; `temporalintegration.@tdi` with `yelementcount` gives TDI stages. A platform file that populates these has a genuine source for `AdcBitDepth`, `read_noise`, `full_well`, `qe_peak`, `dark_current`, and the `Global`/`Rolling`/`Tdi` distinction. The extractor should read them where present rather than treating the whole electronics block as unsourced, and the library entry should supply only what the file actually omits. Auror omits `detectormodel` entirely, which is a property of that authored instance.
 
 `timestamp_reference`, `optical_path`, `system_id` and `reference_frame` have no source in any platform file. Those are irreducibly authored.
 
@@ -284,9 +286,9 @@ Values from `platforms/AurorNIRDetector.platform` of the Auror / Tahoe tree.
 
 **Spectral bandpass is not a filter.** The most available error in the mapping is reading `spectralresponse.bandpass` into `cut_on` / `cut_off`. It is the radiative-transfer integration range — 0.41 to 2.0 µm for a 0.85 µm NIR channel. Mapping it would assert a 1.6 µm-wide filter.
 
-**Gaussian width is ambiguous.** DIRSIG's `channel.width` with `@shape=gaussian` is not documented as σ or FWHM; the descriptor requires FWHM. The factor is 2.3548. This is an open item, and until it closes every Gaussian-shaped channel in the catalog carries a possible 2.35× bandwidth error.
+**Gaussian width.** DIRSIG's `channel.width` with `@shape=gaussian` is σ (measured: CONOPS and Guide section 9, `tests/test_sensor_render.py`); the descriptor states FWHM, 2.3548 σ, and `platform_gen` writes `fwhm / 2.3548`. Settled since this document was drafted.
 
-**Units are asserted, not read.** Every descriptor dimensional field has a fixed UCUM unit. The platform file's `@spatialunits` does not resolve `aperturediameter` against `focallength` when they are written in different units, which the Auror values suggest they are. The extractor must impose a convention and the convention must be recorded, because nothing in the file supports it.
+**Units are asserted, not read.** Every descriptor dimensional field has a fixed UCUM unit. The platform file's `@spatialunits` does not resolve `aperturediameter` against `focallength` when they are written in different units, which the Auror values suggest they are. A convention must be imposed and recorded, because nothing in the file supports it: the SDK's generator imposes `aperturediameter` in metres and `focallength` in millimetres (`platform_gen`, CONOPS and Guide section 4).
 
 **The spatial response model does not survive.** `spatialresponse` (a sampled sub-element weighting grid), `psf` (image or parametric), and `distortion` together constitute DIRSIG's spatial transfer model. The descriptor carries `distortion` in full, and `mtf_at_nyquist_row` / `mtf_at_nyquist_column` as scalars. A sampled PSF grid reduces to two numbers, or to an `assetRef`.
 
@@ -306,8 +308,8 @@ So the descriptor is authored but not trusted. Fields with an extractor source a
 
 | Item | Effect if unresolved |
 |---|---|
-| Units of `aperturediameter` and `focallength` | f/# wrong by 10³; every derived GSD and Airy figure wrong |
-| Gaussian `width`: σ or FWHM | `bandwidth` wrong by 2.3548 on every Gaussian channel |
+| Units of `aperturediameter` and `focallength` | Settled in the SDK: metres and millimetres (`platform_gen`); f/# wrong by 10³ under any other reading |
+| Gaussian `width`: σ or FWHM | Settled: σ (CONOPS and Guide section 9); `bandwidth` would be wrong by 2.3548 otherwise |
 | Scene axis convention | `reference_frame.axis_convention` unsupported by the file |
 | Whether `radiometric_reference` may be optional | A sensor with no known calibration carries `quantity` and `unit` as `null` (CONOPS and Guide, C-20) |
 | Band and array-size columns for multi-entry, multi-channel systems | Common-core projection rule undefined |

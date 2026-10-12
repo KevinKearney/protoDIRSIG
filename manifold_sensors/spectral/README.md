@@ -8,7 +8,7 @@ sensor that references it; a measured curve is added under a new name, not over 
 
 ## Format `spectral-curve/1`
 
-UTF-8, LF line endings. Leading `#` lines carry `key: value` metadata (a line beginning `#   ` continues the
+UTF-8, LF line endings. The first line is `# spectral-curve/1`; the further leading `#` lines carry `key: value` metadata (a line beginning `#   ` continues the
 previous value). One header row, then data rows.
 
 | key | meaning |
@@ -31,8 +31,8 @@ Wavelength is strictly ascending; the grid may be non-uniform. Read with
 ## Range
 
 The synthetic curves span 0.150-14.000 um at 1 nm so any modeled bandpass lies inside `range_um`. A physical
-detector responds over a fraction of that range; the remainder is written as 0. The DIRSIG job bandpass is set
-from the sensor's nonzero support, not from `range_um`.
+detector responds over a fraction of that range; the remainder is written as 0. The DIRSIG job bandpass is the
+platform template's, not `range_um`; the generator refuses a channel with more than 0.1 % of its response outside it.
 
 ## Importing vendor or measured data
 
