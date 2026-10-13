@@ -165,7 +165,7 @@ Table: Resolved targets, small window. The last column divides a plate's flux cl
 
 Without a surface behind it, a sub-pixel plate is lost: the first path of a pixel that misses it reaches the earth core and ends the pixel's sampling. With the backstop, the labelled plate's pixels take 2000 paths each, and its flux closes to 0.9945 at 1.22 px across and 0.9945 at 0.61 px (Table 5). From 0.31 px down the image is a count of a few tens of hits or fewer, and the closure scatters between 0.705 and 0.817. Records of targets under 0.3 px across are excluded from the envelope below for that reason. Without the label a pixel takes at most 100 paths: the unlabelled plate reads 1.068 at 1.22 px and 1.068 at 0.61 px, 0.320 at 0.31 px, and nothing beyond.
 
-The sub-pixel position moves the closure by a few percent where the plate fills a third of a pixel or more: at 0.61 px, offsets of a quarter, a half and three quarters of a pixel from the pixel corner read 1.0205, 0.9667 and 0.9682. Seen off its normal, the 0.61 px plate centred on a pixel corner reads 0.9251 to 0.8750 of the closed form from 45 to 65 degrees, below it in every case, by 1.6 to 2.1 standard deviations of the hit count, and further below as the look grows. At 60 degrees, moved a quarter and a half of a pixel off the corner, it reads 0.9985 and 1.0188. The deficit is therefore a property of a target lying across pixel edges, not of the look angle; the unlabelled plate at the same geometry rests on too few hits (0.534) to separate an effect of the label.
+The sub-pixel position moves the closure by a few percent where the plate fills a third of a pixel or more: at 0.61 px, offsets of a quarter, a half and three quarters of a pixel from the pixel corner read 1.0205, 0.9667 and 0.9682. Seen off its normal, the 0.61 px plate centred on a pixel corner reads 0.9251 to 0.8750 of the closed form from 45 to 65 degrees, below it in every case, by 1.6 to 2.1 standard deviations of the hit count, and further below as the look grows (Figure 1). At 60 degrees, moved a quarter and a half of a pixel off the corner, it reads 0.9985 and 1.0188. The deficit is therefore a property of a target lying across pixel edges, not of the look angle; the unlabelled plate at the same geometry rests on too few hits (0.534) to separate an effect of the label.
 
 | Case | Range (km) | Side (px) | Look (deg) | Offset (px) | Labelled: flux closure | Unlabelled: flux closure | Under the envelope's floor |
 |---|---|---|---|---|---|---|---|
@@ -201,6 +201,8 @@ The sub-pixel position moves the closure by a few percent where the plate fills 
 
 Table: The 0.5 m plate. Range and offset cases are native renders at nadir; look cases use the small window.
 
+![Flux deficit against the look angle off the plate's normal: the 0.61 px plate centred on a pixel corner and moved off it, the 6.12 px plate, and the 24.48 px plate alone and against the barred background.](figures/look.png)
+
 The labelled 0.25 m sphere (0.61 px across) follows $\Phi(a)$ within its hit count (Table 6): 0.978 to 1.161 of the closed form, with the excess at large phase where the lit part of the disc is a few percent of it. Over seeds at reduced size its closure has a standard deviation of 0.04 at phase 0 and 0.24 at phase 150; with the path count of the focal plane fixed, the phase-150 render reads 0.996.
 
 | Phase (deg) | Closed form (full px) | Labelled: flux closure | Unlabelled: flux closure |
@@ -219,7 +221,7 @@ Table: The 0.25 m sphere at 25 km, native window.
 
 ## Motion and shutter blur
 
-Platform motion and target motion conserve the hyperresolved plate's flux to between 0.9980 and 1.0009 over exposures that sweep 0.12 to 24.48 px (Table 7). The two motions give the same ratios to four digits at every size, and the background streaks only under platform motion. The fitted streak reads 0.9743 to 0.9799 of $v\,t/g$ for sweeps of 6.12 to 24.48 px and plates of 6.12 to 24.48 px, independent of the plate's width. DIRSIG5 spreads ray times uniformly over the exposure and does not use the platform's temporal sample count: at 2 samples instead of 10 the image is identical.
+Platform motion and target motion conserve the hyperresolved plate's flux to between 0.9980 and 1.0009 over exposures that sweep 0.12 to 24.48 px (Table 7, Figure 2). The two motions give the same ratios to four digits at every size, and the background streaks only under platform motion. The fitted streak reads 0.9743 to 0.9799 of $v\,t/g$ for sweeps of 6.12 to 24.48 px and plates of 6.12 to 24.48 px, independent of the plate's width. DIRSIG5 spreads ray times uniformly over the exposure and does not use the platform's temporal sample count: at 2 samples instead of 10 the image is identical.
 
 Combined motion conserves the flux of the 24.48 px plate (1.0002) but not of smaller ones: 0.9865 at 6.12 px and 0.9633 at 3.06 px, where platform and target motion alone hold it to 0.8 %. The cause is not isolated.
 
@@ -251,6 +253,8 @@ A labelled sub-pixel plate moving across the field loses flux: 0.8727 at 1.22 px
 
 Table: Family II streaks and their SatSim controls. The closed-form sweep is $v\,t/g$; a sweep under 1 px reads long by the optics' spread.
 
+![Fitted sweep over the closed form against the exposure for every family II streak of at least 1 px, by motion, and the SatSim controls of the same streaks.](figures/streak.png)
+
 ## The sampling-effect envelope
 
 Table 8 groups the 110 DIRSIG records of targets at least 0.3 px across by size, motion and label, with the range of their deficits and the SatSim controls of the same geometries. 21 records are outside it: targets under 0.3 px, the look at 75 degrees, and the orbit point whose range is the element set's. Of its 21 rows, 4 hold every deficit within 1 %.
@@ -281,9 +285,13 @@ Table 8 groups the 110 DIRSIG records of targets at least 0.3 px across by size,
 
 Table: Deficits against the closed forms by target size in pixels, motion and label.
 
+Figure 3 shows the same records one by one. The spread narrows with size: under one pixel it is set by placement, the label and the hit count, from 2 px up by the edge pixels' sampling scatter, except under combined motion.
+
+![Flux closure of every DIRSIG record of a target at least 0.3 px across against its size in pixels, by motion; open markers are unlabelled targets. The band is ±1 %.](figures/size.png)
+
 # The SatSim control and the attribution of the deficits {#sec:satsim}
 
-SatSim models a target as a point (a Lambertian sphere of any diameter) or as a sprite carrying a stated flux, deposits it on a frame oversampled 15 times, and has no per-pixel ray sampling. Nine controls image the geometries of DIRSIG's deficits at the same window, with no optical spread (DIRSIG's specifications state none), with the target's flux from SatSim's sphere model or set by construction for a sprite (Table 9). Every control holds its flux to 6.3e-6, the floor SatSim applies to each pixel's count, and places the target within 0.085 px of its intended position.
+SatSim models a target as a point (a Lambertian sphere of any diameter) or as a sprite carrying a stated flux, deposits it on a frame oversampled 15 times, and has no per-pixel ray sampling. Nine controls image the geometries of DIRSIG's deficits at the same window, with no optical spread (DIRSIG's specifications state none), with the target's flux from SatSim's sphere model or set by construction for a sprite (Table 9, Figure 4). Every control holds its flux to 6.3e-6, the floor SatSim applies to each pixel's count, and places the target within 0.085 px of its intended position.
 
 | SatSim control | Flux closure | Centre offset (px) | Sweep / closed form | DIRSIG counterpart | DIRSIG flux closure | DIRSIG sweep / closed form |
 |---|---|---|---|---|---|---|
@@ -299,6 +307,8 @@ SatSim models a target as a point (a Lambertian sphere of any diameter) or as a 
 
 Table: SatSim controls and their DIRSIG counterparts.
 
+![Each SatSim control beside its DIRSIG counterpart: the flux closure and, for a streak, the fitted sweep over the closed form.](figures/satsim.png)
+
 The pixel-corner deficit is absent in SatSim: a point on the corner divides into four equal pixels and keeps its flux, and so does the 60 degree plate's rectangle across the four pixels' edges. DIRSIG's own plate moved off the corner holds the closed form. The deficit at the corner is therefore DIRSIG's sampling of a sub-pixel object lying across pixel edges; its mechanism inside the hypersampled sampling is not isolated.
 
 The streak shortfall is absent in SatSim, which reads 0.9942 to 0.9983 of the closed form through the same fit where DIRSIG reads 0.9743 to 0.9759. Controls outside the run-spec vocabulary, in which the assembled job's platform file fixes DIRSIG's path count per pixel, isolate the cause (Appendix B). At a fixed 1000 paths per pixel the sweep reads 0.9988 and 0.9983 at the two geometries. At a fixed 20 paths it reads 0.9874 and 0.9923 for two seeds, not the $(n-1)/n$ of a sweep sampled at $n$ instants. The shortfall goes with DIRSIG's adaptive stop, which ends a pixel's sampling between 20 and 100 paths; how it shortens the share of the ramp pixels is not isolated.
@@ -309,7 +319,7 @@ The flux lost by a moving sub-pixel object is absent in SatSim: the moving sprit
 
 With one rendering thread and a stated seed, DIRSIG5 repeats a render bit for bit. All 62 family I and II images rendered again on a later day carry the digest first recorded (62 of 62). Three jobs, each rendered under a fresh home directory, the same one again and the user's, give equal products in 3 of 3 cases with 0 writes to the home directory. Batches of up to 8 concurrent one-thread jobs give the single job's image in 8 of 8 batches. Two full one-thread renders of the install's LightCurve1 demonstration are identical in all 1,681 outputs.
 
-At more than one thread the result depends on the work's division (Table 10). A frame of 4,010,000 values from the same demonstration, rendered at one, two, four and the default thread count, gives two patterns. At two and four threads, values differ by at most 2.2e-6 relative, a few single-precision roundings from the order of summation; two renders at two threads were identical, two at four were not. At the default count, 4 to 13 of the 2,923 lit pixels drew other random samples and differ in many bands by up to 3.3 % of a value; the frame's sum moves by at most 1.4e-5 relative. In a sweep of the install's demonstrations at the default thread count, 43 of 125 gave different digests on repeat. One thread costs 3.1 to 3.7 times the default wall time. A seed alone does not make repeats identical; the thread count must be one, and it is part of the specification and of its run identifier.
+At more than one thread the result depends on the work's division (Table 10, Figure 5). A frame of 4,010,000 values from the same demonstration, rendered at one, two, four and the default thread count, gives two patterns. At two and four threads, values differ by at most 2.2e-6 relative, a few single-precision roundings from the order of summation; two renders at two threads were identical, two at four were not. At the default count, 4 to 13 of the 2,923 lit pixels drew other random samples and differ in many bands by up to 3.3 % of a value; the frame's sum moves by at most 1.4e-5 relative. In a sweep of the install's demonstrations at the default thread count, 43 of 125 gave different digests on repeat. One thread costs 3.1 to 3.7 times the default wall time. A seed alone does not make repeats identical; the thread count must be one, and it is part of the specification and of its run identifier.
 
 | Pair (threads: t1, t2, t4, default td) | Values differing | Pixels differing (of lit) | Largest relative difference | RMS difference / RMS signal | Image sum, relative | Class |
 |---|---|---|---|---|---|---|
@@ -325,6 +335,8 @@ At more than one thread the result depends on the work's division (Table 10). A 
 | td-a vs td-b | 2,756 | 13 of 2,923 | 3.3e-2 | 7.2e-4 | 1.4e-5 | sampling-noise |
 | td-a vs td-c | 1,882 | 9 of 2,923 | 3.1e-2 | 3.5e-4 | 3.0e-6 | sampling-noise |
 | td-b vs td-c | 2,540 | 12 of 2,923 | 3.3e-2 | 7.1e-4 | 1.1e-5 | sampling-noise |
+
+![Largest relative difference of a value of one LightCurve1 frame between two renders, by the thread counts of the pair and the class of the difference.](figures/determinism.png)
 
 Table: Value-by-value comparison of one frame of LightCurve1 between renders at one (`t1`), two (`t2`), four (`t4`) and the default (`td`) number of threads.
 

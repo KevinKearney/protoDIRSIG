@@ -3,6 +3,10 @@
 
     python scripts/study_build.py             write the data appendix, the tables and the manuscript
     python scripts/study_build.py --fields    print every field of the template with its value and record ids
+    python scripts/study_build.py --check     regenerate everything in memory and compare with the committed files; also
+                                              refuse a number in the template's prose that is not a field; exit 1 if not
+    python scripts/study_build.py --claims    print the claims map: each section's fields with their record ids and
+                                              commits (the study README's table)
 
 The data appendix (`docs/study/data/`) is written first: `study_records.jsonl` and `study_records.csv` consolidate the
 DIRSIG and SatSim records (`docs/data/s2s_results.jsonl`, `scripts/s2s_measure.py`) and the known-risk records
@@ -25,6 +29,9 @@ is `{{KIND:KEY|FORMAT}}`:
 - `k:RISK/ID:PATH` a value in a known-risk record's `measured` (`PATH` dotted);
 - `d:ID` a figure of `document_figures.csv`;
 - `c:NAME` a value computed here (`COMPUTED`), with the record ids it reads;
+- `fn:NAME` a figure's number, in the order of the template's image links `![caption](figures/NAME.png)`; each figure
+  (`FIGURES`) is written as `docs/study/figures/NAME.png` and `.pdf` (matplotlib, metadata without dates or versions,
+  so the bytes repeat);
 - `t:NAME` a table (`TABLES`), written to `docs/study/tables/NAME.md` and inlined; `n:NAME` its number, in the order
   of first appearance (pandoc numbers captioned tables in the same order).
 
@@ -54,6 +61,7 @@ import s2s_scenarios as s2s                                                    #
 STUDY = ROOT / "docs" / "study"
 DATA = STUDY / "data"
 TABLES_DIR = STUDY / "tables"
+FIGURES_DIR = STUDY / "figures"
 TEMPLATE = STUDY / "manuscript.template.md"
 MANUSCRIPT = STUDY / "manuscript.md"
 S2S = sm.RESULTS
@@ -882,6 +890,161 @@ TABLES = {"cases": t_cases, "tolerances": t_tolerances, "hyperresolved": t_hyper
 
 # --- the template ---------------------------------------------------------------------------------------------------
 
+# --- figures --------------------------------------------------------------------------------------------------------
+# Categorical slots in fixed order (the motion of a record), each with its own marker as a second encoding.
+MOTION_STYLE = {"fixed": ("#2a78d6", "o"), "tracked": ("#eb6834", "D"), "platform": ("#1baf7a", "s"),
+                "target": ("#eda100", "^"), "both": ("#e87ba4", "v")}
+INK, MUTED, GRID = "#1f1f1e", "#6b6a64", "#d9d8d2"
+
+
+def _plt():
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 8, "axes.edgecolor": MUTED,
+                         "axes.labelcolor": INK, "xtick.color": MUTED, "ytick.color": MUTED, "axes.grid": True,
+                         "grid.color": GRID, "grid.linewidth": 0.5, "axes.spines.top": False,
+                         "axes.spines.right": False, "legend.frameon": False, "svg.hashsalt": "study",
+                         "pdf.fonttype": 42})
+    return plt
+
+
+def f_size(st, plt):
+    """Flux closure against target size in pixels, by motion; labelled filled, unlabelled open."""
+    fig, ax = plt.subplots(figsize=(6.0, 3.6))
+    ax.axhspan(1 - env.QUIET, 1 + env.QUIET, color=GRID, alpha=0.6, lw=0, zorder=0)
+    for motion, (col, mk) in MOTION_STYLE.items():
+        for lab in (True, False):
+            pts = [(a["size_px"], r["ratio"]) for r, a, key, why in st.rows
+                   if not why and a["motion"] == motion and a["labelled"] == lab]
+            if pts:
+                x, y = zip(*pts)
+                ax.scatter(x, y, s=22, marker=mk, facecolors=col if lab else "white", edgecolors=col, linewidths=1.0,
+                           label=f"{motion}{'' if lab else ', unlabelled'}", zorder=3)
+    ax.set_xscale("log")
+    ax.set_xlabel("target size (pixels across)")
+    ax.set_ylabel("flux closure (measured / closed form)")
+    ax.set_ylim(0.6, 1.4)
+    ax.legend(loc="upper right", ncol=2, fontsize=7)
+    return fig
+
+
+def f_look(st, plt):
+    """Deficit against look angle: the sub-pixel plate on and off the pixel corner, the resolved and hyperresolved plates."""
+    fig, ax = plt.subplots(figsize=(6.0, 3.4))
+    series = [
+        ("0.61 px plate, pixel corner", "#2a78d6", "o", [f"s2s-unresolved-r25km-v0mps-e5ms-l{a}-z0-d0-w64"
+                                                         for a in (0, 15, 45, 50, 55, 60, 65)]),
+        ("0.61 px plate, off the corner", "#eb6834", "s", OFF_CORNER),
+        ("6.12 px plate", "#1baf7a", "^", ["s2s-hyperresolved-r100km-v0mps-e5ms-l0-z0-d0-w64",
+                                           "s2s-hyperresolved-r100km-v0mps-e5ms-l60-z0-d0-w64",
+                                           "s2s-hyperresolved-r100km-v0mps-e5ms-l60-z0-d0p5-w64"]),
+        ("24.48 px plate", "#eda100", "D", ["s2s-hyperresolved-r25km-v0mps-e5ms-l0-z0-d0",
+                                            "s2s-hyperresolved-r25km-v0mps-e5ms-l30-z0-d0",
+                                            "s2s-hyperresolved-r25km-v0mps-e5ms-l60-z0-d0",
+                                            "s2s2-look-l0", "s2s2-look-l15", "s2s2-look-l30", "s2s2-look-l45",
+                                            "s2s2-look-l60"]),
+    ]
+    for label, col, mk, specs in series:
+        x = [st.index[s]["look_deg"] for s in specs]
+        y = [100 * (1 - st.ratio(s)) for s in specs]
+        ax.scatter(x, y, s=24, marker=mk, color=col, label=label, zorder=3)
+    ax.axhline(0, color=MUTED, lw=0.8)
+    ax.set_xlabel("look angle off the plate's normal (degrees)")
+    ax.set_ylabel("flux deficit (%)")
+    ax.legend(loc="upper left", fontsize=7)
+    return fig
+
+
+def f_streak(st, plt):
+    """Fitted sweep over the closed form against exposure, by motion; SatSim controls open."""
+    fig, ax = plt.subplots(figsize=(6.0, 3.4))
+    for s in _blur_rows(st):
+        sl = measurement(st.s2s[s], "streak_length")
+        if not sl["expected"] or sl["expected"] < env.MIN_SWEEP_PX:
+            continue
+        motion = {"platform": "platform", "target": "target", "both": "both"}[st.index[s]["group"]]
+        col, mk = MOTION_STYLE[motion]
+        ax.scatter(st.index[s]["exposure_s"] * 1000, sl["ratio"], s=24, marker=mk, color=col, zorder=3)
+    for motion in ("platform", "target", "both"):
+        col, mk = MOTION_STYLE[motion]
+        ax.scatter([], [], s=24, marker=mk, color=col, label=f"DIRSIG, {motion} motion")
+    for ctl in SATSIM_STREAKS:
+        ax.scatter(st.index[ctl]["exposure_s"] * 1000, st.ratio(ctl, "streak_length"), s=40, marker="o",
+                   facecolors="white", edgecolors=INK, linewidths=1.0, zorder=4)
+    ax.scatter([], [], s=40, marker="o", facecolors="white", edgecolors=INK, label="SatSim control")
+    ax.axhline(1, color=MUTED, lw=0.8)
+    ax.set_xscale("log")
+    ax.set_xlabel("exposure (ms)")
+    ax.set_ylabel("fitted sweep / closed form")
+    ax.legend(loc="lower left", fontsize=7)
+    return fig
+
+
+def f_satsim(st, plt):
+    """Each SatSim control beside its DIRSIG counterpart: flux closure, and the sweep for a streak."""
+    rows = []
+    for s, r in sorted(st.s2s.items()):
+        if r["family"] != "satsim":
+            continue
+        spec = yaml.safe_load((s2s.OUT / f"{s}.yaml").read_text())
+        cp = spec["descriptor"]["extras"]["s2s.engine_counterpart"]
+        label = s.replace("s2s-satsim-ctl-", "").replace("-w64", "")
+        rows.append((label + " (flux)", r["ratio"], st.ratio(cp)))
+        if s in SATSIM_STREAKS:
+            rows.append((label + " (sweep)", st.ratio(s, "streak_length"), st.ratio(cp, "streak_length")))
+    fig, ax = plt.subplots(figsize=(6.0, 0.28 * len(rows) + 0.9))
+    for i, (label, sat, dsg) in enumerate(rows):
+        ax.plot([sat, dsg], [i, i], color=GRID, lw=2, zorder=1)
+        ax.scatter(dsg, i, s=30, marker="o", color="#2a78d6", zorder=3, label="DIRSIG" if i == 0 else None)
+        ax.scatter(sat, i, s=30, marker="s", color="#eb6834", zorder=3, label="SatSim" if i == 0 else None)
+    ax.set_yticks(range(len(rows)), [r[0] for r in rows], fontsize=6.5)
+    ax.invert_yaxis()
+    ax.axvline(1, color=MUTED, lw=0.8)
+    ax.set_xlabel("measured / closed form")
+    ax.legend(loc="lower left", fontsize=7)
+    return fig
+
+
+def f_determinism(st, plt):
+    """Largest relative difference of one LightCurve1 frame between two renders, by thread counts."""
+    pairs = [(k, v["measured"]) for k, v in st.risk.items() if k.startswith("E/")]
+    cls = {"identical": ("#1baf7a", "o"), "float-order": ("#2a78d6", "s"), "sampling-noise": ("#eb6834", "^")}
+    fig, ax = plt.subplots(figsize=(6.0, 3.2))
+    floor = 1e-9
+    for i, (k, m) in enumerate(pairs):
+        col, mk = cls[m["class"]]
+        ax.scatter(i, max(m["max_rel"], floor), s=30, marker=mk, color=col, zorder=3)
+    for c, (col, mk) in cls.items():
+        ax.scatter([], [], s=30, marker=mk, color=col, label=c + (" (plotted at 1e-9)" if c == "identical" else ""))
+    ax.set_yscale("log")
+    ax.set_xticks(range(len(pairs)), [m["pair"] for _, m in pairs], rotation=45, ha="right", fontsize=6.5)
+    ax.set_ylabel("largest relative difference of a value")
+    ax.legend(loc="upper left", fontsize=7)
+    return fig
+
+
+FIGURES = {"size": f_size, "look": f_look, "streak": f_streak, "satsim": f_satsim, "determinism": f_determinism}
+
+
+def figure_bytes(st):
+    """{path: bytes} of every figure, PNG and PDF."""
+    import io
+    plt = _plt()
+    out = {}
+    for name, fn in FIGURES.items():
+        fig = fn(st, plt)
+        fig.tight_layout()
+        for ext, meta in (("png", {"Software": None}), ("pdf", {"Creator": None, "Producer": None,
+                                                                 "CreationDate": None})):
+            buf = io.BytesIO()
+            fig.savefig(buf, format=ext, dpi=200, metadata=meta)
+            out[FIGURES_DIR / f"{name}.{ext}"] = buf.getvalue()
+        plt.close(fig)
+    return out
+
+
+FIGURE_LINK = r"\]\(figures/([a-z_]+)\.png\)"
 FIELD = re.compile(r"\{\{([a-z]+):([^|}]+)(?:\|([^}]*))?\}\}")
 
 
@@ -912,6 +1075,8 @@ def resolve(st, kind, key, spec, comp):
         return TABLES[key](st), [f"table:{key}"]
     if kind == "n":
         return str(comp["_numbers"][key]), [f"table:{key}"]
+    if kind == "fn":
+        return str(comp["_fig_numbers"][key]), [f"figure:{key}"]
     raise ValueError(f"unknown field kind {kind!r}")
 
 
@@ -919,10 +1084,12 @@ def render(st, template=None):
     """(manuscript text, [(section, field, value, ids)])."""
     template = TEMPLATE.read_text() if template is None else template
     comp = computed(st)
+    comp["_fig_numbers"] = {name: i for i, name in enumerate(dict.fromkeys(re.findall(FIGURE_LINK, template)),
+                                                                      1)}
     comp["_numbers"] = {name: i for i, name in enumerate(dict.fromkeys(re.findall(r"\{\{t:([a-z_]+)", template)), 1)}
     used = []
     out = []
-    section = ""
+    section = "Abstract"                                                        # the metadata block holds it
     for line in template.splitlines(keepends=True):
         if line.startswith("#"):
             section = re.sub(r"\s*\{#[^}]*\}", "", line.strip("# \n"))
@@ -966,20 +1133,118 @@ def stray_numbers(template=None):
     return out
 
 
+CLAIMS = STUDY / "claims.md"
+LATEX_SOURCE = STUDY / "manuscript.latex.md"
+# Unicode in the manuscript's prose that a LaTeX build needs as math (outside math and code spans).
+UNICODE_MATH = {"µ": r"$\mu$", "σ": r"$\sigma$", "θ": r"$\theta$", "Φ": r"$\Phi$", "Λ": r"$\Lambda$", "×": r"$\times$",
+                "±": r"$\pm$", "−": r"$-$", "″": r"$''$", "°": r"$^\circ$", "≥": r"$\geq$", "≤": r"$\leq$",
+                "√": r"$\surd$", "⁻": r"$^{-}$", "²": r"$^{2}$", "π": r"$\pi$"}
+
+
+def latex_source(text):
+    """The manuscript with UNICODE_MATH replaced outside math and code spans."""
+    parts = re.split(r"(\$\$.*?\$\$|\$[^$\n]+\$|`[^`\n]*`)", text, flags=re.S)
+    for i in range(0, len(parts), 2):
+        for u, tex in UNICODE_MATH.items():
+            parts[i] = parts[i].replace(u, tex)
+    return "".join(parts)
+
+
+def claims_doc(st):
+    rows = [(section, f"{len(recs)}: " + ", ".join(f"`{r}`" for r in recs[:8]) + (" and more" if len(recs) > 8 else ""),
+             ", ".join(dfs) or "-", ", ".join(commits) or "-") for section, recs, dfs, commits in claims(st)]
+    return (GENERATED.format(src="the manuscript's fields") + "# Claims map\n\n"
+            "Each section of [the manuscript](manuscript.md), the records its numbers read "
+            "([`data/study_records.jsonl`](data/study_records.jsonl), by id), the figures it cites from "
+            "[`data/document_figures.csv`](data/document_figures.csv), and the commits that added them.\n\n"
+            + md_table(("Section", "Records", "Committed figures", "Commits"), rows))
+
+
 def outputs(st):
-    """{path: text} of every generated file but the data appendix."""
+    """{path: text} of every generated file but the data appendix and the figures."""
     out = {}
     for name, fn in TABLES.items():
         out[TABLES_DIR / f"{name}.md"] = GENERATED.format(src="the records") + fn(st)
     text, _ = render(st)
     out[MANUSCRIPT] = text
+    out[LATEX_SOURCE] = latex_source(text)
+    out[CLAIMS] = claims_doc(st)
     return out
+
+
+def referenced(text=None):
+    """(table names, figure names) the manuscript's template names."""
+    text = TEMPLATE.read_text() if text is None else text
+    return (sorted(set(re.findall(r"\{\{t:([a-z_]+)", text))), sorted(set(re.findall(FIGURE_LINK, text))))
+
+
+def claims(st):
+    """[(section, [record ids], [commits])] of the manuscript: what each section's numbers read."""
+    commit = {r["id"]: r["commit"] for r in st.data}
+    docs = {k: v["commit"] for k, v in st.doc.items()}
+    _, used = render(st)
+    out = {}
+    for section, field, _, ids in used:
+        if field.startswith(("{{t:", "{{n:", "{{fn:")):
+            continue
+        out.setdefault(section, set()).update(ids)
+    rows = []
+    for section, ids in out.items():
+        recs = sorted(i for i in ids if not i.startswith("doc:"))
+        dfs = sorted(i[4:] for i in ids if i.startswith("doc:"))
+        commits = sorted({commit[i] for i in recs if commit.get(i)} | {docs[d] for d in dfs if docs.get(d)})
+        rows.append((section, recs, dfs, commits))
+    return rows
+
+
+def check():
+    """[problem] of the committed study against a regeneration in memory."""
+    problems = [f"manuscript.template.md:{i}: a number outside a field: {line[:100]}" for i, line in stray_numbers()]
+    rows = consolidate()
+    for path, text in data_files(rows).items():
+        if not path.exists() or path.read_text() != text:
+            problems.append(f"{path.relative_to(ROOT)}: stale (python scripts/study_build.py)")
+    committed = load_consolidated() if STUDY_JSONL.exists() else []
+    if [r["commit"] for r in committed] != [r["commit"] for r in rows]:
+        problems.append("study_records.jsonl: a record's commit differs from the history")
+    st = Study(json.loads(json.dumps(rows)))
+    for path, text in outputs(st).items():
+        if not path.exists() or path.read_text() != text:
+            problems.append(f"{path.relative_to(ROOT)}: stale (python scripts/study_build.py)")
+    for path, data in figure_bytes(st).items():
+        if not path.exists() or path.read_bytes() != data:
+            problems.append(f"{path.relative_to(ROOT)}: stale (python scripts/study_build.py)")
+    tables, figures = referenced()
+    for t in tables:
+        if not (TABLES_DIR / f"{t}.md").exists():
+            problems.append(f"table {t}: referenced and absent")
+    for f in figures:
+        if f not in FIGURES:
+            problems.append(f"figure {f}: linked and not generated")
+        for ext in ("png", "pdf"):
+            if not (FIGURES_DIR / f"{f}.{ext}").exists():
+                problems.append(f"figure {f}.{ext}: referenced and absent")
+    return problems
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--fields", action="store_true", help="print every field with its value and record ids")
+    ap.add_argument("--check", action="store_true", help="compare with the committed files; exit 1 on a difference")
+    ap.add_argument("--claims", action="store_true", help="print the claims map (section, records, commits)")
     args = ap.parse_args(argv)
+    if args.check:
+        problems = check()
+        for pr in problems:
+            print(pr, file=sys.stderr)
+        n = len(load_consolidated()) if STUDY_JSONL.exists() else 0
+        print(f"study_build: {n} records, {len(TABLES)} tables, {len(FIGURES)} figures, {len(problems)} problems")
+        return 1 if problems else 0
+    if args.claims:
+        for section, recs, dfs, commits in claims(Study()):
+            print(f"| {section} | {len(recs)}: {', '.join(recs[:6])}{' ...' if len(recs) > 6 else ''} | "
+                  f"{', '.join(dfs) or '-'} | {', '.join(commits)} |")
+        return 0
     stray = stray_numbers()
     if stray:
         for i, line in stray:
@@ -1000,7 +1265,11 @@ def main(argv=None):
     for path, text in outputs(st).items():
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
-    print(f"wrote {len(rows)} consolidated records, {len(TABLES)} tables and {MANUSCRIPT.relative_to(ROOT)}")
+    for path, data in figure_bytes(st).items():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+    print(f"wrote {len(rows)} consolidated records, {len(TABLES)} tables, {len(FIGURES)} figures and "
+          f"{MANUSCRIPT.relative_to(ROOT)}")
     return 0
 
 

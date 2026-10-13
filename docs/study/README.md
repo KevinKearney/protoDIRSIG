@@ -6,7 +6,12 @@ The study writes up the DIRSIG5 space-to-space characterization (`docs/Space_to_
 |---|---|---|
 | [`manuscript.template.md`](manuscript.template.md) | the manuscript's prose with named fields (`{{KIND:KEY}}`, with an optional format after a bar) | hand |
 | [`manuscript.md`](manuscript.md) | the manuscript (pandoc markdown, LaTeX math), fields filled and tables inlined | `scripts/study_build.py` |
+| `manuscript.pdf`, `manuscript.docx` | the manuscript built with pandoc (below) | pandoc |
 | [`tables/`](tables) | every table, one markdown file each | `scripts/study_build.py` |
+| [`figures/`](figures) | every figure, PNG and PDF | `scripts/study_build.py` |
+| [`build/`](build) | the LaTeX route (`template.latex`, pandoc's default with the study's patch) and the Typst route's `typst-header.typ` | hand |
+| [`manuscript.latex.md`](manuscript.latex.md) | the manuscript with its Unicode math as LaTeX, for the LaTeX route | `scripts/study_build.py` |
+| [`claims.md`](claims.md) | each section's numbers mapped to their record ids and commits | `scripts/study_build.py` |
 | [`data/study_records.jsonl`](data/study_records.jsonl), [`data/study_records.csv`](data/study_records.csv) | every s2s and known-risk record in one stable column set, with its commit and how to regenerate it | `scripts/study_build.py` |
 | [`data/document_figures.csv`](data/document_figures.csv) | figures the committed characterization and determinism documents state and no record holds (scratch controls, truth renders, counts), each with its document and commit | hand |
 | [`data/log_figures.csv`](data/log_figures.csv) | figures of rounds 29 to 41 that no committed document states, each with the commit whose working notes hold it (not cited by the manuscript) | hand |
@@ -25,6 +30,8 @@ Every record's `reproduce` entry in `data/study_records.jsonl` names the spec, t
 python scripts/s2s_measure.py run s2s-hyperresolved-r25km-v0mps-e5ms-l0-z0-d0 --work ~/s2s-work
 python scripts/s2s_measure.py --check
 python scripts/study_build.py
+python scripts/study_build.py --check
+python scripts/study_build.py --check
 ```
 
 The harness renders the committed spec through `Simulation.run` at one thread and seed 1 and replaces the record in `docs/data/s2s_results.jsonl`; a one-thread render repeats bit for bit, so a regenerated record carries the same image digest. A record whose source is a `--workspace` folder was rendered through the SDK API; its command adds `--via workspace`.
@@ -54,6 +61,34 @@ The measurements deferred to a larger host, which are not records yet, are the e
 | `forest-layered-comparison` | each render takes more than the 150 s the comparison allows (estimated 525 s, 5 renders) |
 | `sweep-capped-demos` | demos that exceeded the sweep's 1800 s cap, at the host's default thread count |
 
+## Rebuilding the manuscript
+
+From `docs/study/`, after `python scripts/study_build.py` (from the repository root).
+
+PDF through LaTeX, with the patched template (`build/template.latex`: pandoc 3.8's default LaTeX template with the study's patch, marked `% study patch`) and the manuscript's Unicode math converted to LaTeX (`python scripts/study_build.py` also writes `manuscript.latex.md`, the manuscript with µ, σ, θ, Φ, ×, ± and the like as LaTeX math):
+
+```
+pandoc manuscript.latex.md -o manuscript.pdf --pdf-engine=xelatex --template=build/template.latex
+```
+
+No TeX distribution is installed on the relay host, so that command was not run. The committed `manuscript.pdf` was built through Typst (pandoc's `typst` writer and the Typst 0.15 binary that Quarto bundles):
+
+```
+pandoc manuscript.md -s -t typst -V mainfont="DejaVu Serif" -V fontsize=10pt --include-in-header=build/typst-header.typ -o _build.typ
+typst compile --root . _build.typ manuscript.pdf
+rm _build.typ
+```
+
+(`pandoc --pdf-engine=typst` in one step fails here: pandoc extracts the figures to a temporary folder outside Typst's root. `build/typst-header.typ` lets long tables break across pages.)
+
+DOCX:
+
+```
+pandoc manuscript.md -o manuscript.docx
+```
+
+Verification: with LibreOffice, `soffice --headless --convert-to pdf manuscript.docx` and `pdftoppm -png -r 60 manuscript.pdf page` to look at the pages. LibreOffice is not installed on the relay host; the DOCX was checked by converting it back with `pandoc manuscript.docx -t plain` and comparing its text with the manuscript's.
+
 ## References to supply
 
 The manuscript cites only the DIRSIG5 documentation, SatSim and standard radiometry, without bibliographic detail; none can be verified offline. To be supplied:
@@ -63,3 +98,7 @@ The manuscript cites only the DIRSIG5 documentation, SatSim and standard radiome
 - a radiometry text for the Lambertian sphere's phase function and the radiance of a Lambertian surface;
 - the SGP4 reference used by the platform's orbit propagation;
 - the author list and affiliations.
+
+## Claims map
+
+[`claims.md`](claims.md) lists, for each section of the manuscript, the record ids its numbers read, the committed figures it cites from `data/document_figures.csv`, and the commits that added them. `python scripts/study_build.py --claims` prints the same.
