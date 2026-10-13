@@ -86,3 +86,17 @@ def test_risk_d_dirsig_refuses_no_multi_capture_job_and_only_the_first_capture_r
     t2 = recs["thermal2-reduced"]["measured"]
     assert t2["reversed"]["rc"] != 0 and any("bad_alloc" in e for e in t2["reversed"]["errors"])
     assert "used twice" in recs["s2s-500px-four-windows"]["measured"]["error"]
+
+
+def test_risk_e_default_threads_resample_a_few_pixels_while_fixed_counts_differ_by_summation_order_only():
+    recs = {r["measured"]["pair"]: r["measured"] for r in of("E")}
+    default = [m for p, m in recs.items() if "td-" in p]
+    fixed = [m for p, m in recs.items() if "td-" not in p]
+    assert default and fixed
+    for m in default:
+        assert m["class"] == "sampling-noise" and m["fraction_differing"] < 1e-3 and m["image_sum_rel_diff"] < 2e-5
+        assert m["outputs_differing"] == ["cube_150.img", "lightcurve.dat"]
+    for m in fixed:
+        assert m["class"] in ("identical", "float-order") and m["max_rel"] <= 1e-5
+        assert set(m["outputs_differing"]) <= {"cube_150.img"}
+    assert recs["t2-a vs t2-b"]["differing"] == 0

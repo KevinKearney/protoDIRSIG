@@ -92,7 +92,27 @@ Ssa1 is deterministic: three renders, the sweep's and two about 12 hours later, 
 | `lightcurve.dat` | sweep, repeat 2, one thread (both) | 53,650 | `d59ad682cbfb1575d9eb8175d098add15529e1a6c1f612e967c07ae7d6db84f5` |
 | `lightcurve.dat` | repeat 1 (default threads) | 53,650 | `6ceb9e248a692a3d1743fe2ddbf272604a69372efd486bcca8f08b2426f675b2` |
 
-So, for LightCurve1, one thread is bit-identical across repeats, as for the probe's radiance demos. The default-thread files were deleted after hashing, so the byte-level nature of their differences (accumulation order or a different random draw) cannot be classified; the one-thread pair has no difference to classify. Whether the one-thread `cube_150.img` lies within the default-thread spread is not measured.
+So, for LightCurve1, one thread is bit-identical across repeats, as for the probe's radiance demos. The default-thread files were deleted after hashing, so the byte-level nature of their differences (accumulation order or a different random draw) could not be classified here (it is classified in the section below); the one-thread pair has no difference to classify. Whether the one-thread `cube_150.img` lies within the default-thread spread is not measured.
+
+## LightCurve1's `cube_150.img` by thread count
+
+Measured outside the repository and recorded in `docs/data/risk_measurements.jsonl` (risk E, one record per pair). LightCurve1's `box_spin.jsim` was cut to its first 151 samples (`sample_count` and `duration` 151; the plugin samples at 0.5 to 150.5 s, the full demo at 0.5 to 839.5 s, so `cube_150.img` is the same instant in both): at one thread the cut render's `cube_150.img` has the full one-thread render's digest (`666dae50...`, above), so the cut reproduces the frame. A single sample at 150.5 s alone does not: as in multi-capture jobs, one random stream runs through the whole run, so a frame depends on the frames before it. Renders: one at one thread, two each at 2 and 4 threads, three at DIRSIG's default (8 on this 4-core, 8-thread host), the default seed, one at a time; 329, 187, 123 and 108 s per render.
+
+| Pair | Values differing (of 4,010,000) | Pixels differing (2,923 lit of 10,000) | Max abs | Max rel | RMS diff / RMS signal | Image sum, rel | Light curve, rel | Class |
+|---|---|---|---|---|---|---|---|---|
+| 1 vs default (three renders) | 1,122 to 2,110 | 4 to 11 | 4.6e-6 to 1.5e-5 | 1.6e-2 to 3.4e-2 | 2.3e-4 to 6.7e-4 | 4.4e-6 to 7.4e-6 | 7.0e-7 to 1.1e-6 | `sampling-noise` |
+| default vs default (three pairs) | 1,882 to 2,756 | 9 to 13 | 5.1e-6 to 1.5e-5 | 3.1e-2 to 3.4e-2 | 3.5e-4 to 7.2e-4 | 3.0e-6 to 1.4e-5 | 4.2e-7 to 2.1e-6 | `sampling-noise` |
+| 2 vs 2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | identical |
+| 1 vs 2 | 19 | 1 | 1.5e-11 | 1.1e-7 | 1.8e-10 | 8.1e-13 | 0 | `float-order` |
+| 4 vs 4, 1 vs 4, 2 vs 4 | 27 to 666 | 1 to 3 | 2.9e-11 to 9.3e-10 | 1.1e-7 to 2.2e-6 | up to 4.2e-8 | up to 8.3e-10 | 0 | `float-order` |
+
+Findings:
+
+1. Only `cube_150.img` (and at the default count the light-curve table summarizing it) differs; the other 150 frames were bit-identical across all eight renders and all four thread counts, as 1,679 of 1,681 outputs were in the long repeats above.
+2. Two patterns. At 2 and 4 threads the differences are at most 2.2e-6 of a value, a few single-precision roundings: summation order. At the default count a handful of pixels (4 to 13, 0.14 to 0.44 % of the lit pixels) differ in many bands by up to 3.4 % of a value: those pixels drew other random samples, as `NestedMotion1` did. The image sum and the light-curve value move by at most 1.4e-5 and 2.1e-6 relative.
+3. Two threads repeated bit for bit here; four did not. One thread is the only count that repeated in every probe.
+
+A bound a downstream consumer can use, from these renders (observed, not guaranteed; a factor 3, as the recommendation below proposes for noise floors, gives the second figure): for this frame at the default thread count, any value may differ by up to 3.4 % (10 %) in at most 0.07 % of values (0.2 %), the frame's sum by 1.4e-5 (4.2e-5) and the light curve by 2.1e-6 (6.3e-6) relative; at a fixed thread count other than one, values by 2.2e-6 (6.6e-6) relative. Products found bit-identical at the default thread count: 82 of the sweep's 125 demos on repeat (section "Results" and the demo sweep), Ssa1's outputs, 1,679 of LightCurve1's 1,681 outputs, and here LightCurve1's other 150 frames.
 
 ## Recommendation for a layered-versus-reference test
 
