@@ -8,3 +8,4 @@
 - baseline suite at b2e2c86, alone, no edits: 1736 passed, 2 skipped (7 min 58 s)
 - RESUME session preflight: 2026-10-12T22:53:30-04:00; deadline 2026-10-13T02:53:30-04:00 (4 h from this session's preflight); `git stash pop` of r33-partial clean, HEAD b2e2c86, uncommitted files exactly those RESUME names
 - previous session's exit 137: kernel log 19:30:48 global OOM killed dirsig5 pid 1092564 (Thermal2 reduced-size, step D) total-vm 13170604 kB, anon-rss 5558920 kB; MemTotal 11511308 kB, SwapTotal 4194300 kB; the gate-A suite (pytest) was running beside it (log stops at 70 %), against the one-render rule
+- final gate: 1744 passed, 2 skipped; 13 checks 0; core/snapshot diff empty

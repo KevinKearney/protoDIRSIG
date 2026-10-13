@@ -100,3 +100,12 @@ def test_risk_e_default_threads_resample_a_few_pixels_while_fixed_counts_differ_
         assert m["class"] in ("identical", "float-order") and m["max_rel"] <= 1e-5
         assert set(m["outputs_differing"]) <= {"cube_150.img"}
     assert recs["t2-a vs t2-b"]["differing"] == 0
+
+
+def test_the_conops_decisions_index_carries_each_risk_measured():
+    conops = (ROOT / "docs" / "MANIFOLD_DIRSIG_CONOPS_and_Guide.md").read_text()
+    index = conops.split("### 10.1 Decisions needed", 1)[1]
+    for row in ("| C-28 |", "| C-30 |", "| C-43 |", "| Layered jobs run with the user's `HOME`", "| A collection mode for a cancelled DIRSIG run"):
+        line = next(l for l in index.splitlines() if l.startswith(row))
+        assert "round 33" in line.lower() or "Round 33" in line, row
+    assert {r["risk"] for r in RECORDS} == set("ABCDE")
