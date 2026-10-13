@@ -66,6 +66,9 @@ Source: `docs/data/s2s_results.jsonl` (one record per DIRSIG spec measured; `pyt
 | `s2s-hyperresolved-r25km-v0mps-e20ms-l0-z0-d0` | 25 | 20 | 0 | 0 | 599.84 | 599.27 | 1.00095 | 0.9612 | 1 |
 | `s2s-hyperresolved-r50km-v0mps-e5ms-l0-z0-d0` | 50 | 5 | 0 | 0 | 150.62 | 149.818 | 1.00536 | 0.9612 | 1 |
 | `s2s-hyperresolved-r100km-v0mps-e5ms-l0-z0-d0` | 100 | 5 | 0 | 0 | 37.76 | 37.4544 | 1.00816 | 0.9612 | 1 |
+| `s2s-hyperresolved-r100km-v0mps-e5ms-l0-z0-d0-w64` | 100 | 5 | 0 | 0 | 37.62 | 37.4544 | 1.00442 | 0.9612 | 1 |
+| `s2s-hyperresolved-r100km-v0mps-e5ms-l30-z30-d0-w64` | 100 | 5 | 30 | 30 | 27.947 | 28.0908 | 0.99488 | 1.11 | 1.00001 |
+| `s2s-hyperresolved-r100km-v0mps-e20ms-l0-z0-d0-w64` | 100 | 20 | 0 | 0 | 37.62 | 37.4544 | 1.00442 | 0.9612 | 1 |
 <!-- end generated: flux -->
 
 **Unresolved objects (families I and III).** The labelled (`::IMPORTANT::`) objects stand in front of a black backstop. Without a surface behind it a sub-pixel object renders zero: DIRSIG's earth core ends a pixel's sampling at its first path to it (the characterization document, family II, C1). Where the plate fills more than about a third of a pixel the flux follows R⁻²; below that the estimate is a hit count.
@@ -74,6 +77,7 @@ Source: `docs/data/s2s_results.jsonl` (one record per DIRSIG spec measured; `pyt
 | Spec | Target | `::IMPORTANT::` | Point | Equivalent px | Expected px | Ratio |
 |---|---|---|---|---|---|---|
 | `s2s-unresolved-r12p5km-v0mps-e5ms-l0-z0-d0` | 0.5 m plate | yes | 12.5 km, offset 0 px, 5 ms, look 0, zenith 0 | 1.49 | 1.4982 | 0.99446 |
+| `s2s-unresolved-r12p5km-v1000mps-e5ms-l0-z0-d0-w64` | 0.5 m plate | yes | 12.5 km, offset 0 px, 5 ms, look 0, zenith 0, 1000 m/s | 1.307 | 1.4982 | 0.87271 |
 | `s2s-unresolved-r12p5km-v0mps-e5ms-l0-z0-d0p25` | 0.5 m plate | yes | 12.5 km, offset 0.25 px, 5 ms, look 0, zenith 0 | 1.467 | 1.4982 | 0.97937 |
 | `s2s-unresolved-r12p5km-v0mps-e5ms-l0-z0-d0p5` | 0.5 m plate | yes | 12.5 km, offset 0.5 px, 5 ms, look 0, zenith 0 | 1.502 | 1.4982 | 1.00285 |
 | `s2s-unresolved-r12p5km-v0mps-e5ms-l0-z0-d0p75` | 0.5 m plate | yes | 12.5 km, offset 0.75 px, 5 ms, look 0, zenith 0 | 1.485 | 1.4982 | 0.99144 |
@@ -180,14 +184,17 @@ Source: `docs/data/s2s_results.jsonl` (one record per DIRSIG spec measured; `pyt
 | `s2s3-background-z60` | background | 60 | 0 | 60 | 191.504 | 191.09 | 1.00217 | 1.00006 |
 | `s2s3-background-z75` | background | 75 | 0 | 75 | 144.219 | 143.849 | 1.00258 | 1.00015 |
 | `s2s3-phase-hyperresolved-a0-l0-z0` | hyperresolved | 0 | 0 | 0 | 314.14 | 313.777 | 1.00116 | — |
+| `s2s3-phase-hyperresolved-a0-r100km-l0-z0-w64` | hyperresolved | 0 | 0 | 0 | 19.5123 | 19.6111 | 0.99496 | — |
 | `s2s3-phase-hyperresolved-a20-l10-z10` | hyperresolved | 20 | 10 | 10 | 296.611 | 296.253 | 1.00121 | — |
 | `s2s3-phase-hyperresolved-a40-l20-z20` | hyperresolved | 40 | 20 | 20 | 251.618 | 251.153 | 1.00185 | — |
 | `s2s3-phase-hyperresolved-a60-l0-z60` | hyperresolved | 60 | 0 | 60 | 191.427 | 191.09 | 1.00176 | — |
 | `s2s3-phase-hyperresolved-a60-l30-z30` | hyperresolved | 60 | 30 | 30 | 191.4 | 191.09 | 1.00163 | — |
+| `s2s3-phase-hyperresolved-a60-r100km-l30-z30-w64` | hyperresolved | 60 | 30 | 30 | 11.9779 | 11.9431 | 1.00291 | — |
 | `s2s3-phase-hyperresolved-a60-l60-z0` | hyperresolved | 60 | 60 | 0 | 191.382 | 191.09 | 1.00153 | — |
 | `s2s3-phase-hyperresolved-a80-l40-z40` | hyperresolved | 80 | 40 | 40 | 128.841 | 128.631 | 1.00163 | — |
 | `s2s3-phase-hyperresolved-a100-l50-z50` | hyperresolved | 100 | 50 | 50 | 74.3751 | 74.1446 | 1.00311 | — |
 | `s2s3-phase-hyperresolved-a120-l60-z60` | hyperresolved | 120 | 60 | 60 | 34.2753 | 34.201 | 1.00217 | — |
+| `s2s3-phase-hyperresolved-a120-r100km-l60-z60-w64` | hyperresolved | 120 | 60 | 60 | 2.18735 | 2.13756 | 1.02329 | — |
 | `s2s3-phase-hyperresolved-a135-l67p5-z67p5` | hyperresolved | 135 | 67.5 | 67.5 | 15.2874 | 15.1562 | 1.00866 | — |
 | `s2s3-phase-hyperresolved-a150-l75-z75` | hyperresolved | 150 | 75 | 75 | 4.69498 | 4.64936 | 1.00981 | — |
 <!-- end generated: phase -->

@@ -202,3 +202,33 @@ TOL_SMALL_OFFSET_LOOK = 0.0188  # 0.5 m plate, look 60, offsets 0.25 and 0.5 px:
 def test_the_sub_pixel_plate_off_the_corner_follows_cos_60(d):
     got, want = flux(f"s2s-unresolved-r25km-v0mps-e5ms-l60-z0-d{d}-w64")
     assert abs(got / want - 1) <= TOL_SMALL_OFFSET_LOOK
+
+
+# --- round 39 C: the resolved class (1 to 10 px across), at a 64 x 64 window -------------------------------------------
+# The 20 m plate and the 10 m sphere at 100 km (6.12 px). Plate ratios are taken against the same window's 100 km record.
+TOL_RESOLVED_WINDOW = 0.00371     # 20 m plate, 100 km: 64 x 64 window against the native record (3.708e-3)
+TOL_RESOLVED_LOOK_SUN = 0.00950   # 20 m plate, 100 km, cos(look) cos(zenith) at 30/30 (9.499e-3)
+TOL_RESOLVED_PHASE = 0.0233       # 10 m sphere, 100 km, phase function at 0, 60 and 120 degrees: largest at 120 (2.329e-2)
+
+R100 = "s2s-hyperresolved-r100km-v0mps-e{e}ms-l{l}-z{z}-d0{w}"
+
+
+def test_the_small_window_holds_the_resolved_plates_flux():
+    ratio = total(R100.format(e=5, l=0, z=0, w="-w64")) / total(R100.format(e=5, l=0, z=0, w=""))
+    assert abs(ratio - 1) <= TOL_RESOLVED_WINDOW
+
+
+def test_a_resolved_plate_follows_cos_look_times_cos_zenith():
+    ratio = total(R100.format(e=5, l=30, z=30, w="-w64")) / total(R100.format(e=5, l=0, z=0, w="-w64"))
+    assert abs(ratio / 0.75 - 1) <= TOL_RESOLVED_LOOK_SUN
+
+
+def test_a_resolved_plates_image_scales_with_the_exposure():
+    ratio = total(R100.format(e=20, l=0, z=0, w="-w64")) / total(R100.format(e=5, l=0, z=0, w="-w64"))
+    assert abs(ratio / 4 - 1) <= TOL_EXPOSURE
+
+
+@pytest.mark.parametrize("a, half", ((0, 0), (60, 30), (120, 60)))
+def test_a_resolved_sphere_follows_the_phase_function(a, half):
+    got, want = flux(f"s2s3-phase-hyperresolved-a{a}-r100km-l{half}-z{half}-w64")
+    assert abs(got / want - 1) <= TOL_RESOLVED_PHASE

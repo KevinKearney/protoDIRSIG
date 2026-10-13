@@ -897,6 +897,54 @@
   "window": 64
  },
  {
+  "name": "s2s-hyperresolved-r100km-v0mps-e5ms-l0-z0-d0-w64",
+  "run_id": "1573deaafa99b42b330467021ba8b4cbb4a7c3844b551829ceaa4b48d899c5bd",
+  "object_class": "hyperresolved",
+  "range_m": 100000.0,
+  "relative_speed": 0.0,
+  "exposure_s": 0.005,
+  "look_deg": 0.0,
+  "solar_zenith_deg": 0.0,
+  "offset_px": 0.0,
+  "window": 64
+ },
+ {
+  "name": "s2s-hyperresolved-r100km-v0mps-e5ms-l30-z30-d0-w64",
+  "run_id": "de91a2866a80587c4cca90eda90732a7e5b8f72be469a82f29b09a3561fc8bb9",
+  "object_class": "hyperresolved",
+  "range_m": 100000.0,
+  "relative_speed": 0.0,
+  "exposure_s": 0.005,
+  "look_deg": 30.0,
+  "solar_zenith_deg": 30.0,
+  "offset_px": 0.0,
+  "window": 64
+ },
+ {
+  "name": "s2s-hyperresolved-r100km-v0mps-e20ms-l0-z0-d0-w64",
+  "run_id": "721296ffc11800e3ae040c5986931a1be40a577aa87deac193089d1a1a0630fb",
+  "object_class": "hyperresolved",
+  "range_m": 100000.0,
+  "relative_speed": 0.0,
+  "exposure_s": 0.02,
+  "look_deg": 0.0,
+  "solar_zenith_deg": 0.0,
+  "offset_px": 0.0,
+  "window": 64
+ },
+ {
+  "name": "s2s-unresolved-r12p5km-v1000mps-e5ms-l0-z0-d0-w64",
+  "run_id": "2dc6b6813fd85193b686b2e8e2077a1bc5823da92481dd6cff2df6908866ad59",
+  "object_class": "unresolved",
+  "range_m": 12500.0,
+  "relative_speed": 1000.0,
+  "exposure_s": 0.005,
+  "look_deg": 0.0,
+  "solar_zenith_deg": 0.0,
+  "offset_px": 0.0,
+  "window": 64
+ },
+ {
   "name": "s2s2-blur-static-e5ms",
   "run_id": "1a5b7222b06ed1ecf3371f200a629da6ebc2c0971bcae8fc7556422ec4e96c34",
   "family": 2,
@@ -1379,6 +1427,39 @@
   "group": "background",
   "look_deg": 0.0,
   "solar_zenith_deg": 75.0
+ },
+ {
+  "name": "s2s3-phase-hyperresolved-a0-r100km-l0-z0-w64",
+  "run_id": "3b65e722a7e3027050ff5e97ed12da64a3a3f3e2619d49e7b008e5cc1c30e7c6",
+  "family": 3,
+  "kind": "phase",
+  "group": "hyperresolved",
+  "look_deg": 0.0,
+  "solar_zenith_deg": 0.0,
+  "range_m": 100000.0,
+  "window": 64
+ },
+ {
+  "name": "s2s3-phase-hyperresolved-a60-r100km-l30-z30-w64",
+  "run_id": "f07bf83044de0b89c22bf1aac7a3b9bd35ab82e90e13a11cfe0345ff3d0dfeb1",
+  "family": 3,
+  "kind": "phase",
+  "group": "hyperresolved",
+  "look_deg": 30.0,
+  "solar_zenith_deg": 30.0,
+  "range_m": 100000.0,
+  "window": 64
+ },
+ {
+  "name": "s2s3-phase-hyperresolved-a120-r100km-l60-z60-w64",
+  "run_id": "6ad2df440bd083d209068c12568a1193919f23ac0b1b5f24962a1535b000bc31",
+  "family": 3,
+  "kind": "phase",
+  "group": "hyperresolved",
+  "look_deg": 60.0,
+  "solar_zenith_deg": 60.0,
+  "range_m": 100000.0,
+  "window": 64
  },
  {
   "name": "s2s-satsim-sphere-a0-e5ms",

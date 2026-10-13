@@ -539,3 +539,26 @@ A labelled plate's four pixels each take 2000 paths. A pixel's value is therefor
 - **Window: not varied at 60 degrees** (budget). Round 38 measured the window's effect on this plate at nadir as 1.3 % (0.981 at 64 x 64 against 0.9945 native). It is not the cause of a deficit that depends on the plate's placement within the same window.
 
 **Tests.** `tests/test_s2s_results.py` asserts the plate off the corner at 60 degrees (`TOL_SMALL_OFFSET_LOOK`, flux closure at offsets 0.25 and 0.5). The corner sweep and the unlabelled plate are not asserted. `notebooks/stage_06_space_to_space.ipynb` section 8 prints the sweep.
+
+### C: the resolved class
+
+Round 38's map had no look, Sun, phase, exposure or target-motion point for a target 1 to 10 px across (its OPEN 5). Seven new points at the 64 x 64 window use the closed forms of the other classes (`RESOLVED` in family I, `RESOLVED3` in family III; 1.4 to 1.6 s each, dirsig5 at most 128,908 kB). The 20 m plate and the 10 m sphere are seen from 100 km, 6.12 px across. A plate's ratio is taken against the same window's 100 km nadir record, which is itself compared with the native record. The resolved streak is A's 100 km point.
+
+| Case | Spec | Closed form | Measured / closed form |
+|---|---|---|---|
+| Window control, 20 m plate at 100 km | `s2s-hyperresolved-r100km-v0mps-e5ms-l0-z0-d0-w64` | the native record's image sum | 0.99629 (flux closure 1.00442; native 1.00816) |
+| Flat plate, look 30, zenith 30 | `s2s-hyperresolved-r100km-v0mps-e5ms-l30-z30-d0-w64` | cos(look) cos(zenith) = 0.75 | 0.99050 |
+| Exposure 20 ms, still | `s2s-hyperresolved-r100km-v0mps-e20ms-l0-z0-d0-w64` | 4 × the 5 ms image | 1 exactly (the same samples scaled) |
+| Sphere, phase 0 | `s2s3-phase-hyperresolved-a0-r100km-l0-z0-w64` | Φ(0) (2/3) π R² / g² = 19.611 px | 0.99496 |
+| Sphere, phase 60 (look 30, zenith 30) | `s2s3-phase-hyperresolved-a60-r100km-l30-z30-w64` | Φ(60) × that = 11.943 px | 1.00291 |
+| Sphere, phase 120 (look 60, zenith 60) | `s2s3-phase-hyperresolved-a120-r100km-l60-z60-w64` | Φ(120) × that = 2.138 px | 1.02329 |
+| Resolved streak (A), 20 m plate at 100 km, 1000 m/s, 20 ms | `s2s2-blur-target-r100km-e20ms-w64` | flux conserved | 0.99107 |
+| 0.5 m plate at 12.5 km (1.22 px), labelled, 1000 m/s, 5 ms | `s2s-unresolved-r12p5km-v1000mps-e5ms-l0-z0-d0-w64` | flux conserved (1.498 px) | **0.87271** |
+
+**What holds.** In the resolved class, a flat plate follows cos(look) cos(zenith) to 9.5e-3, and its image scales exactly with the exposure. The sphere follows the phase function to 5.0e-3 at 0 and 2.9e-3 at 60 degrees, and to 2.3e-2 at 120 degrees, where the lit crescent is about 1.5 px wide. The streak conserves the plate's flux to 8.9e-3. The residuals are a few times those at 25 km, where the plate is 24.5 px across. At 100 km the edge pixels hold a larger share of the signal, and their sampling scatter grows with it (round 30, C2: the 20 m plate's native 100 km record moves by about 1 % between seeds). The window control differs from the native record by 3.7e-3, inside that scatter.
+
+**Finding (recorded, not tuned).** The labelled 0.5 m plate at 12.5 km (1.22 px) moving 9.8 px in 5 ms keeps 0.873 of its flux. Its 20 lit pixels read whole hits over 20 to 100 paths, with gaps along the streak: round 30's unresolved-streak loss, smaller here because each streak pixel holds more of the plate. The label's hypersampling does not follow a moving object over the exposure (BACKLOG "Space-to-space: what round 30 leaves open" (2)).
+
+**What stays empty.** For a resolved target, the look alone and the Sun alone (for the plate and the sphere) and combined motion. These are reasons in `docs/s2s_coverage.md`: the budget took look and Sun together and the phase evenly split, and the `both` group's targets are 24.5 and 0.61 px.
+
+**Tests.** `tests/test_s2s_results.py`: `TOL_RESOLVED_WINDOW`, `TOL_RESOLVED_LOOK_SUN`, `TOL_EXPOSURE` (the existing tolerance) and `TOL_RESOLVED_PHASE`. The moving 1.22 px plate is not asserted. `notebooks/stage_06_space_to_space.ipynb` section 9 prints them. Section 4's phase cell now selects the native 25 km sphere records only, so the 100 km points are not read against `TOL_PHASE`.

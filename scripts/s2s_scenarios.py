@@ -145,6 +145,14 @@ LOOK_SWEEP = [{"object_class": cls, **BASELINE[cls], "range_m": 25000.0, **extra
     ("unresolved", {"look_deg": 60.0, "offset_px": 0.25}),
     ("unresolved", {"look_deg": 60.0, "offset_px": 0.5}),
     ("unresolved_plain", {"look_deg": 60.0}))]
+# round 39 C: the resolved class (1 to 10 px across, docs/s2s_coverage.md). The 20 m plate at 100 km (6.12 px): a window
+# control of the native record, look and Sun at 30/30, and 20 ms still; the labelled 0.5 m plate at 12.5 km (1.22 px)
+# moving at 1000 m/s (a 9.8 px streak in 5 ms). Family III's 10 m sphere at 100 km is RESOLVED3.
+RESOLVED = [{"object_class": cls, **BASELINE[cls], **extra, "window": WINDOW} for cls, extra in (
+    ("hyperresolved", {"range_m": 100000.0}),
+    ("hyperresolved", {"range_m": 100000.0, "look_deg": 30.0, "solar_zenith_deg": 30.0}),
+    ("hyperresolved", {"range_m": 100000.0, "exposure_s": 0.02}),
+    ("unresolved", {"range_m": 12500.0, "relative_speed": 1000.0}))]
 
 
 # --- the sensor's numbers ---------------------------------------------------------------------------------------------
@@ -356,7 +364,7 @@ def point_name(p):
 
 def grid(full=False):
     """The family's grid points (dicts over AXES), in a fixed order: per class, the baseline, then each axis's other
-    values one at a time, and then round 38's COVERAGE and round 39's LOOK_SWEEP points; with `full`, the product of each class's axis values. An orbit point's range and look angle
+    values one at a time, and then round 38's COVERAGE and round 39's LOOK_SWEEP and RESOLVED points; with `full`, the product of each class's axis values. An orbit point's range and look angle
     are the TLE's: they are set to the pass's values (`orbit_geometry`) and not varied."""
     points = []
     for cls in PLATES:
@@ -373,7 +381,7 @@ def grid(full=False):
             if "offset_px" in axes:
                 points += [{**base, "range_m": r, "offset_px": d} for r in SUBPIXEL_RANGES for d in GRID["offset_px"][cls]]
     if not full:
-        points += [dict(p) for p in COVERAGE + LOOK_SWEEP]
+        points += [dict(p) for p in COVERAGE + LOOK_SWEEP + RESOLVED]
     seen, out = set(), []
     for p in points:
         if p["relative_speed"] == ORBIT:
@@ -663,6 +671,10 @@ PLAIN_PHASES = (0.0, 80.0, 150.0)
 SPLIT_PHASE = 60.0                 # the hyperresolved sphere at this phase also with all of it in the look or in the Sun
 BACKGROUND_ZENITHS = (0.0, 30.0, 60.0, 75.0)
 MATERIAL_IDS = {"sphere": 1}
+# round 39 C: the 10 m sphere seen from 100 km (`range_m`; 6.12 px across, the resolved class) at a 64 x 64 window, at the
+# phase angles 0, 60 and 120 degrees (look and Sun each half). Points without `range_m` are at SUN3["range_m"].
+RESOLVED3 = [{"kind": "phase", "group": "hyperresolved", "look_deg": a / 2, "solar_zenith_deg": a / 2,
+              "range_m": 100000.0, "window": WINDOW} for a in (0.0, 60.0, 120.0)]
 
 
 def phase_function(a_deg):
@@ -730,6 +742,7 @@ def grid3():
             for a in PLAIN_PHASES]
     pts += [{"kind": "background", "group": "background", "look_deg": 0.0, "solar_zenith_deg": z}
             for z in BACKGROUND_ZENITHS]
+    pts += [dict(p) for p in RESOLVED3]
     return pts
 
 
@@ -737,7 +750,9 @@ def point3_name(p):
     tail = f"-l{_num_tag(p['look_deg'])}-z{_num_tag(p['solar_zenith_deg'])}"
     if p["kind"] == "background":
         return f"s2s3-background-z{_num_tag(p['solar_zenith_deg'])}"
-    return f"s2s3-phase-{p['group'].replace('_', '')}-a{_num_tag(p['look_deg'] + p['solar_zenith_deg'])}{tail}"
+    rng = f"-r{_num_tag(p['range_m'], 1e-3, 'km')}" if "range_m" in p else ""
+    return (f"s2s3-phase-{p['group'].replace('_', '')}-a{_num_tag(p['look_deg'] + p['solar_zenith_deg'])}{rng}{tail}"
+            + _window_tag(p))
 
 
 def expected3(p):
@@ -747,7 +762,7 @@ def expected3(p):
     Sun at the zenith (cos of the solar zenith)."""
     radius = SPHERES[p["group"]][0]
     a = p["look_deg"] + p["solar_zenith_deg"]
-    g = footprint(SUN3["range_m"])
+    g = footprint(p.get("range_m", SUN3["range_m"]))
     full = 2.0 / 3.0 * math.pi * radius ** 2 / g ** 2
     out = {"phase_deg": a, "footprint_m": g, "diameter_px": 2 * radius / g, "full_phase_px": full,
            "phase_function": phase_function(a), "expected_px": full * phase_function(a)}
@@ -762,10 +777,12 @@ def run_spec3(p, scene_hash=None):
     one thread, seed 1) with the scene, the pose, the Sun and the descriptor's words changed."""
     name = point3_name(p)
     ex = expected3(p)
-    base = {"object_class": "hyperresolved", **BASELINE["hyperresolved"], "range_m": SUN3["range_m"],
+    base = {"object_class": "hyperresolved", **BASELINE["hyperresolved"], "range_m": p.get("range_m", SUN3["range_m"]),
             "look_deg": p["look_deg"], "solar_zenith_deg": p["solar_zenith_deg"]}
     spec = run_spec(base, scene_hash="0" * 64)
     desc, eng = spec["descriptor"], spec["engine"]
+    if "window" in p:
+        desc["settings"][0]["roi"].update(Width=p["window"], Height=p["window"])
     radius, centre, instance, _ = SPHERES[p["group"]]
     pos, angles = pose(base, centre)
     eng["motion"]["position"]["xyz"], eng["motion"]["orientation"]["euler"]["angles"] = pos, angles
@@ -773,8 +790,9 @@ def run_spec3(p, scene_hash=None):
     what = (f"the {p['group'].replace('_', ' ')} sphere (radius {radius:g} m"
             f"{', labelled ::IMPORTANT::' if instance.startswith('::IMPORTANT::') else ''}"
             f"{', a barred plate ' + format(SUN3['depth'], 'g') + ' m behind' if p['kind'] == 'background' else ''}) "
-            f"seen from {SUN3['range_m'] / 1000:g} km, {p['look_deg']:g} deg off nadir, Sun at "
-            f"{p['solar_zenith_deg']:g} deg zenith on the far side (phase {ex['phase_deg']:g} deg), exposure 5 ms")
+            f"seen from {base['range_m'] / 1000:g} km, {p['look_deg']:g} deg off nadir, Sun at "
+            f"{p['solar_zenith_deg']:g} deg zenith on the far side (phase {ex['phase_deg']:g} deg), exposure 5 ms"
+            f"{f', window {w} x {w}' if (w := p.get('window')) else ''}")
     desc["meta"] = {"name": name, "tags": ["s2s", "space-to-space", "family-3", p["kind"]],
                     "description": f"Space-to-space family III: {what}. Written by scripts/s2s_scenarios.py.\n"}
     desc["fidelity"]["modeled"][0] = "reflected sunlight from a Lambertian sphere"
