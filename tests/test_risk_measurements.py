@@ -14,10 +14,12 @@ m = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(m)
 
 RECORDS = m.load_results()
+# Round 33's records (made on the 4-core laptop); scripts/bigger_host_run.py appends other hosts' records to the file.
+ROUND33 = [r for r in RECORDS if r["source"].startswith("~/r33scratch/")]
 
 
 def of(risk):
-    return [r for r in RECORDS if r["risk"] == risk]
+    return [r for r in ROUND33 if r["risk"] == risk]
 
 
 def test_the_results_file_is_well_formed():

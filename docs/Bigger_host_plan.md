@@ -24,3 +24,23 @@ Totals: 7 entries; 52 to 54 renders outside entry 3 (18 + 4 + 8 + 17 + 3 to 5 + 
 | round 31 OPEN 4 | the hyperresolved sphere's converged residual (seeds at 64 x 64) | not limited by the host; no record schema holds seed variants of one spec |
 | round 35 OPEN 5 | the manual's sweep and space-to-space examples at their shipped sizes | examples, not measurements; the space-to-space plate at 500 x 500 is in `s2s_results.jsonl` |
 | round 32 OPEN 3 | MicroScene1, MegaScene1, LidarJungle, Trona, RITBusLoop | their `.scene` and material files are not on the host |
+
+## Manifest and runner
+
+`docs/data/bigger_host_manifest.yaml` holds one entry per row of the inventory (its driver, items, results file, check, `est_s` and, where an earlier round measured it, `peak_mib`); `scripts/bigger_host_run.py` runs it.
+
+| Item | Rule |
+|---|---|
+| Host | physical cores (unique core ids in `/proc/cpuinfo`, at most the CPUs the process may use), MemTotal and MemAvailable (`/proc/meminfo`) |
+| Peak memory of one job | `<work>/peaks.json` if cached, else the manifest's `peak_mib`, else the entry's smallest instance (`probe`) run alone and its peak RSS read from `wait4`, then cached; `capture-order-native`: its address-space limit (24 GiB) |
+| Concurrency | min(cores / threads per job, floor(0.75 x MemAvailable / (1.25 x peak))), at least 1, at most `--max-jobs` and the entry's own cap (`concurrency-native`: 1, its batches are the concurrency); an item over the budget alone or over the cores is "exceeds host" and not run; an item at DIRSIG's default thread count runs alone |
+| Jobs | one process each (`_job`), one thread unless the item states more, `HOME` a folder of its own under `<work>/<entry>/`, `DIRSIG_HOME` from the runner |
+| Order | entries one after another, in manifest order; items of one entry concurrently |
+| Results | written by the runner alone as each job ends: `s2s_results.jsonl` with `s2s_measure.py`'s record, `risk_measurements.jsonl` with `risk_measure.py`'s (checked before writing); `command` entries keep their script's own results file under the work root |
+| Resume | an item whose result is in the results file is skipped; an entry with all its results is skipped; a killed invocation loses the jobs in flight only; SIGTERM stops the jobs in flight and exits 130 |
+| Log | `<work>/runner.log`, one JSON object per event (probe, peak, start, job-start, job-end, recorded, record-failed, exceeds-host, skip, killed, interrupted, end) |
+| `--dry-run` | the plan for this host and, with `--assume-cores N --assume-mem-gb M`, for a host of N cores and M GB (MemAvailable 0.9 x M); nothing run, probed or written |
+| `--only NAME[,NAME]` | these entries only |
+| `--check` | the manifest is well formed, its drivers and items known, its results files the repository's, every entry named in this document |
+
+Tests: `tests/test_bigger_host_run.py` (the dry run on assumed hosts, the concurrency rule, the stub driver `sleep` for concurrency, resume, an interrupted invocation (SIGKILL and SIGTERM), the probe and a failed job; the capture, light-curve and command drivers on synthetic files; the fake two-entry manifest `tests/data/bigger_host_fake_manifest.yaml` of 16 x 16 jobs when DIRSIG is installed).

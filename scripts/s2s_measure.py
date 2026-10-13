@@ -365,13 +365,17 @@ def run(names, work, runs, via="simulation"):
 def check(path=RESULTS):
     """Problems of the results file: form, unknown specs, run ids, expected values that do not recompute."""
     problems = []
+    try:
+        where0 = path.relative_to(ROOT)
+    except ValueError:                  # a results file outside the repository (scripts/bigger_host_run.py's tests)
+        where0 = path
     if not path.is_file():
-        return [f"{path.relative_to(ROOT)}: missing"]
+        return [f"{where0}: missing"]
     idx = index()
     seen = set()
     lines = path.read_text().splitlines()
     for i, line in enumerate(lines, 1):
-        where = f"{path.relative_to(ROOT)}:{i}"
+        where = f"{where0}:{i}"
         try:
             r = json.loads(line)
         except ValueError as e:
@@ -407,7 +411,7 @@ def check(path=RESULTS):
                 if m["ratio"] is None or not math.isclose(m["ratio"], m["measured"] / m["expected"], rel_tol=1e-12):
                     problems.append(f"{where}: {m['method']}: ratio is not measured / expected")
     if [json.loads(x)["spec"] for x in lines if x.startswith("{")] != sorted(seen):
-        problems.append(f"{path.relative_to(ROOT)}: records are not sorted by spec name")
+        problems.append(f"{where0}: records are not sorted by spec name")
     return problems
 
 

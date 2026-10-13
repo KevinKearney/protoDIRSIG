@@ -23,6 +23,8 @@ on), `method` (how it was measured, one sentence or more), `measured` (the quant
 in `REQUIRED`), `tools` (`dirsig`, the DIRSIG version, and whatever else the method used, for example `dirfm` or
 `strace`), `date` (YYYY-MM-DD) and `source` (where the raw data was, home-relative, outside the repository).
 
+A risk B record whose id is `limit-model` or ends in `-limit-model` (one per host, `scripts/bigger_host_run.py`) is the limit model.
+
 Derived numbers are checked against the record's own values, the way `scripts/s2s_measure.py --check` recomputes its
 expected values: A's `digests_equal` against its `products`, B's job count, throughput and limit, C's cancel fraction,
 D's per-capture equality list, E's differing fraction.
@@ -67,7 +69,8 @@ def write_results(records, path=RESULTS):
 
 
 def _kind(r):
-    return "B-model" if r["risk"] == "B" and r["id"] == "limit-model" else r["risk"]
+    return "B-model" if r["risk"] == "B" and (r["id"] == "limit-model" or r["id"].endswith("-limit-model")) \
+        else r["risk"]
 
 
 def _close(a, b):
