@@ -72,3 +72,17 @@ def test_risk_c_a_cancelled_dirsig_run_lists_only_its_spec_but_leaves_byte_exact
         assert img["prefix_equal_full"] and img["header_lines"] <= img["rows_on_disk"] < img["rows_total"]
         rows.append(img["rows_on_disk"])
     assert rows == sorted(rows)
+
+
+def test_risk_d_dirsig_refuses_no_multi_capture_job_and_only_the_first_capture_repeats_a_one_capture_run():
+    recs = {r["id"]: r for r in of("D")}
+    assert {"thermal2-reduced", "polarization4-reduced", "fireball1-reduced", "s2s-500px-four-windows"} <= set(recs)
+    for r in recs.values():
+        ms = r["measured"]
+        assert not ms["dirsig_refused"] and ms["captures_logged"] > 1
+        assert list(ms["equal_single"].values())[0] is True
+    for name in ("thermal2-reduced", "polarization4-reduced"):
+        assert not any(list(recs[name]["measured"]["equal_single"].values())[1:])
+    t2 = recs["thermal2-reduced"]["measured"]
+    assert t2["reversed"]["rc"] != 0 and any("bad_alloc" in e for e in t2["reversed"]["errors"])
+    assert "used twice" in recs["s2s-500px-four-windows"]["measured"]["error"]
