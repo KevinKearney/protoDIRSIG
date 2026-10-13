@@ -13,3 +13,4 @@
 - step B gate: 2095 passed, 2 skipped (9 min 25 s, alone); sixteen checks 0 (143 specs, 111 records)
 - step C: 7 renders (20 m plate at 100 km: control, 30/30, 20 ms; 0.5 m plate 12.5 km moving 1000 m/s; 10 m sphere at 100 km phase 0, 60, 120), each its own command, 1.4-1.9 s, peaks <= 128,908 kB; 118 records
 - step C gate: 2101 passed, 2 skipped (9 min 23 s, alone); sixteen checks 0 (150 specs, 118 records)
+- step D (final) gate: 2101 passed, 2 skipped (9 min 23 s); sixteen checks 0; core/snapshot diff empty

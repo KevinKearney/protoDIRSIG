@@ -1915,3 +1915,48 @@ Space-to-space coverage gaps measured against closed forms; additive against rev
 6. The coverage map's size classes use the stated range (the orbit points' ranges are the TLE's); its rows are a classification of the current vocabulary, and a new family kind needs its attributes added to `attributes()` (the script raises on an unknown group rather than guessing).
 7. Carried from round 37's OPEN: items 1 to 6.
 - Step D gate (final): 2090 passed, 2 skipped (9 min 22 s, alone); sixteen checks 0 (review_report 18 blocks, s2s_coverage 101 records, bigger_host_run 7 entries, s2s_measure 101 records, risk_measure 31, s2s_scenarios 133 specs, status_markers 182); `git diff 655fc6c -- packages/core tests/data/id_snapshot.json` empty; id snapshot unchanged, no new entry. Time used about 1 h 30 min of 4 h.
+
+## round 39
+
+Three space-to-space differences isolated (prompt.md round 39). Preflight 2026-10-13T07:39:22-04:00, time cap 4 h, deadline 11:39:22. Start e93c508 (round 38's last commit; tree clean; ARCH_LOG's round 38 section has its OPEN list and final gate). State: `.claude_mem/round39_state.md`. Scratch: `~/r39scratch`. Commit trailer: Co-Authored-By alone.
+
+- **0.** Baseline suite alone, no edits: 2090 passed, 2 skipped (9 min 22 s). The SIGTERM race test passed.
+- **A, judgment: hypothesis (2) first, from images on disk.** Round 32's native run folders (`~/r32scratch/runs`) and round 38's `-w64` folders still hold the committed images (digests match the records). They were re-measured four ways (scratch `remeasure.py`): the committed fit; the fit with a 0.18 px Gaussian; the edges' derivative variance against the static frame's; and the 10 to 90 % rise in quadrature. Twice the centroid shift was tried and rejected as a length: its static reference is off by about 0.1 px (0.966 even at 1000 paths).
+- **A, judgment: DIRSIG's count varied outside the vocabulary.** The prompt says to vary the count "if the existing vocabulary allows". The generator's count (`engine.platform.integration_samples`) is a member and was varied as a committed point (`-n2`). DIRSIG's own count, the paths per pixel, is not a member. It was varied in scratch by a focal-plane `<convergence>` in the assembled job's platform file (round 30's `diag.py`, as round 30 C did). Those results are quoted in the documents and are not records.
+- **A, judgment: hypothesis (3) by range.** Family II's points gain an optional `range_m`. The target group at 100 km and 20 ms gives a 6.12 px plate with the same 6.12 px sweep as the 24.5 px plate at 25 km and 5 ms. This point is also C's resolved streak, rendered once and counted in A.
+- **A, results (six renders: two committed, four scratch, each alone).** `-n2` is byte-identical to `-w64` (`5aa08f72faff1be4`). Sweep ratio at the default sampling: 0.9809 for both at 5 ms, 0.9755 at 100 km; at a fixed 1000 paths 0.9988 and 0.9983 (93 s and 67 s); at a fixed 20 paths 0.9874 and 0.9923 (seeds 1 and 2). Width: 0.9755 against 0.9759; edge separation 24.46 to 24.61 px for 24.48. Cause stated: DIRSIG's adaptive per-pixel sample count. Not (n − 1)/n: that predicts 0.95 at 20 paths. Mechanism inside the convergence algorithm not isolated.
+- **A, judgment: documents per step, not all in D.** The CONOPS must be true at HEAD after each commit, and its pointer names the characterization's section, so each step wrote its own part of "Three differences isolated (round 39)". The stage 06 summary cell asserts that every `TOL_*` is covered, so each step also added its notebook section with its tolerances (round 38's precedent). D did the review report prose, README, BACKLOG and this log.
+- **A, slip.** The scratch renders for 100 km at 1000 paths and for 20 paths with seed 2 ran in one background command. They ran in sequence, one render at a time, within the 10 minutes. The rule says one case per command. No other job ran beside them.
+- **A, commit message amended** (local, before any later step) to remove a garbled record count.
+- Step A gate: 2093 passed, 2 skipped (9 min 20 s, alone); sixteen checks 0 (135 specs, 103 records); core and snapshot unchanged. fdc0cff.
+- **B, judgment: the eight renders.** The five new looks (15, 45, 50, 55, 65; 0, 30/30 and 60 are round 38's) at offset 0 (pixel corner), as round 38. "Two different sub-pixel offsets from a pixel centre" at 60 degrees: offsets 0.25 and 0.5 (the generator's offset moves the platform along both scene axes; 0.5 is a pixel centre along y, and 0.25 px along the foreshortened x). The budget left one unlabelled point, at 60 degrees.
+- **B, measured: the hit count is readable from the image.** Each of the labelled plate's four pixels takes 2000 paths. Its values are integers over 2000 to 2e-5 (Sun at the zenith), so the binomial scatter of the sum is 1/√hits (3.7 to 6.0 %).
+- **B, results.** Ratio to cos(look) against the window's nadir record: 1.014, 0.999 (30/30), 0.943, 0.931, 0.923, 0.922, 0.892 at 15 to 65 degrees. From 45 degrees on, every point is 1.6 to 2.1 σ low and the deficit grows with the look. Off the corner at 60 degrees: 0.9985 and 1.0188. Unlabelled at 60: 0.534 on 10 hits of 100-path pixels.
+- **B, judgment: what is isolated.** Sampling is isolated as a placement effect: the plate centred on a corner across the pixels' edges, at large look. The label is not isolated: the unlabelled plate's scatter is about 32 %. The window was not varied at 60 degrees. The mechanism is not isolated.
+- Step B gate: 2095 passed, 2 skipped (9 min 25 s); sixteen checks 0 (143 specs, 111 records); core and snapshot unchanged. 1f12d7c.
+- **C, judgment: resolved means 100 km.** The 20 m plate and the 10 m sphere at 100 km are 6.12 px across. Family III's points gain optional `range_m` and `window`. Seven cases (the prompt allows eight):
+  - the plate: window control, 30/30, 20 ms still;
+  - the sphere at phase 0, 60 and 120;
+  - the labelled 0.5 m plate at 12.5 km (1.22 px) moving at 1000 m/s.
+  The resolved streak with total signal is A's 100 km point.
+- **C, results.** Window 0.9963 of native; 30/30 0.9905 of 0.75; 20 ms exactly 4×; sphere 0.9950, 1.0029, 1.0233. Moving 1.22 px plate 0.873 (20 lit pixels at 20 to 100 paths with gaps; not asserted).
+- **C, notebook fix.** Stage 06 section 4 selected every `s2s3-phase-hyperresolved-*` record by prefix, so the 100 km points fell under `TOL_PHASE`. The cell now excludes windowed points. This is notebook code, not a test assertion.
+- **C, coverage reasons.** Five reasons were retired. `_ONE_AXIS` and `_SPHERES` were reworded: they said that no point lay between 1 and 10 px, and that family III has one range.
+- Step C gate: 2101 passed, 2 skipped (9 min 23 s); sixteen checks 0 (150 specs, 118 records); core and snapshot unchanged. 33683f2.
+- **D.** Review report prose where a statement or number changed:
+  - the native-window sentence now covers the `-w64` points of rounds 38 and 39;
+  - the blur paragraph's "(not explained; BACKLOG)" now states round 39's cause (this sentence was false at HEAD from A to C: a slip of order, since the report's prose is D's);
+  - section 6's suite count (2101), spec count (150) and record counts (118).
+
+  README: the docs list names round 39's section. BACKLOG: the round 38 item's (3) points on, a new item "Space-to-space: what round 39 leaves open", and the "Space-object imaging" pointer.
+- Assertions changed: none. Tests added: A 3, B 2 (parametrized), C 6 (parametrized). No existing test was edited.
+- Renders this round: 21. A: 6 (2 committed, 4 scratch). B: 8. C: 7. Each one ran alone with no suite beside it. dirsig5 peaked at 129,472 kB at most.
+
+### OPEN (round 39)
+1. The resolved streak's shortfall goes with DIRSIG's adaptive per-pixel sampling (isolated), but how the adaptive stop shortens the ramp pixels is not; the per-pixel path count is not a run-spec member (BACKLOG round 39 (1)).
+2. The sub-pixel plate centred on a pixel corner loses 7.5 to 12.5 % from 45 to 65 degrees off nadir; a placement effect inside the hypersampled sampling, mechanism not isolated; the label's part and the window at 60 degrees not separated (BACKLOG round 39 (2)).
+3. Twice the centroid shift does not measure a sweep here: its static reference is off by about 0.1 px even at 1000 paths; not pursued.
+4. Resolved look alone, Sun alone and combined motion stay empty (coverage reasons); a labelled 1.22 px streak keeps 0.873 of its flux.
+5. The `both` group at 20 ms and the bigger-host entries remain (round 38 OPEN 3).
+6. Carried from round 38's OPEN: items 2, 4, 6 and 7 (item 1 is narrowed by B, item 5 is closed by C, item 3 is item 5 above).
+- Step D gate (final): 2101 passed, 2 skipped (9 min 23 s, alone); sixteen checks 0 (review_report 18 blocks, s2s_coverage 118 records, bigger_host_run 7 entries, s2s_measure 118 records, risk_measure 31, s2s_scenarios 150 specs, status_markers 182); `git diff e93c508 -- packages/core tests/data/id_snapshot.json` empty; id snapshot unchanged, no new entry. Time used about 1 h 10 min of 4 h.
