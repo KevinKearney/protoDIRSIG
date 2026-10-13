@@ -1,0 +1,13 @@
+id,value,round,definition,commit
+scratch_backstop100_labelled,"0.995 (25 km), 0.77 (200 km)",29,"labelled 0.5 m plate with a scratch black plate 100 m behind it (before the 400 m backstop of the committed scene): image sum over the area-weighted expectation",84480c0
+scratch_backstop100_unlabelled,"1.07 (25 km), no signal at 200 km",29,"the same scratch 100 m black plate behind the unlabelled 0.5 m plate",84480c0
+backstop_trial_wall,73 s,29,"render wall time per frame when the first backstop trials (2 km, then 100 m) filled the frame; the reason the 400 m backstop was chosen",84480c0
+native_wall_max,79 s,29,"longest wall time of a native 500 x 500 one-thread render of family I (frame filled by the backstop)",7b815f9
+sphere_background_phi,0.26 %,31,"largest deviation of the 10 m sphere from the phase function at nadir in front of the barred background, solar zenith 0 to 75 degrees",020b653
+thermal2_capture_rms,"RMS 0.73 % of the signal; means equal to 1e-4",33,"Thermal2, reduced array, one thread, seed 1: each later capture against its one-capture run",048866b
+thermal2_control_memory,"1.14 GB VmPeak, 105 MB RSS",33,"Thermal2 control process memory",048866b
+thermal2_reversed_prlimit,"2 GiB address-space limit; std::bad_alloc after 0.6 s",33,"Thermal2 with its capture order reversed, retried under prlimit: fails while generating the scheduled event queue",048866b
+rerender_wall,55.3 min,32,"wall time to re-render 45 family I and 17 family II specifications through the harness",ac7ec54
+round39_rss_max,"129,472 kB",39,"largest dirsig5 resident set over the 21 renders of round 39",3a580de
+sprite_centroid_error,0.11 px,40,"error of the pixel centroid in locating a sub-pixel sprite in the first reduction of the SatSim controls (replaced by reading the sprite's edges)",f8ce601
+foxbat_one_thread_walls,"117, 136, 136 s; 3 min 47 s",37,"Foxbat one-thread Workspace render walls, and the resumed second command, under compare_layered --threads 1",655fc6c
