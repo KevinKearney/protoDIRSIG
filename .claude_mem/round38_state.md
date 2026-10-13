@@ -10,3 +10,4 @@
 - step A gate: first suite 1 failed (satsim SIGTERM timing race, unrelated; passes alone 3/3); rerun 2080 passed, 2 skipped (9 min 21 s); sixteen checks 0
 - step B: 12 cases rendered (11 + window control for the unresolved plate), each its own command, peaks <= 129,124 kB; 101 records; coverage map regenerated (3 reasons retired); tests + stage 06 section + review_report fix and tables
 - step B gate: 2090 passed, 2 skipped (9 min 22 s); sixteen checks 0
+- step C gate: 2090 passed, 2 skipped (9 min 22 s); sixteen checks 0

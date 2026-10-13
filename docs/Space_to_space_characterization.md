@@ -440,3 +440,34 @@ Rounds 29 to 31 measured with a scratch script outside the repository and record
 **The regression test.** `tests/test_s2s_results.py` reads the file (no render) and asserts the closed-form cases: the results file passes `--check`, the resolved plate's flux closure (tolerance 0.00816), R⁻² scaling of the equivalent footprint against 25 km (0.00721), exposure scaling (1.34e-15), look-angle scaling for family I (8.03e-4) and against family II's background (8.22e-4), solar-zenith scaling (4.54e-5), the sphere's phase function (0.00982), the bar period (0.00362) and the bar level under the Sun (1.54e-4). Each tolerance is the largest residual among the records for that case, rounded up in its third significant digit. A record that moves further from its closed form fails the test. The R⁻² case uses the equivalent footprint (flux over the full-pixel signal), not the half-level count, which the edge pixels bias by 0.6 to 3.9 % depending on how the plate's edges fall on the pixel grid.
 
 **The sweep path.** No family axis goes through `submit_sweep`. Three facts block it. `submit_sweep` takes a recipe, and the family members are run specs. A recipe's only sweep axis is the sensor (`compose/1`, section 3.5 of the CONOPS), while the families vary range, exposure, look angle, Sun, offset, speed and phase. And the families are written outside the composer on purpose: a recipe under `manifold_run_specs/recipes/` is composed and recorded by `scripts/id_snapshot.py`, so it would add an id-snapshot entry, which the rounds since 29 exclude. The Workspace API itself does carry the specs (`submit_run` above). BACKLOG "Sweeps and layers: what remains after the sensor axis" records the gap.
+
+## Coverage points (round 38)
+
+`docs/s2s_coverage.md` maps the records against the realism axes (platform, target and combined motion; shutter time; look, Sun and phase angle for plates and spheres; target shape; background; the `::IMPORTANT::` label) for hyperresolved (over 10 px across), resolved (1 to 10 px) and unresolved targets, and states why each empty cell is empty. `scripts/s2s_coverage.py` writes it from the records, and `--check` refuses a stale map. Round 38 filled the empty cells that have a closed form and that the generator can express. The specular facet and the Earth background are outside its vocabulary (BACKLOG "Space-to-space: what round 38 leaves open").
+
+**The points.** There are twelve `-w64` specs (`scripts/s2s_scenarios.py`, `COVERAGE` and `BOTH_SMALL`), each rendered at a 64 x 64 window (`settings[].roi`), one thread, seed 1, alone, through `scripts/s2s_measure.py`. A render took 2 to 5 s with dirsig5 at most 129,124 kB resident. The existing specs, the scenes and their run ids are unchanged. The first point of each class repeats a native record in the small window, as a control. Each ratio below is taken against the same window's control.
+
+| Case | Spec | Closed form | Measured / closed form |
+|---|---|---|---|
+| Window control, 20 m plate | `s2s-hyperresolved-r25km-v0mps-e5ms-l0-z0-d0-w64` | the native record's image sum | 0.99987 |
+| Flat plate, look 30, zenith 30 | `s2s-hyperresolved-r25km-v0mps-e5ms-l30-z30-d0-w64` | cos(look) cos(zenith) = 0.75 | 0.99950 |
+| Flat plate, look 45, zenith 45 | `s2s-hyperresolved-r25km-v0mps-e5ms-l45-z45-d0-w64` | 0.5 | 0.99934 |
+| Flat plate, look 60, zenith 60 | `s2s-hyperresolved-r25km-v0mps-e5ms-l60-z60-d0-w64` | 0.25 | 1.00099 |
+| Flat plate, zenith 75 | `s2s-hyperresolved-r25km-v0mps-e5ms-l0-z75-d0-w64` | cos 75 = 0.2588 | 1.00010 |
+| Window control, 0.5 m plate at 25 km (0.61 px) | `s2s-unresolved-r25km-v0mps-e5ms-l0-z0-d0-w64` | the native record's image sum | 0.98658 |
+| 0.5 m plate, zenith 60 | `s2s-unresolved-r25km-v0mps-e5ms-l0-z60-d0-w64` | 0.5 | 1.00006 |
+| 0.5 m plate, look 30, zenith 30 | `s2s-unresolved-r25km-v0mps-e5ms-l30-z30-d0-w64` | 0.75 | 0.99918 |
+| 0.5 m plate, look 60 | `s2s-unresolved-r25km-v0mps-e5ms-l60-z0-d0-w64` | 0.5 | **0.92245** |
+| Combined motion (plates 2000 m/s, background 1000 m/s), 0.1 ms | `s2s2-blur-both-e0p1ms-w64` | flux closure; sweep 0.245 px | flux 1.00162; sweep 2.56 (0.627 px) |
+| Combined motion, 1 ms | `s2s2-blur-both-e1ms-w64` | flux closure; sweep 2.448 px | flux 1.00003; sweep 1.0076 |
+| Combined motion, 5 ms | `s2s2-blur-both-e5ms-w64` | flux closure; sweep 12.24 px | flux 1.00023; sweep 0.9809 |
+
+**What holds.** A flat Lambertian plate seen off its normal with the Sun off its normal follows cos(look) × cos(zenith) to 9.9e-4 up to a 120 degree phase angle. That is the flat plate's phase law, which family I had measured one axis at a time. The Sun's cosine holds to 1.0e-4 at 75 degrees. The sub-pixel plate at 25 km follows the Sun's cosine on its hit count to 6.4e-5, and look and Sun together at 30/30 to 8.2e-4, against its own window's nadir record. Round 29 had measured the unresolved Sun axis only at 200 km, on a few hits. Under combined platform and target motion the resolved plate's flux is conserved to 1.6e-3. The 64 x 64 window holds the 20 m plate's flux to 1.3e-4 of the native render. Its edge pixels are sampled differently: 3 % of the pixels differ, by up to 0.25 of a full pixel, so the image is not a crop of the native one.
+
+**Findings (recorded, not tuned).**
+- **Sub-pixel plate seen 60 degrees off nadir.** It reads 0.922 of cos 60 (flux closure 0.905), against 0.999 for look and Sun at 30/30 and 1.001 for the 20 m plate at 60/60. A foreshortened plate covers 0.19 of a pixel here. The cause, in the hit count under `::IMPORTANT::` hypersampling or elsewhere, is not isolated (BACKLOG "Space-to-space: what round 38 leaves open" (3)).
+- **Window dependence of a sub-pixel hit count.** The 0.5 m plate's nadir record is 0.981 of its footprint at 64 x 64 and 0.9945 at 500 x 500: the same plate in the same place, sampled differently. That is 1.3 %, within the 0.967 to 1.021 spread of round 29's sub-pixel offsets at this range.
+- **Sweep length under combined motion.** The fitted sweep is 0.981 of v·t / footprint at 5 ms (the target group: 0.976) and 1.008 at 1 ms. This is round 30's open shortfall, now also under combined motion. At 0.1 ms the fit reads 0.63 px for 0.24 px, from the fit's missing optics, as before.
+- **The `both` group at 20 ms** does not fit 64 x 64: its 49 px streak lies beside a 24.5 px plate. Its native spec stays the bigger-host entry `s2s-blur-both` (`docs/Bigger_host_plan.md`).
+
+**Tests.** `tests/test_s2s_results.py` asserts the window control, the flat plate's cos(look) cos(zenith), the sub-pixel plate's Sun and the combined-motion flux. Each tolerance is the largest residual among these records, rounded up in the third significant digit, as for the earlier cases. The sub-pixel plate's 60 degree look is not asserted. `notebooks/stage_06_space_to_space.ipynb` section 6 prints the same residuals.
