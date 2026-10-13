@@ -176,12 +176,17 @@ def _swept_plate(u, x0, width, b):
 
 def streak_length(img, width_px):
     """The fitted sweep length (pixels, unsigned) of a plate `width_px` wide in the mean profile of the frame's central
-    rows (`img` in full pixels)."""
+    rows (`img` in full pixels). A plate too small to leave a central row clear of its edges (under about 6 pixels,
+    round 41) is fitted instead in its column sums over the rows about it divided by its width: the same profile, with
+    the edge rows' share in it."""
     from scipy.optimize import minimize
     n = img.shape[0]
     c = n / 2.0
     rows = np.arange(int(c - width_px / 2) + 3, int(c + width_px / 2) - 2)
-    prof = img[rows].mean(axis=0)
+    if rows.size:
+        prof = img[rows].mean(axis=0)
+    else:
+        prof = img[int(c - width_px / 2) - 4:int(c + width_px / 2) + 5].sum(axis=0) / width_px
     u = np.arange(img.shape[1], dtype=float)
     fits = [minimize(lambda q: np.sum((_swept_plate(u, q[0], width_px, q[1]) - prof) ** 2), [x0, b],
                      method="Nelder-Mead", options={"xatol": 1e-4, "fatol": 1e-12})

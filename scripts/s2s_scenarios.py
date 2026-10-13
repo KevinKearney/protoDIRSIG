@@ -159,6 +159,10 @@ RESOLVED = [{"object_class": cls, **BASELINE[cls], **extra, "window": WINDOW} fo
 RESOLVED_ONE_AXIS = [{"object_class": "hyperresolved", **BASELINE["hyperresolved"], "range_m": 100000.0, **extra,
                       "window": WINDOW} for extra in ({"look_deg": 60.0}, {"solar_zenith_deg": 60.0},
                                                       {"look_deg": 60.0, "offset_px": 0.5})]
+# round 41 A (docs/s2s_envelope.md): the sampling-effect envelope's empty cells in family I, the labelled 0.5 m plate at
+# 25 km (0.61 px) moving at 1000 m/s (a 6.12 px streak in 5 ms); family II's are ENVELOPE2.
+ENVELOPE = [{"object_class": "unresolved", **BASELINE["unresolved"], "range_m": 25000.0, "relative_speed": 1000.0,
+             "window": WINDOW}]
 
 
 # --- the sensor's numbers ---------------------------------------------------------------------------------------------
@@ -370,8 +374,8 @@ def point_name(p):
 
 def grid(full=False):
     """The family's grid points (dicts over AXES), in a fixed order: per class, the baseline, then each axis's other
-    values one at a time, and then round 38's COVERAGE, round 39's LOOK_SWEEP and RESOLVED and round 40's
-    RESOLVED_ONE_AXIS points; with `full`, the product of each class's axis values. An orbit point's range and look angle
+    values one at a time, and then round 38's COVERAGE, round 39's LOOK_SWEEP and RESOLVED, round 40's
+    RESOLVED_ONE_AXIS and round 41's ENVELOPE points; with `full`, the product of each class's axis values. An orbit point's range and look angle
     are the TLE's: they are set to the pass's values (`orbit_geometry`) and not varied."""
     points = []
     for cls in PLATES:
@@ -388,7 +392,7 @@ def grid(full=False):
             if "offset_px" in axes:
                 points += [{**base, "range_m": r, "offset_px": d} for r in SUBPIXEL_RANGES for d in GRID["offset_px"][cls]]
     if not full:
-        points += [dict(p) for p in COVERAGE + LOOK_SWEEP + RESOLVED + RESOLVED_ONE_AXIS]
+        points += [dict(p) for p in COVERAGE + LOOK_SWEEP + RESOLVED + RESOLVED_ONE_AXIS + ENVELOPE]
     seen, out = set(), []
     for p in points:
         if p["relative_speed"] == ORBIT:
@@ -466,6 +470,13 @@ SHORTFALL = ({"kind": "blur", "group": "both", "exposure_s": 0.005, "look_deg": 
 # 20 ms, the same 12.24 px sweep as the 25 km point at 5 ms
 BOTH_RESOLVED = ({"kind": "blur", "group": "both", "exposure_s": 0.02, "look_deg": 0.0, "range_m": 100000.0,
                   "window": WINDOW},)
+# round 41 A (docs/s2s_envelope.md): the envelope's empty cells in family II at 20 ms. From 200 km the 20 m plate is 3.06 px
+# across: still (the static group), and sweeping 3.06 px (platform, target) and 6.12 px (both); from 100 km the platform
+# group (6.12 px, a 6.12 px sweep); from 50 km the target group (12.24 px, a 12.24 px sweep). The both group from 50 km
+# (a 24.48 px sweep) does not fit the window and is not a point.
+ENVELOPE2 = tuple({"kind": "blur", "group": g, "exposure_s": 0.02, "look_deg": 0.0, "range_m": r, "window": WINDOW}
+                  for g, r in (("static", 200000.0), ("platform", 200000.0), ("target", 200000.0), ("both", 200000.0),
+                               ("platform", 100000.0), ("target", 50000.0)))
 
 
 def _rects_obj(rects):
@@ -560,7 +571,7 @@ def grid2():
     pts += [{"kind": "look", "group": "look", "exposure_s": 0.005, "look_deg": a} for a in LOOK_DEG]
     pts += [{"kind": "orbit", "group": "orbit", "exposure_s": e, "look_deg": None} for e in ORBIT_EXPOSURES]
     pts += [{"kind": "blur", "group": "both", "exposure_s": e, "look_deg": 0.0, "window": WINDOW} for e in BOTH_SMALL]
-    pts += [dict(p) for p in SHORTFALL + BOTH_RESOLVED]
+    pts += [dict(p) for p in SHORTFALL + BOTH_RESOLVED + ENVELOPE2]
     return pts
 
 

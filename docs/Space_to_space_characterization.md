@@ -621,3 +621,32 @@ Round 39's resolved points (the 20 m plate and the 10 m sphere at 100 km, 6.12 p
 - **Combined motion at a resolved size keeps 0.987 of the flux and 0.966 of the sweep.** The target group at 100 km (round 39) kept 0.991 and 0.976; the 24.5 px plate's `both` group at 25 km and 5 ms 1.0002 and 0.981. Not isolated (BACKLOG (2)).
 
 **Tests.** `tests/test_s2s_results.py`: `TOL_RESOLVED_SUN_ALONE`, `TOL_RESOLVED_SPLIT` and `TOL_FLUX_BOTH_RESOLVED`. The look alone and the combined-motion sweep are not asserted. `notebooks/stage_06_space_to_space.ipynb` section 11 prints them. The coverage map's five resolved reasons are retired.
+
+## The sampling-effect envelope (round 41)
+
+Round 40's SatSim controls showed that the sub-pixel corner deficit and the 2 % streak shortfall are DIRSIG's sampling. A reader of a space-to-space result needs to know when that matters and how much, so round 41 grouped every DIRSIG record by the target's size in pixels (0.3 px and up), its motion (fixed, tracked, platform, target, both) and its label. Each record gets its deficit against the closed form, 1 − measured / closed form: the flux closure, and the fitted sweep for a streak at least 1 px long. The SatSim control of the same geometry sits beside it where one exists. The envelope is [`docs/s2s_envelope.md`](s2s_envelope.md), generated from the records by `scripts/s2s_envelope.py` (`--check` refuses a stale document, or a row past 1 % with nothing stated about what removes it). Below 0.3 px a plate gets a few hits per frame (round 29), and family II's look at 75 degrees has no background behind the target (round 30 B), so those records are listed apart.
+
+**The empty cells, filled (eight renders, seven kept).** The table had no record of a target 2 to 6 px across at all, and no record of platform motion at 6 to 13 px or of a moving target under a pixel. Each new point is a new spec in `scripts/s2s_scenarios.py` (`ENVELOPE`, `ENVELOPE2`; existing specs unchanged) at a 64 x 64 window, recorded through `scripts/s2s_measure.py`. Each render ran alone: 1.7 to 4.2 s, dirsig5 at most 129,540 kB.
+
+| Case | Spec | Size, sweep (px) | Flux ratio | Sweep ratio |
+|---|---|---|---|---|
+| Still, from 200 km | `s2s2-blur-static-r200km-e20ms-w64` | 3.06, 0 | 0.98894 | (1.144 px fitted on a still plate) |
+| Platform motion, 200 km | `s2s2-blur-platform-r200km-e20ms-w64` | 3.06, 3.06 | 1.00816 | 1.0078 |
+| Target motion, 200 km | `s2s2-blur-target-r200km-e20ms-w64` | 3.06, 3.06 | 1.00816 | 1.0078 |
+| Both, 200 km | `s2s2-blur-both-r200km-e20ms-w64` | 3.06, 6.12 | **0.96330** | 1.0136 |
+| Platform motion, 100 km | `s2s2-blur-platform-r100km-e20ms-w64` | 6.12, 6.12 | 0.99107 | 0.9755 |
+| Target motion, 50 km | `s2s2-blur-target-r50km-e20ms-w64` | 12.24, 12.24 | 0.99040 | 0.9799 |
+| Labelled 0.5 m plate, 1000 m/s, 25 km, 5 ms | `s2s-unresolved-r25km-v1000mps-e5ms-l0-z0-d0-w64` | 0.61, 6.12 | **0.77828** | (not reduced) |
+
+A plate under about 6 px leaves no central row clear of its edges. `streak_length` therefore fits such a plate in its column sums over its rows, divided by its width (round 41). Every committed plate of 6.12 px or more keeps the central-row profile, so no earlier record's reduction changes. The eighth render, the `both` group from 50 km, was dropped: its 24.5 px sweep runs off the window, the target box starts outside the frame and the flux read 0. The geometry was wrong; it is not a DIRSIG result. Its spec and record were removed.
+
+**What the envelope shows (nothing tuned).**
+- **From 2 px up, a still or singly moving plate holds its flux to about 1 %.** The 3.06 px plate reads 0.989 still and 1.008 moving. The platform and target groups read the same ratios to four digits at 200 and 100 km, as they do at 25 km.
+- **The streak shortfall begins once the sweep is long enough to read.** 0.9755 and 0.9799 at 6.12 and 12.24 px, as at 24.5 px (rounds 30 and 39). A 3.06 px sweep reads 1.008: the still plate of the same size fits a 1.14 px sweep from DIRSIG's own spread alone, so that short a sweep cannot bracket the shortfall.
+- **The combined-motion flux deficit grows as the plate shrinks.** 0.0 % at 24.5 px (round 38), 1.3 % at 6.12 px (round 40), 3.7 % at 3.06 px. At the same size and exposure the platform and target groups hold 0.8 %. Not isolated.
+- **A moving sub-pixel plate loses most where it is smallest.** 22 % at 0.61 px over a 6.12 px streak: 8 lit pixels over 5 columns where the streak spans about 7. Against that, 12.7 % at 1.22 px (round 39 C). SatSim keeps a moving 1.22 px object's flux to 6e-6 (round 40). No SatSim control was run at 0.61 px.
+- **Under a pixel and still, placement and label set the deficit.** −16 % to +27 % with the label. On the pixel corner at a large look the plate is 7.5 to 12.5 % low, and off the corner it holds (round 39 B). The labelled spheres read up to 16 % high at large phase angles (round 31). Unlabelled pixels take 100 paths, not 2000, and scatter from −7 % to +68 %.
+
+**What removes it.** Each row of the envelope states it. A fixed per-pixel path count removes the streak shortfall (round 39 A, 1000 paths, scratch renders). Moving off the pixel corner removes the sub-pixel deficit. SatSim shows neither. Nothing in the records removes the combined-motion deficit, the moving sub-pixel loss or the resolved look-alone deficit (round 40 B). The control they need is the per-pixel path count, which is not a run-spec member (BACKLOG candidate ask, round 40).
+
+**Tests.** `tests/test_s2s_results.py`: `TOL_FLUX_ENVELOPE` covers the still, platform and target points, and a check that platform and target motion read alike. `tests/test_s2s_envelope.py`: the document is current, every row past 1 % says what removes it, every record is in one row or excluded with a reason, round 41's rows exist, the combined-motion deficit grows as the plate shrinks, and the small-plate profile is checked. The `both` point and the moving 0.61 px plate are not asserted. `notebooks/stage_06_space_to_space.ipynb` section 12 prints them.

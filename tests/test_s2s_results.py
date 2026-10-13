@@ -299,3 +299,26 @@ def test_a_resolved_sphere_follows_the_phase_function_split_either_way(look, z):
 def test_combined_motion_conserves_a_resolved_plates_flux():
     got, want = flux("s2s2-blur-both-r100km-e20ms-w64")
     assert abs(got / want - 1) <= TOL_FLUX_BOTH_RESOLVED
+
+
+# --- round 41 A: the envelope's empty cells (docs/s2s_envelope.md) -------------------------------------------------------
+# Family II at 20 ms: the 20 m plate 3.06 px across from 200 km (still, platform, target, both), the platform group from
+# 100 km and the target group from 50 km; family I's labelled 0.5 m plate (0.61 px) moving at 1000 m/s from 25 km. The
+# both group from 200 km keeps 0.963 of the flux and the moving 0.61 px plate 0.778: findings, not asserted.
+TOL_FLUX_ENVELOPE = 0.0111         # family II, 20 ms, static, platform and target at 3.06 to 12.24 px: largest the static
+                                   # plate at 200 km (1.106e-2)
+ENVELOPE_FLUX = ("s2s2-blur-static-r200km-e20ms-w64", "s2s2-blur-platform-r200km-e20ms-w64",
+                 "s2s2-blur-target-r200km-e20ms-w64", "s2s2-blur-platform-r100km-e20ms-w64",
+                 "s2s2-blur-target-r50km-e20ms-w64")
+
+
+@pytest.mark.parametrize("name", ENVELOPE_FLUX)
+def test_a_small_plate_moving_or_not_conserves_its_flux(name):
+    got, want = flux(name)
+    assert abs(got / want - 1) <= TOL_FLUX_ENVELOPE
+
+
+def test_platform_and_target_motion_read_alike():
+    for r in ("200", "100"):
+        a, b = rec(f"s2s2-blur-platform-r{r}km-e20ms-w64"), rec(f"s2s2-blur-target-r{r}km-e20ms-w64")
+        assert math.isclose(a["ratio"], b["ratio"], rel_tol=1e-3)

@@ -86,6 +86,7 @@ Source: `docs/data/s2s_results.jsonl` (one record per DIRSIG spec measured; `pyt
 | `s2s-unresolved-r12p5km-v0mps-e5ms-l0-z0-d0p75` | 0.5 m plate | yes | 12.5 km, offset 0.75 px, 5 ms, look 0, zenith 0 | 1.485 | 1.4982 | 0.99144 |
 | `s2s-unresolved-r25km-v0mps-e5ms-l0-z0-d0` | 0.5 m plate | yes | 25 km, offset 0 px, 5 ms, look 0, zenith 0 | 0.3725 | 0.37454 | 0.99454 |
 | `s2s-unresolved-r25km-v0mps-e5ms-l0-z0-d0-w64` | 0.5 m plate | yes | 25 km, offset 0 px, 5 ms, look 0, zenith 0 | 0.3675 | 0.37454 | 0.98119 |
+| `s2s-unresolved-r25km-v1000mps-e5ms-l0-z0-d0-w64` | 0.5 m plate | yes | 25 km, offset 0 px, 5 ms, look 0, zenith 0, 1000 m/s | 0.2915 | 0.37454 | 0.77828 |
 | `s2s-unresolved-r25km-v0mps-e5ms-l0-z60-d0-w64` | 0.5 m plate | yes | 25 km, offset 0 px, 5 ms, look 0, zenith 60 | 0.1838 | 0.18727 | 0.98126 |
 | `s2s-unresolved-r25km-v0mps-e5ms-l15-z0-d0-w64` | 0.5 m plate | yes | 25 km, offset 0 px, 5 ms, look 15, zenith 0 | 0.36 | 0.36178 | 0.99508 |
 | `s2s-unresolved-r25km-v0mps-e5ms-l30-z30-d0-w64` | 0.5 m plate | yes | 25 km, offset 0 px, 5 ms, look 30, zenith 30 | 0.2754 | 0.28091 | 0.98039 |
@@ -153,20 +154,26 @@ Source: `docs/data/s2s_results.jsonl` (one record per DIRSIG spec measured; `pyt
 | Spec | Group | Exposure (ms) | Flux ratio | Fitted streak (px) | v·t / footprint (px) | Fitted / expected |
 |---|---|---|---|---|---|---|
 | `s2s2-blur-static-e5ms` | static | 5 | 1.00095 | 0.6205 | 0 | — |
+| `s2s2-blur-static-r200km-e20ms-w64` | static | 20 | 0.98894 | 1.144 | 0 | — |
 | `s2s2-blur-platform-e0p1ms` | platform | 0.1 | 1.00085 | 0.6031 | 0.1224 | 4.927 |
 | `s2s2-blur-platform-e1ms` | platform | 1 | 0.99950 | 1.233 | 1.224 | 1.007 |
 | `s2s2-blur-platform-e5ms` | platform | 5 | 1.00023 | 5.973 | 6.12 | 0.9759 |
 | `s2s2-blur-platform-e20ms` | platform | 20 | 0.99801 | 23.85 | 24.48 | 0.9743 |
+| `s2s2-blur-platform-r100km-e20ms-w64` | platform | 20 | 0.99107 | 5.97 | 6.12 | 0.9755 |
+| `s2s2-blur-platform-r200km-e20ms-w64` | platform | 20 | 1.00816 | 3.084 | 3.06 | 1.008 |
 | `s2s2-blur-target-e0p1ms` | target | 0.1 | 1.00085 | 0.6031 | 0.1224 | 4.927 |
 | `s2s2-blur-target-e1ms` | target | 1 | 0.99952 | 1.233 | 1.224 | 1.007 |
 | `s2s2-blur-target-e5ms` | target | 5 | 1.00023 | 5.973 | 6.12 | 0.9759 |
 | `s2s2-blur-target-e20ms` | target | 20 | 0.99800 | 23.85 | 24.48 | 0.9743 |
 | `s2s2-blur-target-r100km-e20ms-w64` | target | 20 | 0.99107 | 5.97 | 6.12 | 0.9755 |
+| `s2s2-blur-target-r200km-e20ms-w64` | target | 20 | 1.00816 | 3.084 | 3.06 | 1.008 |
+| `s2s2-blur-target-r50km-e20ms-w64` | target | 20 | 0.99040 | 11.99 | 12.24 | 0.9799 |
 | `s2s2-blur-both-e0p1ms-w64` | both | 0.1 | 1.00162 | 0.6267 | 0.2448 | 2.56 |
 | `s2s2-blur-both-e1ms-w64` | both | 1 | 1.00003 | 2.467 | 2.448 | 1.008 |
 | `s2s2-blur-both-e5ms-n2-w64` | both | 5 | 1.00023 | 12.01 | 12.24 | 0.9809 |
 | `s2s2-blur-both-e5ms-w64` | both | 5 | 1.00023 | 12.01 | 12.24 | 0.9809 |
 | `s2s2-blur-both-r100km-e20ms-w64` | both | 20 | 0.98653 | 11.82 | 12.24 | 0.9656 |
+| `s2s2-blur-both-r200km-e20ms-w64` | both | 20 | 0.96330 | 6.203 | 6.12 | 1.014 |
 | `s2s2-orbit-e0p1ms` | orbit | 0.1 | 1.00576 | — | — | — |
 | `s2s2-orbit-e20ms` | orbit | 20 | 1.00576 | — | — | — |
 | `s2s-satsim-ctl-plate-r25km-v1000mps-e5ms-l0-d0-w64` | SatSim target (25 km) | 5 | 1.00000 | 6.11 | 6.12 | 0.9983 |
@@ -502,6 +509,7 @@ python scripts/cold_start_check.py --check
 python scripts/s2s_scenarios.py --check
 python scripts/s2s_measure.py --check
 python scripts/s2s_coverage.py --check
+python scripts/s2s_envelope.py --check
 python scripts/risk_measure.py --check
 python scripts/bigger_host_run.py --check
 ```
@@ -510,15 +518,16 @@ Expected at HEAD (each exits 0; what it prints last):
 
 | Command | Expected |
 |---|---|
-| `python -m pytest -q -p no:cacheprovider` | 2129 passed, 2 skipped (about 9 to 10 minutes on the 4-core laptop) |
+| `python -m pytest -q -p no:cacheprovider` | 2140 passed, 2 skipped (about 9 to 10 minutes on the 4-core laptop) |
 | `python scripts/review_report.py --check` | `review_report: 18 generated blocks, 0 problem(s)` |
 | `compose.py`, `stamp_hashes.py`, `render_diagrams.py`, `api_examples.py`, `gen_models.py`, `survey_demos.py`, `engine_contracts.py` `--check` | exit 0, nothing printed |
 | `python scripts/id_snapshot.py --check` | `id snapshot: unchanged` |
 | `python scripts/status_markers.py --check` | `status_markers: 182 markers, 0 problems` |
 | `python scripts/cold_start_check.py --check` | a line per step, the last beginning `ok   imported from the new environment` |
-| `python scripts/s2s_scenarios.py --check` | `165 run specs: generated, valid, ids as indexed` |
-| `python scripts/s2s_measure.py --check` | `133 records: well formed, specs indexed, expected values recompute` |
-| `python scripts/s2s_coverage.py --check` | `124 records, 20 rows x 3 classes: the coverage map is current` |
+| `python scripts/s2s_scenarios.py --check` | `172 run specs: generated, valid, ids as indexed` |
+| `python scripts/s2s_measure.py --check` | `140 records: well formed, specs indexed, expected values recompute` |
+| `python scripts/s2s_coverage.py --check` | `131 records, 20 rows x 3 classes: the coverage map is current` |
+| `python scripts/s2s_envelope.py --check` | `21 rows over 110 records: the envelope is current` |
 | `python scripts/risk_measure.py --check` | `31 records: well formed, derived numbers recompute` |
 | `python scripts/bigger_host_run.py --check` | `7 entries: well formed, drivers and items known, named in docs/Bigger_host_plan.md` |
 

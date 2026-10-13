@@ -981,6 +981,18 @@
   "window": 64
  },
  {
+  "name": "s2s-unresolved-r25km-v1000mps-e5ms-l0-z0-d0-w64",
+  "run_id": "d40fb535e1bb5663db4456b9afe9533b133a078d066f7cd15e98990f1348e858",
+  "object_class": "unresolved",
+  "range_m": 25000.0,
+  "relative_speed": 1000.0,
+  "exposure_s": 0.005,
+  "look_deg": 0.0,
+  "solar_zenith_deg": 0.0,
+  "offset_px": 0.0,
+  "window": 64
+ },
+ {
   "name": "s2s2-blur-static-e5ms",
   "run_id": "1a5b7222b06ed1ecf3371f200a629da6ebc2c0971bcae8fc7556422ec4e96c34",
   "family": 2,
@@ -1230,6 +1242,72 @@
   "exposure_s": 0.02,
   "look_deg": 0.0,
   "range_m": 100000.0,
+  "window": 64
+ },
+ {
+  "name": "s2s2-blur-static-r200km-e20ms-w64",
+  "run_id": "5641790bddc2ff14a31e7aacc08e751390417de091e5facd57f8112f43d0254d",
+  "family": 2,
+  "kind": "blur",
+  "group": "static",
+  "exposure_s": 0.02,
+  "look_deg": 0.0,
+  "range_m": 200000.0,
+  "window": 64
+ },
+ {
+  "name": "s2s2-blur-platform-r200km-e20ms-w64",
+  "run_id": "b381a636bdb10e9453d247e0d598bede58d0f300fae8089e55770a3c7fcdb3c4",
+  "family": 2,
+  "kind": "blur",
+  "group": "platform",
+  "exposure_s": 0.02,
+  "look_deg": 0.0,
+  "range_m": 200000.0,
+  "window": 64
+ },
+ {
+  "name": "s2s2-blur-target-r200km-e20ms-w64",
+  "run_id": "4dca4332a751fc23a00ad54e24d832496190ffd1b62ad25e50d91c843cb0c534",
+  "family": 2,
+  "kind": "blur",
+  "group": "target",
+  "exposure_s": 0.02,
+  "look_deg": 0.0,
+  "range_m": 200000.0,
+  "window": 64
+ },
+ {
+  "name": "s2s2-blur-both-r200km-e20ms-w64",
+  "run_id": "a716ac720025ce9fc67ecb0f61b890ba7d2ffbe79291dafb7dcc664b131f2d29",
+  "family": 2,
+  "kind": "blur",
+  "group": "both",
+  "exposure_s": 0.02,
+  "look_deg": 0.0,
+  "range_m": 200000.0,
+  "window": 64
+ },
+ {
+  "name": "s2s2-blur-platform-r100km-e20ms-w64",
+  "run_id": "e0b209d36ac4ff3f1bd2d6f73329490e10ee5e763364423d5fcce499bcc77c1d",
+  "family": 2,
+  "kind": "blur",
+  "group": "platform",
+  "exposure_s": 0.02,
+  "look_deg": 0.0,
+  "range_m": 100000.0,
+  "window": 64
+ },
+ {
+  "name": "s2s2-blur-target-r50km-e20ms-w64",
+  "run_id": "58fa373d35a92bee922f04ee6c32d1e18dcc4154b567a5496f9431ae02777242",
+  "family": 2,
+  "kind": "blur",
+  "group": "target",
+  "exposure_s": 0.02,
+  "look_deg": 0.0,
+  "range_m": 50000.0,
   "window": 64
  },
  {
