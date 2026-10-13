@@ -2,6 +2,7 @@
 """Render a DIRSIG demo in the layered form and as authored (pass-through), and compare the images.
 
     python scripts/compare_layered.py DensityMap1 [PointCollectors2 ...] [--work DIR] [--seed 1] [--timeout 1800]
+                                      [--threads N]
     python scripts/compare_layered.py --source NAME=DIR:SIMULATION [...] [--work DIR]
 
 Per demo, one render at a time, everything under `--work` (default: the state directory's
@@ -29,6 +30,18 @@ Per demo, one render at a time, everything under `--work` (default: the state di
    in place of the generated one, and its image digests are compared with the pass-through's. A diagnostic outside the
    recipe and the SDK; the recipe is not changed. Then once more with the generated motion file whose Euler angles
    alone are replaced by the demo's text (dirfm writes them to six decimals), to separate the angles from the rest.
+6. Noise floor, at DIRSIG's default thread count only (no `--threads`), when the layered image differs from the
+   same-seed pass-through one: the same-seed pass-through spec is rendered once more, in a second run store under
+   `<work>/<Name>/runs_repeat` (the first store would return the finished run of the same id), and its images are
+   compared with the first render's. If they differ, the scene does not repeat at this thread count, so a digest
+   difference in steps 4 and 5 is no evidence of an input difference; the report prints a noise-floor note with the
+   numbers (see `noise_floor_note`).
+
+`--threads N` requests N threads for every render: the layered engine profile and the pass-through specs carry
+`resources: {cpu_threads: N}` (so the run ids differ from the default's), which the worker passes to `dirsig5` as
+`--threads`, and step 5's direct renders get `--threads=N`. Without it nothing requests a count, as before: each
+render runs at DIRSIG's default. At one thread DIRSIG repeats bit for bit (docs/DIRSIG_determinism.md), which a scene
+that does not repeat at the default count (foxbat, docs/DIRSIG_transfer_scenes.md) needs for a digest attribution.
 
 Results go to `<work>/results.json` and a markdown table to stdout; `docs/DIRSIG_layered_comparison.md` holds the
 numbers and digests from a run of this script (hand-copied; no output byte, no demo value). A render that exceeds
@@ -222,8 +235,9 @@ def scene_origin(scene):
     return float(loc.findtext("latitude")), float(loc.findtext("longitude"))
 
 
-def write_layers(name, layers, config_repo, seed):
-    """The demo's recipe, scenario and engine profile under `layers` (its derivation notes returned)."""
+def write_layers(name, layers, config_repo, seed, threads=None):
+    """The demo's recipe, scenario and engine profile under `layers` (its derivation notes returned). With `threads`,
+    the engine profile requests that many threads (`resources.cpu_threads`)."""
     demo_dir = config_repo / "demo_dirs" / name
     files = simulation_inputs(demo_dir, SIMULATION[name])
     form, uniform = read_basic_atm(demo_dir / files["atmosphere"])
@@ -262,6 +276,8 @@ def write_layers(name, layers, config_repo, seed):
         engine["working_folder"] = [{"name": n, "ref": {"name": ref(src.relative_to(demo_dir).as_posix()),
                                                         "content_hash": sha256_file(src)}} for n, src, _ in working]
     profile = {"origin": {"kind": "synthetic", "engine": "dirsig"}, "engine": engine}
+    if threads is not None:
+        profile["resources"] = {"cpu_threads": threads}
     (layers / "scenarios" / f"{key}.yaml").write_text(yaml.safe_dump({"collection": collection}, sort_keys=False))
     (layers / "engine_profiles" / f"{key}.yaml").write_text(yaml.safe_dump(profile, sort_keys=False))
     recipe = {"compose": "compose/1",
@@ -293,7 +309,7 @@ def write_layers(name, layers, config_repo, seed):
     return key, notes
 
 
-def passthrough_spec(name, config_repo, seed):
+def passthrough_spec(name, config_repo, seed, threads=None):
     spec = yaml.safe_load((ROOT / "manifold_run_specs" / "demo_pointcollectors2_passthrough.yaml").read_text())
     meta = spec["descriptor"]["meta"]
     meta["name"] = f"compare-{name.lower()}-passthrough" + ("" if seed is None else f"-seed{seed}")
@@ -305,6 +321,8 @@ def passthrough_spec(name, config_repo, seed):
     spec["engine"].pop("run", None)
     if seed is not None:
         spec["engine"]["run"] = {"seed": seed}
+    if threads is not None:
+        spec["resources"] = {"cpu_threads": threads}
     return spec
 
 
@@ -363,7 +381,13 @@ def _demo_angles(generated, demo_ppd):
     return generated[:m.start()] + block + generated[m.end():]
 
 
-def attribute_motion(ws, layered, demo_dir, motion_rel, seed, scratch, timeout, angles_only=False):
+def dirsig5_command(dirsig5, out, seed, threads=None):
+    """The direct `dirsig5` command of an attribution render (step 5), `--threads=N` when a count is requested."""
+    return [str(dirsig5), f"--output_folder={out}", "--random_seed", str(seed),
+            *([f"--threads={threads}"] if threads is not None else []), "example.jsim"]
+
+
+def attribute_motion(ws, layered, demo_dir, motion_rel, seed, scratch, timeout, angles_only=False, threads=None):
     """Digests of the layered job re-rendered with the demo's own motion file, or with the generated one whose Euler
     angles alone are the demo's (`angles_only`; see the module docstring, step 5)."""
     import os
@@ -381,8 +405,7 @@ def attribute_motion(ws, layered, demo_dir, motion_rel, seed, scratch, timeout, 
     (scratch / "home").mkdir()
     out = scratch / "output"
     out.mkdir()
-    cmd = [str(Path(locate_dirsig()["home"]) / "bin" / "dirsig5"), f"--output_folder={out}", "--random_seed", str(seed),
-           "example.jsim"]
+    cmd = dirsig5_command(Path(locate_dirsig()["home"]) / "bin" / "dirsig5", out, seed, threads)
     with open(scratch / "dirsig5.log", "w") as log:
         rc = subprocess.run(cmd, cwd=scratch / "input", stdout=log, stderr=subprocess.STDOUT, timeout=timeout,
                             env={**os.environ, "HOME": str(scratch / "home")}, check=False).returncode
@@ -390,20 +413,21 @@ def attribute_motion(ws, layered, demo_dir, motion_rel, seed, scratch, timeout, 
                                          for p in sorted(out.glob("*.img"))}}
 
 
-def run_demo(name, work, seed, timeout):
+def run_demo(name, work, seed, timeout, threads=None):
     base = work / name
     config_repo, layers = base / "config_repo", base / "layers"
     extract(name, config_repo / "demo_dirs" / name)
-    key, notes = write_layers(name, layers, config_repo, seed)
+    key, notes = write_layers(name, layers, config_repo, seed, threads)
     ws = Workspace.local(library=layers, config_repo=config_repo, work=base / "runs", sensor_library=ROOT / "manifold_sensors")
     spec_dir = base / "specs"
     spec_dir.mkdir(exist_ok=True)
-    out = {"demo": name, "simulation": SIMULATION[name], "seed": seed, "derivation": notes, "known": KNOWN, "runs": {}}
+    out = {"demo": name, "simulation": SIMULATION[name], "seed": seed, "threads": threads, "derivation": notes,
+           "known": KNOWN, "runs": {}}
     targets = {"layered": key}
     for label, s in (("passthrough_same_seed", seed), ("passthrough_no_seed", None)):
         from manifold.core.compose import dump
         path = spec_dir / f"{label}.yaml"
-        path.write_text(dump(passthrough_spec(name, config_repo, s), label))
+        path.write_text(dump(passthrough_spec(name, config_repo, s, threads), label))
         targets[label] = str(path)
     for label, target in targets.items():                                  # one render at a time
         out["runs"][label] = render(ws, target, timeout)
@@ -427,10 +451,33 @@ def run_demo(name, work, seed, timeout):
         target = {n: c["sha256_b"] for n, c in same.items() if isinstance(c, dict)}
         for key, angles_only in (("attribution_demo_motion", False), ("attribution_demo_angles", True)):
             rec = attribute_motion(ws, out["runs"]["layered"], demo_dir, motion, seed, base / key, timeout,
-                                   angles_only=angles_only)
+                                   angles_only=angles_only, threads=threads)
             rec["matches_passthrough_same_seed"] = {n: rec["sha256"].get(n) == s for n, s in target.items()}
             out[key] = rec
+        if threads is None:                                           # step 6: the noise floor at the default count
+            repeat_ws = Workspace.local(library=layers, config_repo=config_repo, work=base / "runs_repeat",
+                                        sensor_library=ROOT / "manifold_sensors")
+            rec = render(repeat_ws, targets["passthrough_same_seed"], timeout)
+            out["runs"]["passthrough_same_seed_repeat"] = rec
+            if rec["state"] == "rendered":
+                first, again = _images(out["runs"]["passthrough_same_seed"]), _images(rec)
+                out["noise_floor"] = {n: compare(first[n], again[n]) for n in sorted(first.keys() & again.keys())}
     return out
+
+
+def noise_floor_note(result):
+    """The report's noise-floor line for one demo's result, or None: when the two same-seed pass-through renders of
+    step 6 (default thread count) differ from one another, the digest comparisons above cannot attribute a
+    difference, and the line says so with the largest fraction of differing pixels and absolute difference."""
+    floor = result.get("noise_floor") or {}
+    differing = {n: c for n, c in floor.items() if c["sha256_a"] != c["sha256_b"]}
+    if not differing:
+        return None
+    frac = max(c.get("fraction_pixels_differ", 1.0) for c in differing.values())
+    diff = max(c.get("max_abs_diff", float("nan")) for c in differing.values())
+    return (f"{result['demo']}: noise floor: two same-seed pass-through renders at DIRSIG's default thread count "
+            f"differ from one another ({', '.join(sorted(differing))}; up to {frac:.4%} of pixels, max abs difference "
+            f"{diff:.6g}), so a digest difference above is no evidence of an input difference; rerun with --threads 1")
 
 
 def table(results):
@@ -457,7 +504,12 @@ def main(argv=None):
     ap.add_argument("--work", type=Path, default=None)
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--timeout", type=float, default=1800.0)
+    ap.add_argument("--threads", type=int, default=None, metavar="N",
+                    help="threads for every render (resources.cpu_threads; --threads for direct dirsig5 runs); "
+                         "default: none requested, DIRSIG's own default")
     a = ap.parse_args(argv)
+    if a.threads is not None and a.threads < 1:
+        ap.error(f"--threads must be at least 1, got {a.threads}")
     unknown = sorted(set(a.demos) - set(SIMULATION))
     if unknown:
         ap.error(f"not a demo this script knows: {', '.join(unknown)}")
@@ -475,7 +527,7 @@ def main(argv=None):
     if work.resolve().is_relative_to(ROOT.resolve()):
         raise SystemExit(f"--work {work} is inside the repository; native-size renders are written outside it")
     work.mkdir(parents=True, exist_ok=True)
-    results = [run_demo(n, work, a.seed, a.timeout) for n in names]
+    results = [run_demo(n, work, a.seed, a.timeout, a.threads) for n in names]
     (work / "results.json").write_text(json.dumps(results, indent=2, sort_keys=True))
     print(table(results))
     for r in results:
@@ -486,6 +538,9 @@ def main(argv=None):
                   f"{r['attribution_demo_motion']['matches_passthrough_same_seed']}")
             print(f"{r['demo']}: with the demo's Euler angles alone, identical to the same-seed pass-through: "
                   f"{r['attribution_demo_angles']['matches_passthrough_same_seed']}")
+        note = noise_floor_note(r)
+        if note:
+            print(note)
     return 0
 
 

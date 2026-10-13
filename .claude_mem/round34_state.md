@@ -12,3 +12,5 @@
 - step B gate: 1783 passed, 2 skipped (8 min 4 s, alone); thirteen checks 0; core and snapshot unchanged
 - step C: notebook + tests/test_stage06_notebook.py (5), CONOPS section 8 row, notebooks/README
 - step C gate: 1789 passed, 2 skipped (8 min 2 s, alone); thirteen checks 0 (status_markers 181); core and snapshot unchanged
+- step D: compare_layered --threads, noise-floor repeat and note; 3 new tests
+- step D gate: 1792 passed, 2 skipped (8 min 1 s, alone); thirteen checks 0; core and snapshot unchanged

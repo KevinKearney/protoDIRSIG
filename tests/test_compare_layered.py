@@ -234,3 +234,47 @@ def test_a_directory_source_needs_its_simulation_file_and_a_demo_name_must_be_kn
         cl.main(["NotADemo", "--work", str(tmp_path / "work")])
     with pytest.raises(SystemExit):
         cl.main(["--work", str(tmp_path / "work")])
+
+
+def test_threads_is_parsed_and_must_be_at_least_one(tmp_path, monkeypatch):
+    seen = []
+    monkeypatch.setattr(cl, "run_demo", lambda name, work, seed, timeout, threads=None: seen.append(threads) or
+                        {"demo": name, "runs": {}})
+    assert cl.main(["DensityMap1", "--work", str(tmp_path / "work"), "--threads", "1"]) == 0
+    assert cl.main(["DensityMap1", "--work", str(tmp_path / "work")]) == 0
+    assert seen == [1, None]                                         # the default requests no count, as before
+    with pytest.raises(SystemExit):
+        cl.main(["DensityMap1", "--work", str(tmp_path / "work"), "--threads", "0"])
+
+
+def test_threads_reach_the_layered_profile_the_pass_through_specs_and_the_direct_renders(tmp_path, monkeypatch):
+    import yaml
+    monkeypatch.setitem(cl.SIMULATION, "Synth3", "demo.sim")
+    config_repo = tmp_path / "config_repo"
+    _synthetic_demo(config_repo, "Synth3", working=False)
+    cl.write_layers("Synth3", tmp_path / "a", config_repo, 1)
+    cl.write_layers("Synth3", tmp_path / "b", config_repo, 1, threads=1)
+    profile = lambda d: yaml.safe_load((d / "engine_profiles" / "layered_synth3.yaml").read_text())  # noqa: E731
+    assert "resources" not in profile(tmp_path / "a")
+    assert profile(tmp_path / "b")["resources"] == {"cpu_threads": 1}
+    assert profile(tmp_path / "b")["engine"] == profile(tmp_path / "a")["engine"]
+    assert "resources" not in cl.passthrough_spec("Synth3", config_repo, 1)
+    assert cl.passthrough_spec("Synth3", config_repo, None, threads=2)["resources"] == {"cpu_threads": 2}
+    assert cl.dirsig5_command("dirsig5", "out", 1) == ["dirsig5", "--output_folder=out", "--random_seed", "1",
+                                                       "example.jsim"]
+    assert cl.dirsig5_command("dirsig5", "out", 1, 1)[-2:] == ["--threads=1", "example.jsim"]
+
+
+def test_the_noise_floor_note_appears_only_when_the_two_pass_through_renders_differ(tmp_path, capsys, monkeypatch):
+    a = _envi(tmp_path / "a.img", [[[1, 2], [3, 4]]])
+    b = _envi(tmp_path / "b.img", [[[1, 2], [3, 4.5]]])
+    same = {"demo": "Synth4", "noise_floor": {"demo.img": cl.compare(a, a)}}
+    differ = {"demo": "Synth4", "noise_floor": {"demo.img": cl.compare(a, b)}}
+    assert cl.noise_floor_note(same) is None and cl.noise_floor_note({"demo": "Synth4"}) is None
+    note = cl.noise_floor_note(differ)
+    assert note == ("Synth4: noise floor: two same-seed pass-through renders at DIRSIG's default thread count differ "
+                    "from one another (demo.img; up to 25.0000% of pixels, max abs difference 0.5), so a digest "
+                    "difference above is no evidence of an input difference; rerun with --threads 1")
+    monkeypatch.setattr(cl, "run_demo", lambda *args, **kw: differ)
+    cl.main(["DensityMap1", "--work", str(tmp_path / "work")])
+    assert note in capsys.readouterr().out
