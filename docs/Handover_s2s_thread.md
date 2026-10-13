@@ -93,7 +93,7 @@ A round's range runs from the previous round's last commit (exclusive) to its ow
 | 40 | `ae4bcba`..`f8ce601` | SatSim controls of round 39's deficits; the resolved cells; the path-count ask |
 | 41 | `aed73b6`..`41405dc` | the sampling-effect envelope; three authoring defects fixed outside the core; the manual's section 11 |
 | 42 | `0f9d172`..`5f06951` | the study: manuscript, data appendix, reproduction package |
-| 43 | `b981374`.. | the study refreshed against HEAD; the review report's section 3.1 and the black-level revert; this document and the bigger-host update; close-out |
+| 43 | `b981374`.. | A `b981374` the study refreshed against HEAD; B `1c2fe64` the review report's section 3.1 and the black-level revert; C `f6d7c83` this document and the bigger-host update; D the close-out (the round's last commit) |
 
 ## 5. Where each finding lives
 
@@ -149,7 +149,7 @@ Also for MANIFOLD: the five behaviour changes outside `packages/core` since `rev
 **For the owner (Kevin):**
 
 - The product direction for authoring: a form or GUI that writes recipes and layers, a CLI, or neither (CONOPS section 10.1, the maintainer's decisions; `docs/Authoring_friction_audit.md`; `scripts/recipe_form.py` prototypes the recipe step).
-- The repository host. `origin` is `github.com/KevinKearney/protoDIRSIG`, and `origin/main` is at `0d8f874`: rounds 28 to 43 are local only, and the relay's bundle (`~/protoDIRSIG-backup.bundle`) is their one copy off the working tree. Where the repository lives, and when it is pushed, is the owner's action (BACKLOG "Release repo plan" and "Publishing and the internal index policy"); no round pushes.
+- The repository host. `origin` is `github.com/KevinKearney/protoDIRSIG`, and `origin/main` is at `0d8f874`: every later commit, from round 28's second to round 43's, is local only, and the relay's bundle (`~/protoDIRSIG-backup.bundle`) is their one copy off the working tree. Where the repository lives, and when it is pushed, is the owner's action (BACKLOG "Release repo plan" and "Publishing and the internal index policy"); no round pushes.
 - The black-level advice. The refusal of a non-zero `black_level` says "use 0 or omit it", and omitting it is refused: round 41's default was reverted in round 43 because it gave one job two run ids (review report section 3.1). A fix that holds changes the composer (core) or the message (id snapshot).
 - The study's references and author list (`docs/study/README.md` "References to supply"), and its unverified LaTeX and LibreOffice routes.
 - The partial-collect mode for a cancelled DIRSIG run and the HOME of layered jobs (review report section 5).
