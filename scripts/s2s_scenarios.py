@@ -136,6 +136,15 @@ COVERAGE = [{"object_class": cls, **BASELINE[cls], **extra, "window": WINDOW} fo
     ("unresolved", {"range_m": 25000.0, "look_deg": 60.0}),
     ("unresolved", {"range_m": 25000.0, "solar_zenith_deg": 60.0}),
     ("unresolved", {"range_m": 25000.0, "look_deg": 30.0, "solar_zenith_deg": 30.0}))]
+# round 39 B (docs/Space_to_space_characterization.md, "Three differences isolated"): the labelled 0.5 m plate at 25 km
+# (0.61 px) read 0.922 of cos 60 at a 60 degree look. A look sweep in the same window (0, 30 and 60 are round 38's points),
+# the plate at two sub-pixel offsets at 60 degrees (offset 0 puts it on a pixel corner, 0.5 on a pixel centre), and the
+# unlabelled plate at 60 degrees.
+LOOK_SWEEP = [{"object_class": cls, **BASELINE[cls], "range_m": 25000.0, **extra, "window": WINDOW} for cls, extra in (
+    *(("unresolved", {"look_deg": a}) for a in (15.0, 45.0, 50.0, 55.0, 65.0)),
+    ("unresolved", {"look_deg": 60.0, "offset_px": 0.25}),
+    ("unresolved", {"look_deg": 60.0, "offset_px": 0.5}),
+    ("unresolved_plain", {"look_deg": 60.0}))]
 
 
 # --- the sensor's numbers ---------------------------------------------------------------------------------------------
@@ -347,7 +356,7 @@ def point_name(p):
 
 def grid(full=False):
     """The family's grid points (dicts over AXES), in a fixed order: per class, the baseline, then each axis's other
-    values one at a time, and then round 38's COVERAGE points; with `full`, the product of each class's axis values. An orbit point's range and look angle
+    values one at a time, and then round 38's COVERAGE and round 39's LOOK_SWEEP points; with `full`, the product of each class's axis values. An orbit point's range and look angle
     are the TLE's: they are set to the pass's values (`orbit_geometry`) and not varied."""
     points = []
     for cls in PLATES:
@@ -364,7 +373,7 @@ def grid(full=False):
             if "offset_px" in axes:
                 points += [{**base, "range_m": r, "offset_px": d} for r in SUBPIXEL_RANGES for d in GRID["offset_px"][cls]]
     if not full:
-        points += [dict(p) for p in COVERAGE]
+        points += [dict(p) for p in COVERAGE + LOOK_SWEEP]
     seen, out = set(), []
     for p in points:
         if p["relative_speed"] == ORBIT:

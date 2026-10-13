@@ -509,3 +509,33 @@ At the second geometry below (100 km, 20 ms), the record reads 0.9755 and the sa
 **Cause (isolated).** The shortfall goes with DIRSIG's adaptive per-pixel sampling. At a fixed 1000 paths per pixel it falls from 1.9 to 2.5 % to 0.1 to 0.2 %, at both geometries. It is not the (n − 1)/n of a sweep sampled at n instants: at a fixed 20 paths that would be 5 %, and 20 paths read 1.3 % and 0.8 % (two seeds). How the adaptive stop shortens the ramp pixels' share inside DIRSIG's convergence algorithm is not isolated. The streak length the family records is therefore a property of the default sampling, not of the motion. A sweep length to better than 2 % needs a fixed path count, which is not a run-spec member (BACKLOG).
 
 **Tests.** `tests/test_s2s_results.py`: the generator's count renders the same bytes (exact), the resolved streak's flux (`TOL_FLUX_STREAK_100KM`), and the same shortfall at both widths (`TOL_SHORTFALL_WIDTH`). `notebooks/stage_06_space_to_space.ipynb` section 7 prints them.
+
+### B: the sub-pixel plate at a 60 degree look
+
+Round 38's labelled 0.5 m plate at 25 km (0.61 px), seen 60 degrees off nadir, read 0.922 of cos 60 against its window's nadir record. Look 30 with the Sun at 30 held. Eight new points at the same window and range (`LOOK_SWEEP`; 1.5 to 1.8 s each, dirsig5 at most 128,860 kB):
+- the look at 15, 45, 50, 55 and 65 degrees (0, 30 and 60 are round 38's), the plate centred on a pixel corner (offset 0) as before;
+- the plate moved 0.25 and 0.5 of a footprint along both scene axes at 60 degrees (offset 0.5 is a pixel centre along y; along the foreshortened x the shift is 0.25 px);
+- the unlabelled plate (`unresolved_plain`) at 60 degrees.
+
+A labelled plate's four pixels each take 2000 paths. A pixel's value is therefore its hit count over 2000 (in the corner-centred products with the Sun at the zenith, every value is an integer over 2000 to 2e-5), and the image sum's binomial scatter is about 1/√hits.
+
+| Look (deg) | Zenith (deg) | Spec | Flux closure | / window nadir / cos(look) cos(zenith) | Hits | 1/√hits |
+|---|---|---|---|---|---|---|
+| 0 | 0 | `s2s-unresolved-r25km-v0mps-e5ms-l0-z0-d0-w64` (round 38) | 0.9812 | 1 | 735 | 0.037 |
+| 15 | 0 | `s2s-unresolved-r25km-v0mps-e5ms-l15-z0-d0-w64` | 0.9951 | 1.0141 | 720 | 0.037 |
+| 30 | 30 | `s2s-unresolved-r25km-v0mps-e5ms-l30-z30-d0-w64` (round 38) | 0.9804 | 0.9992 | 636 | 0.040 |
+| 45 | 0 | `s2s-unresolved-r25km-v0mps-e5ms-l45-z0-d0-w64` | 0.9251 | 0.9428 | 490 | 0.045 |
+| 50 | 0 | `s2s-unresolved-r25km-v0mps-e5ms-l50-z0-d0-w64` | 0.9138 | 0.9313 | 440 | 0.048 |
+| 55 | 0 | `s2s-unresolved-r25km-v0mps-e5ms-l55-z0-d0-w64` | 0.9054 | 0.9227 | 389 | 0.051 |
+| 60 | 0 | `s2s-unresolved-r25km-v0mps-e5ms-l60-z0-d0-w64` (round 38) | 0.9051 | 0.9224 | 339 | 0.054 |
+| 65 | 0 | `s2s-unresolved-r25km-v0mps-e5ms-l65-z0-d0-w64` | 0.8750 | 0.8918 | 277 | 0.060 |
+| 60, offset 0.25 px | 0 | `s2s-unresolved-r25km-v0mps-e5ms-l60-z0-d0p25-w64` | 0.9985 | — | 374 | 0.052 |
+| 60, offset 0.5 px | 0 | `s2s-unresolved-r25km-v0mps-e5ms-l60-z0-d0p5-w64` | 1.0188 | — | about 380 (two of its pixels are not whole hits over 2000) | 0.051 |
+| 60, unlabelled | 0 | `s2s-unresolvedplain-r25km-v0mps-e5ms-l60-z0-d0-w64` | 0.5340 | — | 10 (100-path pixels) | 0.32 |
+
+**What the controls isolate.**
+- **Sampling: isolated as a placement effect.** At the corner, the closure falls below cos(look) from 45 degrees on: 0.925, 0.914, 0.905, 0.905 and 0.875 at 45 to 65 degrees. Each is 1.6 to 2.1 of its own binomial σ below the closed form, all on the same side, and the deficit grows with the look. It is therefore not the hit count's scatter alone. Moved off the corner at 60 degrees, the same plate reads 0.9985 and 1.0188. The 0.922 belongs to the plate centred on a pixel corner, where the foreshortened plate (0.31 px along x, 0.61 px along y) lies across all four pixels' edges. A plate lying across pixel edges loses part of its hits, and loses more the narrower it is. The mechanism inside DIRSIG's hypersampled sampling is not isolated. Round 29's nadir offsets at this range (0.967 to 1.021, native) show the placement spread is already a few percent at nadir.
+- **Label: not isolated.** The unlabelled plate at 60 degrees reads 0.534 on 10 hits. Its pixels take 100 paths, not 2000, so its scatter (about 32 %) cannot separate a label effect of 8 %. A labelled-against-unlabelled comparison at this size needs a fixed path count, which is not a run-spec member.
+- **Window: not varied at 60 degrees** (budget). Round 38 measured the window's effect on this plate at nadir as 1.3 % (0.981 at 64 x 64 against 0.9945 native). It is not the cause of a deficit that depends on the plate's placement within the same window.
+
+**Tests.** `tests/test_s2s_results.py` asserts the plate off the corner at 60 degrees (`TOL_SMALL_OFFSET_LOOK`, flux closure at offsets 0.25 and 0.5). The corner sweep and the unlabelled plate are not asserted. `notebooks/stage_06_space_to_space.ipynb` section 8 prints the sweep.

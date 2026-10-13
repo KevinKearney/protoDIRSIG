@@ -80,10 +80,17 @@ Source: `docs/data/s2s_results.jsonl` (one record per DIRSIG spec measured; `pyt
 | `s2s-unresolved-r25km-v0mps-e5ms-l0-z0-d0` | 0.5 m plate | yes | 25 km, offset 0 px, 5 ms, look 0, zenith 0 | 0.3725 | 0.37454 | 0.99454 |
 | `s2s-unresolved-r25km-v0mps-e5ms-l0-z0-d0-w64` | 0.5 m plate | yes | 25 km, offset 0 px, 5 ms, look 0, zenith 0 | 0.3675 | 0.37454 | 0.98119 |
 | `s2s-unresolved-r25km-v0mps-e5ms-l0-z60-d0-w64` | 0.5 m plate | yes | 25 km, offset 0 px, 5 ms, look 0, zenith 60 | 0.1838 | 0.18727 | 0.98126 |
+| `s2s-unresolved-r25km-v0mps-e5ms-l15-z0-d0-w64` | 0.5 m plate | yes | 25 km, offset 0 px, 5 ms, look 15, zenith 0 | 0.36 | 0.36178 | 0.99508 |
 | `s2s-unresolved-r25km-v0mps-e5ms-l30-z30-d0-w64` | 0.5 m plate | yes | 25 km, offset 0 px, 5 ms, look 30, zenith 30 | 0.2754 | 0.28091 | 0.98039 |
+| `s2s-unresolved-r25km-v0mps-e5ms-l45-z0-d0-w64` | 0.5 m plate | yes | 25 km, offset 0 px, 5 ms, look 45, zenith 0 | 0.245 | 0.26484 | 0.92508 |
+| `s2s-unresolved-r25km-v0mps-e5ms-l50-z0-d0-w64` | 0.5 m plate | yes | 25 km, offset 0 px, 5 ms, look 50, zenith 0 | 0.22 | 0.24075 | 0.91380 |
+| `s2s-unresolved-r25km-v0mps-e5ms-l55-z0-d0-w64` | 0.5 m plate | yes | 25 km, offset 0 px, 5 ms, look 55, zenith 0 | 0.1945 | 0.21483 | 0.90537 |
 | `s2s-unresolved-r25km-v0mps-e5ms-l60-z0-d0-w64` | 0.5 m plate | yes | 25 km, offset 0 px, 5 ms, look 60, zenith 0 | 0.1695 | 0.18727 | 0.90510 |
+| `s2s-unresolved-r25km-v0mps-e5ms-l65-z0-d0-w64` | 0.5 m plate | yes | 25 km, offset 0 px, 5 ms, look 65, zenith 0 | 0.1385 | 0.15829 | 0.87498 |
 | `s2s-unresolved-r25km-v0mps-e5ms-l0-z0-d0p25` | 0.5 m plate | yes | 25 km, offset 0.25 px, 5 ms, look 0, zenith 0 | 0.3822 | 0.37454 | 1.02047 |
+| `s2s-unresolved-r25km-v0mps-e5ms-l60-z0-d0p25-w64` | 0.5 m plate | yes | 25 km, offset 0.25 px, 5 ms, look 60, zenith 0 | 0.187 | 0.18727 | 0.99855 |
 | `s2s-unresolved-r25km-v0mps-e5ms-l0-z0-d0p5` | 0.5 m plate | yes | 25 km, offset 0.5 px, 5 ms, look 0, zenith 0 | 0.3621 | 0.37454 | 0.96672 |
+| `s2s-unresolved-r25km-v0mps-e5ms-l60-z0-d0p5-w64` | 0.5 m plate | yes | 25 km, offset 0.5 px, 5 ms, look 60, zenith 0 | 0.1908 | 0.18727 | 1.01875 |
 | `s2s-unresolved-r25km-v0mps-e5ms-l0-z0-d0p75` | 0.5 m plate | yes | 25 km, offset 0.75 px, 5 ms, look 0, zenith 0 | 0.3626 | 0.37454 | 0.96820 |
 | `s2s-unresolved-r50km-v0mps-e5ms-l0-z0-d0` | 0.5 m plate | yes | 50 km, offset 0 px, 5 ms, look 0, zenith 0 | 0.0765 | 0.093636 | 0.81699 |
 | `s2s-unresolved-r50km-v0mps-e5ms-l0-z0-d0p25` | 0.5 m plate | yes | 50 km, offset 0.25 px, 5 ms, look 0, zenith 0 | 0.09 | 0.093636 | 0.96117 |
@@ -107,6 +114,7 @@ Source: `docs/data/s2s_results.jsonl` (one record per DIRSIG spec measured; `pyt
 | `s2s-unresolved-r800km-v0mps-e5ms-l0-z0-d0` | 0.5 m plate | yes | 800 km, offset 0 px, 5 ms, look 0, zenith 0 | 0.0005 | 0.00036577 | 1.36700 |
 | `s2s-unresolvedplain-r12p5km-v0mps-e5ms-l0-z0-d0` | 0.5 m plate | no | 12.5 km, offset 0 px, 5 ms, look 0, zenith 0 | 1.6 | 1.4982 | 1.06797 |
 | `s2s-unresolvedplain-r25km-v0mps-e5ms-l0-z0-d0` | 0.5 m plate | no | 25 km, offset 0 px, 5 ms, look 0, zenith 0 | 0.4 | 0.37454 | 1.06797 |
+| `s2s-unresolvedplain-r25km-v0mps-e5ms-l60-z0-d0-w64` | 0.5 m plate | no | 25 km, offset 0 px, 5 ms, look 60, zenith 0 | 0.1 | 0.18727 | 0.53398 |
 | `s2s-unresolvedplain-r50km-v0mps-e5ms-l0-z0-d0` | 0.5 m plate | no | 50 km, offset 0 px, 5 ms, look 0, zenith 0 | 0.03 | 0.093636 | 0.32039 |
 | `s2s-unresolvedplain-r100km-v0mps-e5ms-l0-z0-d0` | 0.5 m plate | no | 100 km, offset 0 px, 5 ms, look 0, zenith 0 | 0 | 0.023409 | 0.00000 |
 | `s2s-unresolvedplain-r200km-v0mps-e5ms-l0-z0-d0` | 0.5 m plate | no | 200 km, offset 0 px, 5 ms, look 0, zenith 0 | 0 | 0.0058523 | 0.00000 |

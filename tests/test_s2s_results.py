@@ -190,3 +190,15 @@ def test_the_streak_shortfall_does_not_follow_the_objects_width():
     small = also("s2s2-blur-target-r100km-e20ms-w64", "streak_length")["ratio"]
     large = also("s2s2-blur-target-e5ms", "streak_length")["ratio"]
     assert abs(small / large - 1) <= TOL_SHORTFALL_WIDTH
+
+
+# --- round 39 B: the sub-pixel plate at a 60 degree look --------------------------------------------------------------
+# The labelled 0.5 m plate at 25 km (0.61 px) centred on a pixel corner (offset 0) reads 0.875 to 0.925 of its closed form
+# from 45 to 65 degrees off nadir (a finding, not asserted). Moved off the corner at 60 degrees it holds.
+TOL_SMALL_OFFSET_LOOK = 0.0188  # 0.5 m plate, look 60, offsets 0.25 and 0.5 px: flux closure, largest at 0.5 (1.875e-2)
+
+
+@pytest.mark.parametrize("d", ("0p25", "0p5"))
+def test_the_sub_pixel_plate_off_the_corner_follows_cos_60(d):
+    got, want = flux(f"s2s-unresolved-r25km-v0mps-e5ms-l60-z0-d{d}-w64")
+    assert abs(got / want - 1) <= TOL_SMALL_OFFSET_LOOK
