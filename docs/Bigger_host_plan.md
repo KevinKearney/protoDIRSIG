@@ -123,3 +123,37 @@ Host (assumed, 64 cores, 256 GB): 64 cores, 64 hardware threads, MemTotal 238.4 
 | sweep-capped-demos | command | 1 (1 / 0 / 0) | 64 | - (unmeasured) | 1 | 3600 | 0 |
 
 Total estimated wall time: 15633 s (4.34 h), entries one after another; estimates are one-thread wall times on the 4-core laptop (est_s). * the cores' bound: the job's memory is unmeasured, and the entry's probe (run alone first) sets the memory bound.
+
+## Run instructions for the larger host
+
+Before: a checkout at this commit or later, the `protodirsig` environment (`environment.yml`), the pinned DIRSIG installation (`~/DIRSIG/<version>` or `$DIRSIG_HOME`, `external/pins.json`) with its `Documents_Folder-07-Feb-2024` (entry 6), `prlimit` (util-linux), 120 GB free under the work root (entry 4: 108 GB), and `python scripts/bootstrap.py status` clean.
+
+The command (from the repository root; the work root defaults to `~/.local/state/manifold/bigger-host/`, outside the repository):
+
+```
+python scripts/bigger_host_run.py --dry-run && nohup python scripts/bigger_host_run.py > ~/bigger_host.out 2>&1 &
+```
+
+Rerun the same command after any stop: it skips every item whose result is recorded. `--only NAME` runs one entry.
+
+Expected wall time per entry, from `est_s` (the laptop's one-thread wall times; the larger host's cores may be faster or slower) at the plan's concurrency:
+
+| Entry | 16 cores, 64 GB (s) | 32 cores, 128 GB (s) | 64 cores, 256 GB (s) | Basis |
+|---|---|---|---|---|
+| `s2s-unlabelled-points` | 74 | 74 | 74 | 18 jobs at 156 MiB, the longest 73.9 s |
+| `s2s-blur-both` | 204 | 204 | 204 | probe (121.8 s) alone, then 3 together; the longest 204 s |
+| `concurrency-native` | 658 | 856 | 1054 | batches one after another; 70.7 to 198.1 s per batch (laptop, N up to 8), 198.1 s assumed above 8 |
+| `lightcurve1-full` | 4476 | 4476 | 4476 | t1 (2400 s) beside t2 and t4, then td x 3 alone (691.9 s each at 8 threads); one-sample probe first |
+| `capture-order-native` | 5854 | 3600 | 3600 | 1, 2, 5 demos at once under the 24 GiB limit; Thermal2 bounded by its reversed render's 3600 s timeout |
+| `forest-layered-comparison` | 2625 | 2625 | 2625 | 5 renders x 525 s (3.5 x the 150 s the default count exceeded): a lower bound |
+| `sweep-capped-demos` | 3600 | 3600 | 3600 | 2 x 1800 s (the cap they exceeded): a lower bound; at the host's default thread count |
+| Total | 17491 (4.9 h) | 15435 (4.3 h) | 15633 (4.3 h) | entries one after another |
+
+Afterwards, the user checks:
+
+1. `<work>/runner.log`: an `end` event; no `job-end` with a non-zero `rc`, no `killed`, `record-failed` or `exceeds-host` event (each is a finding: an exit 137 is recorded, not repeated unchanged).
+2. `python scripts/bigger_host_run.py --dry-run`: every entry 0 pending (entries 6 and 7 are done when their own results files exist).
+3. `python scripts/s2s_measure.py --check` (111 records) and `python scripts/risk_measure.py --check` (31 plus the host's 9 B, 12 E and 3 D records).
+4. `python -m pytest tests/test_s2s_results.py tests/test_risk_measurements.py tests/test_bigger_host_run.py`.
+5. `<work>/forest-layered-comparison/forest/results.json`: forest's status and image comparison, copied by hand into `docs/DIRSIG_transfer_scenes.md`; `<work>/sweep-capped-demos/demos/sweep/results.jsonl`: each demo's outcome and wall time, copied into `docs/DIRSIG_demo_sweep.md`'s prose.
+6. `git diff --stat`: only `docs/data/s2s_results.jsonl` and `docs/data/risk_measurements.jsonl` changed; commit them with `<work>/peaks.json`'s figures in the message; then delete the work root (entry 4's renders hold 108 GB).
