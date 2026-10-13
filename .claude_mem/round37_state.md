@@ -13,3 +13,5 @@
 - step B: tests/test_docs_consistency.py (200 cases over 34 committed documents); stage_01 markdown cell 0 and a comment in cell 2 corrected; report section 7; CONOPS Part I sentence
 - step B gate, first run: 2 failed (tests/test_status_markers.py: the report's section 7 cited the retired C-13); fix attempt 1: reworded to "id 13", and the consistency test no longer allows a retired id (stricter, matching status_markers)
 - step B gate: 2068 passed, 2 skipped (9 min 18 s, alone); fifteen checks 0; core and snapshot unchanged
+- step C: records in docs/DIRSIG_layered_comparison.md (round ten paragraph; 16 results rows, 11 digest rows), transfer-scenes row, Bigger_host_plan not-in-manifest row, BACKLOG "Scenes Kevin transferred" (2), CONOPS 10.1 Euler-angle decision row, report section 2.3
+- step C gate: 2068 passed, 2 skipped (9 min 19 s, alone); fifteen checks 0; core and snapshot unchanged

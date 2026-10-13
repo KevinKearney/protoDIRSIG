@@ -20,7 +20,7 @@ Totals: 7 entries; 52 to 54 renders outside entry 3 (18 + 4 + 8 + 17 + 3 to 5 + 
 
 | From | Measurement | Reason |
 |---|---|---|
-| round 34 OPEN 1 | foxbat through `compare_layered.py --threads 1` | not limited by the host (round 34 rendered nothing by its scope) |
+| round 34 OPEN 1 | foxbat through `compare_layered.py --threads 1` | not limited by the host (round 34 rendered nothing by its scope); run on this host in round 37, `docs/DIRSIG_layered_comparison.md` round ten |
 | round 31 OPEN 4 | the hyperresolved sphere's converged residual (seeds at 64 x 64) | not limited by the host; no record schema holds seed variants of one spec |
 | round 35 OPEN 5 | the manual's sweep and space-to-space examples at their shipped sizes | examples, not measurements; the space-to-space plate at 500 x 500 is in `s2s_results.jsonl` |
 | round 32 OPEN 3 | MicroScene1, MegaScene1, LidarJungle, Trona, RITBusLoop | their `.scene` and material files are not on the host |

@@ -1,6 +1,6 @@
 # Review report: the repository since review-r27
 
-For a reviewer who holds the tag `review-r27` (commit `9ded055`) and nothing later. Rounds 28 to 36 added measurements, documents, notebooks and scripts on top of that tag, additively: no member of `dirsig-engine/1` was added, `run-spec/1`, the existing entries of `tests/data/id_snapshot.json`, `packages/core` and the adapter protocol are as tagged. Round 37 wrote this report and ran a consistency pass over the documents (section 7).
+For a reviewer who holds the tag `review-r27` (commit `9ded055`) and nothing later. Rounds 28 to 36 added measurements, documents, notebooks and scripts on top of that tag, additively: no member of `dirsig-engine/1` was added, `run-spec/1`, the existing entries of `tests/data/id_snapshot.json`, `packages/core` and the adapter protocol are as tagged. Round 37 wrote this report, ran a consistency pass over the documents (section 7) and reran one comparison (foxbat, section 2.3).
 
 Every table between a `<!-- generated: ... -->` marker and its end marker is written by `scripts/review_report.py` from the committed records named under it (the results files, the spec index, the sensor library, git history, and cells of committed documents); `python scripts/review_report.py --check` exits 1 if any such table differs from what those files give now. Numbers in the prose are quoted from the documents each paragraph names.
 
@@ -294,13 +294,13 @@ Source: `docs/DIRSIG_transfer_scenes.md` (survey by `scripts/survey_transfer.py`
 
 | Scene (simulation) | Result |
 |---|---|
-| foxbat (`shots/basic_rgb/basic_rgb.sim`, 640 x 480 RGB, nadir from 5000 m) | differs by two listed input differences: dirfm's six-decimal Euler angle (`4.71238898` written `4.712389`) and the scene compile. At the default thread count a repeat of either form changes every digest (0.09 to 0.10 % of pixels), and the demo's angle alone brings 3.70 % down to 0.16 %, within that noise. At one thread, the demo's angle plus the pass-through run's compiled scene gives the pass-through image and truth byte for byte. |
+| foxbat (`shots/basic_rgb/basic_rgb.sim`, 640 x 480 RGB, nadir from 5000 m) | differs by two listed input differences: dirfm's six-decimal Euler angle (`4.71238898` written `4.712389`) and the scene compile. At the default thread count a repeat of either form changes every digest (0.09 to 0.10 % of pixels), and the demo's angle alone brings 3.70 % down to 0.16 %, within that noise. At one thread, the demo's angle plus the pass-through run's compiled scene gives the pass-through image and truth byte for byte. Round 37 reran the comparison through `compare_layered.py --threads 1` and the noise-floor repeat: the same digests at one thread, the noise-floor note at the default count (`docs/DIRSIG_layered_comparison.md`, round ten). |
 | urban (`shots/space/space.sim`, 512 x 512 RGB from 120 km) | byte-identical, image and truth |
 | forest (`shots/rgb/rgb.sim`, 1024 x 1024 RGB) | stopped: the layered and the same-seed pass-through renders each passed the 150 s render timeout (cancelled) |
 | MicroScene1 | stopped at the survey: `microscene1.scene` and every material file are absent |
 <!-- end generated: transfer -->
 
-**foxbat.** The rows of the comparison document for foxbat (round 32, at DIRSIG's default thread count):
+**foxbat.** The rows of the comparison document for foxbat: round 32's at DIRSIG's default thread count, and round 37's through `compare_layered.py --threads 1` and, at the default count, with the noise-floor repeat (round 34's options, run on a real scene for the first time):
 
 <!-- generated: foxbat -->
 | Demo | Image | Against | Max abs difference | Pixels differing | Identical |
@@ -309,7 +309,25 @@ Source: `docs/DIRSIG_transfer_scenes.md` (survey by `scripts/survey_transfer.py`
 | foxbat | `rgb_truth.img` | pass-through, seed 1 | 78 | 100.0000% | no |
 | foxbat | `rgb.img` | pass-through, no seed | 0.000320223 | 96.2962% | no |
 | foxbat (repeat) | `rgb.img` | pass-through, seed 1 | 2.16182e-05 | 3.7126% | no |
+| foxbat (one thread, round 37) | `rgb.img` | pass-through, seed 1 | 2.16182e-05 | 3.6315% | no |
+| foxbat (one thread, round 37) | `rgb_truth.img` | pass-through, seed 1 | 79 | 100.0000% | no |
+| foxbat (one thread, round 37) | `rgb.img` | pass-through, no seed | 0.000320223 | 96.2962% | no |
+| foxbat (one thread, round 37), layered with the demo's Euler angles alone | `rgb.img` | pass-through, seed 1 | 3.9992e-07 | 0.0697% | no |
+| foxbat (one thread, round 37), layered with the demo's Euler angles alone | `rgb_truth.img` | pass-through, seed 1 | 79 | 5.1650% | no |
+| foxbat (one thread, round 37), layered with the demo's motion file | `rgb.img` | pass-through, seed 1 | 3.9992e-07 | 0.0697% | no |
+| foxbat (one thread, round 37), layered with the demo's motion file | `rgb_truth.img` | pass-through, seed 1 | 79 | 5.1650% | no |
+| foxbat (round 37) | `rgb.img` | pass-through, seed 1 | 2.16182e-05 | 3.7031% | no |
+| foxbat (round 37) | `rgb_truth.img` | pass-through, seed 1 | 40 | 100.0000% | no |
+| foxbat (round 37) | `rgb.img` | pass-through, no seed | 0.000320223 | 96.2962% | no |
+| foxbat (round 37), layered with the demo's Euler angles alone | `rgb.img` | pass-through, seed 1 | 1.24936e-06 | 0.1530% | no |
+| foxbat (round 37), layered with the demo's Euler angles alone | `rgb_truth.img` | pass-through, seed 1 | 40 | 13.2161% | no |
+| foxbat (round 37), layered with the demo's motion file | `rgb.img` | pass-through, seed 1 | 3.94273e-06 | 0.1585% | no |
+| foxbat (round 37), layered with the demo's motion file | `rgb_truth.img` | pass-through, seed 1 | 40 | 13.2161% | no |
+| foxbat (round 37), noise floor: pass-through, seed 1, repeated | `rgb.img` | pass-through, seed 1 | 3.94273e-06 | 0.0967% | no |
+| foxbat (round 37), noise floor: pass-through, seed 1, repeated | `rgb_truth.img` | pass-through, seed 1 | 78 | 8.9440% | no |
 <!-- end generated: foxbat -->
+
+Round 37's result (`docs/DIRSIG_layered_comparison.md`, "Round ten"): at one thread the pass-through image is round 32's one-thread digest `c8125a16f266cb90…`, and the script's direct render with the demo's Euler angles alone gives round 32's by-hand digest `5e1c9dce19859001…`, 0.0697 % of pixels from the pass-through (maximum 4.0e-7; in the truth only the optical-property index band); the script reports it not identical, the remaining difference being the scene compile, which the script does not swap. At the default thread count the run ids are round 32's, the repeat differs in 0.0967 % of pixels and the script prints its noise-floor note. Peak resident size 576,292 kB (`scene2hdf`); `dirsig5` at most 196,564 kB. Three renders and two direct renders at one thread, four renders (the repeat among them) and two direct renders at the default count, one at a time.
 
 ### 2.4 Not measured on this host
 
@@ -412,7 +430,7 @@ All the maintainer's rows of section 10.1, the held-back C-n first:
 | A collection mode for a cancelled DIRSIG run that reports the outputs it finds, with roles | `BACKLOG.md` "Partial artifacts of a cancelled DIRSIG run" | Kevin | yes | the adapter protocol in `manifold.core`, which engine packages implement. Round 33 (`docs/data/risk_measurements.jsonl`, risk C): a 500 x 500 one-capture layered job cancelled through the Workspace at 25, 50 and 75 % of its 72.8 s run was `cancelled` with verdict `incomplete` within 0.2 s and listed only `run_spec.json`, while its output folder held both images and their headers with 114, 240 and 368 of 500 rows, each byte-identical to the full run's first rows; DIRSIG had rewritten each header to a row count a few rows behind the data (105 to 365 lines) without geo points or acquisition time |
 | Layered jobs run with the user's `HOME`; pass-through runs with a per-run `HOME` | `scripts/compare_layered.py` (its list of known input differences), `docs/DIRSIG_layered_comparison.md`, section 5, `BACKLOG.md` "Layered jobs and the user's HOME" | Kevin | no | where DIRSIG's material caches go; measured not to change outputs (section 5). Round 33 (`docs/data/risk_measurements.jsonl`, risk A): three layered jobs (the 25 km space-to-space plate at 16 x 16 and 500 x 500, the Tahoe `auror_ref` job at 16 x 16; one thread) traced with `strace` under a fresh HOME, the same HOME again and the user's HOME wrote nothing under any HOME (0 write calls; the user's `Documents/DIRSIG` tree unchanged; the fresh HOME still empty afterwards), and gave the same product digests in all three; `dirsig5` reads one HOME file, its Qt settings `~/.config/Rochester Institute of Technology/DIRSIG.conf` (editor window and recent files), and looks for `~/Documents/DIRSIG/plugins` (absent here). For parallel jobs sharing a HOME, these jobs share nothing through it; a material that writes a cache (`mat_<hash>.sqt`, as the pass-through Brdf1 run in section 5 does) or a user plugin folder would be shared, and neither occurred in these three jobs |
 | A requested `cpu_threads` enters a SatSim run id although SatSim's seeded output was the same at one thread and at the default | section 7.4 ("Resources"), section 3.3, C-30 | Kevin, then MANIFOLD through C-30 | yes | the run id of a SatSim spec that requests threads |
-| dirfm writes a static `.ppd`'s Euler angles to six decimals and its position to three | `BACKLOG.md` "Motion files lose precision in dirfm's `PlatformPosition`" | Kevin | yes | the bytes of every static-pose layered job and so its references (not its run id) |
+| dirfm writes a static `.ppd`'s Euler angles to six decimals and its position to three | `BACKLOG.md` "Motion files lose precision in dirfm's `PlatformPosition`" | Kevin | yes | the bytes of every static-pose layered job and so its references (not its run id). Round 37 (foxbat through `compare_layered.py --threads 1`, `docs/DIRSIG_layered_comparison.md` round ten): at one thread the demo's angle alone brings the layered render from 3.63 % to 0.0697 % of pixels differing from the same-seed pass-through (maximum 4.0e-7), the remainder being the scene compile; at the default thread count a repeat of the pass-through differs in 0.097 % |
 | dirfm writes an explicit zero scene offset | `BACKLOG.md` "dirfm writes an explicit zero scene offset" | Kevin | yes | the bytes of every layered job (not its run id) |
 | The epoch's written form (UTC against the scene's local offset) | `BACKLOG.md` "The epoch is written in UTC" | Kevin, then a C-n question | yes | thermal results; the item asks for a stated rule |
 | How users author recipes and layers: a form or GUI that writes them, a CLI, or neither | `docs/Authoring_friction_audit.md` (the measurement), `BACKLOG.md` "Authoring friction (round 35)", `scripts/recipe_form.py` (a prototype of the recipe step) | Kevin | no | the SDK's public surface. Measured (round 35): the shortest path writes 0 files, 2 fields and 0 hashes; a new recipe 20 required fields, 4 copied; a new scene and sensor in a checkout 4 YAML files and 115 fields, 14 copied, 4 hashes written by `scripts/stamp_hashes.py`, and with the installed packages alone the same 4 hashes computed and typed by the user. A recipe-only form adds nothing to the SDK (it reads `list_*`); a form or GUI that writes layers, or a CLI, needs a hashing or stamping operation in the SDK (today a repository script without a path argument), and a CLI a console entry point |
