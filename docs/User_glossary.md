@@ -31,3 +31,8 @@ The left column is what you would call it; the middle column is the name the SDK
 | the shared files | library | The read-only folders of recipes, scenarios, engine profiles (`manifold_run_specs/`), sensors (`manifold_sensors/`) and DIRSIG files (`manifold_config_repo/`). |
 | the demo as DIRSIG ships it | pass-through form | A run spec that names a DIRSIG demo folder and its simulation file, run as authored. |
 | the demo rewritten as layers | layered form | A run spec whose engine block states the demo's inputs member by member. |
+| what the answer should be | closed form, ratio | The value a space-to-space geometry predicts (a target's projected area over the pixel footprint squared, times the Sun's cosine; a sphere's phase function; speed times exposure for a streak); a record's `ratio` is measured over it. |
+| full frame, small window | native size, `-w64` | A space-to-space spec renders the sensor's 500 x 500 frame, or with `-w64` in its name a 64 x 64 window about the target; compare like with like. |
+| rays per pixel | path count, adaptive sampling | How many paths DIRSIG traces for a pixel; it chooses per pixel, more for a target named `::IMPORTANT::`; no run-spec member fixes it. |
+| how far off it can be | sampling-effect envelope | `docs/s2s_envelope.md`: each space-to-space record's deficit against its closed form, by target size in pixels, motion and label, with what removes it. |
+| a second simulator as a check | SatSim control | The same space-to-space geometry imaged by SatSim, which has no adaptive per-pixel sampling, beside the DIRSIG record. |

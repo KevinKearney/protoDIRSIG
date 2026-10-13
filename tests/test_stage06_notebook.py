@@ -67,3 +67,15 @@ def test_the_unresolved_breakdown_and_the_closing_table(executed):
 def test_the_committed_notebook_names_the_protodirsig_kernel():
     nb = json.loads(NOTEBOOK.read_text(encoding="utf-8"))
     assert nb["metadata"]["kernelspec"]["name"] == "protodirsig"
+
+
+def test_the_reading_guide_section(executed):
+    nb, out, _ = executed
+    assert any(c.cell_type == "markdown" and c.source.startswith("---\n# 13 — Reading a space-to-space result")
+               for c in nb.cells)
+    guide = out.split("1. closed form:", 1)[1]
+    for step in ("2. window against native:", "3. envelope: ", "4. SatSim controls against their DIRSIG counterparts:",
+                 "5. not stated by any spec:"):
+        assert step in guide, step
+    assert "s2s-hyperresolved-r100km-v0mps-e5ms-l0-z0-d0-w64: 0.9963 of" in guide
+    assert "Specular facet: not in the generator's vocabulary" in guide and "Earth limb or albedo: not expressible" in guide

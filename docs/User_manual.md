@@ -93,7 +93,7 @@ plate = ws.wait(ws.submit_run(spec).run_id, timeout=600)
 print(plate.state, plate.verdict)
 ```
 
-Pass the spec as a dict, as here: the SDK then takes its sensor from the workspace's sensor library. Passed as a file name, it looks for the sensor beside the file's folder and refuses (see section 7); `Workspace.local(sensor_library="manifold_sensors")` fixes that. [Notebook stage 06](../notebooks/stage_06_space_to_space.ipynb) shows these scenarios' results against their closed forms.
+Pass the spec as a dict, as here: the SDK then takes its sensor from the workspace's sensor library. Passed as a file name, it looks for the sensor beside the file's folder and refuses (see section 7); `Workspace.local(sensor_library="manifold_sensors")` fixes that. [Notebook stage 06](../notebooks/stage_06_space_to_space.ipynb) shows these scenarios' results against their closed forms. Section 11 says how to read one of those results.
 
 ## 6. Reading the result
 
@@ -179,3 +179,36 @@ The engine profile's `run.seed` is DIRSIG's random seed. A seed alone does not m
 `python scripts/recipe_form.py` writes `outputs/recipe_form/index.html`, one HTML file that works offline in a browser. It lists the library's sensors and the scenario and engine-profile pairs the shipped recipes use, and offers a pair with a sensor only where the SDK's checks accepted the recipe it writes for them when the page was made (the others are listed with the reason). You pick the pair, the sensor and the window and set the name, exposure time, frame rate, gain and the fidelity statement; the page shows the recipe as YAML, to copy or download. Load the downloaded file with `yaml.safe_load` and pass the dict to `ws.validate` and `ws.submit_run`.
 
 It is a prototype of the recipe step only. It writes the 18 fields a recipe must carry and a black level of 0 (and a description when you give one), computes and shows no file hash, and reads the library as it was when the script ran. Scenarios, engine profiles and sensors are not written by it: they remain files you write (section 8). It is a script of the repository, not part of the SDK.
+
+## 11. Reading a space-to-space result
+
+Each space-to-space spec in `manifold_run_specs/s2s/` has one record in `docs/data/s2s_results.jsonl`, under its `spec` name (`scripts/s2s_measure.py` renders the spec, reduces the image and writes the record). [Notebook stage 06](../notebooks/stage_06_space_to_space.ipynb) prints the records against their tolerances; section 13 of it follows this section. Read a record in five steps.
+
+**1. The closed-form check.** Each record compares the image with a number the geometry predicts. The flux closure is the image's sum divided by the signal of one pixel wholly on a sunlit plate. It is compared with the target's projected area over the pixel footprint squared, times the cosine of the solar zenith; for a sphere, with the Lambertian sphere's phase function. For a moving plate the record also fits the streak's length and compares it with speed times exposure over the footprint. The record's `ratio` is measured over predicted, so 1 is agreement and 0.98 is a 2 % deficit. `method` names the comparison and `also` holds the others.
+
+**2. Window or native size.** A spec without `-w64` in its name renders the sensor's full 500 x 500 frame. One with `-w64` renders a 64 x 64 window about the target, about 60 times fewer pixels. The window changes DIRSIG's sampling a little. Against its native record, the 20 m plate reads 0.9999 at 25 km and 0.9963 at 100 km, and the 0.61 px plate 0.9866. Compare windowed records with windowed ones, and native with native.
+
+**3. The sampling effect and its envelope.** DIRSIG decides for each pixel how many paths to trace (adaptive sampling). A target named `::IMPORTANT::` gets more. Where few paths hit the target, the image falls short of the closed form, or above it. [The envelope](s2s_envelope.md) groups every record by the target's size in pixels, its motion and its label, and gives the deficit range and what removes it:
+
+| Target | Deficit against the closed form | What removes it |
+|---|---|---|
+| over 13 px, still | within 1 % | nothing to remove |
+| 2 px and up, still or one motion (platform or target) | flux within about 1 % | nothing to remove |
+| 6 px, still, seen 60 degrees off nadir alone (on or off the pixel corner); a 6 px sphere at phase 120 | 2.3 to 2.7 % low; 2.3 % high | not found (not the pixel corner) |
+| 6 px and up, moving, a sweep of 6 px or more | the streak reads 1.9 to 3.4 % short (3.4 % with both moving) | a fixed path count (1000 per pixel), which is not a run-spec member |
+| 3 to 6 px, platform and target both moving | flux 1.3 % (6.12 px) to 3.7 % (3.06 px) low | not found |
+| under 2 px, moving | 12.7 % (1.22 px) to 22 % (0.61 px) low | not found in DIRSIG |
+| under 1 px, still, on a pixel corner, 45 to 65 degrees off nadir | 7.5 to 12.5 % low | moving the target off the corner |
+| under 1 px, unlabelled | from 7 % high to 68 % low | the `::IMPORTANT::` label |
+| under 0.3 px | a few hit pixels; not a measurement | not applicable |
+
+So a still or singly moving target 2 px or more across reads within about 1 % (three 6 px cases, a steep look and a large phase angle, reach 2 to 3 %), and a streak of 6 px or more 1.9 to 3.4 % short. Below 2 px, or with the platform and the target both moving, check the envelope's row before using the number.
+
+**4. What the SatSim control showed.** SatSim has no adaptive per-pixel sampling. Run through the same adapter at the same geometry, it keeps a sub-pixel point's flux to 6e-6 on the pixel corner, off it and moving, and reads the resolved streaks at 0.994 to 0.998 of their length. DIRSIG reads the same streaks at 0.974 to 0.976. So DIRSIG's corner deficit, moving-object loss and streak shortfall come from its sampling, not from the geometry or the closed forms. SatSim cannot stand in for every case: it has no flat-plate shading, no label and no barred background.
+
+**5. What a space-to-space spec cannot state.** Three things cannot be stated at all:
+- a specular facet: every generated scene has one Lambertian material;
+- an Earth limb or albedo background: no committed scene holds an Earth model, and a run spec takes one scene;
+- a fixed path count per pixel: it is not a run-spec member (a candidate ask in `BACKLOG.md`).
+
+[The coverage map](s2s_coverage.md) lists every empty cell with its reason, and [the characterization](Space_to_space_characterization.md) gives the account of each measurement.

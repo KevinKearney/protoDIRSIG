@@ -126,7 +126,8 @@ def test_the_default_recipes_validate_without_node(generated, ws):
 
 def test_the_manual_states_what_the_prototype_is():
     manual = (ROOT / "docs" / "User_manual.md").read_text(encoding="utf-8")
-    last = manual[manual.rindex("\n## "):]
-    assert last.startswith("\n## 10. The recipe form (a prototype)")
+    start = manual.index("\n## 10. The recipe form (a prototype)\n")
+    end = manual.find("\n## ", start + 1)
+    last = manual[start:end if end != -1 else len(manual)]          # section 10 (section 11 follows it since round 41)
     assert "`python scripts/recipe_form.py`" in last and "a prototype of the recipe step only" in last
     assert "computes and shows no file hash" in last and "they remain files you write" in last
