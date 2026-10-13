@@ -10,8 +10,9 @@ scenario and engine-profile pairs the shipped one-run and sweep recipes use. Eac
 only when the recipe the form would write for it by default passes `Workspace.validate`; the rest are listed in the
 page with the reason. The page embeds these listings as JSON and builds the recipe in the browser: the user picks a
 scenario and engine profile, a sensor and a window and sets the free fields (name, exposure time, frame rate, gain,
-fidelity); the page shows the YAML to copy or download. It writes only what a user authors in a recipe (the 20
-required fields of `docs/Authoring_friction_audit.md`, section 2, with `meta.description` when given); it computes and
+fidelity); the page shows the YAML to copy or download. It writes only what a user authors in a recipe (the 18
+required fields of `docs/Authoring_friction_audit.md`, section 2, and `black_level` at 0, with `meta.description` when
+given); it computes and
 shows no hash, and the layers stay files. One HTML file: no network, no external script, style sheet or font.
 """
 import argparse

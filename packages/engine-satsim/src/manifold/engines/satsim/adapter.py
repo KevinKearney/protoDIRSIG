@@ -124,8 +124,8 @@ def resolve_config(block, config_repo):
         raise RunSpecError(f"SatSim configuration {ref['name']!r} not found in the library ({path})",
                            pointer=f"{POINTER}/name")
     if got is not None and got != want:
-        raise RunSpecError(f"SatSim configuration {ref['name']!r}: content_hash {want[:19]}... does not match "
-                           f"({got[:19]}...); run scripts/stamp_hashes.py after an intended edit",
+        raise RunSpecError(f"SatSim configuration {ref['name']!r}: content_hash {want} does not match ({got}); run "
+                           "scripts/stamp_hashes.py after an intended edit",
                            pointer=f"{POINTER}/content_hash")
     return config, directory
 

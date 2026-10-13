@@ -59,8 +59,8 @@ def resolve_passthrough(spec, config_repo):
         raise RunSpecError(f"pass-through directory {ref['name']!r} cannot be hashed: {e}",
                            pointer=f"{POINTER}/directory/name") from e
     if got is not None and got != want:
-        raise RunSpecError(f"pass-through directory {ref['name']!r}: content_hash {want[:19]}... does not match the "
-                           f"directory ({got[:19]}...); run scripts/stamp_hashes.py after an intended edit",
+        raise RunSpecError(f"pass-through directory {ref['name']!r}: content_hash {want} does not match the "
+                           f"directory ({got}); run scripts/stamp_hashes.py after an intended edit",
                            pointer=f"{POINTER}/directory/content_hash")
     sim = block.get("simulation")
     rel = PurePosixPath(sim) if isinstance(sim, str) and sim else None

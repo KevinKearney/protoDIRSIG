@@ -184,6 +184,25 @@ def black_level_problem(setting):
             "black level yields an image in unphysical units without any signal; use 0 or omit it")
 
 
+PLATFORM_SETTINGS = ("exposure_time", "frame_rate", "gain")
+
+
+def missing_settings_problems(settings):
+    """A `LibraryProblem` for each member the job's platform needs that a `settings` member lacks: `exposure_time`,
+    `frame_rate` and `gain` (round 41; before, `render_platform` raised a bare `KeyError`). `black_level` may be absent:
+    it is written as 0, the one value a DIRSIG run accepts (`black_level_problem`)."""
+    out = []
+    for i, s in enumerate(settings):
+        for name in PLATFORM_SETTINGS:
+            if not isinstance(s, dict) or s.get(name) is None:
+                entry = s.get("entry_id") if isinstance(s, dict) else None
+                out.append(LibraryProblem(
+                    f"descriptor.settings[{i}] (entry {entry!r}) has no {name!r}: every settings member of a DIRSIG run "
+                    f"states exposure_time, frame_rate and gain (black_level may be omitted; it is then 0)",
+                    f"/descriptor/settings/{i}"))
+    return out
+
+
 def check_settings_black_level(settings):
     for i, s in enumerate(settings):
         problem = black_level_problem(s)
@@ -483,6 +502,9 @@ def check_library_files(spec, run):
         bad = _check_orbit_files(run.orbit)
         if bad:
             return bad
+    bad = missing_settings_problems(run.settings)
+    if bad:
+        return bad
     try:
         with TemporaryDirectory() as tmp:
             render_platform(run.platform, run.sensor, run.settings[0]["entry_id"], run.settings,

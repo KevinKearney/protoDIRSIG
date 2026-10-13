@@ -151,12 +151,9 @@ def refusals(tmp_path_factory):
     out["settings[0].entry_id: 'auror-nir' names no entry of the listed sensors"] = raised(
         lambda: ws.validate(edit(lambda r: r.update(sensor=vis))))
     out["meta.name: missing or not a string"] = raised(lambda: ws.validate(edit(lambda r: r["meta"].pop("name"))))
-    path = tmp / "my_recipe.yaml"
-    path.write_text(yaml.safe_dump(base))
-    out["scenarios/tahoe_static_pose.yaml: not found"] = raised(lambda: ws.validate(path))
     out["channel_response native cannot carry a spectral curve"] = checked(edit(
         lambda r: (r.update(sensor=vis), r["settings"][0].update(entry_id="synthetic-600-200-vis-1920"))))
-    out["platform could not be rendered from the sensor-spec: KeyError: 'gain'"] = checked(
+    out["has no 'gain': every settings member of a DIRSIG run states exposure_time, frame_rate and gain"] = checked(
         edit(lambda r: r["settings"][0].pop("gain")))
     s2s = ROOT / "manifold_run_specs" / "s2s" / "s2s-hyperresolved-r25km-v0mps-e5ms-l0-z0-d0.yaml"
     out["sensor 'auror-nir.yaml' not found in the sensor library"] = checked(s2s)
@@ -183,7 +180,7 @@ def refusals(tmp_path_factory):
 
 def test_the_refusal_table(refusals):
     rows = table_rows()
-    assert len(rows) == 11 and {f for _, f in rows} == set(refusals)
+    assert len(rows) == 10 and {f for _, f in rows} == set(refusals)
     for title, fragment in rows:
         problem = refusals[fragment]
         assert problem["title"] == title, fragment

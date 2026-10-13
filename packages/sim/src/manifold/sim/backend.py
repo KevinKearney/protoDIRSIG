@@ -189,10 +189,13 @@ class LocalBackend:
         return {"name": path.stem, "sha256": _sha256_file(path)}
 
     def _compose(self, recipe, inline_sensor=False, max_runs=MAX_RUNS, error=InvalidRequestError):
-        """`(sweep, sensor library, recipe ref, recipe for problems)` for a recipe name, path or document."""
+        """`(sweep, sensor library, recipe ref, recipe for problems)` for a recipe name, path or document. A recipe file
+        in a folder named `recipes` composes against the layers beside that folder; one elsewhere (round 41: before, its
+        layers were looked for beside its own folder and not found) composes as its document would, against the
+        backend's library. Its `recipe` ref is still the file's stem and digest."""
         document, path = self._input(recipe)
         try:
-            if path is None:
+            if path is None or path.parent.name != "recipes":
                 library = self.sensor_library or self.library.sensor_library
                 sweep = compose_sweep_document(document, self.library.root, inline_sensor=inline_sensor,
                                                sensor_library=library, max_runs=max_runs, registry=self.registry)
@@ -202,7 +205,8 @@ class LocalBackend:
                                       registry=self.registry)
         except ComposeError as e:
             raise error(problems.from_compose_error(e)) from e
-        return sweep, library, self._recipe_ref(document, path), (document if path is None else path)
+        return sweep, library, self._recipe_ref(document, path), (path if path is not None and path.parent.name ==
+                                                                   "recipes" else document)
 
     def _runs(self, target, error=InvalidRequestError):
         """`(runs, sweep, recipe ref)`: the runs of a recipe (composed here) or the one run spec a target names."""
