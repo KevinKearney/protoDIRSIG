@@ -136,6 +136,12 @@ Source: `docs/data/s2s_results.jsonl` (one record per DIRSIG spec measured; `pyt
 | `s2s3-phase-unresolvedplain-a0-l0-z0` | 0.25 m sphere | no | 25 km, phase 0 (look 0, zenith 0) | 0.2026 | 0.19611 | 1.03334 |
 | `s2s3-phase-unresolvedplain-a80-l40-z40` | 0.25 m sphere | no | 25 km, phase 80 (look 40, zenith 40) | 0.08294 | 0.080395 | 1.03169 |
 | `s2s3-phase-unresolvedplain-a150-l75-z75` | 0.25 m sphere | no | 25 km, phase 150 (look 75, zenith 75) | 0.002717 | 0.0029058 | 0.93497 |
+| `s2s-satsim-ctl-plate-r12p5km-v1000mps-e5ms-l0-d0-w64` | 0.5 m plate (SatSim sprite) | — | 12.5 km, offset 0 px, 5 ms, 1000 m/s | 1.44 | 1.44 | 0.99999 |
+| `s2s-satsim-ctl-plate-r25km-v0mps-e5ms-l60-d0-w64` | 0.5 m plate (SatSim sprite) | — | 25 km, offset 0 px, 5 ms, look 60 (projected) | 0.2 | 0.2 | 1.00000 |
+| `s2s-satsim-ctl-sphere-r12p5km-v1000mps-e5ms-l0-d0-w64` | 0.25 m sphere (SatSim point) | — | 12.5 km, offset 0 px, 5 ms, 1000 m/s | 0.7844 | 0.78444 | 0.99999 |
+| `s2s-satsim-ctl-sphere-r25km-v0mps-e5ms-l0-d0-w64` | 0.25 m sphere (SatSim point) | — | 25 km, offset 0 px, 5 ms | 0.1961 | 0.19611 | 1.00000 |
+| `s2s-satsim-ctl-sphere-r25km-v0mps-e5ms-l0-d0p25-w64` | 0.25 m sphere (SatSim point) | — | 25 km, offset 0.25 px, 5 ms | 0.1961 | 0.19611 | 1.00000 |
+| `s2s-satsim-ctl-sphere-r25km-v0mps-e5ms-l0-d0p5-w64` | 0.25 m sphere (SatSim point) | — | 25 km, offset 0.5 px, 5 ms | 0.1961 | 0.19611 | 1.00000 |
 <!-- end generated: unresolved -->
 
 **Shutter blur (family II).** The 20 m plate and a barred background under platform motion, target motion and both, 1000 m/s each, 25 km. The `both` group's native specs have no records (deferred: `docs/Bigger_host_plan.md`); round 38 measured it at 64 x 64 at 0.1, 1 and 5 ms (the `-w64` rows: flux to 1.6e-3, sweep 0.981 at 5 ms). The fitted streak is 1.7 to 3.1 % short of v·t / footprint at 5 and 20 ms, for the target and the background alike, and `integration_samples` 2, 10 and 100 render byte-identical images. Round 39 isolated the cause: DIRSIG's adaptive per-pixel sample count (scratch renders at a fixed 1000 paths per pixel read 0.998 to 0.999; neither the length's definition nor the plate's width changes it), and a 64 x 64 point at 100 km (`s2s2-blur-target-r100km-e20ms-w64`) is the resolved streak. The orbit pair holds a 100 m plate still over 20 ms.
@@ -159,6 +165,9 @@ Source: `docs/data/s2s_results.jsonl` (one record per DIRSIG spec measured; `pyt
 | `s2s2-blur-both-e5ms-w64` | both | 5 | 1.00023 | 12.01 | 12.24 | 0.9809 |
 | `s2s2-orbit-e0p1ms` | orbit | 0.1 | 1.00576 | — | — | — |
 | `s2s2-orbit-e20ms` | orbit | 20 | 1.00576 | — | — | — |
+| `s2s-satsim-ctl-plate-r25km-v1000mps-e5ms-l0-d0-w64` | SatSim target (25 km) | 5 | 1.00000 | 6.11 | 6.12 | 0.9983 |
+| `s2s-satsim-ctl-plate-r25km-v1000mps-e20ms-l0-d0-w64` | SatSim target (25 km) | 20 | 1.00000 | 24.39 | 24.48 | 0.9965 |
+| `s2s-satsim-ctl-plate-r100km-v1000mps-e20ms-l0-d0-w64` | SatSim target (100 km) | 20 | 1.00000 | 6.085 | 6.12 | 0.9942 |
 <!-- end generated: blur -->
 
 **Look angle against a background (family II).** At 75 degrees the line of sight past the plate leaves the background plate and meets the earth core, and the plate's flux falls to 0.957 of its projected area.
@@ -495,14 +504,14 @@ Expected at HEAD (each exits 0; what it prints last):
 
 | Command | Expected |
 |---|---|
-| `python -m pytest -q -p no:cacheprovider` | 2101 passed, 2 skipped (about 9 to 10 minutes on the 4-core laptop) |
+| `python -m pytest -q -p no:cacheprovider` | 2125 passed, 2 skipped (about 9 to 10 minutes on the 4-core laptop) |
 | `python scripts/review_report.py --check` | `review_report: 18 generated blocks, 0 problem(s)` |
 | `compose.py`, `stamp_hashes.py`, `render_diagrams.py`, `api_examples.py`, `gen_models.py`, `survey_demos.py`, `engine_contracts.py` `--check` | exit 0, nothing printed |
 | `python scripts/id_snapshot.py --check` | `id snapshot: unchanged` |
 | `python scripts/status_markers.py --check` | `status_markers: 182 markers, 0 problems` |
 | `python scripts/cold_start_check.py --check` | a line per step, the last beginning `ok   imported from the new environment` |
-| `python scripts/s2s_scenarios.py --check` | `150 run specs: generated, valid, ids as indexed` |
-| `python scripts/s2s_measure.py --check` | `118 records: well formed, specs indexed, expected values recompute` |
+| `python scripts/s2s_scenarios.py --check` | `159 run specs: generated, valid, ids as indexed` |
+| `python scripts/s2s_measure.py --check` | `127 records: well formed, specs indexed, expected values recompute` |
 | `python scripts/s2s_coverage.py --check` | `118 records, 20 rows x 3 classes: the coverage map is current` |
 | `python scripts/risk_measure.py --check` | `31 records: well formed, derived numbers recompute` |
 | `python scripts/bigger_host_run.py --check` | `7 entries: well formed, drivers and items known, named in docs/Bigger_host_plan.md` |

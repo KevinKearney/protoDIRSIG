@@ -580,3 +580,17 @@ Each record with its primary measurement's ratio (measured over the closed form)
 - `s2s3-phase-unresolvedplain-a0-l0-z0`: flux_closure 1.0333; 0.61 px; 500 x 500
 - `s2s3-phase-unresolvedplain-a150-l75-z75`: flux_closure 0.9350; 0.61 px; 500 x 500
 - `s2s3-phase-unresolvedplain-a80-l40-z40`: flux_closure 1.0317; 0.61 px; 500 x 500
+
+## SatSim controls (not counted in the map)
+
+9 records of the same file image a DIRSIG point's geometry with SatSim (round 40; the characterization's "SatSim as a control (round 40)"). They are another engine's images, so they fill no cell; each is listed with the DIRSIG spec it controls.
+
+- `s2s-satsim-ctl-plate-r100km-v1000mps-e20ms-l0-d0-w64` (streak, plate): flux_closure 1.0000; controls `s2s2-blur-target-r100km-e20ms-w64`
+- `s2s-satsim-ctl-plate-r12p5km-v1000mps-e5ms-l0-d0-w64` (moving, plate): flux_closure 1.0000; controls `s2s-unresolved-r12p5km-v1000mps-e5ms-l0-z0-d0-w64`
+- `s2s-satsim-ctl-plate-r25km-v0mps-e5ms-l60-d0-w64` (subpixel, plate): flux_closure 1.0000; controls `s2s-unresolved-r25km-v0mps-e5ms-l60-z0-d0-w64`
+- `s2s-satsim-ctl-plate-r25km-v1000mps-e20ms-l0-d0-w64` (streak, plate): flux_closure 1.0000; controls `s2s2-blur-target-e20ms`
+- `s2s-satsim-ctl-plate-r25km-v1000mps-e5ms-l0-d0-w64` (streak, plate): flux_closure 1.0000; controls `s2s2-blur-target-e5ms`
+- `s2s-satsim-ctl-sphere-r12p5km-v1000mps-e5ms-l0-d0-w64` (moving, sphere): flux_closure 1.0000; controls `s2s-unresolved-r12p5km-v1000mps-e5ms-l0-z0-d0-w64`
+- `s2s-satsim-ctl-sphere-r25km-v0mps-e5ms-l0-d0-w64` (subpixel, sphere): flux_closure 1.0000; controls `s2s-unresolved-r25km-v0mps-e5ms-l60-z0-d0-w64`
+- `s2s-satsim-ctl-sphere-r25km-v0mps-e5ms-l0-d0p25-w64` (subpixel, sphere): flux_closure 1.0000; controls `s2s-unresolved-r25km-v0mps-e5ms-l60-z0-d0p25-w64`
+- `s2s-satsim-ctl-sphere-r25km-v0mps-e5ms-l0-d0p5-w64` (subpixel, sphere): flux_closure 1.0000; controls `s2s-unresolved-r25km-v0mps-e5ms-l60-z0-d0p5-w64`

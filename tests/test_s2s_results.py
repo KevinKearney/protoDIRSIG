@@ -232,3 +232,46 @@ def test_a_resolved_plates_image_scales_with_the_exposure():
 def test_a_resolved_sphere_follows_the_phase_function(a, half):
     got, want = flux(f"s2s3-phase-hyperresolved-a{a}-r100km-l{half}-z{half}-w64")
     assert abs(got / want - 1) <= TOL_RESOLVED_PHASE
+
+
+# --- round 40 A: SatSim as a control for round 39's DIRSIG points ------------------------------------------------------
+# SatSim has no adaptive per-pixel sampling. Its controls (`s2s-satsim-ctl-*`, family `satsim`) image round 39's geometry
+# at the same window, exposure and placement, with no PSF; the sphere's flux comes from SatSim's model, a plate sprite's
+# by construction. A deficit DIRSIG shows and SatSim does not is DIRSIG's sampling.
+TOL_SATSIM_FLUX = 6.31e-06      # nine controls, flux closure: largest the moving sphere at 12.5 km (6.301e-6, whole counts)
+TOL_SATSIM_STREAK = 0.00580     # plate sprite streaks, fitted sweep: largest at 100 km, 20 ms (5.794e-3, sprite on 1/15 px)
+TOL_SATSIM_CENTRE = 0.0850      # px, mid-exposure centre from the intended one: largest the moving sphere (8.492e-2)
+
+SATSIM_CONTROLS = sorted(n for n, r in RECORDS.items() if r["family"] == "satsim")
+SATSIM_STREAKS = {"s2s-satsim-ctl-plate-r25km-v1000mps-e5ms-l0-d0-w64": "s2s2-blur-target-e5ms",
+                  "s2s-satsim-ctl-plate-r25km-v1000mps-e20ms-l0-d0-w64": "s2s2-blur-target-e20ms",
+                  "s2s-satsim-ctl-plate-r100km-v1000mps-e20ms-l0-d0-w64": "s2s2-blur-target-r100km-e20ms-w64"}
+
+
+def test_there_are_satsim_controls():
+    assert len(SATSIM_CONTROLS) == 9
+    assert set(SATSIM_STREAKS) <= set(SATSIM_CONTROLS)
+
+
+@pytest.mark.parametrize("name", SATSIM_CONTROLS)
+def test_a_satsim_control_holds_its_flux(name):
+    got, want = flux(name)
+    assert abs(got / want - 1) <= TOL_SATSIM_FLUX
+
+
+@pytest.mark.parametrize("name", SATSIM_CONTROLS)
+def test_a_satsim_control_lands_where_it_is_configured(name):
+    assert also(name, "centre_offset_px")["measured"] <= TOL_SATSIM_CENTRE
+
+
+@pytest.mark.parametrize("name", sorted(SATSIM_STREAKS))
+def test_the_streak_shortfall_is_dirsigs_not_satsims(name):
+    """SatSim's resolved streak reads speed x exposure to its own discretization; DIRSIG's at the same geometry is short
+    by more than that (round 39: the adaptive per-pixel sample count)."""
+    assert abs(also(name, "streak_length")["ratio"] - 1) <= TOL_SATSIM_STREAK
+    assert 1 - also(SATSIM_STREAKS[name], "streak_length")["ratio"] > TOL_SATSIM_STREAK
+
+
+def test_a_satsim_point_keeps_its_flux_on_and_off_the_pixel_corner():
+    ratios = [rec(f"s2s-satsim-ctl-sphere-r25km-v0mps-e5ms-l0-d{d}-w64")["ratio"] for d in ("0", "0p25", "0p5")]
+    assert max(ratios) - min(ratios) <= TOL_SATSIM_FLUX

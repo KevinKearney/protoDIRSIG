@@ -152,9 +152,16 @@ EMPTY = {
 # --- the map ------------------------------------------------------------------------------------------------------
 
 def classified():
-    """[(record, attributes)] for every record of the results file."""
+    """[(record, attributes)] for every DIRSIG record of the results file (the SatSim controls are listed apart:
+    `controls`)."""
     idx = sm.index()
-    return [(r, attributes(idx[r["spec"]])) for r in sm.load_results()]
+    return [(r, attributes(idx[r["spec"]])) for r in sm.load_results() if r["family"] != "satsim"]
+
+
+def controls():
+    """[(record, index entry)] of round 40's SatSim controls: another engine's images of DIRSIG points, not cells."""
+    idx = sm.index(controls=True)
+    return [(r, idx[r["spec"]]) for r in sm.load_results() if r["family"] == "satsim"]
 
 
 def cells(records):
@@ -221,6 +228,16 @@ def document(records=None):
             lines += [f"- `{r['spec']}`: {_ratio(r)}; {a['size_px']:.2f} px; {a['window']} x {a['window']}"
                       for r, a in got]
             lines.append("")
+    ctl = controls()
+    if ctl:
+        lines += ["## SatSim controls (not counted in the map)", "",
+                  f"{len(ctl)} records of the same file image a DIRSIG point's geometry with SatSim (round 40; the "
+                  "characterization's \"SatSim as a control (round 40)\"). They are another engine's images, so they fill "
+                  "no cell; each is listed with the DIRSIG spec it controls.", ""]
+        for r, e in ctl:
+            spec = yaml.safe_load((s2s.OUT / f"{r['spec']}.yaml").read_text())
+            lines.append(f"- `{r['spec']}` ({e['control']}, {e['target']}): {_ratio(r)}; controls "
+                         f"`{spec['descriptor']['extras']['s2s.engine_counterpart']}`")
     return "\n".join(lines).rstrip("\n") + "\n"
 
 

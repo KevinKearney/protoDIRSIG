@@ -211,6 +211,14 @@ def flux_block():
 def unresolved_block():
     rows = []
     for r, e in s2s_records():
+        if r["family"] == "satsim" and e["control"] != "streak":      # round 40's SatSim controls of these points
+            target = "0.5 m plate (SatSim sprite)" if e["target"] == "plate" else "0.25 m sphere (SatSim point)"
+            v = e["relative_speed"]
+            where = (f"{km(e['range_m'])} km, offset {e['offset_px']:g} px, {ms(e['exposure_s'])} ms"
+                     + (f", look {e['look_deg']:g} (projected)" if e["look_deg"] else "") + (f", {v:g} m/s" if v else ""))
+            rows.append(((4, e["target"], e["range_m"], e["offset_px"], 0, e["look_deg"], 0, v),
+                         [f"`{r['spec']}`", target, "—", where, f(r["measured"], 4), f(r["expected"], 5), rt(r["ratio"])]))
+            continue
         cls = e.get("object_class") if r["family"] == 1 else e.get("group")
         if cls not in ("unresolved", "unresolved_plain") or r["family"] == 2:
             continue
@@ -232,13 +240,16 @@ def unresolved_block():
 
 
 def blur_block():
-    order = {"static": 0, "platform": 1, "target": 2, "both": 3, "orbit": 4}
+    order = {"static": 0, "platform": 1, "target": 2, "both": 3, "orbit": 4, "SatSim target": 5}
     rows = []
     for r, e in s2s_records():
-        if r["family"] == 2 and e["kind"] in ("blur", "orbit"):
+        satsim = r["family"] == "satsim" and e["control"] == "streak"   # round 40's SatSim controls of the target group
+        if (r["family"] == 2 and e["kind"] in ("blur", "orbit")) or satsim:
             s = also(r, "streak_length")
-            rows.append(((order[e["group"]], e["exposure_s"]), [
-                f"`{r['spec']}`", e["group"], ms(e["exposure_s"]), rt(r["ratio"]),
+            group = f"SatSim target ({km(e['range_m'])} km)" if satsim else e["group"]
+            rows.append(((order["SatSim target"], e["range_m"], e["exposure_s"]) if satsim else
+                         (order[e["group"]], 0, e["exposure_s"]), [
+                f"`{r['spec']}`", group, ms(e["exposure_s"]), rt(r["ratio"]),
                 f(s and s["measured"], 4), f(s and s["expected"], 4), f(s and s["ratio"], 4)]))
     rows.sort(key=lambda t: t[0])
     return table(["Spec", "Group", "Exposure (ms)", "Flux ratio", "Fitted streak (px)", "v·t / footprint (px)",

@@ -320,6 +320,43 @@ def _fits_image(path):
     return data * float(cards.get("BSCALE", 1)) + float(cards.get("BZERO", 0))
 
 
+
+def test_the_satsim_controls_state_round_39s_geometry_in_their_configurations():
+    """Round 40's SatSim controls: indexed apart from the families with their DIRSIG counterpart; each configuration is the
+    64 x 64 window at the auror-nir field of view, no PSF, light transit and aberration off, the observer `range_m` from
+    the target along the Sun's direction (phase 0), the target moving `relative_speed` across the line of sight (along
+    +RA), and a per-object offset that places it as the generator states."""
+    index = {e["name"]: e for e in json.loads((s2s.OUT / "index.json").read_text())}
+    nums = s2s.satsim_numbers()
+    for p in s2s.SATSIM_CONTROLS:
+        name = s2s.satsim_control_name(p)
+        spec = yaml.safe_load((s2s.OUT / f"{name}.yaml").read_text())
+        assert index[name]["engine"] == "satsim" and index[name]["control"] == p["control"]
+        assert spec["descriptor"]["extras"]["s2s.engine_counterpart"] in index
+        cfg = s2s.satsim_control_config(p)
+        assert cfg["fpa"]["height"] == cfg["fpa"]["width"] == p["window"] == 64
+        assert cfg["fpa"]["y_fov"] == pytest.approx(math.degrees(64 * nums["ifov_rad"]), rel=1e-9)
+        assert cfg["fpa"]["psf"] == {"mode": "none"} and cfg["fpa"]["time"]["exposure"] == p["exposure_s"]
+        assert cfg["sim"]["enable_light_transit"] is False and cfg["sim"]["enable_stellar_aberration"] is False
+        obj = cfg["geometry"]["obs"]["list"][0]
+        t, v = np.array(obj["position"]), np.array(obj["velocity"])
+        o, vo = np.array(cfg["geometry"]["site"]["position"]), np.array(cfg["geometry"]["site"]["velocity"])
+        mid = t + (v - vo) * p["exposure_s"] / 2         # the target at mid-exposure in the observer's moving frame
+        los = (mid - o) / np.linalg.norm(mid - o)
+        assert np.linalg.norm(mid - o) == pytest.approx(p["range_m"] / 1000, rel=1e-6)
+        assert np.dot(o - mid, s2s.SUN_GCRS) / np.linalg.norm(o - mid) == pytest.approx(1.0, abs=1e-12)
+        dv = (v - vo) * 1000
+        assert np.linalg.norm(dv) == pytest.approx(p["relative_speed"], abs=1e-6)
+        assert abs(np.dot(dv, los)) <= 1e-6
+        ex = s2s.satsim_control_expected(p)
+        assert ex["sweep_px"] == pytest.approx(p["relative_speed"] * p["exposure_s"] / s2s.footprint(p["range_m"]))
+        if p["target"] == "sphere":
+            assert obj["offset"] == [(-0.5 + p["offset_px"] * 15) / (64 * 15)] * 2
+        else:
+            rows, cols = s2s.satsim_control_sprite_os(p)
+            assert obj["pe"] == pytest.approx(rows * cols / 225 * nums["full_pixel_pe_per_s"], rel=1e-9)  # 3 decimals
+    assert len(s2s.SATSIM_CONTROLS) == 9
+
 def _satsim_why_not():
     from test_satsim_integration import WHY_NOT
     return WHY_NOT

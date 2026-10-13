@@ -6,8 +6,9 @@
     python scripts/s2s_measure.py --check               the results file is well formed, every spec id exists, and
                                                         every expected value recomputes from the specs; exit 1 if not
 
-`NAME` is a spec name from `manifold_run_specs/s2s/index.json` (families I, II and III; the SatSim specs are
-pass-through runs of another engine and are not measured here). For each name, in order and one at a time:
+`NAME` is a spec name from `manifold_run_specs/s2s/index.json`: families I, II and III, and round 40's SatSim controls
+(`engine: satsim` entries with a `control` key; round 31's SatSim parity specs are not measured here). For each name, in
+order and one at a time:
 
 1. A completed run is looked for: `<root>/<PREFIX><NAME>/` under each `--runs` root, then `<work>/<NAME>/`. A run
    folder counts when its `spec.yaml` parses to the committed spec and `output/` holds the rendered image; it is read,
@@ -21,6 +22,8 @@ pass-through runs of another engine and are not measured here). For each name, i
    same way, so the image is the same bytes (checked on the exposure axis, docs/Space_to_space_characterization.md).
    A family is not a sweep: `submit_sweep` takes a recipe, whose one axis is the sensor (compose/1), and the family's
    specs are written outside the composer so that they have no id-snapshot entry (BACKLOG).
+   A SatSim control is run through `LocalBackend` and the SatSim adapter (`render_satsim`) into `<work>/<NAME>/`; its
+   frame, annotation and configuration are copied into the folder's `output/`.
 3. The product is reduced (below) and its record replaces any record of the same spec in
    `docs/data/s2s_results.jsonl` (one JSON object per line, sorted by spec name).
 
@@ -31,6 +34,10 @@ reflectance `REFLECTANCE` facing the Sun at the zenith, e-/m^2 of focal plane, f
 `full_pixel_signal`), then the primary measurement `method`, `measured`, `expected`, `ratio` (measured / expected) and
 `tolerance` (null unless the method defines one), and `also`, the further measurements in the same shape. Expected
 values come from the spec's own numbers through `scripts/s2s_scenarios.py` (`expected`, `expected2`, `expected3`).
+
+A SatSim control's record has the same keys: `family` is `satsim`, `product` the sha256 of the frame (FITS) and of
+each annotation file, and `full_pixel` the paraxial full-pixel rate F times the exposure in pe per pixel
+(`s2s_scenarios.satsim_numbers`; SatSim has no aperture cone, round 31), so its measurements are in the same full pixels.
 
 Methods (values in full pixels unless stated):
 - `flux_closure`: the image sum over `full_pixel`, against the expected footprint (projected area over the pixel
@@ -47,6 +54,10 @@ Methods (values in full pixels unless stated):
   reads as about 0.6 pixel of sweep on a static plate, so short sweeps read long.
 - `background_period`: family II look group: the mean spacing (pixels) of the bars' rising edges at a quarter of
   `full_pixel` in rows beside the target, against the bar period x cos(look) over the background's footprint.
+- `centre_offset_px`: a SatSim control: the distance (pixels) of the object's mid-exposure centre from the intended one
+  (the frame's central pixel corner plus the point's offset along both axes), against 0 (no ratio): SatSim's annotation
+  for a sphere (a point inside one pixel has that pixel's centroid), the sprite's edges in the frame (the centroid along
+  a streak) for a plate.
 - `bar_level`: family III background group: the median of the brightest tenth of the barred rows over `full_pixel`,
   against the bars' reflectance ratio (0.25 / 0.5) x cos(solar zenith).
 """
@@ -80,9 +91,14 @@ H, C = 6.62607015e-34, 2.99792458e8
 
 # --- the specs ----------------------------------------------------------------------------------------------------
 
-def index():
-    """{name: index entry} of the DIRSIG specs (families 1, 2 and 3)."""
-    return {e["name"]: e for e in json.loads(INDEX.read_text()) if e.get("engine", "dirsig") == "dirsig"}
+def index(controls=False):
+    """{name: index entry} of the DIRSIG specs (families 1, 2 and 3), and with `controls` round 40's SatSim controls."""
+    return {e["name"]: e for e in json.loads(INDEX.read_text())
+            if e.get("engine", "dirsig") == "dirsig" or (controls and "control" in e)}
+
+
+def is_satsim(entry):
+    return entry.get("engine") == "satsim"
 
 
 def family(entry):
@@ -98,7 +114,13 @@ def expectations(entry):
     """{method: expected value} for an index entry, from the spec's own numbers (s2s_scenarios)."""
     fam, p = family(entry), point(entry)
     out = {}
-    if fam == 1:
+    if is_satsim(entry):
+        ex = s2s.satsim_control_expected(p)
+        out["flux_closure"] = ex["flux_px"]
+        if p["control"] == "streak":
+            out["streak_length"] = ex["sweep_px"]
+        out["centre_offset_px"] = 0.0
+    elif fam == 1:
         ex = s2s.expected(p)
         if ex["footprint_px"] is None:                 # an orbit point: range and speed are the TLE's
             return out
@@ -336,11 +358,22 @@ def write_results(records, path=RESULTS):
 
 
 def run(names, work, runs, via="simulation"):
-    idx = index()
+    idx = index(controls=True)
     unknown = [n for n in names if n not in idx]
     if unknown:
-        raise SystemExit(f"not a DIRSIG spec of manifold_run_specs/s2s/index.json: {', '.join(unknown)}")
+        raise SystemExit(f"not a DIRSIG spec or SatSim control of manifold_run_specs/s2s/index.json: {', '.join(unknown)}")
     for name in names:                                 # one at a time; the results file is written after each
+        if is_satsim(idx[name]):
+            folder = work / name
+            wall = None
+            if completed_satsim(folder, name) is None:
+                wall = render_satsim(name, folder)
+            rec = measure_satsim(name, idx[name], folder, _home_relative(folder))
+            write_results([r for r in load_results() if r["spec"] != name] + [rec])
+            print(json.dumps({"spec": name, "source": rec["source"], "wall_s": None if wall is None else round(wall, 1),
+                              "method": rec["method"], "ratio": rec["ratio"], "image": rec["product"]["image"][:16],
+                              "also": [(m["method"], m["measured"], m["ratio"]) for m in rec["also"]]}))
+            continue
         found = None
         for root, prefix in runs:
             if completed(root / f"{prefix}{name}", name):
@@ -360,6 +393,128 @@ def run(names, work, runs, via="simulation"):
                           "method": rec["method"], "ratio": rec["ratio"], "image": rec["product"]["image"][:16]}))
 
 
+# --- SatSim controls (round 40) -----------------------------------------------------------------------------------
+
+def read_fits(path):
+    """The primary image of a FITS file (SatSim's frame: one 2-D image), as float64 rows x columns."""
+    data = Path(path).read_bytes()
+    cards, pos = {}, 0
+    while True:
+        block = data[pos:pos + 2880].decode("ascii")
+        pos += 2880
+        for i in range(0, 2880, 80):
+            card = block[i:i + 80]
+            if card[:8].strip() == "END":
+                break
+            if card[8:10] == "= ":
+                cards[card[:8].strip()] = card[10:].split("/")[0].strip()
+        else:
+            continue
+        break
+    dtype = {"-32": ">f4", "-64": ">f8", "16": ">i2", "32": ">i4"}[cards["BITPIX"]]
+    rows, cols = int(cards["NAXIS2"]), int(cards["NAXIS1"])
+    img = np.frombuffer(data, dtype=dtype, count=rows * cols, offset=pos).reshape(rows, cols).astype(float)
+    return img * float(cards.get("BSCALE", 1)) + float(cards.get("BZERO", 0))
+
+
+def satsim_full_pixel(entry):
+    """pe in one full pixel over the exposure: the paraxial full-pixel rate F (`s2s_scenarios.satsim_numbers`) times it."""
+    return s2s.satsim_numbers()["full_pixel_pe_per_s"] * point(entry)["exposure_s"]
+
+
+def render_satsim(name, folder):
+    """Run the committed SatSim control spec of `name` through `LocalBackend` and the SatSim adapter (work root
+    `<folder>/backend/`); the frame, the annotation and the configuration SatSim ran are copied into `<folder>/output/`.
+    Returns the wall time (s)."""
+    import shutil
+    from manifold.sim.backend import LocalBackend
+    import manifold.sim  # noqa: F401  (registers the engines)
+    shutil.rmtree(folder, ignore_errors=True)
+    (folder / "output").mkdir(parents=True)
+    (folder / "spec.yaml").write_text((s2s.OUT / f"{name}.yaml").read_text())
+    backend = LocalBackend(folder / "backend", s2s.LIBRARY, sensor_library=s2s.SENSORS)
+    t0 = time.time()
+    run_id = backend.submit_run(str(s2s.OUT / f"{name}.yaml"))["run_id"]
+    while True:
+        status = backend.get_run(run_id)
+        if status["state"] in ("rendered", "failed", "cancelled"):
+            break
+        if time.time() - t0 > 3600:
+            raise SystemExit(f"{name}: run {run_id} still {status['state']} after an hour")
+        time.sleep(0.5)
+    wall = time.time() - t0
+    if status["state"] != "rendered":
+        raise SystemExit(f"{name}: run {run_id} ended {status['state']}: {status.get('errors')}")
+    for a in status.get("artifacts", []):
+        if a["name"].endswith(".fits") or a["name"].startswith("Annotations") or a["name"] == "config.json":
+            shutil.copyfile(a["uri"].removeprefix("file://"), folder / "output" / a["name"])
+    (folder / "run_id").write_text(run_id + "\n")
+    return wall
+
+
+def completed_satsim(folder, name):
+    """(frame, [annotation files]) of a completed SatSim control run of `name` in `folder`, or None."""
+    spec = folder / "spec.yaml"
+    if not spec.is_file() or yaml.safe_load(spec.read_text()) != committed_spec(name):
+        return None
+    frames = sorted((folder / "output").glob("*.fits"))
+    if len(frames) != 1:
+        return None
+    return frames[0], sorted((folder / "output").glob("Annotations*"))
+
+
+def _rect_centre(marginal, size):
+    """The centre (pixels) of a uniform rectangle `size` pixels long from its marginal over one axis: its first lit
+    pixel's share of the sum puts its leading edge (pixel k spans k - 0.5 to k + 0.5)."""
+    k = int(np.nonzero(marginal > 1e-9 * marginal.max())[0][0])
+    return k + 0.5 - marginal[k] / marginal.sum() * size + size / 2.0
+
+
+def reduce_satsim(entry, img, full, annotation):
+    """[measurement, ...] of a SatSim control frame (`img` in pe): the flux closure, the distance (pixels) of the
+    object's mid-exposure centre from the intended one, and a streak's fitted sweep for a moving resolved plate. For a
+    sphere (a point, which a pixel does not locate) the centre is SatSim's own annotation of the object's mid-exposure
+    position (`annotation`, the frame's JSON; normalized coordinates x N - 0.5). For a sprite (whose annotation is the
+    target's position, not where the sprite lands: round 31) it is read from the frame: along each axis, the leading
+    edge from the first lit pixel's share of a uniform rectangle of the sprite's size, and along a streak (columns) the
+    centroid of the column sums (a pixel-quantized centroid misplaces a sub-pixel rectangle by up to half a pixel)."""
+    p = point(entry)
+    ex = s2s.satsim_control_expected(p)
+    a = img / full
+    if p["target"] == "sphere":
+        obj = json.loads(Path(annotation).read_text())["data"]["objects"][0]
+        centre = (obj["y_mid"] * a.shape[0] - 0.5, obj["x_mid"] * a.shape[1] - 0.5)
+    else:
+        rows, cols = s2s.satsim_control_sprite_os(p)
+        mr, mc = a.sum(axis=1), a.sum(axis=0)
+        centre = (_rect_centre(mr, rows / s2s.SATSIM_CONTROL_OSF),
+                  _rect_centre(mc, cols / s2s.SATSIM_CONTROL_OSF) if not p["relative_speed"]
+                  else float((mc * np.arange(mc.size)).sum() / mc.sum()))
+    got = {"flux_closure": float(a.sum()),
+           "centre_offset_px": float(math.hypot(centre[0] - ex["centre"][0], centre[1] - ex["centre"][1]))}
+    if p["control"] == "streak":
+        got["streak_length"] = streak_length(a, ex["size_px"])
+    exp = expectations(entry)
+    out = []
+    for method in ("flux_closure", "streak_length", "centre_offset_px"):
+        if method in got:
+            m, e = got[method], exp.get(method)
+            out.append({"method": method, "measured": m, "expected": e,
+                        "ratio": (m / e if (m is not None and e) else None), "tolerance": None})
+    return out
+
+
+def measure_satsim(name, entry, folder, source):
+    frame, annotations = completed_satsim(folder, name)
+    full = satsim_full_pixel(entry)
+    ms = reduce_satsim(entry, read_fits(frame), full, next(a for a in annotations if a.suffix == ".json"))
+    rec = {"spec": name, "run_id": entry["run_id"], "family": family(entry), "source": source,
+           "product": {"image": sha256(frame), **{a.name: sha256(a) for a in annotations}}, "full_pixel": full}
+    rec.update(ms[0])
+    rec["also"] = ms[1:]
+    return rec
+
+
 # --- check --------------------------------------------------------------------------------------------------------
 
 def check(path=RESULTS):
@@ -371,7 +526,7 @@ def check(path=RESULTS):
         where0 = path
     if not path.is_file():
         return [f"{where0}: missing"]
-    idx = index()
+    idx = index(controls=True)
     seen = set()
     lines = path.read_text().splitlines()
     for i, line in enumerate(lines, 1):
@@ -389,7 +544,7 @@ def check(path=RESULTS):
             problems.append(f"{where}: {name} recorded twice")
         seen.add(name)
         if name not in idx:
-            problems.append(f"{where}: {name} is not a DIRSIG spec of {INDEX.relative_to(ROOT)}")
+            problems.append(f"{where}: {name} is not a DIRSIG spec or SatSim control of {INDEX.relative_to(ROOT)}")
             continue
         entry = idx[name]
         if r["run_id"] != entry["run_id"] or r["family"] != family(entry):
@@ -435,7 +590,7 @@ def main(argv=None):
         return 1 if problems else 0
     if a.cmd == "list":
         have = {r["spec"] for r in load_results()}
-        for name in index():
+        for name in index(controls=True):
             print(("measured " if name in have else "-        ") + name)
         return 0
     if a.cmd == "run":
