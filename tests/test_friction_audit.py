@@ -78,7 +78,7 @@ def test_the_count_tables_state_those_numbers():
     assert "`deepscan_850_306_nir_1280.yaml` 47 fields, 1 hash; `synthetic_600_200_vis_1920.yaml` 49 fields, 2 hashes" in DOC
     assert "`engine_profiles/tahoe_leo_pass.yaml`, has 43 fields and 6 hashes" in DOC
     assert "72 fields, 3 hashes (sensor, scene, platform), 1 generator revision" in DOC
-    assert "| 18 + 18 + 34 + 43 = 113 | 4 + 0 + 10 + 0 = 14 |" in DOC and 18 + 18 + 34 + 43 == 113
+    assert "| 20 + 18 + 34 + 43 = 115 | 4 + 0 + 10 + 0 = 14 |" in DOC and 20 + 18 + 34 + 43 == 115
 
 
 def test_copied_values_of_the_engine_profile_and_the_s2s_spec():
@@ -92,11 +92,11 @@ def test_copied_values_of_the_engine_profile_and_the_s2s_spec():
 
 REQUIRED = [("compose",), ("meta", "name"), ("sensor",), ("scenario",), ("engine_profile",),
             ("settings", 0, "entry_id"), ("settings", 0, "exposure_time"), ("settings", 0, "frame_rate"),
-            ("settings", 0, "gain"), ("settings", 0, "roi", "Width"),
+            ("settings", 0, "gain"), ("settings", 0, "black_level"), ("settings", 0, "roi", "Width"),
             ("settings", 0, "roi", "Height"), ("fidelity", "modeled"), ("fidelity", "approximated"),
             ("fidelity", "absent"), ("fidelity", "valid_for")]
 OPTIONAL = [("meta", "tags"), ("meta", "description"), ("settings", 0, "roi", "OffsetX"),
-            ("settings", 0, "roi", "OffsetY"), ("engine_overrides",), ("settings", 0, "black_level")]
+            ("settings", 0, "roi", "OffsetY"), ("engine_overrides",)]
 
 
 def _without(doc, path):
@@ -115,11 +115,11 @@ def test_the_required_recipe_fields(ws):
         assert outcome(ws, _without(recipe, path))[0] != "valid", path
     for path in OPTIONAL:
         assert outcome(ws, _without(recipe, path)) == ("valid", None), path
-    value_fields = 3 * 2                            # exposure_time, frame_rate, gain: value, provenance
-    assert len(REQUIRED) - 3 + value_fields == 18
+    value_fields = 4 * 2                            # exposure_time, frame_rate, gain, black_level: value, provenance
+    assert len(REQUIRED) - 4 + value_fields == 20
     kind, detail = outcome(ws, _without(recipe, ("settings", 0, "gain")))
     assert kind == "invalid" and "descriptor.settings[0] (entry 'auror-nir') has no 'gain'" in detail
-    assert "leaves 18 required fields" in DOC
+    assert "leaves 20 required fields" in DOC
 
 
 def test_changing_one_thing(ws):

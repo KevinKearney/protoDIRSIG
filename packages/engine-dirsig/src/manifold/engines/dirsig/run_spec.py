@@ -184,13 +184,14 @@ def black_level_problem(setting):
             "black level yields an image in unphysical units without any signal; use 0 or omit it")
 
 
-PLATFORM_SETTINGS = ("exposure_time", "frame_rate", "gain")
+PLATFORM_SETTINGS = ("exposure_time", "frame_rate", "gain", "black_level")
 
 
 def missing_settings_problems(settings):
     """A `LibraryProblem` for each member the job's platform needs that a `settings` member lacks: `exposure_time`,
-    `frame_rate` and `gain` (round 41; before, `render_platform` raised a bare `KeyError`). `black_level` may be absent:
-    it is written as 0, the one value a DIRSIG run accepts (`black_level_problem`)."""
+    `frame_rate`, `gain` and `black_level` (round 41; before, `render_platform` raised a bare `KeyError`). An absent
+    `black_level` is refused, as at review-r27: round 41 wrote it as 0, but such a spec has a run id other than the same
+    spec with an explicit 0 for one and the same job, so round 43 restored the refusal."""
     out = []
     for i, s in enumerate(settings):
         for name in PLATFORM_SETTINGS:
@@ -198,7 +199,7 @@ def missing_settings_problems(settings):
                 entry = s.get("entry_id") if isinstance(s, dict) else None
                 out.append(LibraryProblem(
                     f"descriptor.settings[{i}] (entry {entry!r}) has no {name!r}: every settings member of a DIRSIG run "
-                    f"states exposure_time, frame_rate and gain (black_level may be omitted; it is then 0)",
+                    f"states exposure_time, frame_rate, gain and black_level",
                     f"/descriptor/settings/{i}"))
     return out
 

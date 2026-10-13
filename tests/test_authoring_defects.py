@@ -1,7 +1,8 @@
 """Round 35's authoring defects fixed outside `packages/core` in round 41 (BACKLOG "Authoring friction (round 35)"):
-a missing settings member is refused naming it, an absent `black_level` is written as 0 (so the black-level refusal's
-"omit it" holds), a recipe file outside a `recipes/` folder composes through `Workspace`, and the engine packages'
-wrong-hash refusals print both digests in full. Engine-free: nothing is rendered."""
+a missing settings member is refused naming it, a recipe file outside a `recipes/` folder composes through `Workspace`,
+and the engine packages' wrong-hash refusals print both digests in full. Round 41 also wrote an absent `black_level` as
+0; round 43 reverted that (a second run id for one job), so an absent `black_level` is refused by name like the other
+three members. Engine-free: nothing is rendered."""
 import copy
 import re
 from pathlib import Path
@@ -13,8 +14,6 @@ from manifold.core.run_spec import RunSpecError
 from manifold.sim import Workspace
 
 ROOT = Path(__file__).resolve().parents[1]
-SENSORS = ROOT / "manifold_sensors"
-LIBRARY = ROOT / "manifold_config_repo"
 FULL = re.compile(r"sha256:[0-9a-f]{64}")
 
 
@@ -34,7 +33,7 @@ def _without(doc, member):
     return d
 
 
-@pytest.mark.parametrize("member", ("exposure_time", "frame_rate", "gain"))
+@pytest.mark.parametrize("member", ("exposure_time", "frame_rate", "gain", "black_level"))
 def test_a_missing_settings_member_is_refused_by_name(ws, recipe, member):
     run = ws.validate(_without(recipe, member)).runs[0]
     check = next(c for c in run.checks if not c.passed)
@@ -43,23 +42,19 @@ def test_a_missing_settings_member_is_refused_by_name(ws, recipe, member):
     assert f"descriptor.settings[0] (entry 'auror-nir') has no {member!r}" in detail and "KeyError" not in detail
 
 
-def test_an_absent_black_level_is_written_as_zero(ws, recipe, tmp_path):
-    from manifold.engines.dirsig.platform_gen import render_platform
-    from manifold.engines.dirsig.run_spec import resolve_run
+def test_an_absent_black_level_is_refused_because_a_default_would_be_a_second_run_id(ws, recipe):
+    """Round 41 wrote an absent `black_level` as 0; round 43 reverted it (review report section 3.1). The platform DIRSIG
+    renders was the same, but the composed spec without the member is another spec, so its run id is not the explicit
+    0's: one job under two run ids. The refusal names the member, as for the other three."""
     assert recipe["settings"][0]["black_level"]["value"] == 0
-    stated, omitted = ws.compose(recipe).runs[0], ws.compose(_without(recipe, "black_level")).runs[0]
-    assert ws.validate(_without(recipe, "black_level")).runs[0].valid
-    out = []
-    for name, run in (("stated", stated), ("omitted", omitted)):
-        spec = run.run_spec
-        path = tmp_path / name / "spec.yaml"
-        path.parent.mkdir()
-        path.write_text(yaml.safe_dump(spec))
-        r = resolve_run(spec, path, LIBRARY, SENSORS)
-        render_platform(r.platform, r.sensor, r.settings[0]["entry_id"], r.settings, r.integration_samples,
-                        r.sensor_library, tmp_path / name / "x.platform", r.channel_response)
-        out.append((tmp_path / name / "x.platform").read_bytes())
-    assert out[0] == out[1] and b'bias="0"' in out[0]
+    stated, omitted = ws.compose(recipe).runs[0].run_spec, ws.compose(_without(recipe, "black_level")).runs[0].run_spec
+    assert stated != omitted and omitted["descriptor"]["settings"][0] == {
+        k: v for k, v in stated["descriptor"]["settings"][0].items() if k != "black_level"}
+    run = ws.validate(_without(recipe, "black_level")).runs[0]
+    check = next(c for c in run.checks if not c.passed)
+    assert not run.valid and check.check == "library_files"
+    assert "descriptor.settings[0] (entry 'auror-nir') has no 'black_level'" in check.errors[0].detail
+    assert ws.validate(recipe).runs[0].valid
 
 
 def test_the_black_level_refusal_still_refuses_a_non_zero_value(ws, recipe):

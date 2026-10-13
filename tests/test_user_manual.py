@@ -153,7 +153,7 @@ def refusals(tmp_path_factory):
     out["meta.name: missing or not a string"] = raised(lambda: ws.validate(edit(lambda r: r["meta"].pop("name"))))
     out["channel_response native cannot carry a spectral curve"] = checked(edit(
         lambda r: (r.update(sensor=vis), r["settings"][0].update(entry_id="synthetic-600-200-vis-1920"))))
-    out["has no 'gain': every settings member of a DIRSIG run states exposure_time, frame_rate and gain"] = checked(
+    out["has no 'gain': every settings member of a DIRSIG run states exposure_time, frame_rate, gain and black_level"] = checked(
         edit(lambda r: r["settings"][0].pop("gain")))
     s2s = ROOT / "manifold_run_specs" / "s2s" / "s2s-hyperresolved-r25km-v0mps-e5ms-l0-z0-d0.yaml"
     out["sensor 'auror-nir.yaml' not found in the sensor library"] = checked(s2s)

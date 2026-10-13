@@ -212,7 +212,7 @@ def render_platform(template, sensor_doc, entry_id, settings, integration_sample
         node = copy.deepcopy(pattern)
         node.set("name", ch["channel_id"])
         node.set("gain", _num(_q(st["gain"])))
-        node.set("bias", _num(_q(st["black_level"]) if st.get("black_level") is not None else 0))
+        node.set("bias", _num(_q(st["black_level"])))
         node.set("normalize", "false")
         for child in list(node):
             if child.tag not in ("polarizer", "dataoutput"):

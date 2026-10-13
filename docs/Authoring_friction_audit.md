@@ -35,7 +35,7 @@ The library's `auror_ref` recipe and the layers it names. Fields as committed:
 
 The other two library sensors carry hashes of their spectral curves: `deepscan_850_306_nir_1280.yaml` 47 fields, 1 hash; `synthetic_600_200_vis_1920.yaml` 49 fields, 2 hashes. The pass recipe's engine profile, `engine_profiles/tahoe_leo_pass.yaml`, has 43 fields and 6 hashes (scene, platform, TLE, Earth-orientation table, atmosphere database, weather).
 
-**The fields a recipe must carry.** Removing each member of `auror_ref` in turn and validating (engine-free) leaves 18 required fields: `compose`; `meta.name`; `sensor`, `scenario`, `engine_profile`; in the settings member, `entry_id`, `exposure_time`, `frame_rate` and `gain` (each a `value` and a `provenance`, 6 fields) and `roi.Width`, `roi.Height`; and the four `fidelity` members `modeled`, `approximated`, `absent`, `valid_for`. Optional: `meta.tags`, `meta.description`, `roi.OffsetX`, `roi.OffsetY`, `engine_overrides`, and since round 41 `black_level` (absent, it is written as 0, the one value a DIRSIG run accepts; at round 35 it was a 20th and 19th required field). Of the 18, 4 are copied (the scenario and engine-profile names, the sensor file name, the `entry_id`) and 14 are chosen. A missing settings member is reported by the `library_files` check naming the member (`descriptor.settings[0] (entry 'auror-nir') has no 'gain': ...`; at round 35 a Python `KeyError`); a missing `fidelity` member by the `schema` check.
+**The fields a recipe must carry.** Removing each member of `auror_ref` in turn and validating (engine-free) leaves 20 required fields: `compose`; `meta.name`; `sensor`, `scenario`, `engine_profile`; in the settings member, `entry_id`, `exposure_time`, `frame_rate`, `gain` and `black_level` (each a `value` and a `provenance`, 8 fields) and `roi.Width`, `roi.Height`; and the four `fidelity` members `modeled`, `approximated`, `absent`, `valid_for`. Optional: `meta.tags`, `meta.description`, `roi.OffsetX`, `roi.OffsetY`, `engine_overrides`. (Round 41 made `black_level` optional, written as 0 when absent; round 43 restored it as required, because a spec without it has another run id than the same spec with an explicit 0 for one and the same job.) Of the 20, 4 are copied (the scenario and engine-profile names, the sensor file name, the `entry_id`) and 16 are chosen. A missing settings member is reported by the `library_files` check naming the member (`descriptor.settings[0] (entry 'auror-nir') has no 'gain': ...`; at round 35 a Python `KeyError`); a missing `fidelity` member by the `schema` check.
 
 **Changing one thing in `auror_ref`.**
 
@@ -116,8 +116,8 @@ The shortest path to a rendered run: `Workspace.local()`, the `auror_ref` recipe
 |---|---|---|---|---|
 | a shipped recipe with a changed window | 0 | 2 | 0 | 0 |
 | a shipped recipe with another library sensor (`auror_ref` to the VIS sensor) | 0 | 3 | 2 (`sensor`, `entry_id`) | 0 |
-| a new recipe over the library's layers | 1 | 18 required | 4 | 0 |
-| a new scene and sensor, in a checkout: recipe, scenario, engine profile (as `tahoe_static_pose`), sensor (as `auror-nir`) and the DIRSIG files copied into the library layout | 4 YAML files, and the copied DIRSIG files | 18 + 18 + 34 + 43 = 113 | 4 + 0 + 10 + 0 = 14 | 0 (4 placeholders, written by `scripts/stamp_hashes.py`) |
-| the same with the installed packages alone | the same | 113 | 14 | 4 (computed by the user) |
+| a new recipe over the library's layers | 1 | 20 required | 4 | 0 |
+| a new scene and sensor, in a checkout: recipe, scenario, engine profile (as `tahoe_static_pose`), sensor (as `auror-nir`) and the DIRSIG files copied into the library layout | 4 YAML files, and the copied DIRSIG files | 20 + 18 + 34 + 43 = 115 | 4 + 0 + 10 + 0 = 14 | 0 (4 placeholders, written by `scripts/stamp_hashes.py`) |
+| the same with the installed packages alone | the same | 115 | 14 | 4 (computed by the user) |
 | a committed space-to-space spec | 0 | 0 | 0 | 0 |
 | a space-to-space spec by hand | 1 | 72 | 8 (3 hashes, the revision, 4 names) | 3 |

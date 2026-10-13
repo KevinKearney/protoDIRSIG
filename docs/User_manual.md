@@ -150,7 +150,7 @@ except ProblemError as e:
 | The recipe does not compose | `settings[0].entry_id: 'auror-nir' names no entry of the listed sensors` | you changed the sensor but not the settings | set `entry_id` to the new sensor's (its file's `entry_id`) |
 | The recipe does not compose | `meta.name: missing or not a string` | the recipe lacks a required field | add the field the detail names |
 | The submission failed admission | `channel_response native cannot carry a spectral curve` | the recipe's `engine_overrides` does not suit the new sensor | remove `engine_overrides` |
-| The submission failed admission | `has no 'gain': every settings member of a DIRSIG run states exposure_time, frame_rate and gain` | a settings member lacks `gain` (or `exposure_time`, `frame_rate`; `black_level` may be left out, it is then 0) | add it, as `{value: ..., provenance: specified}` |
+| The submission failed admission | `has no 'gain': every settings member of a DIRSIG run states exposure_time, frame_rate, gain and black_level` | a settings member lacks `gain` (or `exposure_time`, `frame_rate`, `black_level`) | add it, as `{value: ..., provenance: specified}` |
 | The submission failed admission | `sensor 'auror-nir.yaml' not found in the sensor library` | a run-spec file looks for sensors beside its own folder | pass the spec as a dict, or `Workspace.local(sensor_library=...)` |
 | The submission failed admission | `carry a placeholder instead of a stamped value; run scripts/stamp_hashes.py` | a library file you wrote has `sha256:<hash>` where a file hash belongs | in the repository, run `python scripts/stamp_hashes.py`; elsewhere compute the hash (`docs/Authoring_friction_audit.md`, section 4) |
 | The submission failed admission | `content_hash ... does not match the file` | a library file changed after its hash was recorded | if you changed it on purpose, restamp; if not, restore the file |
@@ -178,7 +178,7 @@ The engine profile's `run.seed` is DIRSIG's random seed. A seed alone does not m
 
 `python scripts/recipe_form.py` writes `outputs/recipe_form/index.html`, one HTML file that works offline in a browser. It lists the library's sensors and the scenario and engine-profile pairs the shipped recipes use, and offers a pair with a sensor only where the SDK's checks accepted the recipe it writes for them when the page was made (the others are listed with the reason). You pick the pair, the sensor and the window and set the name, exposure time, frame rate, gain and the fidelity statement; the page shows the recipe as YAML, to copy or download. Load the downloaded file with `yaml.safe_load` and pass the dict to `ws.validate` and `ws.submit_run`.
 
-It is a prototype of the recipe step only. It writes the 18 fields a recipe must carry and a black level of 0 (and a description when you give one), computes and shows no file hash, and reads the library as it was when the script ran. Scenarios, engine profiles and sensors are not written by it: they remain files you write (section 8). It is a script of the repository, not part of the SDK.
+It is a prototype of the recipe step only. It writes the 20 fields a recipe must carry, the black level at 0 (and a description when you give one), computes and shows no file hash, and reads the library as it was when the script ran. Scenarios, engine profiles and sensors are not written by it: they remain files you write (section 8). It is a script of the repository, not part of the SDK.
 
 ## 11. Reading a space-to-space result
 
