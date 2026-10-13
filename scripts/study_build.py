@@ -380,6 +380,8 @@ def _min_max_ratio(st, specs, method=None):
 
 
 HYPER_RANGE = [f"s2s-hyperresolved-r{t}km-v0mps-e5ms-l0-z0-d0" for t in ("12p5", "25", "50", "100")]
+SUN_TOL_CASES = ["s2s-hyperresolved-r25km-v0mps-e5ms-l0-z30-d0", "s2s-hyperresolved-r25km-v0mps-e5ms-l0-z60-d0"]  # TOL_SUN
+SUN75 = ["s2s-hyperresolved-r25km-v0mps-e5ms-l0-z75-d0-w64", "s2s-hyperresolved-r25km-v0mps-e5ms-l0-z0-d0-w64"]
 UNRES_RANGE = [f"s2s-unresolved-r{t}km-v0mps-e5ms-l0-z0-d0" for t in ("12p5", "25", "50", "100", "200", "400", "800")]
 PLAIN_RANGE = [f"s2s-unresolvedplain-r{t}km-v0mps-e5ms-l0-z0-d0" for t in ("12p5", "25", "50", "100", "200", "400",
                                                                            "800")]
@@ -421,9 +423,9 @@ WITHIN_MIN_PX = 2.0
 
 
 def _within_one(st):
-    """Records of 2 px and up, still or singly moving, within the TOL_FLUX_ENVELOPE row: the largest flux deficit."""
+    """Records of 2 px and up, still, tracked (still in the image) or singly moving, within the TOL_FLUX_ENVELOPE row: the largest flux deficit."""
     specs = [r["spec"] for r, a, key, why in st.rows if not why and a["size_px"] >= WITHIN_MIN_PX and
-             a["motion"] in ("fixed", "platform", "target") and r["ratio"] is not None]
+             a["motion"] in ("fixed", "tracked", "platform", "target") and r["ratio"] is not None]
     return specs
 
 
@@ -491,7 +493,7 @@ def computed(st):
     # unresolved
     ur = [s for s in UNRES_RANGE[:2]]
     c["unres_near_lo"], c["unres_near_hi"] = ((min(st.ratio(s) for s in ur), ur), (max(st.ratio(s) for s in ur), ur))
-    far = UNRES_RANGE[2:5]
+    far = UNRES_RANGE[2:]
     c["unres_far_lo"], c["unres_far_hi"] = ((min(st.ratio(s) for s in far), far), (max(st.ratio(s) for s in far), far))
     nadir = st.ratio(SMALL_NADIR_W64)
     rel = [st.ratio(s) / nadir for s in CORNER]
@@ -600,6 +602,10 @@ def computed(st):
     rel100 = lambda s: (st.ratio(s) / st.ratio(base100), [s, base100])         # noqa: E731
     c["resolved_ls"] = (st.index["s2s-hyperresolved-r100km-v0mps-e5ms-l30-z30-d0-w64"]["look_deg"], [])
     c["resolved_ls_rel"] = rel100("s2s-hyperresolved-r100km-v0mps-e5ms-l30-z30-d0-w64")
+    sun = [n for n in SUN_TOL_CASES]
+    c["sun_tol_zen"] = (max(st.index[n]["solar_zenith_deg"] for n in sun), sun)
+    c["sun75_zen"] = (st.index[SUN75[0]]["solar_zenith_deg"], SUN75[:1])
+    c["sun75_rel"] = (st.ratio(SUN75[0]) / st.ratio(SUN75[1]), SUN75)
     c["resolved_look"] = (st.index["s2s-hyperresolved-r100km-v0mps-e5ms-l60-z0-d0-w64"]["look_deg"], [])
     c["resolved_look_corner"] = rel100("s2s-hyperresolved-r100km-v0mps-e5ms-l60-z0-d0-w64")
     c["resolved_look_off"] = rel100("s2s-hyperresolved-r100km-v0mps-e5ms-l60-z0-d0p5-w64")
