@@ -215,9 +215,9 @@ def test_notebook_five_cells():
     nb = json.loads((ROOT / "notebooks" / "stage_05_sdk_auror_demo.ipynb").read_text())
     cells = nb["cells"]
     code = [i for i, c in enumerate(cells) if c["cell_type"] == "code"]
-    assert len(cells) == 23 and len(code) == 11
-    assert code == [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 21]
-    assert "has 23 cells, 11 of them code" in DOC
+    assert len(cells) == 24 and len(code) == 11
+    assert code == [3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 22]
+    assert "has 24 cells, 11 of them code; the first is a pointer to the quick start" in DOC
 
 
 def test_the_default_roots_point_into_the_checkout():

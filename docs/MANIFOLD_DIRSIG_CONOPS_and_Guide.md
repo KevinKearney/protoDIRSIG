@@ -78,7 +78,7 @@ A `manifold_` prefix marks a folder that maps to a future MANIFOLD repository (`
 | DIRSIG and `dirfm` without the driver | `dirfm_tutorials/` |
 | Manifest | none |
 
-A first-time user of the SDK reads `docs/User_manual.md` (task first: install and check, one image, a sweep over sensors, a space-to-space run, reading the result, what each refusal means; every code block executed by `tests/test_user_manual.py`) with `docs/User_glossary.md`, which maps the user's words to the SDK's. A new user of `dirfm` reads `dirfm_tutorials/tutorial_dirfm_basics`, then the stage notebooks in order. A DIRSIG5 user stating a job as a run spec reads `docs/Authoring_layered_form.md`; an engine author reads `docs/Engine_author_guide.md`; `stage_06_space_to_space` shows the space-to-space results against their closed forms. Stage 01 shows a run tree built from a run spec, stage 02 shows admission and the logs, and stage 03 shows how a change of sensor reaches the run tree.
+A first-time user of the SDK reads `docs/User_manual.md` (task first: install and check, one image, a sweep over sensors, a space-to-space run, reading the result, what each refusal means; every code block executed by `tests/test_user_manual.py`) with `docs/User_glossary.md`, which maps the user's words to the SDK's, and runs `notebooks/quickstart_sdk.ipynb` (one image, then another sensor). A new user of `dirfm` reads `dirfm_tutorials/tutorial_dirfm_basics`, then the stage notebooks in order. A DIRSIG5 user stating a job as a run spec reads `docs/Authoring_layered_form.md`; an engine author reads `docs/Engine_author_guide.md`; `stage_06_space_to_space` shows the space-to-space results against their closed forms. Stage 01 shows a run tree built from a run spec, stage 02 shows admission and the logs, and stage 03 shows how a change of sensor reaches the run tree.
 
 Part II is the reference: the contract, the sensor specification, the repository layout, the SDK, the DIRSIG behaviors that matter, and the points of disagreement with the MANIFOLD documents (section 10), with every open decision listed in one place, its owner and whether it blocks the 0.1 release (section 10.1).
 
@@ -545,6 +545,7 @@ The adapter module imports nothing heavy at import time (validation loads it); t
 
 | Notebook | Role |
 |---|---|
+| `quickstart_sdk` | `built / internal` (`tests/test_quickstart_notebook.py` executes it): the first-time user's path in the user's words, seven code cells: the shipped recipe `auror_ref` with a 16 x 16 window, checked, run, its image read with `spectral`, then the VIS sensor (three edits of the recipe: sensor, `entry_id`, `engine_overrides` removed) checked and run beside it; only `Workspace` and the library as shipped; links `docs/User_glossary.md` and the manual's refusal table where the first message can appear |
 | `stage_01_auror_from_runspec` | AUROR job from `auror_ref.yaml`, seeded, motion and tasks generated |
 | `stage_02_conformance_template` | same job through `LocalRegistry`, then `Simulation.run`; adds an 8-pixel Lambertian visibility disk (albedo 0.8) in a library mirror under `outputs/` |
 | `stage_03_sensor_sweep` | the sensor library, its curves and composed channel responses; the sweep recipe `sensor_sweep_tahoe` through `compose_sweep`, `submit_sweep` and `run_sweep`; three sensors rendered at 32 × 32 with GSD from the truth |
@@ -555,7 +556,7 @@ The adapter module imports nothing heavy at import time (validation loads it); t
 | `sidebars/vehicle_point_source` | distils the vehicle mesh to a radiant intensity; renders the emitter with thermal prediction forced |
 | `dev/` | local discovery logs; gitignored |
 
-`notebooks/README.md` describes each in detail. Their code cells import from `manifold.core` and `manifold.sim` (the first cell falls back to the two source trees under `packages/` when the packages are not installed), checked without execution by `tests/test_notebook_imports.py`; `stage_05_sdk_auror_demo` is also executed top to bottom by `tests/test_stage05_notebook.py` (`nbclient`, the environment's `python3` kernel), which skips its render and comparison checks with the notebook's printed reason when DIRSIG or the demo archive is absent; only `dirfm_tutorials/tutorial_tacoma_scene`'s saved outputs still show a `protodirsig` path, from a run before the rename.
+`notebooks/README.md` describes each in detail. Their code cells import from `manifold.core` and `manifold.sim` (the first cell falls back to the two source trees under `packages/` when the packages are not installed), checked without execution by `tests/test_notebook_imports.py`; `quickstart_sdk` is executed top to bottom by `tests/test_quickstart_notebook.py` and `stage_05_sdk_auror_demo` by `tests/test_stage05_notebook.py` (`nbclient`, the environment's `python3` kernel), which skips its render and comparison checks with the notebook's printed reason when DIRSIG or the demo archive is absent; only `dirfm_tutorials/tutorial_tacoma_scene`'s saved outputs still show a `protodirsig` path, from a run before the rename.
 
 ## 9. DIRSIG behaviors that matter
 

@@ -207,7 +207,8 @@ def test_the_glossary_maps_the_users_words():
 def test_the_manual_links_the_glossary_and_the_guides():
     text = MANUAL.read_text(encoding="utf-8")
     first = text.split("\n## ")[0]
-    assert "(User_glossary.md)" in first
+    assert "(User_glossary.md)" in first and "(../notebooks/quickstart_sdk.ipynb)" in first
+    assert (MANUAL.parent / "../notebooks/quickstart_sdk.ipynb").is_file()
     for target in ("Authoring_layered_form.md", "Engine_author_guide.md", "Authoring_friction_audit.md",
                    "../notebooks/stage_06_space_to_space.ipynb"):
         assert f"]({target})" in text and (MANUAL.parent / target).is_file(), target

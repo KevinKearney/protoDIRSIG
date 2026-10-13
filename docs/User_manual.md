@@ -1,6 +1,6 @@
 # User manual
 
-For a DIRSIG5 user who wants images from DIRSIG through the `manifold` SDK without reading the repository. The words in this manual are defined where they first appear; [the glossary](User_glossary.md) maps your words (simulation, sensor, scene, settings, result, check before running) to the SDK's.
+For a DIRSIG5 user who wants images from DIRSIG through the `manifold` SDK without reading the repository. The words in this manual are defined where they first appear; [the glossary](User_glossary.md) maps your words (simulation, sensor, scene, settings, result, check before running) to the SDK's. A first run without reading further: [the quick start](../notebooks/quickstart_sdk.ipynb).
 
 ## 1. What the SDK is, and is not
 

@@ -92,21 +92,21 @@ On the shortest path (section 6) no step requires typing a hash.
 
 ## 6. Notebook 5 against the shortest path
 
-`notebooks/stage_05_sdk_auror_demo.ipynb` has 23 cells, 11 of them code. What each part does and whether a first rendered run needs it:
+`notebooks/stage_05_sdk_auror_demo.ipynb` has 24 cells, 11 of them code; the first is a pointer to the quick start and the manual. What each part does and whether a first rendered run needs it:
 
 | Notebook 5 part | Cells | Needed for a first rendered run |
 |---|---|---|
-| setup: DIRSIG on `PATH`, work folders | 2 | the `PATH` part only when DIRSIG is not linked by `scripts/bootstrap.py` |
-| library copy (the three layer folders under `outputs/`) and a new engine profile with `resources.cpu_threads: 1` | 4 | no: the copy exists to add the engine profile; one thread is for byte-identical repeats, not for a render |
-| the recipe from `auror_ref` with a 16 x 16 window | 4 | yes |
-| `compose`, run id, provenance | 6 | no |
-| run-spec loader round trip, engine-block schema from `list_engines` | 8 | no |
-| `validate`, engine-free and dry run | 10 | the engine-free check is optional; `submit_run` runs the same checks |
-| the deliberate refusal (a uniform atmosphere with no weather) | 12 | no |
-| `submit_run`, `wait`, artifacts by role, resubmission | 14 | `submit_run` and `wait` |
-| the image through `read_envi` | 16 | reading the image: yes, with any ENVI reader |
-| a second work root, byte-identical repeat | 18 | no |
-| MaterialMap1, layered against pass-through, and its plot | 20, 21 | no |
+| setup: DIRSIG on `PATH`, work folders | 3 | the `PATH` part only when DIRSIG is not linked by `scripts/bootstrap.py` |
+| library copy (the three layer folders under `outputs/`) and a new engine profile with `resources.cpu_threads: 1` | 5 | no: the copy exists to add the engine profile; one thread is for byte-identical repeats, not for a render |
+| the recipe from `auror_ref` with a 16 x 16 window | 5 | yes |
+| `compose`, run id, provenance | 7 | no |
+| run-spec loader round trip, engine-block schema from `list_engines` | 9 | no |
+| `validate`, engine-free and dry run | 11 | the engine-free check is optional; `submit_run` runs the same checks |
+| the deliberate refusal (a uniform atmosphere with no weather) | 13 | no |
+| `submit_run`, `wait`, artifacts by role, resubmission | 15 | `submit_run` and `wait` |
+| the image through `read_envi` | 17 | reading the image: yes, with any ENVI reader |
+| a second work root, byte-identical repeat | 19 | no |
+| MaterialMap1, layered against pass-through, and its plot | 21, 22 | no |
 
 The shortest path to a rendered run: `Workspace.local()`, the `auror_ref` recipe as `get_recipe` returns it with `settings[0].roi` set to 16 x 16 (2 fields edited), `submit_run`, `wait`; then `list_artifacts` and `get_artifact` (or `save_artifact`) for the image. 0 files written, 0 hashes, 4 SDK calls to a final state. `notebooks/quickstart_sdk.ipynb` follows it.
 

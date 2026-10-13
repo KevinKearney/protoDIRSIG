@@ -1,6 +1,6 @@
 # Notebooks
 
-Several kinds of notebook live here, and they're not interchangeable. A first-time user of the SDK starts with the user manual, `docs/User_manual.md`, and its glossary, `docs/User_glossary.md`.
+Several kinds of notebook live here, and they're not interchangeable. A first-time user of the SDK starts with `quickstart_sdk.ipynb` (below) and the user manual, `docs/User_manual.md`, with its glossary, `docs/User_glossary.md`.
 
 **Stage notebooks** (`stage_NN_<slug>.ipynb`, top level) are the active, accumulating work: each one builds toward a MANIFOLD-conformant template notebook, one stage at a time. A later stage extends what an earlier one does rather than rewriting it, so the stage notebooks are expected to keep changing as work continues — this file describes their current state, updated as they go, not a history of how they got there. Stage 06 is the exception to building on a render: it reads recorded results (`docs/data/s2s_results.jsonl`) and renders nothing.
 
@@ -9,6 +9,10 @@ Several kinds of notebook live here, and they're not interchangeable. A first-ti
 **`dev/`** holds discovery-log notebooks — working notes from exploring a received tree or tool behavior before the pattern was understood well enough to write cleanly. Kept as executed, not maintained going forward.
 
 **`sidebars/`** holds side investigations: exploratory like `dev/`, but tracked, because their results are cited in the CONOPS and Guide.
+
+## Quick start
+
+- **`quickstart_sdk.ipynb`** — From a fresh clone to one simulated 16 × 16 image and its result, in the user's words and seven code cells: picks the shipped recipe `auror_ref`, cuts its window to 16 × 16, checks it, runs it, shows the image (read with `spectral`), then swaps the sensor for the synthetic VIS camera (three edits of the recipe: the sensor's name, its settings name, and the removal of a DIRSIG channel option that camera refuses), checks and runs it, and shows both images. Only `Workspace` and the library as shipped; no library copy. Links the glossary and the manual's table of messages. Without DIRSIG the checks run and each other cell prints why it skips. About 20 s. Executed by `tests/test_quickstart_notebook.py`; the top cell of stage 05 points here.
 
 ## Stage notebooks
 
