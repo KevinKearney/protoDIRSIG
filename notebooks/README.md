@@ -2,7 +2,7 @@
 
 Several kinds of notebook live here, and they're not interchangeable.
 
-**Stage notebooks** (`stage_NN_<slug>.ipynb`, top level) are the active, accumulating work: each one builds toward a MANIFOLD-conformant template notebook, one stage at a time. A later stage extends what an earlier one does rather than rewriting it, so the stage notebooks are expected to keep changing as work continues — this file describes their current state, updated as they go, not a history of how they got there.
+**Stage notebooks** (`stage_NN_<slug>.ipynb`, top level) are the active, accumulating work: each one builds toward a MANIFOLD-conformant template notebook, one stage at a time. A later stage extends what an earlier one does rather than rewriting it, so the stage notebooks are expected to keep changing as work continues — this file describes their current state, updated as they go, not a history of how they got there. Stage 06 is the exception to building on a render: it reads recorded results (`docs/data/s2s_results.jsonl`) and renders nothing.
 
 **`dirfm_tutorials/`** are standalone tutorials in `dirfm` usage: each is self-contained, driven directly through `dirfm` with no MANIFOLD run-spec or registry layer involved, and not part of the stage progression. They stay as worked examples.
 

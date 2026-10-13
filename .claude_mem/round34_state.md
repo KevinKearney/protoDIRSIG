@@ -14,3 +14,5 @@
 - step C gate: 1789 passed, 2 skipped (8 min 2 s, alone); thirteen checks 0 (status_markers 181); core and snapshot unchanged
 - step D: compare_layered --threads, noise-floor repeat and note; 3 new tests
 - step D gate: 1792 passed, 2 skipped (8 min 1 s, alone); thirteen checks 0; core and snapshot unchanged
+- step E: CONOPS Where-to-start sentence, BACKLOG three items, notebooks README, ARCH_LOG OPEN
+- final gate: 1792 passed, 2 skipped; 13 checks 0; core/snapshot diff empty
