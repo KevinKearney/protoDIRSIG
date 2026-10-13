@@ -13,3 +13,5 @@
 - step B gate: 2129 passed, 2 skipped (9 min 28 s, alone); sixteen checks 0 (165 specs, 133 records, coverage 124); core/snapshot diff empty
 - step C: BACKLOG candidate ask (per-pixel path count) and a CONOPS pointer; no render
 - step C gate: 2129 passed, 2 skipped (9 min 30 s, alone); sixteen checks 0; core/snapshot diff empty
+- step D: README, BACKLOG pointer, review report prose, ARCH_LOG round 40 with OPEN
+- step D (final) gate: 2129 passed, 2 skipped (9 min 28 s); sixteen checks 0; core/snapshot diff empty

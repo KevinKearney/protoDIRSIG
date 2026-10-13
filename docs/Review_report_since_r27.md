@@ -46,7 +46,7 @@ Source: `docs/data/s2s_results.jsonl` (one record per DIRSIG spec measured; `pyt
 | SatSim truth plane / paraxial expectation with the cone zeropoint (`zpcone`) | 0.981075 | `docs/Space_to_space_characterization.md`, SatSim parity, Results |
 <!-- end generated: aperture -->
 
-**Flux closure, hyperresolved plate (family I).** A 20 m plate, nadir unless stated. The half-level count falls below the footprint where the edge pixels fall below half a full pixel; the peak is a full pixel.
+**Flux closure, hyperresolved plate (family I).** A 20 m plate, nadir unless stated. The half-level count falls below the footprint where the edge pixels fall below half a full pixel; the peak is a full pixel. At 100 km (6.12 px) the look alone at 60 degrees (round 40) reads 0.969 of cos 60 against the window's nadir record, 0.972 off the pixel corner (not explained; the Sun alone holds to 6.4e-5).
 
 <!-- generated: flux -->
 | Spec | Range (km) | Exposure (ms) | Look (deg) | Solar zenith (deg) | Equivalent px | Expected px | Ratio | Half-level count / expected | Peak / full pixel |
@@ -74,7 +74,7 @@ Source: `docs/data/s2s_results.jsonl` (one record per DIRSIG spec measured; `pyt
 | `s2s-hyperresolved-r100km-v0mps-e20ms-l0-z0-d0-w64` | 100 | 20 | 0 | 0 | 37.62 | 37.4544 | 1.00442 | 0.9612 | 1 |
 <!-- end generated: flux -->
 
-**Unresolved objects (families I and III).** The labelled (`::IMPORTANT::`) objects stand in front of a black backstop. Without a surface behind it a sub-pixel object renders zero: DIRSIG's earth core ends a pixel's sampling at its first path to it (the characterization document, family II, C1). Where the plate fills more than about a third of a pixel the flux follows R⁻²; below that the estimate is a hit count.
+**Unresolved objects (families I and III, and round 40's SatSim controls).** The labelled (`::IMPORTANT::`) objects stand in front of a black backstop. Without a surface behind it a sub-pixel object renders zero: DIRSIG's earth core ends a pixel's sampling at its first path to it (the characterization document, family II, C1). Where the plate fills more than about a third of a pixel the flux follows R⁻²; below that the estimate is a hit count. The `s2s-satsim-ctl-*` rows image round 39's points with SatSim (round 40): a point on and off the pixel corner and moving, and the 60 degree plate's projected sprite, keep their flux to 6.3e-6, where DIRSIG's plate reads 0.905 on the corner at 60 degrees and 0.873 moving.
 
 <!-- generated: unresolved -->
 | Spec | Target | `::IMPORTANT::` | Point | Equivalent px | Expected px | Ratio |
@@ -147,7 +147,7 @@ Source: `docs/data/s2s_results.jsonl` (one record per DIRSIG spec measured; `pyt
 | `s2s-satsim-ctl-sphere-r25km-v0mps-e5ms-l0-d0p5-w64` | 0.25 m sphere (SatSim point) | — | 25 km, offset 0.5 px, 5 ms | 0.1961 | 0.19611 | 1.00000 |
 <!-- end generated: unresolved -->
 
-**Shutter blur (family II).** The 20 m plate and a barred background under platform motion, target motion and both, 1000 m/s each, 25 km. The `both` group's native specs have no records (deferred: `docs/Bigger_host_plan.md`); round 38 measured it at 64 x 64 at 0.1, 1 and 5 ms (the `-w64` rows: flux to 1.6e-3, sweep 0.981 at 5 ms). The fitted streak is 1.7 to 3.1 % short of v·t / footprint at 5 and 20 ms, for the target and the background alike, and `integration_samples` 2, 10 and 100 render byte-identical images. Round 39 isolated the cause: DIRSIG's adaptive per-pixel sample count (scratch renders at a fixed 1000 paths per pixel read 0.998 to 0.999; neither the length's definition nor the plate's width changes it), and a 64 x 64 point at 100 km (`s2s2-blur-target-r100km-e20ms-w64`) is the resolved streak. The orbit pair holds a 100 m plate still over 20 ms.
+**Shutter blur (family II).** The 20 m plate and a barred background under platform motion, target motion and both, 1000 m/s each, 25 km. The `both` group's native specs have no records (deferred: `docs/Bigger_host_plan.md`); round 38 measured it at 64 x 64 at 0.1, 1 and 5 ms (the `-w64` rows: flux to 1.6e-3, sweep 0.981 at 5 ms). The fitted streak is 1.7 to 3.1 % short of v·t / footprint at 5 and 20 ms, for the target and the background alike, and `integration_samples` 2, 10 and 100 render byte-identical images. Round 39 isolated the cause: DIRSIG's adaptive per-pixel sample count (scratch renders at a fixed 1000 paths per pixel read 0.998 to 0.999; neither the length's definition nor the plate's width changes it), and a 64 x 64 point at 100 km (`s2s2-blur-target-r100km-e20ms-w64`) is the resolved streak. The orbit pair holds a 100 m plate still over 20 ms. The `SatSim target` rows are round 40's control (the characterization's "SatSim as a control (round 40)"): SatSim, which has no adaptive per-pixel sampling, reads 0.994 to 0.998 of the sweep at the same geometries, so the shortfall is DIRSIG's sampling; the `both` group at 100 km (round 40) keeps 0.987 of the flux and 0.966 of the sweep (not explained).
 
 <!-- generated: blur -->
 | Spec | Group | Exposure (ms) | Flux ratio | Fitted streak (px) | v·t / footprint (px) | Fitted / expected |
@@ -187,7 +187,7 @@ Source: `docs/data/s2s_results.jsonl` (one record per DIRSIG spec measured; `pyt
 | `s2s2-look-l75` | 75 | 148.442 | 155.103 | 0.95705 | — | 23.53 | — |
 <!-- end generated: look -->
 
-**Phase function (family III).** A 10 m Lambertian sphere (DIRSIG's analytic primitive) at 25 km, expected (2/3) π R² / g² × Φ(a), and the same sphere at nadir against a barred plate whose level follows cos θs. At 60 degrees the three splits of look and Sun give the same signal.
+**Phase function (family III).** A 10 m Lambertian sphere (DIRSIG's analytic primitive) at 25 km, expected (2/3) π R² / g² × Φ(a), and the same sphere at nadir against a barred plate whose level follows cos θs. At 60 degrees the three splits of look and Sun give the same signal, at 25 km and (rounds 39 and 40) at 100 km, to 4.4e-3.
 
 <!-- generated: phase -->
 | Spec | Group | Phase (deg) | Look (deg) | Solar zenith (deg) | Equivalent px | Expected px | Ratio | Bar level / (0.5 cos θs) |
