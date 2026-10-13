@@ -559,7 +559,7 @@ Round 38's map had no look, Sun, phase, exposure or target-motion point for a ta
 
 **Finding (recorded, not tuned).** The labelled 0.5 m plate at 12.5 km (1.22 px) moving 12.2 px in 5 ms (12.24 px: 5 m over the 0.41 m footprint; round 39 wrote 9.8, corrected in round 40) keeps 0.873 of its flux. Its 20 lit pixels read whole hits over 20 to 100 paths, with gaps along the streak: round 30's unresolved-streak loss, smaller here because each streak pixel holds more of the plate. The label's hypersampling does not follow a moving object over the exposure (BACKLOG "Space-to-space: what round 30 leaves open" (2)).
 
-**What stays empty.** For a resolved target, the look alone and the Sun alone (for the plate and the sphere) and combined motion. These are reasons in `docs/s2s_coverage.md`: the budget took look and Sun together and the phase evenly split, and the `both` group's targets are 24.5 and 0.61 px.
+**What stays empty.** For a resolved target, the look alone and the Sun alone (for the plate and the sphere) and combined motion. These are reasons in `docs/s2s_coverage.md`: the budget took look and Sun together and the phase evenly split, and the `both` group's targets are 24.5 and 0.61 px. Round 40 filled them ("The resolved cells round 39 left empty (round 40)").
 
 **Tests.** `tests/test_s2s_results.py`: `TOL_RESOLVED_WINDOW`, `TOL_RESOLVED_LOOK_SUN`, `TOL_EXPOSURE` (the existing tolerance) and `TOL_RESOLVED_PHASE`. The moving 1.22 px plate is not asserted. `notebooks/stage_06_space_to_space.ipynb` section 9 prints them. Section 4's phase cell now selects the native 25 km sphere records only, so the 100 km points are not read against `TOL_PHASE`.
 
@@ -600,3 +600,24 @@ The flux residuals (at most 6.3e-6) are SatSim's whole-count floor on each pixel
 **Differences not explained.** The 60 degree sprite lands half an oversampled pixel (0.033 px) from the corner along each axis, not on it: the placement rule above, taken from round 31's 75 and 101 pixel sprites, is off by that half for an 11 x 7 sprite (not corrected; it costs a render, and the plate still lies across all four pixels). SatSim's annotation of the moving sphere puts its start and end 12.31 px apart (12.24 expected) and its mid-exposure position 0.085 px past the corner along the motion, while the frame holds the flux; not pursued.
 
 **Tests.** `tests/test_s2s_results.py`: every control's flux closure (`TOL_SATSIM_FLUX`) and placement (`TOL_SATSIM_CENTRE`), the point's flux on and off the corner, and each resolved streak within `TOL_SATSIM_STREAK` in SatSim while its DIRSIG counterpart is short by more than that. `tests/test_s2s_scenarios.py`: the controls' configurations state round 39's geometry (window, field of view, no PSF, range along the Sun's direction, the speed across the line of sight, the offsets). `notebooks/stage_06_space_to_space.ipynb` section 10 prints each control beside its DIRSIG counterpart.
+
+## The resolved cells round 39 left empty (round 40)
+
+Round 39's resolved points (the 20 m plate and the 10 m sphere at 100 km, 6.12 px) took the look and the Sun together, and the `both` group's targets were 24.5 and 0.61 px, so the coverage map kept five resolved cells empty: the plate's look alone and Sun alone, the sphere's look alone and Sun alone, and combined motion. Round 40 filled them in DIRSIG at the same 64 x 64 window (`RESOLVED_ONE_AXIS` in family I, `RESOLVED3_SPLIT` in family III, `BOTH_RESOLVED` in family II; existing specs unchanged), one render at a time, alone: six renders (1.4 to 3.5 s, dirsig5 at most 129,164 kB). A plate's ratio is taken against the window's 100 km nadir record, as in round 39.
+
+| Case | Spec | Closed form | Measured / closed form |
+|---|---|---|---|
+| Plate, look 60 alone (pixel corner) | `s2s-hyperresolved-r100km-v0mps-e5ms-l60-z0-d0-w64` | cos 60 | **0.96917** |
+| Plate, look 60 alone, offset 0.5 px | `s2s-hyperresolved-r100km-v0mps-e5ms-l60-z0-d0p5-w64` | cos 60 | **0.97236** |
+| Plate, Sun alone (zenith 60) | `s2s-hyperresolved-r100km-v0mps-e5ms-l0-z60-d0-w64` | cos 60 | 1.00006 |
+| Sphere, phase 60 all in the look | `s2s3-phase-hyperresolved-a60-r100km-l60-z0-w64` | Φ(60) (2/3) π R² / g² = 11.943 px | 1.00235 |
+| Sphere, phase 60 all in the Sun | `s2s3-phase-hyperresolved-a60-r100km-l0-z60-w64` | the same | 1.00438 |
+| Combined motion, `both` group at 100 km, 20 ms | `s2s2-blur-both-r100km-e20ms-w64` | flux conserved; sweep 12.24 px | flux 0.98653; sweep **0.96556** (11.82 px) |
+
+**What holds.** The Sun alone scales the plate's samples (6.4e-5, against round 39's 30/30 at 9.5e-3). The sphere's phase function holds however the angle is split: 1.0024 all in the look, 1.0044 all in the Sun, 1.0029 split evenly (round 39), at the scatter of the resolved class.
+
+**Findings (recorded, not tuned).**
+- **The resolved plate's look alone at 60 degrees is 3 % low.** 0.969 on the corner and 0.972 off it, so not the placement that round 39 found for the sub-pixel plate. At 25 km the same plate (24.5 px) holds 60/60 to 1e-3. Foreshortened to 3.06 x 6.12 px, the plate is mostly edge pixels: its partial columns read about 0.50 where 0.53 of each is covered, and the columns beyond them read nothing; at nadir the ring outside the plate holds 0.1 to 0.15 of a pixel (DIRSIG's own spread), and the full pixels next to the edge read 0.95. Not isolated: a fixed per-pixel path count (round 39's control) would separate DIRSIG's sampling, and the budget's six renders were spent on these points (BACKLOG "Space-to-space: what round 40 leaves open" (1)).
+- **Combined motion at a resolved size keeps 0.987 of the flux and 0.966 of the sweep.** The target group at 100 km (round 39) kept 0.991 and 0.976; the 24.5 px plate's `both` group at 25 km and 5 ms 1.0002 and 0.981. Not isolated (BACKLOG (2)).
+
+**Tests.** `tests/test_s2s_results.py`: `TOL_RESOLVED_SUN_ALONE`, `TOL_RESOLVED_SPLIT` and `TOL_FLUX_BOTH_RESOLVED`. The look alone and the combined-motion sweep are not asserted. `notebooks/stage_06_space_to_space.ipynb` section 11 prints them. The coverage map's five resolved reasons are retired.

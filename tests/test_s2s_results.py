@@ -275,3 +275,27 @@ def test_the_streak_shortfall_is_dirsigs_not_satsims(name):
 def test_a_satsim_point_keeps_its_flux_on_and_off_the_pixel_corner():
     ratios = [rec(f"s2s-satsim-ctl-sphere-r25km-v0mps-e5ms-l0-d{d}-w64")["ratio"] for d in ("0", "0p25", "0p5")]
     assert max(ratios) - min(ratios) <= TOL_SATSIM_FLUX
+
+
+# --- round 40 B: the resolved cells round 39 left empty (the 20 m plate and the 10 m sphere at 100 km, 6.12 px) -------
+# The plate's look alone at 60 degrees reads 0.969 (corner) and 0.972 (offset 0.5) of cos 60 against the window's 100 km
+# record, and the combined-motion sweep 0.966 of speed x exposure: findings, not asserted.
+TOL_RESOLVED_SUN_ALONE = 6.40e-05  # 20 m plate, 100 km, cos(zenith) at zenith 60 against the window's record (6.392e-5)
+TOL_RESOLVED_SPLIT = 0.00439       # 10 m sphere, 100 km, phase 60 all in the look or all in the Sun: largest Sun (4.382e-3)
+TOL_FLUX_BOTH_RESOLVED = 0.0135    # family II's both group at 100 km, 20 ms (6.12 px plate, 12.24 px sweep) (1.347e-2)
+
+
+def test_a_resolved_plate_follows_the_sun_alone():
+    ratio = total(R100.format(e=5, l=0, z=60, w="-w64")) / total(R100.format(e=5, l=0, z=0, w="-w64"))
+    assert abs(ratio / 0.5 - 1) <= TOL_RESOLVED_SUN_ALONE
+
+
+@pytest.mark.parametrize("look, z", ((60, 0), (0, 60)))
+def test_a_resolved_sphere_follows_the_phase_function_split_either_way(look, z):
+    got, want = flux(f"s2s3-phase-hyperresolved-a60-r100km-l{look}-z{z}-w64")
+    assert abs(got / want - 1) <= TOL_RESOLVED_SPLIT
+
+
+def test_combined_motion_conserves_a_resolved_plates_flux():
+    got, want = flux("s2s2-blur-both-r100km-e20ms-w64")
+    assert abs(got / want - 1) <= TOL_FLUX_BOTH_RESOLVED

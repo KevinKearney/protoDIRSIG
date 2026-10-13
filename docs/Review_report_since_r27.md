@@ -67,7 +67,10 @@ Source: `docs/data/s2s_results.jsonl` (one record per DIRSIG spec measured; `pyt
 | `s2s-hyperresolved-r50km-v0mps-e5ms-l0-z0-d0` | 50 | 5 | 0 | 0 | 150.62 | 149.818 | 1.00536 | 0.9612 | 1 |
 | `s2s-hyperresolved-r100km-v0mps-e5ms-l0-z0-d0` | 100 | 5 | 0 | 0 | 37.76 | 37.4544 | 1.00816 | 0.9612 | 1 |
 | `s2s-hyperresolved-r100km-v0mps-e5ms-l0-z0-d0-w64` | 100 | 5 | 0 | 0 | 37.62 | 37.4544 | 1.00442 | 0.9612 | 1 |
+| `s2s-hyperresolved-r100km-v0mps-e5ms-l0-z60-d0-w64` | 100 | 5 | 0 | 60 | 18.8112 | 18.7272 | 1.00449 | 0.9612 | 1.00006 |
 | `s2s-hyperresolved-r100km-v0mps-e5ms-l30-z30-d0-w64` | 100 | 5 | 30 | 30 | 27.947 | 28.0908 | 0.99488 | 1.11 | 1.00001 |
+| `s2s-hyperresolved-r100km-v0mps-e5ms-l60-z0-d0-w64` | 100 | 5 | 60 | 0 | 18.23 | 18.7272 | 0.97345 | 1.068 | 1 |
+| `s2s-hyperresolved-r100km-v0mps-e5ms-l60-z0-d0p5-w64` | 100 | 5 | 60 | 0 | 18.29 | 18.7272 | 0.97665 | 1.015 | 1 |
 | `s2s-hyperresolved-r100km-v0mps-e20ms-l0-z0-d0-w64` | 100 | 20 | 0 | 0 | 37.62 | 37.4544 | 1.00442 | 0.9612 | 1 |
 <!-- end generated: flux -->
 
@@ -163,6 +166,7 @@ Source: `docs/data/s2s_results.jsonl` (one record per DIRSIG spec measured; `pyt
 | `s2s2-blur-both-e1ms-w64` | both | 1 | 1.00003 | 2.467 | 2.448 | 1.008 |
 | `s2s2-blur-both-e5ms-n2-w64` | both | 5 | 1.00023 | 12.01 | 12.24 | 0.9809 |
 | `s2s2-blur-both-e5ms-w64` | both | 5 | 1.00023 | 12.01 | 12.24 | 0.9809 |
+| `s2s2-blur-both-r100km-e20ms-w64` | both | 20 | 0.98653 | 11.82 | 12.24 | 0.9656 |
 | `s2s2-orbit-e0p1ms` | orbit | 0.1 | 1.00576 | — | — | — |
 | `s2s2-orbit-e20ms` | orbit | 20 | 1.00576 | — | — | — |
 | `s2s-satsim-ctl-plate-r25km-v1000mps-e5ms-l0-d0-w64` | SatSim target (25 km) | 5 | 1.00000 | 6.11 | 6.12 | 0.9983 |
@@ -197,9 +201,11 @@ Source: `docs/data/s2s_results.jsonl` (one record per DIRSIG spec measured; `pyt
 | `s2s3-phase-hyperresolved-a20-l10-z10` | hyperresolved | 20 | 10 | 10 | 296.611 | 296.253 | 1.00121 | — |
 | `s2s3-phase-hyperresolved-a40-l20-z20` | hyperresolved | 40 | 20 | 20 | 251.618 | 251.153 | 1.00185 | — |
 | `s2s3-phase-hyperresolved-a60-l0-z60` | hyperresolved | 60 | 0 | 60 | 191.427 | 191.09 | 1.00176 | — |
+| `s2s3-phase-hyperresolved-a60-r100km-l0-z60-w64` | hyperresolved | 60 | 0 | 60 | 11.9954 | 11.9431 | 1.00438 | — |
 | `s2s3-phase-hyperresolved-a60-l30-z30` | hyperresolved | 60 | 30 | 30 | 191.4 | 191.09 | 1.00163 | — |
 | `s2s3-phase-hyperresolved-a60-r100km-l30-z30-w64` | hyperresolved | 60 | 30 | 30 | 11.9779 | 11.9431 | 1.00291 | — |
 | `s2s3-phase-hyperresolved-a60-l60-z0` | hyperresolved | 60 | 60 | 0 | 191.382 | 191.09 | 1.00153 | — |
+| `s2s3-phase-hyperresolved-a60-r100km-l60-z0-w64` | hyperresolved | 60 | 60 | 0 | 11.9712 | 11.9431 | 1.00235 | — |
 | `s2s3-phase-hyperresolved-a80-l40-z40` | hyperresolved | 80 | 40 | 40 | 128.841 | 128.631 | 1.00163 | — |
 | `s2s3-phase-hyperresolved-a100-l50-z50` | hyperresolved | 100 | 50 | 50 | 74.3751 | 74.1446 | 1.00311 | — |
 | `s2s3-phase-hyperresolved-a120-l60-z60` | hyperresolved | 120 | 60 | 60 | 34.2753 | 34.201 | 1.00217 | — |
@@ -504,15 +510,15 @@ Expected at HEAD (each exits 0; what it prints last):
 
 | Command | Expected |
 |---|---|
-| `python -m pytest -q -p no:cacheprovider` | 2125 passed, 2 skipped (about 9 to 10 minutes on the 4-core laptop) |
+| `python -m pytest -q -p no:cacheprovider` | 2129 passed, 2 skipped (about 9 to 10 minutes on the 4-core laptop) |
 | `python scripts/review_report.py --check` | `review_report: 18 generated blocks, 0 problem(s)` |
 | `compose.py`, `stamp_hashes.py`, `render_diagrams.py`, `api_examples.py`, `gen_models.py`, `survey_demos.py`, `engine_contracts.py` `--check` | exit 0, nothing printed |
 | `python scripts/id_snapshot.py --check` | `id snapshot: unchanged` |
 | `python scripts/status_markers.py --check` | `status_markers: 182 markers, 0 problems` |
 | `python scripts/cold_start_check.py --check` | a line per step, the last beginning `ok   imported from the new environment` |
-| `python scripts/s2s_scenarios.py --check` | `159 run specs: generated, valid, ids as indexed` |
-| `python scripts/s2s_measure.py --check` | `127 records: well formed, specs indexed, expected values recompute` |
-| `python scripts/s2s_coverage.py --check` | `118 records, 20 rows x 3 classes: the coverage map is current` |
+| `python scripts/s2s_scenarios.py --check` | `165 run specs: generated, valid, ids as indexed` |
+| `python scripts/s2s_measure.py --check` | `133 records: well formed, specs indexed, expected values recompute` |
+| `python scripts/s2s_coverage.py --check` | `124 records, 20 rows x 3 classes: the coverage map is current` |
 | `python scripts/risk_measure.py --check` | `31 records: well formed, derived numbers recompute` |
 | `python scripts/bigger_host_run.py --check` | `7 entries: well formed, drivers and items known, named in docs/Bigger_host_plan.md` |
 

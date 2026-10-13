@@ -153,6 +153,12 @@ RESOLVED = [{"object_class": cls, **BASELINE[cls], **extra, "window": WINDOW} fo
     ("hyperresolved", {"range_m": 100000.0, "look_deg": 30.0, "solar_zenith_deg": 30.0}),
     ("hyperresolved", {"range_m": 100000.0, "exposure_s": 0.02}),
     ("unresolved", {"range_m": 12500.0, "relative_speed": 1000.0}))]
+# round 40 B: the resolved plate's look alone and Sun alone (the 20 m plate at 100 km, 6.12 px, at 60 degrees each), the
+# cells round 39 left empty, and the look moved off the pixel corner (offset 0.5); family III's split sphere is
+# RESOLVED3_SPLIT, family II's combined motion BOTH_RESOLVED.
+RESOLVED_ONE_AXIS = [{"object_class": "hyperresolved", **BASELINE["hyperresolved"], "range_m": 100000.0, **extra,
+                      "window": WINDOW} for extra in ({"look_deg": 60.0}, {"solar_zenith_deg": 60.0},
+                                                      {"look_deg": 60.0, "offset_px": 0.5})]
 
 
 # --- the sensor's numbers ---------------------------------------------------------------------------------------------
@@ -364,7 +370,8 @@ def point_name(p):
 
 def grid(full=False):
     """The family's grid points (dicts over AXES), in a fixed order: per class, the baseline, then each axis's other
-    values one at a time, and then round 38's COVERAGE and round 39's LOOK_SWEEP and RESOLVED points; with `full`, the product of each class's axis values. An orbit point's range and look angle
+    values one at a time, and then round 38's COVERAGE, round 39's LOOK_SWEEP and RESOLVED and round 40's
+    RESOLVED_ONE_AXIS points; with `full`, the product of each class's axis values. An orbit point's range and look angle
     are the TLE's: they are set to the pass's values (`orbit_geometry`) and not varied."""
     points = []
     for cls in PLATES:
@@ -381,7 +388,7 @@ def grid(full=False):
             if "offset_px" in axes:
                 points += [{**base, "range_m": r, "offset_px": d} for r in SUBPIXEL_RANGES for d in GRID["offset_px"][cls]]
     if not full:
-        points += [dict(p) for p in COVERAGE + LOOK_SWEEP + RESOLVED]
+        points += [dict(p) for p in COVERAGE + LOOK_SWEEP + RESOLVED + RESOLVED_ONE_AXIS]
     seen, out = set(), []
     for p in points:
         if p["relative_speed"] == ORBIT:
@@ -455,6 +462,10 @@ SHORTFALL = ({"kind": "blur", "group": "both", "exposure_s": 0.005, "look_deg": 
               "window": WINDOW},
              {"kind": "blur", "group": "target", "exposure_s": 0.02, "look_deg": 0.0, "range_m": 100000.0,
               "window": WINDOW})
+# round 40 B: combined motion for a resolved target: the `both` group seen from 100 km (the 20 m plate 6.12 px across) at
+# 20 ms, the same 12.24 px sweep as the 25 km point at 5 ms
+BOTH_RESOLVED = ({"kind": "blur", "group": "both", "exposure_s": 0.02, "look_deg": 0.0, "range_m": 100000.0,
+                  "window": WINDOW},)
 
 
 def _rects_obj(rects):
@@ -549,7 +560,7 @@ def grid2():
     pts += [{"kind": "look", "group": "look", "exposure_s": 0.005, "look_deg": a} for a in LOOK_DEG]
     pts += [{"kind": "orbit", "group": "orbit", "exposure_s": e, "look_deg": None} for e in ORBIT_EXPOSURES]
     pts += [{"kind": "blur", "group": "both", "exposure_s": e, "look_deg": 0.0, "window": WINDOW} for e in BOTH_SMALL]
-    pts += [dict(p) for p in SHORTFALL]
+    pts += [dict(p) for p in SHORTFALL + BOTH_RESOLVED]
     return pts
 
 
@@ -675,6 +686,9 @@ MATERIAL_IDS = {"sphere": 1}
 # phase angles 0, 60 and 120 degrees (look and Sun each half). Points without `range_m` are at SUN3["range_m"].
 RESOLVED3 = [{"kind": "phase", "group": "hyperresolved", "look_deg": a / 2, "solar_zenith_deg": a / 2,
               "range_m": 100000.0, "window": WINDOW} for a in (0.0, 60.0, 120.0)]
+# round 40 B: the same sphere at 100 km with the phase angle SPLIT_PHASE all in the look and all in the Sun
+RESOLVED3_SPLIT = [{"kind": "phase", "group": "hyperresolved", "look_deg": look, "solar_zenith_deg": SPLIT_PHASE - look,
+                    "range_m": 100000.0, "window": WINDOW} for look in (SPLIT_PHASE, 0.0)]
 
 
 def phase_function(a_deg):
@@ -742,7 +756,7 @@ def grid3():
             for a in PLAIN_PHASES]
     pts += [{"kind": "background", "group": "background", "look_deg": 0.0, "solar_zenith_deg": z}
             for z in BACKGROUND_ZENITHS]
-    pts += [dict(p) for p in RESOLVED3]
+    pts += [dict(p) for p in RESOLVED3 + RESOLVED3_SPLIT]
     return pts
 
 

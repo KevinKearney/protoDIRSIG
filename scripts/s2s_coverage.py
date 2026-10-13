@@ -112,30 +112,17 @@ _FACET = ("not in the generator's vocabulary: every generated scene has one mate
 _EARTH = ("not expressible: no committed scene holds an Earth model and a run spec takes one `engine.scenes` entry "
           "(BACKLOG \"Space-to-space: what round 30 leaves open\" (7)); the barred plate is the generator's only "
           "background")
-_SPHERES = ("family III's spheres are at 25 km (`SUN3`: 24.5 px and 0.61 px across) except round 39's `RESOLVED3`, the "
-            "10 m sphere at 100 km (6.12 px), which takes look and Sun each half of the phase angle (0, 60 and 120 "
-            "degrees); no resolved point puts the angle all in the look or all in the Sun")
-_ONE_AXIS = ("family I varies one axis at a time about each class's baseline (`GRID`): the 20 m plate at 25 km "
-             "(24.5 px) and the 0.5 m plates at 200 km (0.08 px), and round 38's `COVERAGE` points are the same plates at "
-             "25 km (24.5 and 0.61 px); round 39's `RESOLVED` points (the 20 m plate at 100 km, 6.12 px) vary look and "
-             "Sun together (30/30) and the exposure, not the look or the Sun alone")
 _SPLIT = ("family III splits the phase angle all into the look or all into the Sun for the 10 m sphere only "
           "(`SPLIT_PHASE`); the 0.25 m spheres take look and Sun each half of it")
 _NOT_REDUCED = ("the 0.5 m plates beside family II's blur and barred targets are rendered but not reduced: the harness "
                 "measures the 20 m target only, and an unresolved streak is a few hits (BACKLOG \"Space-to-space: "
                 "what round 30 leaves open\" (2))")
 EMPTY = {
-    ("Relative motion combined", "resolved"):
-        "family II's `both` group holds the 20 m plate (24.5 px) and a 0.5 m plate (0.61 px); nothing between",
     ("Relative motion combined", "unresolved"): _NOT_REDUCED,
     ("Shutter time, moving", "unresolved"):
         "family I's moving plates and its orbit point are at 5 ms only (`GRID` varies one axis at a time); "
         + _NOT_REDUCED[0].lower() + _NOT_REDUCED[1:],
-    ("Look angle off nadir, plate", "resolved"): _ONE_AXIS,
-    ("Sun angle, plate", "resolved"): _ONE_AXIS,
-    ("Look angle off nadir, sphere", "resolved"): _SPHERES,
     ("Look angle off nadir, sphere", "unresolved"): _SPLIT,
-    ("Sun angle, sphere", "resolved"): _SPHERES,
     ("Sun angle, sphere", "unresolved"): _SPLIT,
     ("Specular facet", "hyperresolved"): _FACET,
     ("Specular facet", "resolved"): _FACET,
