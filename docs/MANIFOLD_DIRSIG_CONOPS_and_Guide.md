@@ -243,6 +243,8 @@ Rules:
 
 `scripts/compose.py [--check] [--inline-sensor] [--explain <recipe>] [--refresh-vectors]` writes `manifold_run_specs/<name>.yaml` for a one-run recipe and `<name>--<sensor file stem>.yaml` for each run of a sweep; `--check` fails on a stale, missing or orphaned generated file. `run_spec.derive_run_spec` composes through the same merge. Conformance vectors for a constructor are in `manifold_contracts/vectors/compose/`. The generated `auror_ref` and `synthetic_vis` equal the flat files they replaced member for member, and their `.platform`, `.ppd` and `.tasks` are byte-identical.
 
+`docs/Authoring_friction_audit.md` counts what a user writes, copies and computes to get one run through `Workspace`: the files and fields of the AUROR_ref recipe and its layers and of one space-to-space spec, the 20 fields a recipe must carry, where a content hash is typed and where `scripts/stamp_hashes.py` writes it (only in the repository's own libraries), and what exists only in a checkout (`tests/test_friction_audit.py` recomputes every count and produces every refusal it quotes).
+
 ## 4. `sensor-spec/1` `built / proposed`
 
 Evidence: `tests/test_sensor_library.py`, `tests/test_sensor_render.py`.
