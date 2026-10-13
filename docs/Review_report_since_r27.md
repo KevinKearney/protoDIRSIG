@@ -531,7 +531,7 @@ Expected at HEAD (each exits 0; what it prints last):
 
 | Command | Expected |
 |---|---|
-| `python -m pytest -q -p no:cacheprovider` | 2273 passed, 2 skipped (about 10 minutes on the 4-core laptop) |
+| `python -m pytest -q -p no:cacheprovider` | 2282 passed, 2 skipped (about 10 minutes on the 4-core laptop) |
 | `python scripts/review_report.py --check` | `review_report: 18 generated blocks, 0 problem(s)` |
 | `compose.py`, `stamp_hashes.py`, `render_diagrams.py`, `api_examples.py`, `gen_models.py`, `survey_demos.py`, `engine_contracts.py` `--check` | exit 0, nothing printed |
 | `python scripts/id_snapshot.py --check` | `id snapshot: unchanged` |

@@ -44,6 +44,12 @@ entries:
     probe: s2s2-blur-both-e0p1ms
     est_s: {s2s2-blur-both-e0p1ms: 121.8, s2s2-blur-both-e1ms: 125.5, s2s2-blur-both-e5ms: 139.6,
             s2s2-blur-both-e20ms: 204.0}
+    # round 43, from the records (docs/Bigger_host_plan.md "Still deferred at round 43"); the probe still measures
+    # the peak, since no family II render at 500 x 500 has a measured peak
+    estimate: {peak_mib: 160, wall_s: 591,
+               basis: "peak: the both group's 64 x 64 renders of round 41 at most 129,540 kB and family I's 500 x 500
+                 plate job 159,644 KiB (risk B native-n1); wall: est_s summed (round 30's 20 ms render, round 32's
+                 platform group at 0.1, 1 and 5 ms)"}
     items: [s2s2-blur-both-e0p1ms, s2s2-blur-both-e1ms, s2s2-blur-both-e5ms, s2s2-blur-both-e20ms]
 
   - name: concurrency-native
@@ -81,7 +87,21 @@ entries:
     as_limit_gib: 24
     timeout_s: 3600
     simulation: {Thermal2: demo.sim, Polarization4: pi.sim, Fireball1: demo.sim}
-    est_s: {Thermal2: 3600, Polarization4: 2199, Fireball1: 55}
+    est_s: {Thermal2: 998, Polarization4: 2712, Fireball1: 69}
+    # round 43, from the risk D records, the demo sweep and docs/DIRSIG_determinism.md (docs/Bigger_host_plan.md
+    # "Still deferred at round 43"): peak_mib a render's estimated peak at native size (Thermal2 reversed: the limit);
+    # wall_s one item, all its renders at one thread (est_s is its upper end)
+    estimate:
+      Thermal2: {renders: 7, peak_mib: 140, reversed_peak_mib: 24576, wall_s: [752, 998],
+                 basis: "as authored 360 to 483 s (116.3 s at 8 threads x 3.1 to 3.7; 30.2 s reduced x 16); the five
+                   single captures about one render together; reversed: 5,558,920 KiB in 7 s unlimited and bad_alloc
+                   under a 2 GiB limit, so the 24 GiB limit is reached in about 32 s"}
+      Polarization4: {renders: 6, peak_mib: 252, wall_s: [558, 2712],
+                      basis: "as authored 186 to 904 s (11.6 s reduced x 16; 244.3 s at 8 threads x 3.1 to 3.7); the
+                        four single planes about one render together; reversed about one render"}
+      Fireball1: {renders: 4, peak_mib: 112, wall_s: [57, 69],
+                  basis: "as authored 19 to 23 s (6.1 s at 8 threads x 3.1 to 3.7; 1.4 s reduced x 16); the two single
+                    planes about one render; reversed about one render"}
     items: [Thermal2, Polarization4, Fireball1]
 
   - name: forest-layered-comparison

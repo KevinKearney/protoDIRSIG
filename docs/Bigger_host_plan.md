@@ -60,6 +60,8 @@ The fake manifest `tests/data/bigger_host_fake_manifest.yaml` (two entries: thre
 
 ### Plans (`--dry-run`, round 36, results files at 28d8093)
 
+As printed in round 36. Round 43 lowered `capture-order-native`'s `est_s` (3600, 2199 and 55 s to 998, 2712 and 69 s); a dry run now prints that entry at 3779, 2712 and 2712 s on the three assumed hosts and the totals 15416, 14547 and 14745 s, as the run instructions' table below.
+
 This host:
 
 Host (this host): 4 cores, 8 hardware threads, MemTotal 11.0 GiB, MemAvailable 7.3 GiB; memory budget 75% of MemAvailable, a job counts 1.25 x its peak
@@ -124,6 +126,21 @@ Host (assumed, 64 cores, 256 GB): 64 cores, 64 hardware threads, MemTotal 238.4 
 
 Total estimated wall time: 15633 s (4.34 h), entries one after another; estimates are one-thread wall times on the 4-core laptop (est_s). * the cores' bound: the job's memory is unmeasured, and the entry's probe (run alone first) sets the memory bound.
 
+## Still deferred at round 43
+
+Every entry is still pending: no round since 36 ran one. For the capture-order case and the full-size specs of the combined-motion (`both`) group, the manifest now carries an `estimate` block (informational: the runner reads only `est_s` and `peak_mib`), from the records:
+
+| Entry | Item | Renders | Peak memory per render (estimate) | Wall time at one thread (estimate) | Basis |
+|---|---|---|---|---|---|
+| `s2s-blur-both` | the four `s2s2-blur-both-e*ms` specs at 500 x 500 | 4 | about 160 MiB (the probe measures it; no `peak_mib` is set) | 591 s summed, 121.8 to 204 s each (`est_s`) | the both group's 64 x 64 renders of round 41 peaked at most 129,540 kB, and family I's 500 x 500 plate job at 159,644 KiB (risk B `native-n1`); the times are round 30's 20 ms render and round 32's platform group at 0.1, 1 and 5 ms. Their 64 x 64 counterparts (`s2s2-blur-both-e*ms-w64`) are records |
+| `capture-order-native` | Thermal2 | 7 (as authored, 5 single captures, reversed) | about 140 MiB as authored; reversed: the 24 GiB limit | 752 to 998 s | as authored 360 to 483 s: 116.3 s at 8 threads (demo sweep) times the one-thread cost 3.1 to 3.7 (`docs/DIRSIG_determinism.md`), and 30.2 s at the reduced size times 16 (element counts over 100 divided by 4 on each axis). Peak: the reduced render's 107,456 KiB plus the demo's 33.8 MB of outputs. Reversed: without a limit 5,558,920 KiB anonymous memory in 7 s, and under a 2 GiB limit `bad_alloc` "while generating a scheduled event queue" at 614,628 KiB, so the growth does not depend on the image size and reaches 24 GiB in about 32 s (risk D `thermal2-reduced`) |
+| `capture-order-native` | Polarization4 | 6 (as authored, 4 single planes, reversed) | about 252 MiB | 558 to 2712 s | as authored 186 to 904 s (11.6 s reduced times 16; 244.3 s at 8 threads times 3.1 to 3.7); peak the reduced 257,276 KiB plus 0.8 MB of outputs (risk D `polarization4-reduced`) |
+| `capture-order-native` | Fireball1 | 4 (as authored, 2 single planes, reversed) | about 112 MiB | 57 to 69 s | as authored 19 to 23 s (1.4 s reduced times 16; 6.1 s at 8 threads times 3.1 to 3.7); peak the reduced 107,436 KiB plus 7.4 MB of outputs (risk D `fireball1-reduced`) |
+
+An item's time counts its single captures together as about one render and its reversed render as one (Thermal2's as 32 s); `est_s` is the upper end. The runner still counts each capture-order job at its 24 GiB limit, so the concurrency on the assumed hosts is unchanged (1, 2 and 5 demos at once).
+
+Not in the manifest and still open: family II's `both` group from 50 km at 64 x 64 sweeps 24.48 px, more than the window holds (round 41 dropped its spec and record); a point there needs a larger window or a shorter exposure, which this host can render (BACKLOG "Space-to-space: what round 41 leaves open").
+
 ## Run instructions for the larger host
 
 Before: a checkout at this commit or later, the `protodirsig` environment (`environment.yml`), the pinned DIRSIG installation (`~/DIRSIG/<version>` or `$DIRSIG_HOME`, `external/pins.json`) with its `Documents_Folder-07-Feb-2024` (entry 6), `prlimit` (util-linux), 120 GB free under the work root (entry 4: 108 GB), and `python scripts/bootstrap.py status` clean.
@@ -144,10 +161,10 @@ Expected wall time per entry, from `est_s` (the laptop's one-thread wall times; 
 | `s2s-blur-both` | 204 | 204 | 204 | probe (121.8 s) alone, then 3 together; the longest 204 s |
 | `concurrency-native` | 658 | 856 | 1054 | batches one after another; 70.7 to 198.1 s per batch (laptop, N up to 8), 198.1 s assumed above 8 |
 | `lightcurve1-full` | 4476 | 4476 | 4476 | t1 (2400 s) beside t2 and t4, then td x 3 alone (691.9 s each at 8 threads); one-sample probe first |
-| `capture-order-native` | 5854 | 3600 | 3600 | 1, 2, 5 demos at once under the 24 GiB limit; Thermal2 bounded by its reversed render's 3600 s timeout |
+| `capture-order-native` | 3779 | 2712 | 2712 | 1, 2, 5 demos at once under the 24 GiB limit; per demo, all its renders at one thread, the upper end of round 43's estimate (section "Still deferred at round 43"); Thermal2's reversed render reaches the limit in about 32 s |
 | `forest-layered-comparison` | 2625 | 2625 | 2625 | 5 renders x 525 s (3.5 x the 150 s the default count exceeded): a lower bound |
 | `sweep-capped-demos` | 3600 | 3600 | 3600 | 2 x 1800 s (the cap they exceeded): a lower bound; at the host's default thread count |
-| Total | 17491 (4.9 h) | 15435 (4.3 h) | 15633 (4.3 h) | entries one after another |
+| Total | 15416 (4.3 h) | 14547 (4.0 h) | 14745 (4.1 h) | entries one after another |
 
 Afterwards, the user checks:
 
