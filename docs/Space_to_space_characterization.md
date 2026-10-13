@@ -471,3 +471,41 @@ Rounds 29 to 31 measured with a scratch script outside the repository and record
 - **The `both` group at 20 ms** does not fit 64 x 64: its 49 px streak lies beside a 24.5 px plate. Its native spec stays the bigger-host entry `s2s-blur-both` (`docs/Bigger_host_plan.md`).
 
 **Tests.** `tests/test_s2s_results.py` asserts the window control, the flat plate's cos(look) cos(zenith), the sub-pixel plate's Sun and the combined-motion flux. Each tolerance is the largest residual among these records, rounded up in the third significant digit, as for the earlier cases. The sub-pixel plate's 60 degree look is not asserted. `notebooks/stage_06_space_to_space.ipynb` section 6 prints the same residuals.
+
+## Three differences isolated (round 39)
+
+Round 38 left two differences unexplained: the resolved streak's shortfall and the sub-pixel plate at a 60 degree look. It also left one class without geometry points: resolved targets, 1 to 10 px across. Round 39 varied one factor at a time at the 64 x 64 window (`-w64` specs, `settings[].roi`), one render at a time and one thread. A cause is stated only where a control isolates it. Committed points are records of `docs/data/s2s_results.jsonl` (`scripts/s2s_measure.py`). Controls outside the run-spec vocabulary (a fixed per-pixel path count, a second seed) are scratch renders of the assembled job with its platform file edited, as in round 30's C. They are quoted here and not committed.
+
+### A: the streak shortfall
+
+A resolved plate's fitted sweep reads 1.7 to 3.1 % short of speed × exposure over the footprint at 5 and 20 ms (round 30). Round 38's combined motion showed the same, 0.981 at 5 ms. Three hypotheses were tested, each by a control (six renders: two committed points, four scratch).
+
+**(2) The measurement (no render).** The committed images were re-measured with other definitions of the length. The reference for the edge measures is the static group's frame (`s2s2-blur-static-e5ms`).
+
+| Image | Expected sweep (px) | Committed fit | Fit with a 0.18 px Gaussian spread | Edge derivative variance, left / right | 10 to 90 % rise / 0.8, left / right |
+|---|---|---|---|---|---|
+| `s2s2-blur-target-e5ms` (native) | 6.12 | 0.9759 | 0.9757 | 0.986 / 0.959 | 0.934 / 0.938 |
+| `s2s2-blur-target-e20ms` (native) | 24.48 | 0.9743 | 0.9743 | 0.979 / 0.968 | 0.978 / 0.955 |
+| `s2s2-blur-both-e5ms-w64` | 12.24 | 0.9809 | 0.9808 | 0.990 / 0.977 | 0.976 / 0.957 |
+| the same spec, fixed 1000 paths per pixel (scratch) | 12.24 | 0.9988 | 0.9986 | 1.003 / 1.003 | 0.993 / 0.993 |
+
+The edge variance is 12 × (the derivative's variance minus the static frame's) under a square root; the rise is taken in quadrature against the static frame's. The definitions differ by up to 4 % among themselves, but none removes the shortfall at the default sampling. Twice the centroid's shift is not usable as a length: it reads 0.95 to 0.99, and still 0.966 at 1000 paths, so its static reference is itself off by about 0.1 px. The separation of the two edges' centres recovers the plate's width (24.46 to 24.61 px against 24.48), so the image's scale is right. The measurement does not cause the shortfall.
+
+**(1) The temporal sample count.** A sweep sampled at n instants spans (n − 1)/n of the path, a shortfall of 1/n.
+- The generator's count, `integration_samples` (`s2s2-blur-both-e5ms-n2-w64`), at 2 instead of 10, renders a byte-identical image (`5aa08f72faff1be4`). 1/n would be 0.5 or 0.1; DIRSIG5 does not use the count, as its manual says (it "uniformly distributes the ray times across the integration time window").
+- DIRSIG's own count is the paths per pixel. It is not a run-spec member, so it was varied by a focal-plane `<convergence>` in scratch on `s2s2-blur-both-e5ms-w64` (default: adaptive, 20 to 100 paths, the label's multiplier only on labelled pixels):
+
+| Paths per pixel | Seed | Fitted sweep / expected | 1/n | Wall (s) |
+|---|---|---|---|---|
+| default (adaptive) | 1 | 0.9809 (the record) | 0.05 to 0.01 | 3 |
+| 20, fixed | 1 | 0.9874 | 0.05 | 2 |
+| 20, fixed | 2 | 0.9923 | 0.05 | 2 |
+| 1000, fixed | 1 | 0.9988 | 0.001 | 93 |
+
+At the second geometry below (100 km, 20 ms), the record reads 0.9755 and the same spec at a fixed 1000 paths reads 0.9983 (67 s).
+
+**(3) The object's width.** `s2s2-blur-target-r100km-e20ms-w64` is the target group seen from 100 km. The 20 m plate is 6.12 px across and sweeps 6.12 px in 20 ms. The same sweep of the 24.5 px plate at 25 km in 5 ms reads 0.9759; the 6.12 px plate reads 0.9755. A plate four times narrower is short by the same fraction (3.8e-4 apart), so the object's own extent does not cause it. The resolved streak conserves the plate's flux to 0.991; the 20 m plate's flux at 100 km scatters by the same amount between seeds (round 30, C2).
+
+**Cause (isolated).** The shortfall goes with DIRSIG's adaptive per-pixel sampling. At a fixed 1000 paths per pixel it falls from 1.9 to 2.5 % to 0.1 to 0.2 %, at both geometries. It is not the (n − 1)/n of a sweep sampled at n instants: at a fixed 20 paths that would be 5 %, and 20 paths read 1.3 % and 0.8 % (two seeds). How the adaptive stop shortens the ramp pixels' share inside DIRSIG's convergence algorithm is not isolated. The streak length the family records is therefore a property of the default sampling, not of the motion. A sweep length to better than 2 % needs a fixed path count, which is not a run-spec member (BACKLOG).
+
+**Tests.** `tests/test_s2s_results.py`: the generator's count renders the same bytes (exact), the resolved streak's flux (`TOL_FLUX_STREAK_100KM`), and the same shortfall at both widths (`TOL_SHORTFALL_WIDTH`). `notebooks/stage_06_space_to_space.ipynb` section 7 prints them.

@@ -140,8 +140,10 @@ Source: `docs/data/s2s_results.jsonl` (one record per DIRSIG spec measured; `pyt
 | `s2s2-blur-target-e1ms` | target | 1 | 0.99952 | 1.233 | 1.224 | 1.007 |
 | `s2s2-blur-target-e5ms` | target | 5 | 1.00023 | 5.973 | 6.12 | 0.9759 |
 | `s2s2-blur-target-e20ms` | target | 20 | 0.99800 | 23.85 | 24.48 | 0.9743 |
+| `s2s2-blur-target-r100km-e20ms-w64` | target | 20 | 0.99107 | 5.97 | 6.12 | 0.9755 |
 | `s2s2-blur-both-e0p1ms-w64` | both | 0.1 | 1.00162 | 0.6267 | 0.2448 | 2.56 |
 | `s2s2-blur-both-e1ms-w64` | both | 1 | 1.00003 | 2.467 | 2.448 | 1.008 |
+| `s2s2-blur-both-e5ms-n2-w64` | both | 5 | 1.00023 | 12.01 | 12.24 | 0.9809 |
 | `s2s2-blur-both-e5ms-w64` | both | 5 | 1.00023 | 12.01 | 12.24 | 0.9809 |
 | `s2s2-orbit-e0p1ms` | orbit | 0.1 | 1.00576 | — | — | — |
 | `s2s2-orbit-e20ms` | orbit | 20 | 1.00576 | — | — | — |

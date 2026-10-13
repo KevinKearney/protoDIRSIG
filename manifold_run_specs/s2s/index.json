@@ -1020,6 +1020,28 @@
   "window": 64
  },
  {
+  "name": "s2s2-blur-both-e5ms-n2-w64",
+  "run_id": "bf06bf00dc67e0aa07d7386352b30ef6c7548ae0993b1e011825a1f6b617c93a",
+  "family": 2,
+  "kind": "blur",
+  "group": "both",
+  "exposure_s": 0.005,
+  "look_deg": 0.0,
+  "integration_samples": 2,
+  "window": 64
+ },
+ {
+  "name": "s2s2-blur-target-r100km-e20ms-w64",
+  "run_id": "ebcf4363a558fdadadbeefcc49a458bdf4e87c1ca8b1759a9f0f4f83cf65c07c",
+  "family": 2,
+  "kind": "blur",
+  "group": "target",
+  "exposure_s": 0.02,
+  "look_deg": 0.0,
+  "range_m": 100000.0,
+  "window": 64
+ },
+ {
   "name": "s2s3-phase-hyperresolved-a0-l0-z0",
   "run_id": "50a22d617f5ec80d55f2b28fac02679d2b7c2787ed4890d18752cb0984b5eaca",
   "family": 3,

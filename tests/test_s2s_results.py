@@ -164,3 +164,29 @@ def test_a_sub_pixel_plate_follows_the_sun_at_25_km(look, z):
 def test_combined_motion_conserves_the_resolved_plates_flux(e):
     got, want = flux(f"s2s2-blur-both-e{e}ms-w64")
     assert abs(got / want - 1) <= TOL_FLUX_BOTH
+
+
+# --- round 39 A: the streak shortfall (docs/Space_to_space_characterization.md, "Three differences isolated") ----------
+# The resolved streak's fitted sweep is about 2 % short of speed x exposure at DIRSIG's default sampling; the cause is
+# the per-pixel sample count (scratch controls at a fixed 1000 paths per pixel remove it). The records here are the two
+# committed controls: the generator's temporal sample count, and the object's width.
+TOL_FLUX_STREAK_100KM = 0.00893  # 20 m plate at 100 km (6.12 px), 20 ms streak, flux closure (8.928e-3)
+TOL_SHORTFALL_WIDTH = 0.000380   # sweep ratio of the 6.12 px plate over the 24.5 px plate's, same 6.12 px sweep (3.797e-4)
+
+
+def test_dirsig_ignores_the_generators_temporal_sample_count():
+    """`integration_samples` 2 instead of 10 renders the same bytes: DIRSIG5 spreads ray times over the exposure itself."""
+    assert rec("s2s2-blur-both-e5ms-n2-w64")["product"]["image"] == rec("s2s2-blur-both-e5ms-w64")["product"]["image"]
+
+
+def test_a_resolved_streak_conserves_the_plates_flux():
+    got, want = flux("s2s2-blur-target-r100km-e20ms-w64")
+    assert abs(got / want - 1) <= TOL_FLUX_STREAK_100KM
+
+
+def test_the_streak_shortfall_does_not_follow_the_objects_width():
+    """The same 6.12 px sweep of a plate 6.12 px wide (100 km, 20 ms) and 24.5 px wide (25 km, 5 ms) is short by the same
+    fraction, so the plate's own extent does not cause it."""
+    small = also("s2s2-blur-target-r100km-e20ms-w64", "streak_length")["ratio"]
+    large = also("s2s2-blur-target-e5ms", "streak_length")["ratio"]
+    assert abs(small / large - 1) <= TOL_SHORTFALL_WIDTH

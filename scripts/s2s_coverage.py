@@ -123,9 +123,6 @@ _NOT_REDUCED = ("the 0.5 m plates beside family II's blur and barred targets are
                 "measures the 20 m target only, and an unresolved streak is a few hits (BACKLOG \"Space-to-space: "
                 "what round 30 leaves open\" (2))")
 EMPTY = {
-    ("Target motion", "resolved"):
-        "family I's moving plates are 0.5 m at 200 km (0.08 px) and family II's target group the 20 m plate at "
-        "25 km (24.5 px); a moving plate's size and speed are scene content, one per instance (`MOVING`, `BLUR`)",
     ("Relative motion combined", "resolved"):
         "family II's `both` group holds the 20 m plate (24.5 px) and a 0.5 m plate (0.61 px); nothing between",
     ("Relative motion combined", "unresolved"): _NOT_REDUCED,
@@ -146,8 +143,6 @@ EMPTY = {
     ("Specular facet", "hyperresolved"): _FACET,
     ("Specular facet", "resolved"): _FACET,
     ("Specular facet", "unresolved"): _FACET,
-    ("Barred plate", "resolved"): "the barred groups' targets are the 20 m plate and the 10 m sphere at 25 km "
-                                  "(24.5 px)",
     ("Barred plate", "unresolved"): _NOT_REDUCED,
     ("Earth limb or albedo", "hyperresolved"): _EARTH,
     ("Earth limb or albedo", "resolved"): _EARTH,

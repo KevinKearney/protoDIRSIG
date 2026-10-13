@@ -429,6 +429,15 @@ ORBIT_EXPOSURES = (0.0001, 0.02)
 # round 38 (docs/s2s_coverage.md): the `both` group again at a 64 x 64 window, at the exposures whose streak and plate
 # fit it (24.5 + 12.2 px at 5 ms; at 20 ms the 49 px streak does not)
 BOTH_SMALL = (0.0001, 0.001, 0.005)
+# round 39 A (docs/Space_to_space_characterization.md, "The streak shortfall"): controls of the 5 and 20 ms blur
+# shortfall at the same window. `integration_samples` (the generator's temporal sample count, which DIRSIG5's manual
+# says it ignores) at 2 instead of INTEGRATION_SAMPLES on the `both` 5 ms point; and the target group seen from 100 km
+# instead of BLUR["range_m"] (`range_m`: the 20 m plate 6.12 px across instead of 24.5) at 20 ms, the same 6.12 px sweep
+# as the 25 km point at 5 ms. Points without these keys are unchanged.
+SHORTFALL = ({"kind": "blur", "group": "both", "exposure_s": 0.005, "look_deg": 0.0, "integration_samples": 2,
+              "window": WINDOW},
+             {"kind": "blur", "group": "target", "exposure_s": 0.02, "look_deg": 0.0, "range_m": 100000.0,
+              "window": WINDOW})
 
 
 def _rects_obj(rects):
@@ -523,11 +532,16 @@ def grid2():
     pts += [{"kind": "look", "group": "look", "exposure_s": 0.005, "look_deg": a} for a in LOOK_DEG]
     pts += [{"kind": "orbit", "group": "orbit", "exposure_s": e, "look_deg": None} for e in ORBIT_EXPOSURES]
     pts += [{"kind": "blur", "group": "both", "exposure_s": e, "look_deg": 0.0, "window": WINDOW} for e in BOTH_SMALL]
+    pts += [dict(p) for p in SHORTFALL]
     return pts
 
 
 def point2_name(p):
     tail = f"-l{_num_tag(p['look_deg'])}" if p["kind"] == "look" else f"-e{_num_tag(p['exposure_s'], 1e3, 'ms')}"
+    if "range_m" in p:
+        tail = f"-r{_num_tag(p['range_m'], 1e-3, 'km')}" + tail
+    if "integration_samples" in p:
+        tail += f"-n{p['integration_samples']}"
     tail += _window_tag(p)
     return f"s2s2-{p['kind']}-{p['group']}{tail}" if p["kind"] == "blur" else f"s2s2-{p['kind']}{tail}"
 
@@ -541,7 +555,7 @@ def expected2(p):
         side = ORBIT_BLUR["side"]
         return {"footprint_m": g, "side_px": side / g, "footprint_px": side ** 2 / g ** 2}
     look = math.radians(p["look_deg"])
-    r = BLUR["range_m"] if p["kind"] == "blur" else LOOK["range_m"]
+    r = p.get("range_m", BLUR["range_m"]) if p["kind"] == "blur" else LOOK["range_m"]
     depth = BLUR["depth"] if p["kind"] == "blur" else LOOK["depth"]
     g, gb = footprint(r), footprint(r + depth / math.cos(look))
     out = {"footprint_m": g, "background_footprint_m": gb, "side_px": 20.0 / g,
@@ -565,7 +579,7 @@ def run_spec2(p, scene_hash=None):
         base = {"object_class": "unresolved", **BASELINE["unresolved"], **geo, "relative_speed": ORBIT}
     else:
         base = {"object_class": "hyperresolved", **BASELINE["hyperresolved"], "look_deg": p["look_deg"],
-                "range_m": BLUR["range_m"] if p["kind"] == "blur" else LOOK["range_m"]}
+                "range_m": p.get("range_m", BLUR["range_m"]) if p["kind"] == "blur" else LOOK["range_m"]}
     base["exposure_s"] = p["exposure_s"]
     spec = run_spec(base, scene_hash="0" * 64)
     desc, eng = spec["descriptor"], spec["engine"]
@@ -576,11 +590,12 @@ def run_spec2(p, scene_hash=None):
         _, bg, fg = BLUR_GROUPS[p["group"]]
         what = (f"the blur group '{p['group']}' (plates at {fg * BLUR['speed']:g} m/s, background at "
                 f"{bg * BLUR['speed']:g} m/s, both along heading 90; the background {BLUR['depth'] / 1000:g} km behind) "
-                f"seen at nadir from {BLUR['range_m'] / 1000:g} km, exposure {p['exposure_s'] * 1000:g} ms"
+                f"seen at nadir from {base['range_m'] / 1000:g} km, exposure {p['exposure_s'] * 1000:g} ms"
+                f"{f', integration_samples {n}' if (n := p.get('integration_samples')) else ''}"
                 f"{f', window {w} x {w}' if (w := p.get('window')) else ''}")
         extras = {"s2s.group": p["group"], "s2s.target_speed": fg * BLUR["speed"],
                   "s2s.background_speed": bg * BLUR["speed"], "s2s.background_depth_m": BLUR["depth"]}
-        pos = [BLUR_GROUPS[p["group"]][0], 0.0, BLUR["base_z"] + BLUR["depth"] + BLUR["range_m"]]
+        pos = [BLUR_GROUPS[p["group"]][0], 0.0, BLUR["base_z"] + BLUR["depth"] + base["range_m"]]
         eng["motion"]["position"]["xyz"] = pos
     elif p["kind"] == "look":
         what = (f"the 20 m plate with a bar background {LOOK['depth']:g} m behind it, {p['look_deg']:g} deg off nadir "
@@ -599,6 +614,8 @@ def run_spec2(p, scene_hash=None):
                       "s2s.exposure_s": p["exposure_s"], "s2s.solar_zenith_deg": 0.0}
     eng["scenes"][0]["ref"] = {"name": SCENE2_REF, "content_hash": scene_hash or _ref(SCENE2_REF)["content_hash"]}
     eng["platform"]["output_prefix"] = "s2s2_"
+    if "integration_samples" in p:
+        eng["platform"]["integration_samples"] = p["integration_samples"]
     return spec
 
 
