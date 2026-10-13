@@ -174,3 +174,9 @@ print(again == check.runs[0].run_id)
 ```
 
 The engine profile's `run.seed` is DIRSIG's random seed. A seed alone does not make two renders byte-identical: at DIRSIG's default thread count some scenes sample in a different order from run to run. One thread does: an engine profile or run spec with `resources: {cpu_threads: 1}` (every space-to-space spec has it) renders the same bytes every time. The run id does not include the thread count's effect on the bytes, only the request: a spec that asks for one thread has a different run id from one that does not.
+
+## 10. The recipe form (a prototype)
+
+`python scripts/recipe_form.py` writes `outputs/recipe_form/index.html`, one HTML file that works offline in a browser. It lists the library's sensors and the scenario and engine-profile pairs the shipped recipes use, and offers a pair with a sensor only where the SDK's checks accepted the recipe it writes for them when the page was made (the others are listed with the reason). You pick the pair, the sensor and the window and set the name, exposure time, frame rate, gain and the fidelity statement; the page shows the recipe as YAML, to copy or download. Load the downloaded file with `yaml.safe_load` and pass the dict to `ws.validate` and `ws.submit_run`.
+
+It is a prototype of the recipe step only. It writes the 20 fields a recipe must carry (and a description when you give one), computes and shows no file hash, and reads the library as it was when the script ran. Scenarios, engine profiles and sensors are not written by it: they remain files you write (section 8). It is a script of the repository, not part of the SDK.
