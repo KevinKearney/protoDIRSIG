@@ -78,7 +78,7 @@ A `manifold_` prefix marks a folder that maps to a future MANIFOLD repository (`
 | DIRSIG and `dirfm` without the driver | `dirfm_tutorials/` |
 | Manifest | none |
 
-A new user reads `dirfm_tutorials/tutorial_dirfm_basics`, then the stage notebooks in order. A DIRSIG5 user stating a job as a run spec reads `docs/Authoring_layered_form.md`; an engine author reads `docs/Engine_author_guide.md`; `stage_06_space_to_space` shows the space-to-space results against their closed forms. Stage 01 shows a run tree built from a run spec, stage 02 shows admission and the logs, and stage 03 shows how a change of sensor reaches the run tree.
+A first-time user of the SDK reads `docs/User_manual.md` (task first: install and check, one image, a sweep over sensors, a space-to-space run, reading the result, what each refusal means; every code block executed by `tests/test_user_manual.py`) with `docs/User_glossary.md`, which maps the user's words to the SDK's. A new user of `dirfm` reads `dirfm_tutorials/tutorial_dirfm_basics`, then the stage notebooks in order. A DIRSIG5 user stating a job as a run spec reads `docs/Authoring_layered_form.md`; an engine author reads `docs/Engine_author_guide.md`; `stage_06_space_to_space` shows the space-to-space results against their closed forms. Stage 01 shows a run tree built from a run spec, stage 02 shows admission and the logs, and stage 03 shows how a change of sensor reaches the run tree.
 
 Part II is the reference: the contract, the sensor specification, the repository layout, the SDK, the DIRSIG behaviors that matter, and the points of disagreement with the MANIFOLD documents (section 10), with every open decision listed in one place, its owner and whether it blocks the 0.1 release (section 10.1).
 

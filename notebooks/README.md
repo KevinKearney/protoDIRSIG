@@ -1,6 +1,6 @@
 # Notebooks
 
-Several kinds of notebook live here, and they're not interchangeable.
+Several kinds of notebook live here, and they're not interchangeable. A first-time user of the SDK starts with the user manual, `docs/User_manual.md`, and its glossary, `docs/User_glossary.md`.
 
 **Stage notebooks** (`stage_NN_<slug>.ipynb`, top level) are the active, accumulating work: each one builds toward a MANIFOLD-conformant template notebook, one stage at a time. A later stage extends what an earlier one does rather than rewriting it, so the stage notebooks are expected to keep changing as work continues — this file describes their current state, updated as they go, not a history of how they got there. Stage 06 is the exception to building on a render: it reads recorded results (`docs/data/s2s_results.jsonl`) and renders nothing.
 

@@ -7,3 +7,4 @@
 - scratch (outside the repository): ~/r35scratch
 - baseline suite at df68496, alone, no edits: 1792 passed, 2 skipped (8 min 1 s)
 - step A gate: 1813 passed, 2 skipped (8 min 2 s, alone); thirteen checks 0; core and snapshot unchanged
+- step B gate: 1822 passed, 2 skipped (8 min 29 s, alone); thirteen checks 0; core and snapshot unchanged
