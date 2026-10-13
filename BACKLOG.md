@@ -2,6 +2,8 @@
 
 The single to-do list for protoDIRSIG. Add an item any time; remove it when done or dropped (git history is the record). Each item is a `###` title and a short body, so the file imports into GitHub issues one to one; the group heading becomes the label.
 
+Defects found since the tag `review-r27` and not fixed, each with what a fix would touch (core, an existing run id, the id snapshot, an engine, a document), are listed in `docs/Review_report_since_r27.md` section 3; two of them are recorded with C-43 in the CONOPS rather than as items here (a four-window layered job failing at collection, and Thermal2's descending triggers exhausting memory, the second also under "Several captures in one task window").
+
 Group **TBR** holds items whose resolution may require a change on the MANIFOLD side (run-spec schema, guides, registry, sensor-spec). protoDIRSIG records them and does not edit MANIFOLD documents itself.
 
 ## TBR (MANIFOLD-impacting)

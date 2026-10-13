@@ -15,3 +15,5 @@
 - step B gate: 2068 passed, 2 skipped (9 min 18 s, alone); fifteen checks 0; core and snapshot unchanged
 - step C: records in docs/DIRSIG_layered_comparison.md (round ten paragraph; 16 results rows, 11 digest rows), transfer-scenes row, Bigger_host_plan not-in-manifest row, BACKLOG "Scenes Kevin transferred" (2), CONOPS 10.1 Euler-angle decision row, report section 2.3
 - step C gate: 2068 passed, 2 skipped (9 min 19 s, alone); fifteen checks 0; core and snapshot unchanged
+- step D: README docs index, CONOPS 10.1 and BACKLOG pointers, ARCH_LOG round 37 with OPEN
+- step D (final) gate: 2068 passed, 2 skipped (9 min 18 s, alone); fifteen checks 0 (review_report 18 blocks, bigger_host_run 7 entries, s2s_measure 89 records, risk_measure 31, status_markers 182); git diff 3fa0a02 -- packages/core tests/data/id_snapshot.json empty; id snapshot unchanged, no new entry
