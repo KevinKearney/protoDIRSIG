@@ -115,9 +115,8 @@ _EARTH = ("not expressible: no committed scene holds an Earth model and a run sp
 _SPHERES = ("family III has one range, 25 km (`SUN3`), so its spheres are 24.5 px (10 m) and 0.61 px (0.25 m) "
             "across; it has no range axis")
 _ONE_AXIS = ("family I varies one axis at a time about each class's baseline (`GRID`): the 20 m plate at 25 km "
-             "(24.5 px) and the 0.5 m plates at 200 km (0.08 px); no point between 1 and 10 px")
-_NO_PHASE = ("family I varies one axis at a time about each class's baseline (`GRID`): no plate point states both a "
-             "look angle and a solar zenith")
+             "(24.5 px) and the 0.5 m plates at 200 km (0.08 px), and round 38's `COVERAGE` points are the same plates at "
+             "25 km (24.5 and 0.61 px); no point between 1 and 10 px")
 _SPLIT = ("family III splits the phase angle all into the look or all into the Sun for the 10 m sphere only "
           "(`SPLIT_PHASE`); the 0.25 m spheres take look and Sun each half of it")
 _NOT_REDUCED = ("the 0.5 m plates beside family II's blur and barred targets are rendered but not reduced: the harness "
@@ -127,9 +126,6 @@ EMPTY = {
     ("Target motion", "resolved"):
         "family I's moving plates are 0.5 m at 200 km (0.08 px) and family II's target group the 20 m plate at "
         "25 km (24.5 px); a moving plate's size and speed are scene content, one per instance (`MOVING`, `BLUR`)",
-    ("Relative motion combined", "hyperresolved"):
-        "specs written, not rendered: family II's `both` group (4 specs, 500 x 500) is the bigger-host entry "
-        "`s2s-blur-both` (`docs/Bigger_host_plan.md`)",
     ("Relative motion combined", "resolved"):
         "family II's `both` group holds the 20 m plate (24.5 px) and a 0.5 m plate (0.61 px); nothing between",
     ("Relative motion combined", "unresolved"): _NOT_REDUCED,
@@ -139,9 +135,7 @@ EMPTY = {
         + _NOT_REDUCED[0].lower() + _NOT_REDUCED[1:],
     ("Look angle off nadir, plate", "resolved"): _ONE_AXIS,
     ("Sun angle, plate", "resolved"): _ONE_AXIS,
-    ("Phase angle, look and Sun both off zero, plate", "hyperresolved"): _NO_PHASE,
     ("Phase angle, look and Sun both off zero, plate", "resolved"): _ONE_AXIS,
-    ("Phase angle, look and Sun both off zero, plate", "unresolved"): _NO_PHASE,
     ("Look angle off nadir, sphere", "resolved"): _SPHERES,
     ("Look angle off nadir, sphere", "unresolved"): _SPLIT,
     ("Sun angle, sphere", "resolved"): _SPHERES,

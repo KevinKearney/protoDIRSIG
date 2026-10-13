@@ -54,10 +54,15 @@ Source: `docs/data/s2s_results.jsonl` (one record per DIRSIG spec measured; `pyt
 | `s2s-hyperresolved-r12p5km-v0mps-e5ms-l0-z0-d0` | 12.5 | 5 | 0 | 0 | 2396.89 | 2397.08 | 0.99992 | 0.9941 | 1 |
 | `s2s-hyperresolved-r25km-v0mps-e1ms-l0-z0-d0` | 25 | 1 | 0 | 0 | 599.84 | 599.27 | 1.00095 | 0.9612 | 1 |
 | `s2s-hyperresolved-r25km-v0mps-e5ms-l0-z0-d0` | 25 | 5 | 0 | 0 | 599.84 | 599.27 | 1.00095 | 0.9612 | 1 |
+| `s2s-hyperresolved-r25km-v0mps-e5ms-l0-z0-d0-w64` | 25 | 5 | 0 | 0 | 599.76 | 599.27 | 1.00082 | 0.9612 | 1 |
 | `s2s-hyperresolved-r25km-v0mps-e5ms-l0-z30-d0` | 25 | 5 | 0 | 30 | 519.483 | 518.983 | 1.00096 | 0.9612 | 1.00001 |
 | `s2s-hyperresolved-r25km-v0mps-e5ms-l0-z60-d0` | 25 | 5 | 0 | 60 | 299.934 | 299.635 | 1.00100 | 0.9612 | 1.00006 |
+| `s2s-hyperresolved-r25km-v0mps-e5ms-l0-z75-d0-w64` | 25 | 5 | 0 | 75 | 155.245 | 155.103 | 1.00092 | 0.9612 | 1.00015 |
 | `s2s-hyperresolved-r25km-v0mps-e5ms-l30-z0-d0` | 25 | 5 | 30 | 0 | 519.06 | 518.983 | 1.00015 | 1.015 | 1 |
+| `s2s-hyperresolved-r25km-v0mps-e5ms-l30-z30-d0-w64` | 25 | 5 | 30 | 30 | 449.594 | 449.453 | 1.00031 | 1.017 | 1.00001 |
+| `s2s-hyperresolved-r25km-v0mps-e5ms-l45-z45-d0-w64` | 25 | 5 | 45 | 45 | 299.681 | 299.635 | 1.00015 | 1.019 | 1.00003 |
 | `s2s-hyperresolved-r25km-v0mps-e5ms-l60-z0-d0` | 25 | 5 | 60 | 0 | 300.05 | 299.635 | 1.00138 | 0.9612 | 1 |
+| `s2s-hyperresolved-r25km-v0mps-e5ms-l60-z60-d0-w64` | 25 | 5 | 60 | 60 | 150.088 | 149.818 | 1.00180 | 0.9612 | 1.00006 |
 | `s2s-hyperresolved-r25km-v0mps-e20ms-l0-z0-d0` | 25 | 20 | 0 | 0 | 599.84 | 599.27 | 1.00095 | 0.9612 | 1 |
 | `s2s-hyperresolved-r50km-v0mps-e5ms-l0-z0-d0` | 50 | 5 | 0 | 0 | 150.62 | 149.818 | 1.00536 | 0.9612 | 1 |
 | `s2s-hyperresolved-r100km-v0mps-e5ms-l0-z0-d0` | 100 | 5 | 0 | 0 | 37.76 | 37.4544 | 1.00816 | 0.9612 | 1 |
@@ -73,6 +78,10 @@ Source: `docs/data/s2s_results.jsonl` (one record per DIRSIG spec measured; `pyt
 | `s2s-unresolved-r12p5km-v0mps-e5ms-l0-z0-d0p5` | 0.5 m plate | yes | 12.5 km, offset 0.5 px, 5 ms, look 0, zenith 0 | 1.502 | 1.4982 | 1.00285 |
 | `s2s-unresolved-r12p5km-v0mps-e5ms-l0-z0-d0p75` | 0.5 m plate | yes | 12.5 km, offset 0.75 px, 5 ms, look 0, zenith 0 | 1.485 | 1.4982 | 0.99144 |
 | `s2s-unresolved-r25km-v0mps-e5ms-l0-z0-d0` | 0.5 m plate | yes | 25 km, offset 0 px, 5 ms, look 0, zenith 0 | 0.3725 | 0.37454 | 0.99454 |
+| `s2s-unresolved-r25km-v0mps-e5ms-l0-z0-d0-w64` | 0.5 m plate | yes | 25 km, offset 0 px, 5 ms, look 0, zenith 0 | 0.3675 | 0.37454 | 0.98119 |
+| `s2s-unresolved-r25km-v0mps-e5ms-l0-z60-d0-w64` | 0.5 m plate | yes | 25 km, offset 0 px, 5 ms, look 0, zenith 60 | 0.1838 | 0.18727 | 0.98126 |
+| `s2s-unresolved-r25km-v0mps-e5ms-l30-z30-d0-w64` | 0.5 m plate | yes | 25 km, offset 0 px, 5 ms, look 30, zenith 30 | 0.2754 | 0.28091 | 0.98039 |
+| `s2s-unresolved-r25km-v0mps-e5ms-l60-z0-d0-w64` | 0.5 m plate | yes | 25 km, offset 0 px, 5 ms, look 60, zenith 0 | 0.1695 | 0.18727 | 0.90510 |
 | `s2s-unresolved-r25km-v0mps-e5ms-l0-z0-d0p25` | 0.5 m plate | yes | 25 km, offset 0.25 px, 5 ms, look 0, zenith 0 | 0.3822 | 0.37454 | 1.02047 |
 | `s2s-unresolved-r25km-v0mps-e5ms-l0-z0-d0p5` | 0.5 m plate | yes | 25 km, offset 0.5 px, 5 ms, look 0, zenith 0 | 0.3621 | 0.37454 | 0.96672 |
 | `s2s-unresolved-r25km-v0mps-e5ms-l0-z0-d0p75` | 0.5 m plate | yes | 25 km, offset 0.75 px, 5 ms, look 0, zenith 0 | 0.3626 | 0.37454 | 0.96820 |
@@ -131,6 +140,9 @@ Source: `docs/data/s2s_results.jsonl` (one record per DIRSIG spec measured; `pyt
 | `s2s2-blur-target-e1ms` | target | 1 | 0.99952 | 1.233 | 1.224 | 1.007 |
 | `s2s2-blur-target-e5ms` | target | 5 | 1.00023 | 5.973 | 6.12 | 0.9759 |
 | `s2s2-blur-target-e20ms` | target | 20 | 0.99800 | 23.85 | 24.48 | 0.9743 |
+| `s2s2-blur-both-e0p1ms-w64` | both | 0.1 | 1.00162 | 0.6267 | 0.2448 | 2.56 |
+| `s2s2-blur-both-e1ms-w64` | both | 1 | 1.00003 | 2.467 | 2.448 | 1.008 |
+| `s2s2-blur-both-e5ms-w64` | both | 5 | 1.00023 | 12.01 | 12.24 | 0.9809 |
 | `s2s2-orbit-e0p1ms` | orbit | 0.1 | 1.00576 | — | — | — |
 | `s2s2-orbit-e20ms` | orbit | 20 | 1.00576 | — | — | — |
 <!-- end generated: blur -->

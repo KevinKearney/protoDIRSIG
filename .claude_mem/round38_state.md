@@ -8,3 +8,5 @@
 - baseline suite at 655fc6c, alone, no edits: 2068 passed, 2 skipped (9 min 20 s)
 - step A: scripts/s2s_coverage.py, docs/s2s_coverage.md (89 records, 20 rows x 3 classes), tests/test_s2s_coverage.py (6), BACKLOG round 38 item, CONOPS Part I sentence
 - step A gate: first suite 1 failed (satsim SIGTERM timing race, unrelated; passes alone 3/3); rerun 2080 passed, 2 skipped (9 min 21 s); sixteen checks 0
+- step B: 12 cases rendered (11 + window control for the unresolved plate), each its own command, peaks <= 129,124 kB; 101 records; coverage map regenerated (3 reasons retired); tests + stage 06 section + review_report fix and tables
+- step B gate: 2090 passed, 2 skipped (9 min 22 s); sixteen checks 0

@@ -125,3 +125,42 @@ def test_background_bar_period(look):
 @pytest.mark.parametrize("z", (0, 30, 60, 75))
 def test_background_follows_cos_solar_zenith(z):
     assert abs(also(f"s2s3-background-z{z}", "bar_level")["ratio"] - 1) <= TOL_BAR
+
+
+# --- round 38: the coverage points (docs/s2s_coverage.md), at a 64 x 64 window -----------------------------------------
+# Tolerances as above: the largest residual among round 38's records for each case, rounded up in its third significant
+# digit. Each ratio is taken against the same window's baseline (the first COVERAGE point of the class).
+TOL_WINDOW = 0.000134          # 20 m plate, 25 km: 64 x 64 window against the native record (1.334e-4)
+TOL_PLATE_LOOK_SUN = 0.000987  # 20 m plate, cos(look) cos(zenith) at 30/30, 45/45, 60/60 and 0/75: largest 60/60 (9.865e-4)
+TOL_SMALL_SUN = 0.000819       # 0.5 m plate (0.61 px), 25 km: zenith 60 and look/zenith 30/30: largest 30/30 (8.183e-4)
+TOL_FLUX_BOTH = 0.00162        # family II's both group at 0.1, 1 and 5 ms: largest at 0.1 ms (1.618e-3)
+
+W64 = "s2s-{c}-r25km-v0mps-e5ms-l{l}-z{z}-d0-w64"
+
+
+def test_the_small_window_holds_the_native_flux():
+    ratio = total(W64.format(c="hyperresolved", l=0, z=0)) / total(HYP.format(r=25, e=5, l=0, z=0))
+    assert abs(ratio - 1) <= TOL_WINDOW
+
+
+@pytest.mark.parametrize("look, z", ((30, 30), (45, 45), (60, 60), (0, 75)))
+def test_a_flat_plate_follows_cos_look_times_cos_zenith(look, z):
+    """A Lambertian plate seen `look` degrees off its normal with the Sun `z` degrees off it: projected area times
+    irradiance, cos(look) cos(z), with the Sun on the far side (phase look + z)."""
+    ratio = total(W64.format(c="hyperresolved", l=look, z=z)) / total(W64.format(c="hyperresolved", l=0, z=0))
+    assert abs(ratio / (math.cos(math.radians(look)) * math.cos(math.radians(z))) - 1) <= TOL_PLATE_LOOK_SUN
+
+
+@pytest.mark.parametrize("look, z", ((0, 60), (30, 30)))
+def test_a_sub_pixel_plate_follows_the_sun_at_25_km(look, z):
+    """The labelled 0.5 m plate at 25 km (0.61 px): the Sun's cosine holds on the hit count against the same window's
+    nadir record. Its 60 degree look alone does not (0.922 of cos 60; docs/Space_to_space_characterization.md, round
+    38) and is not asserted."""
+    ratio = total(W64.format(c="unresolved", l=look, z=z)) / total(W64.format(c="unresolved", l=0, z=0))
+    assert abs(ratio / (math.cos(math.radians(look)) * math.cos(math.radians(z))) - 1) <= TOL_SMALL_SUN
+
+
+@pytest.mark.parametrize("e", ("0p1", "1", "5"))
+def test_combined_motion_conserves_the_resolved_plates_flux(e):
+    got, want = flux(f"s2s2-blur-both-e{e}ms-w64")
+    assert abs(got / want - 1) <= TOL_FLUX_BOTH

@@ -122,6 +122,20 @@ GRID = {
 SUBPIXEL_RANGES = (12500.0, 25000.0, 50000.0)
 # orbit-kind specs: the pass's task time (s from EPOCH) at culmination; range and look angle follow from the TLE
 ORBIT_TASK = 60.0
+# round 38's coverage points (docs/s2s_coverage.md): cells the one-axis grid leaves empty that have a closed form, at a
+# 64 x 64 window (`window`: the ROI's width and height; a point without it renders at NATIVE). The first point of each
+# class repeats a native record (the 20 m plate's baseline, the 0.5 m plate at 25 km) in the small window, as a control.
+WINDOW = 64
+COVERAGE = [{"object_class": cls, **BASELINE[cls], **extra, "window": WINDOW} for cls, extra in (
+    ("hyperresolved", {}),
+    ("hyperresolved", {"look_deg": 30.0, "solar_zenith_deg": 30.0}),
+    ("hyperresolved", {"look_deg": 45.0, "solar_zenith_deg": 45.0}),
+    ("hyperresolved", {"look_deg": 60.0, "solar_zenith_deg": 60.0}),
+    ("hyperresolved", {"solar_zenith_deg": 75.0}),
+    ("unresolved", {"range_m": 25000.0}),
+    ("unresolved", {"range_m": 25000.0, "look_deg": 60.0}),
+    ("unresolved", {"range_m": 25000.0, "solar_zenith_deg": 60.0}),
+    ("unresolved", {"range_m": 25000.0, "look_deg": 30.0, "solar_zenith_deg": 30.0}))]
 
 
 # --- the sensor's numbers ---------------------------------------------------------------------------------------------
@@ -319,17 +333,21 @@ def _num_tag(v, scale=1, unit=""):
     return s + unit
 
 
+def _window_tag(p):
+    return f"-w{p['window']}" if "window" in p else ""
+
+
 def point_name(p):
     speed = "orbit" if p["relative_speed"] == ORBIT else _num_tag(p["relative_speed"], 1, "mps")
     return "s2s-{}-r{}-v{}-e{}-l{}-z{}-d{}".format(
         p["object_class"].replace("_", ""), _num_tag(p["range_m"], 1e-3, "km"), speed,
         _num_tag(p["exposure_s"], 1e3, "ms"), _num_tag(p["look_deg"]), _num_tag(p["solar_zenith_deg"]),
-        _num_tag(p["offset_px"]))
+        _num_tag(p["offset_px"])) + _window_tag(p)
 
 
 def grid(full=False):
     """The family's grid points (dicts over AXES), in a fixed order: per class, the baseline, then each axis's other
-    values one at a time; with `full`, the product of each class's axis values. An orbit point's range and look angle
+    values one at a time, and then round 38's COVERAGE points; with `full`, the product of each class's axis values. An orbit point's range and look angle
     are the TLE's: they are set to the pass's values (`orbit_geometry`) and not varied."""
     points = []
     for cls in PLATES:
@@ -345,6 +363,8 @@ def grid(full=False):
                 points += [{**base, a: v} for v in GRID[a][cls] if v != base[a]]
             if "offset_px" in axes:
                 points += [{**base, "range_m": r, "offset_px": d} for r in SUBPIXEL_RANGES for d in GRID["offset_px"][cls]]
+    if not full:
+        points += [dict(p) for p in COVERAGE]
     seen, out = set(), []
     for p in points:
         if p["relative_speed"] == ORBIT:
@@ -406,6 +426,9 @@ LOOK = {"centre": (0.0, 5000.0, 10000.0), "range_m": 25000.0, "depth": 500.0, "b
 LOOK_DEG = (0.0, 15.0, 30.0, 45.0, 60.0, 75.0)
 ORBIT_BLUR = {"centre": (0.0, -20000.0, 0.0), "side": 100.0, "backstop": 2000.0}
 ORBIT_EXPOSURES = (0.0001, 0.02)
+# round 38 (docs/s2s_coverage.md): the `both` group again at a 64 x 64 window, at the exposures whose streak and plate
+# fit it (24.5 + 12.2 px at 5 ms; at 20 ms the 49 px streak does not)
+BOTH_SMALL = (0.0001, 0.001, 0.005)
 
 
 def _rects_obj(rects):
@@ -499,11 +522,13 @@ def grid2():
             for e in BLUR_EXPOSURES]
     pts += [{"kind": "look", "group": "look", "exposure_s": 0.005, "look_deg": a} for a in LOOK_DEG]
     pts += [{"kind": "orbit", "group": "orbit", "exposure_s": e, "look_deg": None} for e in ORBIT_EXPOSURES]
+    pts += [{"kind": "blur", "group": "both", "exposure_s": e, "look_deg": 0.0, "window": WINDOW} for e in BOTH_SMALL]
     return pts
 
 
 def point2_name(p):
     tail = f"-l{_num_tag(p['look_deg'])}" if p["kind"] == "look" else f"-e{_num_tag(p['exposure_s'], 1e3, 'ms')}"
+    tail += _window_tag(p)
     return f"s2s2-{p['kind']}-{p['group']}{tail}" if p["kind"] == "blur" else f"s2s2-{p['kind']}{tail}"
 
 
@@ -544,12 +569,15 @@ def run_spec2(p, scene_hash=None):
     base["exposure_s"] = p["exposure_s"]
     spec = run_spec(base, scene_hash="0" * 64)
     desc, eng = spec["descriptor"], spec["engine"]
+    if "window" in p:
+        desc["settings"][0]["roi"].update(Width=p["window"], Height=p["window"])
     ex = expected2(p)
     if p["kind"] == "blur":
         _, bg, fg = BLUR_GROUPS[p["group"]]
         what = (f"the blur group '{p['group']}' (plates at {fg * BLUR['speed']:g} m/s, background at "
                 f"{bg * BLUR['speed']:g} m/s, both along heading 90; the background {BLUR['depth'] / 1000:g} km behind) "
-                f"seen at nadir from {BLUR['range_m'] / 1000:g} km, exposure {p['exposure_s'] * 1000:g} ms")
+                f"seen at nadir from {BLUR['range_m'] / 1000:g} km, exposure {p['exposure_s'] * 1000:g} ms"
+                f"{f', window {w} x {w}' if (w := p.get('window')) else ''}")
         extras = {"s2s.group": p["group"], "s2s.target_speed": fg * BLUR["speed"],
                   "s2s.background_speed": bg * BLUR["speed"], "s2s.background_depth_m": BLUR["depth"]}
         pos = [BLUR_GROUPS[p["group"]][0], 0.0, BLUR["base_z"] + BLUR["depth"] + BLUR["range_m"]]
@@ -965,7 +993,8 @@ def run_spec(p, scene_hash=None):
                                  f"{p['range_m'] / 1000:g} km, {p['look_deg']:g} deg off nadir, Sun at "
                                  f"{p['solar_zenith_deg']:g} deg zenith (phase {ex['phase_deg']:g} deg), exposure "
                                  f"{p['exposure_s'] * 1000:g} ms, relative speed {p['relative_speed']}"
-                                 f"{'' if orbit_kind else ' m/s'}, offset {p['offset_px']:g} px. Written by "
+                                 f"{'' if orbit_kind else ' m/s'}, offset {p['offset_px']:g} px"
+                                 f"{f', window {w} x {w}' if (w := p.get('window')) else ''}. Written by "
                                  "scripts/s2s_scenarios.py.\n")},
         "origin": {"kind": "synthetic", "engine": "dirsig"},
         "collection": {"epoch": EPOCH, "platform": {"class": "satellite"},
@@ -980,7 +1009,8 @@ def run_spec(p, scene_hash=None):
                       "frame_rate": {"value": FRAME_RATE, "provenance": "specified"},
                       "gain": {"value": 1, "provenance": "specified"},
                       "black_level": {"value": 0, "provenance": "specified"},
-                      "roi": {"Width": NATIVE, "Height": NATIVE, "OffsetX": None, "OffsetY": None}}],
+                      "roi": {"Width": p.get("window", NATIVE), "Height": p.get("window", NATIVE),
+                              "OffsetX": None, "OffsetY": None}}],
         "fidelity": {"modeled": ["reflected sunlight from a Lambertian plate", "platform position and pointing",
                                  "temporal integration over the exposure"],
                      "approximated": ["uniform atmosphere: no extinction, no path radiance, spectrally constant Sun"],
@@ -1037,7 +1067,8 @@ def family(scene_hash=None):
         spec = run_spec(p, scene_hash)
         name = point_name(p)
         files[f"{name}.yaml"] = dump(spec)
-        index.append({"name": name, "run_id": run_id(spec, SENSORS), **{a: p[a] for a in AXES}})
+        index.append({"name": name, "run_id": run_id(spec, SENSORS), **{a: p[a] for a in AXES},
+                      **({"window": p["window"]} if "window" in p else {})})
     for p in grid2():
         spec = run_spec2(p)
         name = point2_name(p)

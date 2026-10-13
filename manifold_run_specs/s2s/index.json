@@ -693,6 +693,114 @@
   "offset_px": 0.75
  },
  {
+  "name": "s2s-hyperresolved-r25km-v0mps-e5ms-l0-z0-d0-w64",
+  "run_id": "3e93df12d1ccc5bd47569237e2f4de38c7004b41e63cbbcb8c644f26ecd1290e",
+  "object_class": "hyperresolved",
+  "range_m": 25000.0,
+  "relative_speed": 0.0,
+  "exposure_s": 0.005,
+  "look_deg": 0.0,
+  "solar_zenith_deg": 0.0,
+  "offset_px": 0.0,
+  "window": 64
+ },
+ {
+  "name": "s2s-hyperresolved-r25km-v0mps-e5ms-l30-z30-d0-w64",
+  "run_id": "affa7206d89cfcc0c1efb01cc6c4b67c669d9606b763679ef2eef5bf394cbe34",
+  "object_class": "hyperresolved",
+  "range_m": 25000.0,
+  "relative_speed": 0.0,
+  "exposure_s": 0.005,
+  "look_deg": 30.0,
+  "solar_zenith_deg": 30.0,
+  "offset_px": 0.0,
+  "window": 64
+ },
+ {
+  "name": "s2s-hyperresolved-r25km-v0mps-e5ms-l45-z45-d0-w64",
+  "run_id": "6b7bbe7a152e9ceaa618f39574f52432ec49d9f26218df1d7ad596accf862bd6",
+  "object_class": "hyperresolved",
+  "range_m": 25000.0,
+  "relative_speed": 0.0,
+  "exposure_s": 0.005,
+  "look_deg": 45.0,
+  "solar_zenith_deg": 45.0,
+  "offset_px": 0.0,
+  "window": 64
+ },
+ {
+  "name": "s2s-hyperresolved-r25km-v0mps-e5ms-l60-z60-d0-w64",
+  "run_id": "24d26d5776ed3527a8a75e2a4589f4cd63cae85211cac8ec4f2058f154342249",
+  "object_class": "hyperresolved",
+  "range_m": 25000.0,
+  "relative_speed": 0.0,
+  "exposure_s": 0.005,
+  "look_deg": 60.0,
+  "solar_zenith_deg": 60.0,
+  "offset_px": 0.0,
+  "window": 64
+ },
+ {
+  "name": "s2s-hyperresolved-r25km-v0mps-e5ms-l0-z75-d0-w64",
+  "run_id": "86a0a3d8d0a28d28b6ca60366791e744288dc358e86435d2c0b049ffcfee2790",
+  "object_class": "hyperresolved",
+  "range_m": 25000.0,
+  "relative_speed": 0.0,
+  "exposure_s": 0.005,
+  "look_deg": 0.0,
+  "solar_zenith_deg": 75.0,
+  "offset_px": 0.0,
+  "window": 64
+ },
+ {
+  "name": "s2s-unresolved-r25km-v0mps-e5ms-l0-z0-d0-w64",
+  "run_id": "5a9cdcd2661155b79f9b9de94bc758aa49d541a3ddf565c124729d72843fe491",
+  "object_class": "unresolved",
+  "range_m": 25000.0,
+  "relative_speed": 0.0,
+  "exposure_s": 0.005,
+  "look_deg": 0.0,
+  "solar_zenith_deg": 0.0,
+  "offset_px": 0.0,
+  "window": 64
+ },
+ {
+  "name": "s2s-unresolved-r25km-v0mps-e5ms-l60-z0-d0-w64",
+  "run_id": "676955dc5b6d17b40475dfa74b764b3e03f55beff66302b845f5a072d41f1ec0",
+  "object_class": "unresolved",
+  "range_m": 25000.0,
+  "relative_speed": 0.0,
+  "exposure_s": 0.005,
+  "look_deg": 60.0,
+  "solar_zenith_deg": 0.0,
+  "offset_px": 0.0,
+  "window": 64
+ },
+ {
+  "name": "s2s-unresolved-r25km-v0mps-e5ms-l0-z60-d0-w64",
+  "run_id": "057f5531f5a792d79b421fb1555635f2925883f434e41eeefd9ac02c1b0a1a52",
+  "object_class": "unresolved",
+  "range_m": 25000.0,
+  "relative_speed": 0.0,
+  "exposure_s": 0.005,
+  "look_deg": 0.0,
+  "solar_zenith_deg": 60.0,
+  "offset_px": 0.0,
+  "window": 64
+ },
+ {
+  "name": "s2s-unresolved-r25km-v0mps-e5ms-l30-z30-d0-w64",
+  "run_id": "fd826843effe2c41ee57f8230d0be7bd679db40a16046c0c1aa0ab54e20c1f49",
+  "object_class": "unresolved",
+  "range_m": 25000.0,
+  "relative_speed": 0.0,
+  "exposure_s": 0.005,
+  "look_deg": 30.0,
+  "solar_zenith_deg": 30.0,
+  "offset_px": 0.0,
+  "window": 64
+ },
+ {
   "name": "s2s2-blur-static-e5ms",
   "run_id": "1a5b7222b06ed1ecf3371f200a629da6ebc2c0971bcae8fc7556422ec4e96c34",
   "family": 2,
@@ -880,6 +988,36 @@
   "group": "orbit",
   "exposure_s": 0.02,
   "look_deg": null
+ },
+ {
+  "name": "s2s2-blur-both-e0p1ms-w64",
+  "run_id": "e0601521099831cf3496398c30d4df94a0a5a9bb6114afb5e8b0452821bdcd83",
+  "family": 2,
+  "kind": "blur",
+  "group": "both",
+  "exposure_s": 0.0001,
+  "look_deg": 0.0,
+  "window": 64
+ },
+ {
+  "name": "s2s2-blur-both-e1ms-w64",
+  "run_id": "cecbb8514b2f715d9b30c0f2704e566f678e0a1677dee587f398bb018ab68e8d",
+  "family": 2,
+  "kind": "blur",
+  "group": "both",
+  "exposure_s": 0.001,
+  "look_deg": 0.0,
+  "window": 64
+ },
+ {
+  "name": "s2s2-blur-both-e5ms-w64",
+  "run_id": "a85a02de63a2504031499e98978b090904c1a9979e160d2dbf1c127b8bddfadb",
+  "family": 2,
+  "kind": "blur",
+  "group": "both",
+  "exposure_s": 0.005,
+  "look_deg": 0.0,
+  "window": 64
  },
  {
   "name": "s2s3-phase-hyperresolved-a0-l0-z0",

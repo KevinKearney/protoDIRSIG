@@ -284,8 +284,8 @@ def exposure_block():
     by = {}
     for r, e in s2s_records():
         if r["family"] == 1 and e.get("object_class") == "hyperresolved" and e["range_m"] == 25000.0 \
-                and e["look_deg"] == 0 and e["solar_zenith_deg"] == 0:
-            by[e["exposure_s"]] = r
+                and e["look_deg"] == 0 and e["solar_zenith_deg"] == 0 and "window" not in e:
+            by[e["exposure_s"]] = r                 # the native exposure axis (round 38's 64 x 64 control is not on it)
     ref = by[0.005]
     for exp in sorted(by):
         r = by[exp]
