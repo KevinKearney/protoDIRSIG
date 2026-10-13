@@ -59,3 +59,16 @@ def test_risk_b_concurrent_jobs_repeat_the_single_job_bytes_and_the_limit_model_
     model = recs["limit-model"]["measured"]
     peak = max(j["peak_rss_kib"] for r in recs.values() if r["id"] != "limit-model" for j in r["measured"]["jobs"])
     assert model["peak_rss_gib"] == round(peak / 2**20, 4) and model["limit"] == 4
+
+
+def test_risk_c_a_cancelled_dirsig_run_lists_only_its_spec_but_leaves_byte_exact_leading_rows():
+    recs = of("C")
+    assert sorted(round(r["measured"]["fraction"], 2) for r in recs) == [0.25, 0.5, 0.75]
+    rows = []
+    for r in recs:
+        ms = r["measured"]
+        assert ms["verdict"] == "incomplete" and ms["listed"] == ["run_spec.json"] and ms["usable"]
+        img = ms["on_disk"]["AurorNIROutput.img"]
+        assert img["prefix_equal_full"] and img["header_lines"] <= img["rows_on_disk"] < img["rows_total"]
+        rows.append(img["rows_on_disk"])
+    assert rows == sorted(rows)
