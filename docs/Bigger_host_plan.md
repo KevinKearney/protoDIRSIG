@@ -44,3 +44,82 @@ Totals: 7 entries; 52 to 54 renders outside entry 3 (18 + 4 + 8 + 17 + 3 to 5 + 
 | `--check` | the manifest is well formed, its drivers and items known, its results files the repository's, every entry named in this document |
 
 Tests: `tests/test_bigger_host_run.py` (the dry run on assumed hosts, the concurrency rule, the stub driver `sleep` for concurrency, resume, an interrupted invocation (SIGKILL and SIGTERM), the probe and a failed job; the capture, light-curve and command drivers on synthetic files; the fake two-entry manifest `tests/data/bigger_host_fake_manifest.yaml` of 16 x 16 jobs when DIRSIG is installed).
+
+## Validation on the 4-core laptop (round 36)
+
+The fake manifest `tests/data/bigger_host_fake_manifest.yaml` (two entries: three family I specs, and risk B batches of 1 and 2 copies, all cut to 16 x 16, results under the work root) run with `--max-jobs 4 --max-mem-gb 4`, one invocation at a time, nothing else running:
+
+| Invocation | Exit | Events | Results |
+|---|---|---|---|
+| first | 0 | 2 probes (peaks 128,396 and 128,480 KiB), 3 jobs (2 s2s jobs together, then the batch of 2), 5 recorded | 3 s2s records, 3 risk B records (n1, n2, limit model); `s2s_measure.check` and `risk_measure.check` on them: no problem; both batches' images equal the single job's |
+| second, same work root | 0 | 2 skips ("results present"), 0 jobs, 0.2 s | unchanged |
+| first, SIGKILL after the first record | 137 | the probe recorded | 1 s2s record |
+| resume | 0 | 1 probe, 3 jobs (the 2 s2s items left and the batch of 2) | 3 + 3 records, image digests equal to the first invocation's |
+| first, SIGTERM after the first record | 130 | the probe recorded, `interrupted` logged, the jobs in flight stopped | 1 s2s record |
+| resume | 0 | 1 probe, 3 jobs | 3 + 3 records, image digests equal to the first invocation's |
+
+### Plans (`--dry-run`, round 36, results files at 28d8093)
+
+This host:
+
+Host (this host): 4 cores, 8 hardware threads, MemTotal 11.0 GiB, MemAvailable 7.3 GiB; memory budget 75% of MemAvailable, a job counts 1.25 x its peak
+
+| Entry | Driver | Items (pending / done / exceeds host) | Threads per job | Peak per job (source) | Concurrency | Estimated wall (s) | Disk (GB) |
+|---|---|---|---|---|---|---|---|
+| s2s-unlabelled-points | s2s | 18 (18 / 0 / 0) | 1 | 156 MiB (manifest: risk B native-n1, the 25 km plate job in the same scene) | 4 | 144 | 0 |
+| s2s-blur-both | s2s | 4 (4 / 0 / 0) | 1 | - (unmeasured) | 4* | 204 | 0 |
+| concurrency-native | concurrency | 7 (3 / 0 / 4) | 1, 2, 4, 8, 16, 32, 64 | 156 MiB (manifest: risk B native-n1) | 1 | 262 | 0 |
+| lightcurve1-full | lightcurve | 8 (8 / 0 / 0) | 1, 2, 4, 8 | - (unmeasured) | 4* | 6590 | 108 |
+| capture-order-native | capture_order | 3 (0 / 0 / 3) | 1 | 24576 MiB (the address-space limit of a job) | 1 | 0 | 0 |
+| forest-layered-comparison | command | 1 (1 / 0 / 0) | 1 | - (unmeasured) | 1 | 2625 | 0 |
+| sweep-capped-demos | command | 1 (1 / 0 / 0) | 8 | - (unmeasured) | 1 | 3600 | 0 |
+
+Total estimated wall time: 13425 s (3.73 h), entries one after another; estimates are one-thread wall times on the 4-core laptop (est_s). * the cores' bound: the job's memory is unmeasured, and the entry's probe (run alone first) sets the memory bound.
+
+`--assume-cores 16 --assume-mem-gb 64`:
+
+Host (assumed, 16 cores, 64 GB): 16 cores, 16 hardware threads, MemTotal 59.6 GiB, MemAvailable 53.6 GiB; memory budget 75% of MemAvailable, a job counts 1.25 x its peak
+
+| Entry | Driver | Items (pending / done / exceeds host) | Threads per job | Peak per job (source) | Concurrency | Estimated wall (s) | Disk (GB) |
+|---|---|---|---|---|---|---|---|
+| s2s-unlabelled-points | s2s | 18 (18 / 0 / 0) | 1 | 156 MiB (manifest: risk B native-n1, the 25 km plate job in the same scene) | 16 | 74 | 0 |
+| s2s-blur-both | s2s | 4 (4 / 0 / 0) | 1 | - (unmeasured) | 16* | 204 | 0 |
+| concurrency-native | concurrency | 7 (5 / 0 / 2) | 1, 2, 4, 8, 16, 32, 64 | 156 MiB (manifest: risk B native-n1) | 1 | 658 | 0 |
+| lightcurve1-full | lightcurve | 8 (8 / 0 / 0) | 1, 2, 4, 16 | - (unmeasured) | 16* | 4476 | 108 |
+| capture-order-native | capture_order | 3 (3 / 0 / 0) | 1 | 24576 MiB (the address-space limit of a job) | 1 | 5854 | 0 |
+| forest-layered-comparison | command | 1 (1 / 0 / 0) | 1 | - (unmeasured) | 1 | 2625 | 0 |
+| sweep-capped-demos | command | 1 (1 / 0 / 0) | 16 | - (unmeasured) | 1 | 3600 | 0 |
+
+Total estimated wall time: 17491 s (4.86 h), entries one after another; estimates are one-thread wall times on the 4-core laptop (est_s). * the cores' bound: the job's memory is unmeasured, and the entry's probe (run alone first) sets the memory bound.
+
+`--assume-cores 32 --assume-mem-gb 128`:
+
+Host (assumed, 32 cores, 128 GB): 32 cores, 32 hardware threads, MemTotal 119.2 GiB, MemAvailable 107.3 GiB; memory budget 75% of MemAvailable, a job counts 1.25 x its peak
+
+| Entry | Driver | Items (pending / done / exceeds host) | Threads per job | Peak per job (source) | Concurrency | Estimated wall (s) | Disk (GB) |
+|---|---|---|---|---|---|---|---|
+| s2s-unlabelled-points | s2s | 18 (18 / 0 / 0) | 1 | 156 MiB (manifest: risk B native-n1, the 25 km plate job in the same scene) | 32 | 74 | 0 |
+| s2s-blur-both | s2s | 4 (4 / 0 / 0) | 1 | - (unmeasured) | 32* | 204 | 0 |
+| concurrency-native | concurrency | 7 (6 / 0 / 1) | 1, 2, 4, 8, 16, 32, 64 | 156 MiB (manifest: risk B native-n1) | 1 | 856 | 0 |
+| lightcurve1-full | lightcurve | 8 (8 / 0 / 0) | 1, 2, 4, 32 | - (unmeasured) | 32* | 4476 | 108 |
+| capture-order-native | capture_order | 3 (3 / 0 / 0) | 1 | 24576 MiB (the address-space limit of a job) | 2 | 3600 | 0 |
+| forest-layered-comparison | command | 1 (1 / 0 / 0) | 1 | - (unmeasured) | 1 | 2625 | 0 |
+| sweep-capped-demos | command | 1 (1 / 0 / 0) | 32 | - (unmeasured) | 1 | 3600 | 0 |
+
+Total estimated wall time: 15435 s (4.29 h), entries one after another; estimates are one-thread wall times on the 4-core laptop (est_s). * the cores' bound: the job's memory is unmeasured, and the entry's probe (run alone first) sets the memory bound.
+
+`--assume-cores 64 --assume-mem-gb 256`:
+
+Host (assumed, 64 cores, 256 GB): 64 cores, 64 hardware threads, MemTotal 238.4 GiB, MemAvailable 214.6 GiB; memory budget 75% of MemAvailable, a job counts 1.25 x its peak
+
+| Entry | Driver | Items (pending / done / exceeds host) | Threads per job | Peak per job (source) | Concurrency | Estimated wall (s) | Disk (GB) |
+|---|---|---|---|---|---|---|---|
+| s2s-unlabelled-points | s2s | 18 (18 / 0 / 0) | 1 | 156 MiB (manifest: risk B native-n1, the 25 km plate job in the same scene) | 64 | 74 | 0 |
+| s2s-blur-both | s2s | 4 (4 / 0 / 0) | 1 | - (unmeasured) | 64* | 204 | 0 |
+| concurrency-native | concurrency | 7 (7 / 0 / 0) | 1, 2, 4, 8, 16, 32, 64 | 156 MiB (manifest: risk B native-n1) | 1 | 1054 | 0 |
+| lightcurve1-full | lightcurve | 8 (8 / 0 / 0) | 1, 2, 4, 64 | - (unmeasured) | 64* | 4476 | 108 |
+| capture-order-native | capture_order | 3 (3 / 0 / 0) | 1 | 24576 MiB (the address-space limit of a job) | 5 | 3600 | 0 |
+| forest-layered-comparison | command | 1 (1 / 0 / 0) | 1 | - (unmeasured) | 1 | 2625 | 0 |
+| sweep-capped-demos | command | 1 (1 / 0 / 0) | 64 | - (unmeasured) | 1 | 3600 | 0 |
+
+Total estimated wall time: 15633 s (4.34 h), entries one after another; estimates are one-thread wall times on the 4-core laptop (est_s). * the cores' bound: the job's memory is unmeasured, and the entry's probe (run alone first) sets the memory bound.
