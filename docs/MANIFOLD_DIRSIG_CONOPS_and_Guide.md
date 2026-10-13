@@ -39,7 +39,7 @@ Three rules explain the diagram.
 
 Source: `docs/diagrams/sensor_path.mmd` (SVG beside it).
 
-The sensor description is the single source for modeled sensor values. The library `.platform` supplies only what the specs do not model (names, mount, truth collections, spatial response, hypersampling). Swapping the sensor changes the `sensor` reference and the `entry_id` of each `settings` member; no other sensor value is stated in the run spec.
+The sensor description is the single source for modeled sensor values. The library `.platform` supplies only what the specs do not model (names, mount, truth collections, spatial response, hypersampling). Swapping the sensor changes the `sensor` reference and the `entry_id` of each `settings` member; no other sensor value is stated in the run spec. A recipe's `engine_overrides` may have to go with it: `auror_ref`'s `platform.channel_response: native` refuses a sensor with a tabulated curve, so its swap to either other library sensor is three edits (`docs/Authoring_friction_audit.md`, section 2).
 
 ### Roles
 
@@ -715,6 +715,7 @@ Decisions recorded outside the table (each a choice, not work; none is a C-n row
 | dirfm writes a static `.ppd`'s Euler angles to six decimals and its position to three | `BACKLOG.md` "Motion files lose precision in dirfm's `PlatformPosition`" | Kevin | yes | the bytes of every static-pose layered job and so its references (not its run id) |
 | dirfm writes an explicit zero scene offset | `BACKLOG.md` "dirfm writes an explicit zero scene offset" | Kevin | yes | the bytes of every layered job (not its run id) |
 | The epoch's written form (UTC against the scene's local offset) | `BACKLOG.md` "The epoch is written in UTC" | Kevin, then a C-n question | yes | thermal results; the item asks for a stated rule |
+| How users author recipes and layers: a form or GUI that writes them, a CLI, or neither | `docs/Authoring_friction_audit.md` (the measurement), `BACKLOG.md` "Authoring friction (round 35)", `scripts/recipe_form.py` (a prototype of the recipe step) | Kevin | no | the SDK's public surface. Measured (round 35): the shortest path writes 0 files, 2 fields and 0 hashes; a new recipe 20 required fields, 4 copied; a new scene and sensor in a checkout 4 YAML files and 115 fields, 14 copied, 4 hashes written by `scripts/stamp_hashes.py`, and with the installed packages alone the same 4 hashes computed and typed by the user. A recipe-only form adds nothing to the SDK (it reads `list_*`); a form or GUI that writes layers, or a CLI, needs a hashing or stamping operation in the SDK (today a repository script without a path argument), and a CLI a console entry point |
 | The descriptor audit with two engines, before any layered SatSim form | `BACKLOG.md` "Descriptor audit with two engines (first)", C-37 | Kevin | yes | the descriptor's members, and the questions put to MANIFOLD |
 
 ## 11. Reproduce from zero
