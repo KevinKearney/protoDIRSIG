@@ -28,7 +28,7 @@ What each round did, by its commit messages: 28, survey truth for files a `TEMP_
 
 ### 2.1 Space-to-space imaging
 
-Source: `docs/data/s2s_results.jsonl` (one record per DIRSIG spec measured; `python scripts/s2s_measure.py --check` recomputes each record's expectation) and `docs/Space_to_space_characterization.md`. Every DIRSIG point was rendered at the native 500 x 500 window, one thread, seed 1, through `Simulation.run`, except the `-w64` points of rounds 38 and 39 (64 x 64; `docs/s2s_coverage.md`, and the characterization's "Coverage points (round 38)" and "Three differences isolated (round 39)"); a one-thread render repeats bit for bit, and round 32 re-rendered 62 of round 29's and 30's points to the digests those rounds recorded. Equivalent pixels are the image sum over `full_pixel`, the signal of a pixel wholly on a plate of reflectance 0.5 facing the Sun at the zenith.
+Source: `docs/data/s2s_results.jsonl` (one record per DIRSIG spec measured; `python scripts/s2s_measure.py --check` recomputes each record's expectation) and `docs/Space_to_space_characterization.md`. Every DIRSIG point was rendered at the native 500 x 500 window, one thread, seed 1, through `Simulation.run`, except the `-w64` points of rounds 38 and 39 (64 x 64; `docs/s2s_coverage.md`, and the characterization's "Coverage points (round 38)" and "Three differences isolated (round 39)"); a one-thread render repeats bit for bit, and round 32 re-rendered 62 of round 29's and 30's points to the digests those rounds recorded. Equivalent pixels are the image sum over `full_pixel`, the signal of a pixel wholly on a plate of reflectance 0.5 facing the Sun at the zenith. Round 42 wrote the same records up as a journal-style study, `docs/study/manuscript.md`, every number in it generated from the records by `scripts/study_build.py` (data appendix, tables, figures, claims map and the pandoc builds in `docs/study/`).
 
 **Aperture factor.** DIRSIG renders with the exact aperture cone, not the paraxial term: the rendered full pixel is the paraxial value times 1 / (1 + 1 / (4 N²)). SatSim's chain has no f-number; its zeropoint that carries the factor reproduces DIRSIG's scale.
 
@@ -510,6 +510,7 @@ python scripts/s2s_scenarios.py --check
 python scripts/s2s_measure.py --check
 python scripts/s2s_coverage.py --check
 python scripts/s2s_envelope.py --check
+python scripts/study_build.py --check
 python scripts/risk_measure.py --check
 python scripts/bigger_host_run.py --check
 ```
@@ -518,7 +519,7 @@ Expected at HEAD (each exits 0; what it prints last):
 
 | Command | Expected |
 |---|---|
-| `python -m pytest -q -p no:cacheprovider` | 2162 passed, 2 skipped (about 9 to 10 minutes on the 4-core laptop) |
+| `python -m pytest -q -p no:cacheprovider` | 2272 passed, 2 skipped (about 10 minutes on the 4-core laptop) |
 | `python scripts/review_report.py --check` | `review_report: 18 generated blocks, 0 problem(s)` |
 | `compose.py`, `stamp_hashes.py`, `render_diagrams.py`, `api_examples.py`, `gen_models.py`, `survey_demos.py`, `engine_contracts.py` `--check` | exit 0, nothing printed |
 | `python scripts/id_snapshot.py --check` | `id snapshot: unchanged` |
@@ -528,6 +529,7 @@ Expected at HEAD (each exits 0; what it prints last):
 | `python scripts/s2s_measure.py --check` | `140 records: well formed, specs indexed, expected values recompute` |
 | `python scripts/s2s_coverage.py --check` | `131 records, 20 rows x 3 classes: the coverage map is current` |
 | `python scripts/s2s_envelope.py --check` | `21 rows over 110 records: the envelope is current` |
+| `python scripts/study_build.py --check` | `study_build: 171 records, 12 tables, 5 figures, 0 problems` |
 | `python scripts/risk_measure.py --check` | `31 records: well formed, derived numbers recompute` |
 | `python scripts/bigger_host_run.py --check` | `7 entries: well formed, drivers and items known, named in docs/Bigger_host_plan.md` |
 

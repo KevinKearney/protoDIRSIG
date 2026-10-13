@@ -10,3 +10,4 @@
 - step A gate (thirds): 636 + 503 + 1107 passed, 2 skipped (189, 220, 183 s; the third grows by docs consistency's six checks over the 14 new study documents); 17 checks 0, study_build has no --check yet (C); core/snapshot diff empty
 - step B gate (thirds): 636 + 503 + 1113 passed, 2 skipped; 17 checks 0 (study_build --check in C); core/snapshot diff empty
 - step C gate (thirds): 626 + 530 + 1116 = 2272 passed, 2 skipped (176, 274, 182 s); 18 checks 0 incl. study_build --check; core/snapshot diff empty. (A first third ran before a claims-map label fix and was rerun.)
+- step D (final) gate: thirds 626+530+1116 = 2272 passed, 2 skipped; 18 checks 0; core/snapshot diff empty (2026-10-13T13:05:45-04:00)
