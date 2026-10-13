@@ -42,3 +42,20 @@ def test_risk_a_layered_jobs_write_nothing_in_home_and_home_does_not_change_the_
         assert ms["digests_equal"] and len(ms["products"]) == 3
         read = [p["path"] for p in ms["home_paths"] if p["found_in_user_home"]]
         assert read == ["$HOME/.config/Rochester Institute of Technology/DIRSIG.conf"]
+
+
+def test_risk_b_concurrent_jobs_repeat_the_single_job_bytes_and_the_limit_model_recomputes():
+    recs = {r["id"]: r for r in of("B")}
+    for size in ("small", "native"):
+        assert {recs[f"{size}-n{n}"]["measured"]["n"] for n in (1, 2, 4, 8)} == {1, 2, 4, 8}
+    for r in recs.values():
+        if r["id"] == "limit-model":
+            continue
+        ms = r["measured"]
+        assert ms["digests_equal_single"] and ms["failed_jobs"] == 0 and ms["swap_pages_out"] == 0
+        assert r["configuration"]["threads"] == 1
+    tput = [recs[f"native-n{n}"]["measured"]["throughput_jobs_per_hour"] for n in (1, 2, 4, 8)]
+    assert tput == sorted(tput)                      # more copies never lowered throughput up to 8
+    model = recs["limit-model"]["measured"]
+    peak = max(j["peak_rss_kib"] for r in recs.values() if r["id"] != "limit-model" for j in r["measured"]["jobs"])
+    assert model["peak_rss_gib"] == round(peak / 2**20, 4) and model["limit"] == 4
