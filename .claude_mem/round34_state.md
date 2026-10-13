@@ -10,3 +10,5 @@
 - step A gate: 1759 passed, 2 skipped (7 min 56 s, alone); thirteen checks 0; core and snapshot unchanged
 - step B: docs/Engine_author_guide.md, tests/test_engine_author_guide.py (24), CONOPS 7.3 pointer, README
 - step B gate: 1783 passed, 2 skipped (8 min 4 s, alone); thirteen checks 0; core and snapshot unchanged
+- step C: notebook + tests/test_stage06_notebook.py (5), CONOPS section 8 row, notebooks/README
+- step C gate: 1789 passed, 2 skipped (8 min 2 s, alone); thirteen checks 0 (status_markers 181); core and snapshot unchanged
