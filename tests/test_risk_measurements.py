@@ -110,7 +110,7 @@ def test_the_conops_decisions_index_carries_each_risk_measured():
     for row in ("| C-28 |", "| C-30 |", "| C-43 |", "| Layered jobs run with the user's `HOME`", "| A collection mode for a cancelled DIRSIG run"):
         line = next(l for l in index.splitlines() if l.startswith(row))
         assert "round 33" in line.lower() or "Round 33" in line, row
-    assert {r["risk"] for r in RECORDS} == set("ABCDEF")
+    assert {r["risk"] for r in RECORDS} == set("ABCDEFG")
 
 
 def test_risk_f_the_reference_time_offset_changes_the_thermal_render():
@@ -128,5 +128,37 @@ def test_risk_f_the_reference_time_offset_changes_the_thermal_render():
     doc = (ROOT / "docs" / "DIRSIG_layered_comparison.md").read_text()
     section = doc.split("## The `.tasks` reference time's UTC offset (D-2, round 44)", 1)[1].split("\n## ", 1)[0]
     assert "`offset dependent`" in section
+    for render in mm["products"].values():
+        assert render["demo-t0000-c0000.img"][:16] in section
+
+
+def test_risk_g_neither_the_digits_nor_the_instant_alone_is_isolated():
+    (r,) = [r for r in RECORDS if r["risk"] == "G"]
+    mm = r["measured"]
+    assert r["configuration"]["demo"] == "Balfour2" and r["source"] == "~/r45scratch/runs" and mm["threads"] == 2
+    assert mm["repeatable"] and mm["result"] == "not isolated" and m.record_problems(r) == []
+    assert all(mm["equal_to_round_44"].values())                        # two threads give round 44's eight-thread bytes
+    # The Sun follows the instant: the instant-held pairs' Sun Exposure means agree to 1e-5, the digits-held pairs' do not.
+    sun = {x: v["sun_exposure"] for x, v in mm["means"].items()}
+    assert all(abs(sun[a] - sun[b]) < 1e-5 for a, b in mm["instant_held"])
+    assert all(abs(sun[a] - sun[b]) > 0.1 for a, b in mm["digits_held"])
+    for verdict in ("written digits", "instant"):
+        bad = copy.deepcopy(r)
+        bad["measured"]["result"] = verdict
+        assert any("result does not follow" in p for p in m.record_problems(bad))
+    bad = copy.deepcopy(r)                                              # every digits-held pair made equal: written digits
+    for a, b in bad["measured"]["digits_held"]:
+        bad["measured"]["products"][b] = bad["measured"]["products"][a]
+    bad["measured"]["result"] = "written digits"
+    assert m.record_problems(bad) == []
+    bad = copy.deepcopy(r)
+    bad["measured"]["written"]["p00-1200"] = "2008-07-01T13:00:00.0000+00:00"
+    assert any("not the same digits at two offsets" in p for p in m.record_problems(bad))
+    bad = copy.deepcopy(r)
+    bad["measured"]["written"]["p09-0200"] = "2008-07-02T03:00:00.0000+09:00"
+    assert any("not the same instant at two offsets" in p for p in m.record_problems(bad))
+    doc = (ROOT / "docs" / "DIRSIG_layered_comparison.md").read_text()
+    section = doc.split("## The `.tasks` reference time: written digits or instant (D-2, round 45)", 1)[1].split("\n## ", 1)[0]
+    assert "`not isolated`" in section and "therm_weather.html" in section
     for render in mm["products"].values():
         assert render["demo-t0000-c0000.img"][:16] in section

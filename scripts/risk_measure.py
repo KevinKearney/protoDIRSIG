@@ -18,9 +18,11 @@ must not change how the SDK launches a job); this script only keeps and checks w
 - E: differences between repeat renders, and between thread counts, at DIRSIG's default thread count.
 - F (round 44, D-2): whether a thermal render depends on the instant only or also on the UTC offset in which the
   `.tasks` reference time is written: one instant written at several offsets, the first offset rendered twice.
+- G (round 45, D-2): whether the render follows the written clock digits or the instant: at a pinned thread count, a
+  repeat pair, pairs with the same digits at different offsets and pairs with the same instant at different offsets.
 
 A record (one JSON object per line, sorted by risk, then id), in this key order:
-`risk` (A to F), `id` (unique within the risk), `configuration` (what was run: job, size, threads, seed, HOME and so
+`risk` (A to G), `id` (unique within the risk), `configuration` (what was run: job, size, threads, seed, HOME and so
 on), `method` (how it was measured, one sentence or more), `measured` (the quantities; the members each risk requires are
 in `REQUIRED`), `tools` (`dirsig`, the DIRSIG version, and whatever else the method used, for example `dirfm` or
 `strace`), `date` (YYYY-MM-DD) and `source` (where the raw data was, home-relative, outside the repository).
@@ -30,7 +32,10 @@ A risk B record whose id is `limit-model` or ends in `-limit-model` (one per hos
 Derived numbers are checked against the record's own values, the way `scripts/s2s_measure.py --check` recomputes its
 expected values: A's `digests_equal` against its `products`, B's job count, throughput and limit, C's cancel fraction,
 D's per-capture equality list, E's differing fraction, F's repeatability and result (every written time
-the stated instant; `repeatable` from the repeat pair's digests; `result` from the compared products' digests).
+the stated instant; `repeatable` from the repeat pair's digests; `result` from the compared products' digests), G's
+pairs and result (each digits-held pair the same clock digits at two offsets, each instant-held pair the same instant at
+two offsets; `repeatable` from the repeat pair's digests; `result` from the pairs' digests: `written digits` when every
+digits-held pair is equal and every instant-held pair differs, `instant` for the reverse, otherwise `not isolated`).
 """
 import argparse
 import json
@@ -44,7 +49,8 @@ RESULTS = ROOT / "docs" / "data" / "risk_measurements.jsonl"
 RECORD_KEYS = ("risk", "id", "configuration", "method", "measured", "tools", "date", "source")
 RISKS = {"A": "layered jobs and the user's HOME", "B": "concurrency and memory", "C": "DIRSIG cancel",
          "D": "one capture per task window (C-43)", "E": "default-thread determinism",
-         "F": "the .tasks reference time's UTC offset (D-2)"}
+         "F": "the .tasks reference time's UTC offset (D-2)",
+         "G": "the .tasks reference time: written digits or instant (D-2)"}
 NUMBER = (int, float)
 # The members each risk's `measured` must hold, with their types; a record may hold more.
 REQUIRED = {
@@ -59,8 +65,11 @@ REQUIRED = {
           "max_rel": NUMBER},
     "F": {"instant": str, "written": dict, "repeat": list, "compared": list, "products": dict, "repeatable": bool,
           "result": str},
+    "G": {"written": dict, "threads": int, "repeat": list, "digits_held": list, "instant_held": list, "compared": list,
+          "products": dict, "repeatable": bool, "result": str},
 }
 F_RESULTS = ("instant only", "offset dependent", "not decidable")
+G_RESULTS = ("written digits", "instant", "not isolated", "not decidable")
 
 
 def load_results(path=RESULTS):
@@ -164,6 +173,53 @@ def derived_problems(kind, m):
             p.append("max_abs is zero exactly when nothing differs")
     elif kind == "F":
         p += _offset_problems(m)
+    elif kind == "G":
+        p += _digits_or_instant_problems(m)
+    return p
+
+
+def _split_time(s):
+    """(clock digits, offset, instant) of an ISO 8601 time with a `+hh:mm` or `-hh:mm` offset."""
+    from datetime import datetime
+    if not (isinstance(s, str) and re.fullmatch(r".+[+-]\d\d:\d\d", s)):
+        raise ValueError(s)
+    return s[:-6], s[-6:], datetime.fromisoformat(re.sub(r"(\.\d+)(?=[+-]\d\d:\d\d$)", "", s)).timestamp()
+
+
+def _digits_or_instant_problems(m):
+    """Risk G: the pairs are what they are named, and `repeatable` and `result` follow from the digests."""
+    labels = list(m["written"])
+    try:
+        parts = {x: _split_time(s) for x, s in m["written"].items()}
+    except ValueError:
+        return ["a written time is not an ISO 8601 time with an offset"]
+    pairs = [m["repeat"]] + m["digits_held"] + m["instant_held"]
+    if set(m["products"]) != set(labels) or not m["digits_held"] or not m["instant_held"] or \
+            any(not (isinstance(q, list) and len(q) == 2 and set(q) <= set(labels)) for q in pairs):
+        return ["products, written and the pairs do not name the same renders"]
+    if not m["compared"] or any(f not in m["products"][x] for f in m["compared"] for x in labels):
+        return ["a compared product is missing from a render"]
+    p = []
+    if m["written"][m["repeat"][0]] != m["written"][m["repeat"][1]]:
+        p.append("the repeat pair's written times differ")
+    for a, b in m["digits_held"]:
+        if parts[a][0] != parts[b][0] or parts[a][1] == parts[b][1]:
+            p.append(f"digits-held pair {a}, {b}: not the same digits at two offsets")
+    for a, b in m["instant_held"]:
+        if parts[a][2] != parts[b][2] or parts[a][1] == parts[b][1]:
+            p.append(f"instant-held pair {a}, {b}: not the same instant at two offsets")
+
+    def same(a, b):
+        return all(m["products"][a][f] == m["products"][b][f] for f in m["compared"])
+    if m["repeatable"] != same(*m["repeat"]):
+        p.append("repeatable does not follow from the repeat pair's digests")
+    digits = [same(a, b) for a, b in m["digits_held"]]
+    instant = [same(a, b) for a, b in m["instant_held"]]
+    result = "not decidable" if not m["repeatable"] else \
+        "written digits" if all(digits) and not any(instant) else \
+        "instant" if all(instant) and not any(digits) else "not isolated"
+    if m["result"] not in G_RESULTS or m["result"] != result:
+        p.append(f"result does not follow from the digests (they give {result!r})")
     return p
 
 

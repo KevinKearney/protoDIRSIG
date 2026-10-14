@@ -13,7 +13,7 @@ those blocks with a fresh generation, so a number in a block cannot drift from t
 - `git` history: the rounds 28 to 36 (commit ranges in `ROUNDS`, the files each added);
 - `docs/data/s2s_results.jsonl` with `manifold_run_specs/s2s/index.json` (each spec's range, exposure, look, phase)
   and `manifold_sensors/auror-nir.yaml` (the aperture and focal length behind the cone factor);
-- `docs/data/risk_measurements.jsonl` (risks A to F);
+- `docs/data/risk_measurements.jsonl` (risks A to G);
 - tables of committed documents, taken cell for cell: the SatSim parity results and the integration statement of
   `docs/Space_to_space_characterization.md`, the transfer survey and its comparisons in
   `docs/DIRSIG_transfer_scenes.md`, the foxbat rows of `docs/DIRSIG_layered_comparison.md`;
@@ -417,6 +417,22 @@ def risk_f_block():
     return table(cols + ["Equal to the first render", "Result"], rows)
 
 
+def risk_g_block():
+    rows = []
+    for r in risks("G"):
+        m = r["measured"]
+        same = lambda a, b: all(m["products"][a][c] == m["products"][b][c] for c in m["compared"])  # noqa: E731
+        for held, pairs in (("everything (repeat)", [m["repeat"]]), ("digits", m["digits_held"]),
+                            ("instant", m["instant_held"])):
+            for a, b in pairs:
+                rows.append([f"`{r['id']}`", held, f"`{m['written'][a]}`", f"`{m['written'][b]}`",
+                             f"`{m['products'][a][m['compared'][0]][:16]}…`",
+                             f"`{m['products'][b][m['compared'][0]][:16]}…`", "yes" if same(a, b) else "no", m["result"]])
+    first = risks("G")[0]["measured"]["compared"][0] if risks("G") else "image"
+    return table(["Record", "Held", "Written (first)", "Written (second)", f"`{first}` sha256 (first)",
+                  f"`{first}` sha256 (second)", "Byte-identical", "Result"], rows)
+
+
 # ---------------------------------------------------------------- section 2: transfer scenes and foxbat
 
 def transfer_block():
@@ -484,6 +500,7 @@ BLOCKS = {
     "risk-d": risk_d_block,
     "risk-e": risk_e_block,
     "risk-f": risk_f_block,
+    "risk-g": risk_g_block,
     "transfer": transfer_block,
     "foxbat": foxbat_block,
     "manifold": manifold_block,

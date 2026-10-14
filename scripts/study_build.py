@@ -129,6 +129,11 @@ RISK_REPRODUCE = {
           "as one instant at three offsets, the pass-through runner with a per-run HOME", None, "manual",
           "the scratch scripts that rewrote the reference time and compared the images (`d2.py`, `cmp.py`, the "
           "record's `method`) are not in the repository; each render takes about 5 s"),
+    "G": ("the record's `configuration`: Balfour2 from the installation's archive, the `.tasks` reference time written "
+          "as two pairs with the same digits and two with the same instant, at two threads, the pass-through runner with "
+          "a per-run HOME", None, "manual",
+          "the scratch scripts that rewrote the reference time and compared the images (`g.py`, `cmp.py`, the "
+          "record's `method`) are not in the repository; each render takes about 9 s at two threads"),
 }
 
 
