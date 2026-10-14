@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:manifold:schema:dummy-engine:1",
+  "title": "dummy-engine/1 (test fixture)",
+  "description": "The dummy engine's block: how many frames to write, how long each takes, an optional label and a deliberate failure.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["steps"],
+  "properties": {
+    "steps": {"description": "Frames to write.", "type": "integer", "minimum": 1, "maximum": 50},
+    "sleep_s": {"description": "Seconds per frame.", "type": "number", "minimum": 0},
+    "label": {"description": "A label written into each frame; no whitespace (the semantic rule).", "type": "string"},
+    "fail": {"description": "Exit with status 3 after the frames, without the end-of-run marker.", "type": "boolean"}
+  }
+}

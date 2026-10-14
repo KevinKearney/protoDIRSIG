@@ -1,0 +1,27 @@
+# A fake two-entry manifest of 16 x 16 jobs for scripts/bigger_host_run.py's tests and this host's check
+# (docs/Bigger_host_plan.md, "Validation on the 4-core laptop"); results go under the work root, never into docs/data/.
+schema: bigger-host-manifest/1
+entries:
+  - name: fake-s2s-16px
+    driver: s2s
+    source: test
+    results: "{work}/fake_s2s_results.jsonl"
+    check: the records have s2s_measure's keys and the index's run ids
+    roi: 16
+    est_s: 3
+    items:
+      - s2s-hyperresolved-r25km-v0mps-e5ms-l0-z0-d0
+      - s2s-hyperresolved-r12p5km-v0mps-e5ms-l0-z0-d0
+      - s2s-hyperresolved-r50km-v0mps-e5ms-l0-z0-d0
+
+  - name: fake-concurrency-16px
+    driver: concurrency
+    source: test
+    results: "{work}/fake_risk_measurements.jsonl"
+    check: risk_measure.check on the results file
+    risk: B
+    id_prefix: fake
+    spec: s2s-hyperresolved-r25km-v0mps-e5ms-l0-z0-d0
+    roi: 16
+    est_s: 3
+    items: [1, 2]

@@ -1,0 +1,588 @@
+"""The DIRSIG interpreter of a run spec: resolve a `dirsig-engine/1` engine block for a run (`resolve_run`).
+
+Narrow by design: it resolves what the repository's run specs use (one scene, `new_atmosphere` with SPICE ephemeris
+and a library weather file, or a `basic` atmosphere stated as `uniform` or `simple` values, static or orbit motion) and refuses the
+rest with a `RunSpecError`. It is not a general `dirsig-engine/1` interpreter.
+
+Renamed in phase 2b-3 (the old names stay as deprecated aliases of the same objects, for the notebooks):
+`resolve_auror_run` is `resolve_run`, `AurorRun` is `ResolvedRun`, `AUROR_ATMOSPHERE_BACKEND` is
+`NEW_ATMOSPHERE_BACKEND`.
+
+Two resolution roots, one per kind of thing referenced:
+- `config_repo`: the engine-asset library (CONOPS and Guide §5; Configuration_v02 A.8)
+  for `engine.scenes`, `platform`, `atmosphere.database` and `weather.file`. Each ref name is a path
+  under it, with no fallback search.
+- `sensor_library`: the sensor library (`manifold_sensors/`), for the `descriptor.sensor` ref (see below).
+Nothing resolves against a received run tree. MANIFOLD has none: the executor materializes a fresh
+run tree from the run spec for every run (Configuration_v02 §2).
+
+`descriptor.sensor` is a `sensor-spec/1` ref (CONOPS and Guide §4), or the sensor-spec's `sensor` block in place
+(`compose(..., inline_sensor=True)`). Unlike every `engine` ref, the ref resolves against `sensor_library`, not
+`config_repo`. The ref name is a path under the library (`auror-nir.yaml`). The default library is
+`manifold_sensors/`, a sibling of the folder holding the run spec; an inline block still takes its spectral curves
+from it. The sensor is loaded and checked here, and `platform_gen` renders the job's `.platform` from it and the
+run spec's `settings`.
+
+What it drives: `engine.scenes`, `platform`, `atmosphere`, `weather`, `ephemeris` and
+`run.seed` name existing library files that the `scene_ref`, `platform_ref` and
+`atmosphere_patches` helpers reference as-is, except `atmosphere.uniform` and `atmosphere.simple` (proposed): their
+values are written into the job's `.atm` by `basic_atmosphere`, with the weather inside it and, when it fixes the Sun, no
+ephemeris plugin. `engine.motion` and `engine.tasks` are generated,
+not resolved: `ResolvedRun` carries their values, and `motion_tasks` writes the `.ppd` and `.tasks`
+files from them. Two motion forms are generated: `kind: static` with a scene-frame position and a `sceneenu`
+Euler orientation (a `.ppd`), and `kind: orbit` (proposed): a TLE propagated over a window into ECEF waypoints,
+pointed by a LookAt at a scene ENU point with the along-track `up` (a FlexMotion `.motion`). Anything else is
+refused. The orbit form's TLE and Earth-orientation tables are library files under `config_repo` (`orbit/`),
+hash-verified like every other engine ref.
+
+Imports: the standard library, `yaml`, `lxml` and pure `manifold.core` modules; the generic loading, sensor-spec and hash
+checks are `manifold.core.run_spec`'s, re-exported here. The `dirfm`-bound plugin classes
+(`atmosphere_patches`, `platform_ref`) are imported inside `ResolvedRun.atmosphere_plugin` and `ephemeris_plugin`, the
+only places a job's plugins are built, so loading, resolving, checking and composing a run spec load no engine
+package (tests/test_import_boundary.py).
+
+Loading is `manifold.core.run_spec.load_run_spec`, a plain `yaml.safe_load`: a duplicated key in the YAML silently
+keeps the last value (the strict loader of `AV_MANIFOLD_Metadata_v02.md` §6.15 rejects it; not built). Unknown keys are
+refused by the schema check at admission and run ids are canonical-JSON hashes (`manifold.core.identity`); see that
+module's docstring. A stamped hash
+(`scripts/stamp_hashes.py`) is verified when the reference is resolved: on a file ref the sha256 of the file bytes, on
+a `.scene` ref the `dirhash/1` digest of the scene directory (`manifold.core.dirhash`), since the geometry and materials
+sit beside the `.scene` file. The `sha256:<hash>` placeholder is not verified.
+"""
+import copy
+import os
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+
+import lxml.etree as et
+
+from manifold.core.dirhash import directory_digest  # noqa: F401  (a name of the former module)
+from manifold.core.errors import ProblemError  # noqa: F401  (a name of the former module)
+from manifold.core.run_spec import (PLACEHOLDER, LibraryProblem, RunSpecError, _check_settings_roi, _member,  # noqa: F401
+                                    _pointer, _root_file, _verify_directory_hash, _verify_hash,  # noqa: F401
+                                    default_sensor_library, is_inline_sensor, load_run_spec, load_sensor_spec,  # noqa: F401
+                                    sha256_file, unstamped_refs)  # noqa: F401
+from manifold.engines.dirsig.scene_ref import working_folder_files
+
+
+# dirfm-bound names, imported only when a job is built (ResolvedRun.atmosphere_plugin, ephemeris_plugin), so loading,
+# resolving and composing a run spec needs no engine package. `from manifold.engines.dirsig.run_spec import <name>` works.
+_ENGINE_BOUND = {"BasicAtmosphereFilePlugin": __package__ + ".atmosphere_patches",
+                 "PatchedModtranTapeBackend": __package__ + ".atmosphere_patches",
+                 "PatchedNewAtmospherePlugin": __package__ + ".atmosphere_patches",
+                 "SpiceEphemerisPlugin": __package__ + ".platform_ref"}
+
+
+def __getattr__(name):                         # PEP 562: the engine-bound names, loaded on first use
+    if name in _ENGINE_BOUND:
+        import importlib
+        return getattr(importlib.import_module(_ENGINE_BOUND[name]), name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+# The received jsim's MODTRAN-tape recipe: what atm_builder would use to rebuild the database.
+# The render reads the existing HDF5 database, not this block, and the run
+# spec has no field for it, so it is fixed here as part of the `new_atmosphere` special case.
+NEW_ATMOSPHERE_BACKEND = {"profile": "New Profile", "atmospheric_model": "MidLatitudeSummer",
+                            "boundary_aerosol_model": "RuralVis23Km", "multiple_scattering": "Isaac"}
+
+
+@dataclass(frozen=True)
+class ResolvedRun:
+    """The run spec's values: engine assets resolved to manifold_config_repo files, and the values the
+    motion and tasks files are generated from (`motion_tasks`)."""
+    name: str
+    origin: dict
+    scene: Path
+    scene_offset: list
+    platform: Path
+    motion_position: list    # engine.motion.position.xyz, scene frame, metres
+    motion_orientation: dict # engine.motion.orientation.euler: order, units, angles (frame is sceneenu)
+    tasks_windows: list      # [(start, stop)] seconds relative to `epoch`
+    epoch: datetime          # descriptor.collection.epoch, timezone-aware UTC
+    output_prefix: str
+    split_channels: bool
+    integration_samples: int
+    atmosphere_db: Path
+    weather: Path
+    ephemeris: str
+    seed: int
+    sensor: dict             # the loaded sensor-spec/1 document; `platform_gen` renders the job's .platform from it
+    settings: list           # descriptor.settings: one member, for the sensor entry the job models
+    sensor_library: Path     # resolution root for the sensor-spec and its spectral curves
+    channel_response: str = "tabulated"   # engine.platform.channel_response: tabulated | native (platform_gen)
+    motion_kind: str = "static"           # engine.motion.kind: static | orbit
+    orbit: dict | None = None             # kind orbit: tle, earth_orientation (Paths), propagator, window_start,
+                                          # window_duration, waypoint_spacing (s), lookat_target (scene ENU, m),
+                                          # up ("along_track"), scene_origin (lat, lon deg, from the .scene)
+    uniform_atmosphere: dict | None = None  # engine.atmosphere.uniform (plugin basic): the values the job's .atm is
+                                            # written from (basic_atmosphere); atmosphere_db and weather are then None
+    simple_atmosphere: dict | None = None   # engine.atmosphere.simple (plugin basic): as uniform_atmosphere, with
+                                            # DIRSIG's SimpleAtm radiative transfer (basic_atmosphere.write_simple_atm)
+    platform_as_authored: bool = False      # engine.platform.as_authored: `platform` is copied into the job as it is,
+                                            # not rendered from the sensor-spec (integration_samples is then None)
+    working_folder: tuple = ()              # ((name, library file)): files DIRSIG looks for in the working folder,
+                                            # copied there by the job (scene_ref.working_folder_files); each listed in
+                                            # engine.working_folder with its library ref, so the run id covers it
+
+    def atmosphere_plugin(self, db=None):
+        """`NewAtmosphere` over `db`, or over the resolved library database if not given. Pass the job's
+        copy of the database so the jsim references it rather than the read-only original. For a uniform or simple
+        atmosphere, `BasicAtmosphere` over `db`, the job's written `.atm` (`basic_atmosphere`)."""
+        if self.uniform_atmosphere is not None or self.simple_atmosphere is not None:
+            from manifold.engines.dirsig.atmosphere_patches import BasicAtmosphereFilePlugin
+            if db is None:
+                raise ValueError("a uniform atmosphere has no library file: pass the job's written .atm")
+            return BasicAtmosphereFilePlugin(Path(db))
+        from manifold.engines.dirsig.atmosphere_patches import PatchedModtranTapeBackend, PatchedNewAtmospherePlugin
+        b = NEW_ATMOSPHERE_BACKEND
+        backend = (PatchedModtranTapeBackend().set_profile(b["profile"])
+                   .set_atmospheric_model(b["atmospheric_model"])
+                   .set_boundary_aerosol_model(b["boundary_aerosol_model"])
+                   .set_multiple_scattering(b["multiple_scattering"]))
+        return (PatchedNewAtmospherePlugin(Path(db) if db is not None else self.atmosphere_db)
+                .set_backend(backend).set_info("", "", "", ""))
+
+    def ephemeris_plugin(self):
+        """`SpiceEphemeris`, or None when the run names no ephemeris plugin (a uniform atmosphere with a fixed
+        ephemeris: DIRSIG sets the Sun from the `.atm`)."""
+        if self.ephemeris is None:
+            return None
+        from manifold.engines.dirsig.platform_ref import SpiceEphemerisPlugin
+        return SpiceEphemerisPlugin()
+
+
+def _scene_file(config_repo, ref_name, ref=None, pointer=None):
+    # The ref names the `.scene` file itself in the library layout, `scenes/<scene>/<scene>.scene`
+    # (Configuration_v02 A.8.3; guide §9), with geometry/, materials/ and maps/ beside it. No
+    # fallback search: the earlier nested-then-flat guess against the received tree is gone. A stamped hash is the
+    # `dirhash/1` digest of the directory holding the `.scene` file (manifold.core.dirhash), verified here.
+    path = _root_file(config_repo, ref_name, "scene", pointer=pointer)
+    _verify_directory_hash(path.parent, ref, "scene", pointer)
+    return path
+
+
+def _scene_origin(scene_path):
+    """(latitude, longitude) in degrees of the scene's `<sceneorigin>`: the origin of its ENU frame."""
+    loc = et.parse(str(scene_path)).getroot().find("sceneorigin/location")
+    if loc is None or loc.get("frame") != "geodetic":
+        raise RunSpecError(f"scene {scene_path.name}: no geodetic <sceneorigin><location>; an orbit's LookAt target "
+                           "and up vector are stated in the scene ENU frame, which needs it")
+    return float(loc.findtext("latitude")), float(loc.findtext("longitude"))
+
+
+def black_level_problem(setting):
+    """Why a `settings` member's `black_level` is refused for a DIRSIG run, or None. It is written as the channel's
+    `bias`, which DIRSIG adds before the focal-plane conversion (the image moves by bias / G#), so a non-zero value
+    gives an image in unphysical units with no signal behind it. Absent or zero is accepted; gain is not restricted."""
+    level = setting.get("black_level")
+    value = level.get("value") if isinstance(level, dict) else level
+    if value in (None, 0):
+        return None
+    return (f"is {value!r}: DIRSIG applies it as the channel bias before the focal-plane conversion, so a non-zero "
+            "black level yields an image in unphysical units without any signal; use 0 or omit it")
+
+
+PLATFORM_SETTINGS = ("exposure_time", "frame_rate", "gain", "black_level")
+
+
+def missing_settings_problems(settings):
+    """A `LibraryProblem` for each member the job's platform needs that a `settings` member lacks: `exposure_time`,
+    `frame_rate`, `gain` and `black_level` (round 41; before, `render_platform` raised a bare `KeyError`). An absent
+    `black_level` is refused, as at review-r27: round 41 wrote it as 0, but such a spec has a run id other than the same
+    spec with an explicit 0 for one and the same job, so round 43 restored the refusal."""
+    out = []
+    for i, s in enumerate(settings):
+        for name in PLATFORM_SETTINGS:
+            if not isinstance(s, dict) or s.get(name) is None:
+                entry = s.get("entry_id") if isinstance(s, dict) else None
+                out.append(LibraryProblem(
+                    f"descriptor.settings[{i}] (entry {entry!r}) has no {name!r}: every settings member of a DIRSIG run "
+                    f"states exposure_time, frame_rate, gain and black_level",
+                    f"/descriptor/settings/{i}"))
+    return out
+
+
+def check_settings_black_level(settings):
+    for i, s in enumerate(settings):
+        problem = black_level_problem(s)
+        if problem:
+            raise RunSpecError(f"descriptor.settings[{i}].black_level {problem}")
+
+
+def resolve_run(spec, run_spec_path, config_repo, sensor_library=None):
+    """Resolve a loaded run spec: engine assets against `config_repo`, the sensor ref against
+    `sensor_library` (default: `default_sensor_library(run_spec_path)`), and the motion/tasks
+    values the generator needs. Returns a `ResolvedRun`."""
+    config_repo = Path(config_repo)
+    if sensor_library is None:
+        sensor_library = default_sensor_library(run_spec_path)
+    eng = spec["engine"]
+    atm = eng["atmosphere"]
+    if atm.get("plugin") == "basic" and "uniform" in atm and "simple" in atm:
+        raise RunSpecError("engine.atmosphere has both `uniform` and `simple`: a .atm has one radiative-transfer form",
+                           pointer="/engine/atmosphere/simple")
+    uniform = _resolve_uniform_atmosphere(eng) if atm.get("plugin") == "basic" and "uniform" in atm else None
+    simple = (_resolve_uniform_atmosphere(eng, member="simple") if atm.get("plugin") == "basic" and "simple" in atm
+              else None)
+    written = uniform if uniform is not None else simple           # the values of the job's written .atm, if any
+    if written is None and atm.get("plugin") != "new_atmosphere":
+        raise RunSpecError(
+            f"engine.atmosphere.plugin is {atm.get('plugin')!r}; this loader handles 'new_atmosphere', the "
+            "non-adopted extension the AUROR_ref spec uses (guide §6), and 'basic' with `uniform` or `simple` (a .atm "
+            "written from stated values). It is not a general dirsig-engine/1 interpreter, so 'four_curve' and 'basic' "
+            "with a file are not supported here.", pointer="/engine/atmosphere/plugin")
+    ephemeris = eng.get("ephemeris", {}).get("plugin")
+    if written is not None and "fixed_ephemeris" in written:
+        ephemeris = None                     # the .atm's fixed ephemeris; _resolve_uniform_atmosphere refused a plugin
+    elif ephemeris != "spice":
+        raise RunSpecError(f"engine.ephemeris.plugin is {ephemeris!r}; only 'spice' (no inputs) is handled",
+                           pointer="/engine/ephemeris/plugin")
+    if len(eng["scenes"]) != 1:
+        raise RunSpecError(f"expected one engine.scenes entry, got {len(eng['scenes'])}", pointer="/engine/scenes")
+    weather = eng.get("weather")
+    if written is None and (weather is None or weather.get("source") != "library"):
+        raise RunSpecError(f"engine.weather must be a library file for this tree, got {weather!r}",
+                           pointer="/engine/weather/source" if isinstance(weather, dict) and "source" in weather
+                           else "/engine/weather")
+
+    # Motion and tasks are generated with dirfm (motion_tasks): PlatformPosition writes a static .ppd, FlexMotion an
+    # orbit's waypoint .motion, TASKS one .tasks file. Schema-valid values they cannot express are refused.
+    motion = eng["motion"]
+    kind = motion.get("kind")
+    if kind == "static":
+        if motion.get("position", {}).get("frame") != "scene":
+            raise RunSpecError(f"engine.motion.position.frame is {motion.get('position', {}).get('frame')!r}; "
+                               "dirfm PlatformPosition writes only scene-frame locations ('scene')")
+        orient = motion.get("orientation", {})
+        if orient.get("kind") != "euler":
+            raise RunSpecError(f"engine.motion.orientation.kind is {orient.get('kind')!r}; static motion takes only "
+                               "'euler' here ('lookat' is generated, with dirfm FlexMotion, for kind 'orbit')")
+        euler = orient.get("euler", {})
+        if euler.get("frame") != "sceneenu":
+            raise RunSpecError(f"engine.motion.orientation.euler.frame is {euler.get('frame')!r}; dirfm "
+                               "PlatformPosition hardcodes rotationframe='sceneenu'")
+    elif kind == "orbit":
+        orbit_values = _resolve_orbit(motion, eng, config_repo)
+    else:
+        raise RunSpecError(
+            f"engine.motion.kind is {kind!r}; this loader generates 'static' (dirfm PlatformPosition) and 'orbit' "
+            "(a TLE propagated to ECEF waypoints, dirfm FlexMotion). 'waypoints' (authored samples) is not built.")
+    epoch = datetime.fromisoformat(str(spec["descriptor"]["collection"]["epoch"]).replace("Z", "+00:00"))
+    if epoch.tzinfo is None:                 # dirfm TASKS writes a malformed offset for a naive datetime
+        raise RunSpecError(f"descriptor.collection.epoch {epoch.isoformat()!r} has no UTC offset",
+                           pointer="/descriptor/collection/epoch")
+
+    scene, plat = eng["scenes"][0], eng["platform"]
+    as_authored = plat.get("as_authored", False) is True
+    if as_authored:
+        for member in ("channel_response", "integration_samples"):
+            if member in plat:
+                raise RunSpecError(f"engine.platform.{member} is given with as_authored: the platform file is used as "
+                                   "authored, not rendered from the sensor-spec, so the value would not be applied",
+                                   pointer=f"/engine/platform/{member}")
+    channel_response = plat.get("channel_response", "tabulated")
+    if channel_response not in ("tabulated", "native"):
+        raise RunSpecError(f"engine.platform.channel_response is {channel_response!r}; expected 'tabulated' or 'native'",
+                           pointer="/engine/platform/channel_response")
+    if plat.get("split_channels") and written is None:
+        # One spectral state per channel; the NewAtmosphere database has states for the focal plane's bandpass
+        # only. The dry run passes and the render fails ("Missing spectral/temporal state"), so refuse it here.
+        raise RunSpecError("engine.platform.split_channels true is not handled with new_atmosphere: the database "
+                           "holds no per-channel spectral states, so the render fails after the dry run passes")
+    desc = spec["descriptor"]
+    sensor = desc.get("sensor")
+    if is_inline_sensor(sensor):
+        sensor_name = f"{desc['meta']['name']} (inline)"
+        sensor_doc = {"spec_version": "sensor-spec/1", "meta": {"name": sensor_name}, "sensor": sensor}
+    else:
+        ref = sensor.get("ref") if isinstance(sensor, dict) else None
+        sensor_name = ref.get("name") if isinstance(ref, dict) else None
+        if not isinstance(sensor_name, str):
+            raise RunSpecError("descriptor.sensor must be a sensor-spec/1 ref ({ref: {name: <name>.yaml}}) or an inline "
+                               f"sensor block (sensor_system, entries), got {sensor!r:.80}")
+        if (Path(sensor_library) / sensor_name).is_file():
+            _verify_hash(Path(sensor_library) / sensor_name, ref, "sensor-spec", "/descriptor/sensor/ref")
+        try:
+            sensor_doc = load_sensor_spec(sensor_library, sensor_name)
+        except RunSpecError as e:
+            e.pointer = e.pointer or "/descriptor/sensor/ref/name"
+            raise
+    entries = sensor_doc["sensor"].get("entries") or []
+    if len(entries) != 1:
+        raise RunSpecError(f"sensor {sensor_name!r} has {len(entries)} entries; one sensor entry per job is "
+                           "generated (one run spec per sensor, CONOPS C-18)")
+    planes = entries[0].get("focal_planes") or []
+    if len(planes) != 1:
+        raise RunSpecError(f"sensor entry {entries[0].get('entry_id')!r} has {len(planes)} focal planes; one focal "
+                           "plane per entry is generated")
+    settings = desc.get("settings")
+    if not isinstance(settings, list) or len(settings) != 1:
+        got = f"{len(settings)} members" if isinstance(settings, list) else repr(settings)
+        raise RunSpecError(f"descriptor.settings must have one member (one sensor entry per job); got {got}")
+    _check_settings_roi(settings, sensor_doc)
+    check_settings_black_level(settings)
+    scene_path = _scene_file(config_repo, scene["ref"]["name"], scene["ref"], "/engine/scenes/0/ref")
+    if kind == "orbit":
+        orbit_values["scene_origin"] = _scene_origin(scene_path)
+    platform_path = _root_file(config_repo, plat["ref"]["name"], "platform", plat["ref"], "/engine/platform/ref")
+    return ResolvedRun(
+        name=desc["meta"]["name"],
+        origin=dict(desc["origin"]),
+        scene=scene_path,
+        scene_offset=list(scene.get("offset", [0, 0, 0])),
+        platform=platform_path,
+        motion_position=[float(v) for v in motion["position"]["xyz"]] if kind == "static" else None,
+        motion_orientation={"order": euler["order"], "units": euler["units"],
+                            "angles": [float(v) for v in euler["angles"]]} if kind == "static" else None,
+        tasks_windows=[(float(w["start"]), float(w["stop"])) for w in eng["tasks"]["windows"]],
+        epoch=epoch.astimezone(timezone.utc),
+        output_prefix=plat["output_prefix"],
+        split_channels=bool(plat["split_channels"]),
+        integration_samples=None if as_authored else int(plat["integration_samples"]),
+        atmosphere_db=None if written is not None else _root_file(
+            config_repo, atm["database"]["ref"]["name"], "atmosphere database", atm["database"]["ref"],
+            "/engine/atmosphere/database/ref"),
+        weather=None if written is not None else _root_file(config_repo, weather["file"]["name"], "weather file",
+                                                            weather["file"], "/engine/weather/file"),
+        ephemeris=ephemeris,
+        seed=int(eng["run"]["seed"]),
+        sensor=sensor_doc,
+        settings=list(desc["settings"]),
+        sensor_library=Path(sensor_library),
+        channel_response=channel_response,
+        motion_kind=kind,
+        orbit=orbit_values if kind == "orbit" else None,
+        uniform_atmosphere=uniform,
+        simple_atmosphere=simple,
+        platform_as_authored=as_authored,
+        working_folder=_working_folder(eng, config_repo, scene_path, platform_path),
+    )
+
+
+def _working_folder(eng, config_repo, scene, platform):
+    """The `ResolvedRun.working_folder` of a run: the files DIRSIG looks for in the working folder
+    (`scene_ref.working_folder_files`), which `engine.working_folder` (proposed) must list exactly, each as
+    `{name, ref: {name: <its library path>, content_hash}}`, so its bytes are in the run id. A missing, mismatched or
+    unneeded entry is refused. A run whose scene and platform need no such file (every library scene and platform)
+    states none and resolves as before."""
+    stated = {}
+    for i, f in enumerate(eng.get("working_folder") or []):
+        name = f.get("name") if isinstance(f, dict) else None
+        if not isinstance(name, str) or name in stated:
+            raise RunSpecError(f"engine.working_folder[{i}].name is {name!r}: a name, once",
+                               pointer=f"/engine/working_folder/{i}/name")
+        stated[name] = (i, f.get("ref"))
+    library = Path(os.path.normpath(config_repo))
+    out = []
+    for name, source, named_by in working_folder_files(scene, platform):
+        try:
+            rel = Path(os.path.normpath(source)).relative_to(library).as_posix()
+        except ValueError:
+            raise RunSpecError(f"{named_by} names {name}, which DIRSIG looks for in the working folder, and it lies "
+                               f"outside the engine-asset library ({source})", pointer="/engine/scenes/0/ref/name")
+        if name not in stated:
+            raise RunSpecError(f"{named_by} names {name}, which DIRSIG looks for in the job's working folder; list it "
+                               f"in engine.working_folder as {{name: {name}, ref: {{name: {rel}, content_hash}}}}, so "
+                               "the job places it there and the run id covers it", pointer="/engine/working_folder")
+        i, ref = stated.pop(name)
+        if not isinstance(ref, dict) or ref.get("name") != rel:
+            raise RunSpecError(f"engine.working_folder[{i}] ({name}) must reference {rel}, the file {named_by} names; "
+                               f"got {ref!r:.80}", pointer=f"/engine/working_folder/{i}/ref/name")
+        _verify_hash(library / rel, ref, "working-folder file", f"/engine/working_folder/{i}/ref")
+        out.append((name, library / rel))
+    for name, (i, _) in sorted(stated.items(), key=lambda kv: kv[1][0]):
+        raise RunSpecError(f"engine.working_folder[{i}] is {name}, a file DIRSIG does not look for in this job's "
+                           "working folder (neither a <filename> of the platform, a geometry list of the scene "
+                           "beside it and outside its gdbdirectory, nor a material-file entry relative to the scene's "
+                           "folder and outside its emsdirectory, nor one the job's scene copy does not hold, names it)", pointer=f"/engine/working_folder/{i}/name")
+    return tuple(out)
+
+
+def _resolve_uniform_atmosphere(eng, member="uniform"):
+    """`engine.atmosphere` of plugin `basic` with `uniform` or, as `member`, `simple` (both proposed): the values the
+    job's `.atm` is written from (`basic_atmosphere`), checked against the other members a BasicAtmosphere job reads its
+    inputs from. The two forms differ in their radiative transfer only, so the rules are the same."""
+    from manifold.engines.dirsig.basic_atmosphere import uniform_problem
+    atm = eng["atmosphere"]
+    uniform = atm[member]
+    if not isinstance(uniform, dict):
+        raise RunSpecError(f"engine.atmosphere.{member} must be a mapping, got {uniform!r}",
+                           pointer=f"/engine/atmosphere/{member}")
+    problem = uniform_problem(uniform)
+    if problem:
+        raise RunSpecError(f"engine.atmosphere.{member} {problem}", pointer=f"/engine/atmosphere/{member}")
+    if "file" in atm:
+        raise RunSpecError(f"engine.atmosphere has both `{member}` and `file`: the job's .atm is written from `{member}`",
+                           pointer="/engine/atmosphere/file")
+    weather = eng.get("weather")
+    if isinstance(weather, dict) and weather.get("source") == "library":
+        raise RunSpecError(f"engine.weather is a library file, but a {member} atmosphere carries its weather in the .atm "
+                           f"({member}.weather); omit engine.weather or state `source: install`",
+                           pointer="/engine/weather/source")
+    if "fixed_ephemeris" in uniform and "ephemeris" in eng:
+        raise RunSpecError(f"engine.ephemeris is given beside engine.atmosphere.{member}.fixed_ephemeris: DIRSIG "
+                           "replaces the .atm's fixed ephemeris with the plugin (SpiceEphemeris), so the stated Sun "
+                           "would be dropped; omit engine.ephemeris", pointer="/engine/ephemeris")
+    return dict(uniform)
+
+
+ORBIT_PROPAGATORS = ("skyfield_sgp4",)    # manifold.core.orbit.PROPAGATOR
+
+
+def _number(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def _resolve_orbit(motion, eng, config_repo):
+    """`engine.motion` of kind `orbit` (proposed): the TLE and Earth-orientation refs resolved and hash-verified
+    against `config_repo`, the window checked to cover every task window, the pointing law checked."""
+    o = motion.get("orbit")
+    if not isinstance(o, dict):
+        raise RunSpecError("engine.motion.orbit is missing: kind 'orbit' needs tle, propagator, earth_orientation, "
+                           "window and waypoint_spacing")
+    if o.get("propagator") not in ORBIT_PROPAGATORS:
+        raise RunSpecError(f"engine.motion.orbit.propagator is {o.get('propagator')!r}; expected one of "
+                           f"{list(ORBIT_PROPAGATORS)}")
+    refs = {}
+    for key, what in (("tle", "orbit TLE"), ("earth_orientation", "Earth-orientation tables")):
+        ref = o.get(key)
+        if not isinstance(ref, dict) or not isinstance(ref.get("name"), str):
+            raise RunSpecError(f"engine.motion.orbit.{key} must be a library ref {{name, content_hash}}, got {ref!r}",
+                               pointer=f"/engine/motion/orbit/{key}")
+        refs[key] = _root_file(config_repo, ref["name"], what, ref, f"/engine/motion/orbit/{key}")
+    w, dt = o.get("window"), o.get("waypoint_spacing")
+    if not (isinstance(w, dict) and _number(w.get("start")) and _number(w.get("duration")) and w["duration"] > 0):
+        raise RunSpecError(f"engine.motion.orbit.window must be {{start, duration}} in seconds, duration > 0; got {w!r}")
+    if not (_number(dt) and dt > 0):
+        raise RunSpecError(f"engine.motion.orbit.waypoint_spacing must be a positive number of seconds, got {dt!r}")
+    n = w["duration"] / dt
+    if abs(n - round(n)) > 1e-9:
+        raise RunSpecError(f"engine.motion.orbit.window.duration {w['duration']} is not a whole number of "
+                           f"waypoint_spacing {dt} steps")
+    lo, hi = float(w["start"]), float(w["start"]) + float(w["duration"])
+    for i, tw in enumerate(eng["tasks"]["windows"]):
+        if not lo <= float(tw["start"]) <= float(tw["stop"]) <= hi:
+            raise RunSpecError(f"engine.tasks.windows[{i}] [{tw['start']}, {tw['stop']}] is outside the orbit window "
+                               f"[{lo}, {hi}]: the platform has no waypoints there")
+    orient = motion.get("orientation", {})
+    look = orient.get("lookat", {}) if isinstance(orient, dict) else {}
+    if orient.get("kind") != "lookat":
+        raise RunSpecError(f"engine.motion.orientation.kind is {orient.get('kind')!r}; kind 'orbit' is pointed by "
+                           "'lookat' (a scene ENU target)")
+    target = look.get("target")
+    if look.get("frame") != "sceneenu" or not (isinstance(target, list) and len(target) == 3
+                                                and all(_number(v) for v in target)):
+        raise RunSpecError(f"engine.motion.orientation.lookat must be {{frame: sceneenu, target: [x, y, z]}}, got {look!r}")
+    if look.get("up") != "along_track":
+        raise RunSpecError(f"engine.motion.orientation.lookat.up is {look.get('up')!r}; only 'along_track' (the "
+                           "horizontal velocity direction at the window centre, held fixed) is generated")
+    return {"tle": refs["tle"], "earth_orientation": refs["earth_orientation"], "propagator": o["propagator"],
+            "window_start": lo, "window_duration": float(w["duration"]), "waypoint_spacing": float(dt),
+            "lookat_target": [float(v) for v in target], "up": "along_track"}
+
+
+def check_library_files(spec, run):
+    """Problems that stop the job's `.platform` from being rendered; empty means it can be.
+
+    The library platform file is a template (`platform_gen`). This checks its structure, then renders it
+    to a scratch directory so a missing spectral curve, a response outside the job's bandpass, or a
+    settings value the generator cannot place is reported here, as a resolution problem, not at execution.
+    """
+    from tempfile import TemporaryDirectory
+
+    from manifold.engines.dirsig.platform_gen import PlatformGenError, check_template, render_platform
+    from manifold.core.spectral import SpectralError
+    if run.platform_as_authored:
+        return [LibraryProblem(b, "/engine/platform/ref") for b in authored_platform_problems(run.platform)]
+    bad = check_template(run.platform)
+    if bad:
+        return [LibraryProblem(b, "/engine/platform/ref") for b in bad]
+    if run.orbit is not None:
+        bad = _check_orbit_files(run.orbit)
+        if bad:
+            return bad
+    bad = missing_settings_problems(run.settings)
+    if bad:
+        return bad
+    try:
+        with TemporaryDirectory() as tmp:
+            render_platform(run.platform, run.sensor, run.settings[0]["entry_id"], run.settings,
+                            run.integration_samples, run.sensor_library, Path(tmp) / "x.platform", run.channel_response)
+    except (PlatformGenError, SpectralError, KeyError) as e:
+        return [f"platform could not be rendered from the sensor-spec: {type(e).__name__}: {e}"]
+    return []
+
+
+def authored_platform_problems(path):
+    """Problems that stop a platform file from being used as authored: it must parse as a DIRSIG `<platform>` with at
+    least one focal plane. Nothing else is checked here; DIRSIG's dry run reads the rest."""
+    try:
+        root = et.parse(str(path)).getroot()
+    except et.XMLSyntaxError as e:
+        return [f"platform {Path(path).name} does not parse: {e}"]
+    if root.tag != "platform":
+        return [f"platform {Path(path).name}: root element <{root.tag}>, expected <platform>"]
+    if root.find(".//focalplane") is None:
+        return [f"platform {Path(path).name} has no <focalplane>"]
+    return []
+
+
+def _check_orbit_files(o):
+    """The orbit's TLE parses and passes its checksums; the Earth-orientation tables load and cover the window."""
+    import numpy as np
+
+    from manifold.core.tle import read_tle
+    problems = []
+    try:
+        read_tle(o["tle"])
+    except (AssertionError, ValueError) as e:
+        problems.append(f"orbit TLE {o['tle'].name} is not a valid two-line element set: {e or 'checksum or format'}")
+    try:
+        arrays = np.load(o["earth_orientation"])
+        missing = {"tt_jd_minus_arange", "delta_t_1e7", "leap_dates", "leap_offsets"} - set(arrays.files)
+        if missing:
+            problems.append(f"Earth-orientation tables {o['earth_orientation'].name} lack {sorted(missing)}")
+    except (OSError, ValueError) as e:
+        problems.append(f"Earth-orientation tables {o['earth_orientation'].name} do not load: {e}")
+    return problems
+
+
+def derive_run_spec(spec, sensor_ref_name, entry_id, roi=None, name=None):
+    """A run spec that images the same scenario as a loaded one with another sensor entry.
+
+    A run spec describes its run completely, so a different sensor is a different run spec; there is no
+    run-time sensor override. `settings` (exposure, frame rate, gain, black level) carry over; `roi`
+    replaces the window when given and is dropped (full frame) when `roi` is `{}`. Composed by
+    `compose.merge`, the one composition path: the loaded spec is split into its recipe, scenario and engine
+    profile in memory, with `channel_response` removed (a derived sensor is rendered tabulated). The sensor ref
+    carries the `sha256:<hash>` placeholder, since no sensor library is named here.
+    """
+    from manifold.core.compose import RULES, merge
+    desc = spec["descriptor"]
+    st = copy.deepcopy(desc["settings"][0])
+    st["entry_id"] = entry_id
+    if roi is not None:
+        st.pop("roi", None)
+        if roi:
+            st["roi"] = dict(roi)
+    recipe = {"compose": RULES, "meta": {**desc["meta"], "name": name or f"{desc['meta']['name']}-{entry_id}"},
+              "sensor": sensor_ref_name, "scenario": None, "engine_profile": None, "settings": [st],
+              "fidelity": desc["fidelity"]}
+    engine = copy.deepcopy(spec["engine"])
+    engine["platform"].pop("channel_response", None)
+    profile = {"origin": desc["origin"], "engine": engine, **({"extras": desc["extras"]} if "extras" in desc else {})}
+    layers = {"recipe": ("derived recipe", recipe), "scenario": ("base spec collection", {"collection": desc["collection"]}),
+              "engine_profile": ("base spec engine profile", profile)}
+    return merge(layers, {"name": sensor_ref_name, "content_hash": "sha256:<hash>"})[0]
+
+
+# Deprecated aliases (phase 2b-3 renames), the same objects, kept for the notebooks.
+resolve_auror_run = resolve_run
+
+
+AurorRun = ResolvedRun
+
+
+AUROR_ATMOSPHERE_BACKEND = NEW_ATMOSPHERE_BACKEND

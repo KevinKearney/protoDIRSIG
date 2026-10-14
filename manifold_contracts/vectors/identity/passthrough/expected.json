@@ -1,0 +1,6 @@
+{
+ "description": "A pass-through run spec (spec.yaml) over the synthetic directory tree/: its dirhash/1 digest (reproducible with the shell pipeline in manifold_contracts/README.md) and its run id (the sha256 of the RFC 8785 canonical JSON of the spec; an opaque descriptor has no sensor to materialize).",
+ "directory": "tree",
+ "digest": "sha256:b8a33875da19893d171a506a605c197e7bc1dd6dbeaa515d9256c250783adfc7",
+ "run_id": "cacae5ac14a9cfd009856892a21e18e3865832828b32fe57b9680e883c4fcdeb"
+}

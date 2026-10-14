@@ -1,0 +1,40 @@
+# Conformance vector (manifold_contracts/vectors/compose): a non-zero black level for a DIRSIG run; expected: an error on that settings field.
+# Recipe (compose/1): the auror_ref scenario, engine and seed imaged by the synthetic VIS camera.
+# scripts/compose.py composes it into manifold_run_specs/synthetic_vis.yaml. Only the sensor, meta, settings entry,
+# fidelity and the engine profile's channel_response (tabulated) differ from recipes/auror_ref.yaml; the scenario
+# is the same layer file. A different sensor is a different run (CONOPS and Guide §4).
+
+compose: compose/1
+
+meta:
+  name: synthetic-vis-static-pose
+  tags: [synthetic, vis, static-pose, hypersonic-target]
+  description: >
+    The auror_ref scene, geometry and atmosphere imaged by the synthetic VIS staring camera
+    (manifold_sensors/synthetic_600_200_vis_1920.yaml): same fixed LEO-altitude position over the Tahoe scene.
+
+sensor: synthetic_600_200_vis_1920.yaml
+scenario: tahoe_static_pose
+engine_profile: tahoe_static_pose
+
+settings:
+  - entry_id: synthetic-600-200-vis-1920
+    exposure_time: {value: 0.005, provenance: specified}   # capturemethod.temporalintegration, 10 samples
+    frame_rate: {value: 1000, provenance: specified}       # detectorarray.clock.rate
+    gain: {value: 1, provenance: specified}                # channel at_gain
+    black_level: {value: 12, provenance: specified}         # channel at_bias
+    roi:                                                   # modeled window, SFNC names; detectorarray.xelementcount / yelementcount
+      Width: 500
+      Height: 500
+      OffsetX: null                                        # position in the full frame; not recorded
+      OffsetY: null
+
+fidelity:
+  modeled: [reflective and emissive radiance, atmospheric transmission and path radiance]
+  approximated: [detector noise, optics blur, sensor spectral response (synthetic QE and optics curves)]
+  absent: [platform jitter]
+  valid_for: >
+    Scene-radiometry and sensor-chain studies at the modeled band, geometry and atmosphere.
+    Not valid for target-visibility studies: the vehicle's material has zero reflectance and its
+    1500 K emission is not evaluated in a 0.41-2.0 um job unless temperature prediction is
+    forced, so the vehicle renders black.

@@ -1,0 +1,655 @@
+"""`Workspace`: the SDK's user-facing class, a facade over any `backend.Backend`.
+
+Every method is an operation of the SDK API (`api/operations.md`, `sdk-api/1`) and returns the typed model generated
+from its schema (`manifold.core.models`); errors are the `errors.ProblemError` family, raised unchanged from the backend.
+`Workspace.local(...)` builds a `LocalBackend`; `Workspace.remote(...)` is phase 3. Two helpers, `wait` and
+`save_artifact`, are built only from the operations and are not part of the contract.
+
+Imports no engine package at module level (the backend's worker process is the only engine-bound code).
+"""
+import hashlib
+import logging
+import os
+import shlex
+import time
+from dataclasses import dataclass
+from pathlib import Path
+
+from manifold.core import _names, models
+from manifold.sim.backend import Backend, LocalBackend
+from manifold.core.compose import MAX_RUNS
+
+REPOSITORY = Path(__file__).resolve().parents[5]   # packages/<dist>/src/manifold/<pkg>/
+FINAL_STATES = ("rendered", "failed", "cancelled")
+
+
+def default_work_root():
+    """The default work root of `Workspace.local`: `$XDG_STATE_HOME/manifold/work`, else
+    `~/.local/state/manifold/work`.
+
+    Run records are identity-keyed results, not a cache, so they live in the state directory, not the cache directory.
+
+    Returns
+    -------
+    pathlib.Path
+        The folder runs are stored under when no `work` is given.
+    """
+    return _state_base() / _names.STATE_DIR_NAME / "work"
+
+
+def _state_base():
+    return Path(os.environ.get("XDG_STATE_HOME") or str(Path.home() / ".local" / "state"))
+
+
+def legacy_work_root():
+    """The default work root before the rename: `$XDG_STATE_HOME/protodirsig/work`, else
+    `~/.local/state/protodirsig/work`. It is never moved or deleted.
+
+    Returns
+    -------
+    pathlib.Path
+        The pre-rename default work root.
+    """
+    return _state_base() / _names.LEGACY_STATE_DIR_NAME / "work"
+
+
+def former_work_root():
+    """Where the default work root was before it moved to the state directory: `$XDG_CACHE_HOME/protodirsig/work`, else
+    `~/.cache/protodirsig/work`. It is never moved or deleted.
+
+    Returns
+    -------
+    pathlib.Path
+        The former default work root.
+    """
+    base = os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache")
+    return Path(base) / _names.LEGACY_STATE_DIR_NAME / "work"
+
+
+def _no_runs(work):
+    runs = work / "runs"
+    return not runs.is_dir() or not any(runs.iterdir())       # no run stored yet (the store's empty folders count as empty)
+
+
+def move_command(old, new):
+    """The shell command that moves the work root `old` to `new`: `mv`, after removing the empty folders a store
+    leaves in `new` (`rmdir` refuses anything that is not empty) or creating its parent."""
+    q = shlex.quote
+    if new.exists():
+        empty = " ".join(q(str(new / d)) for d in ("runs", "sweeps", "slots") if (new / d).is_dir())
+        prep = f"rmdir {empty + ' ' if empty else ''}{q(str(new))}"
+    else:
+        prep = f"mkdir -p {q(str(new.parent))}"
+    return f"{prep} && mv {q(str(old))} {q(str(new))}"
+
+
+def _warn_about_former_root(work):
+    """One warning when a former default work root exists and the new default holds no run (runs stay where they are):
+    the pre-rename state directory (`legacy_work_root`), with the command that moves it, and the cache directory of
+    earlier releases (`former_work_root`)."""
+    log = logging.getLogger(_names.LOGGER_NAME)
+    if not _no_runs(work):
+        return
+    legacy = legacy_work_root()
+    if legacy.is_dir() and legacy != work:
+        log.warning("the default work root is now %s; runs stored under the pre-rename default %s are not moved; to "
+                    "move them: %s", work, legacy, move_command(legacy, work))
+    old = former_work_root()
+    if old.is_dir() and old != work:
+        log.warning("the default work root is now %s; runs stored under the former default %s are not moved (pass "
+                    "work=%r to keep using them)", work, old, str(old))
+
+
+@dataclass(frozen=True)
+class ArtifactContent:
+    """The bytes of one artifact and their media type, as `Workspace.get_artifact` returns them.
+
+    Attributes
+    ----------
+    content : bytes
+        The artifact's bytes; their sha256 equals the `sha256` of its reference.
+    media_type : str
+        The media type of the artifact (for example `application/json`).
+    """
+    content: bytes
+    media_type: str
+
+
+class Workspace:
+    """The SDK facade: library reads, composition, validation, submission, status, cancel and artifacts.
+
+    Parameters
+    ----------
+    backend : manifold.sim.backend.Backend
+        Any backend: a `LocalBackend` (see `Workspace.local`) or, in phase 3, a remote one.
+
+    Examples
+    --------
+    >>> ws = Workspace.local(work="/tmp/manifold-work")                 # doctest: +SKIP
+    >>> status = ws.submit_run("leo_pass_tahoe")                          # doctest: +SKIP
+    >>> ws.wait(status.run_id).state                                      # doctest: +SKIP
+    'rendered'
+    """
+
+    def __init__(self, backend):
+        if not isinstance(backend, Backend):
+            raise TypeError(f"a Backend is required, got {type(backend).__name__}")
+        self.backend = backend
+
+    # --- constructors ---------------------------------------------------------------------------------------------
+
+    @classmethod
+    def local(cls, library=None, config_repo=None, work=None, max_parallel=1, sensor_library=None, registry=None):
+        """A workspace over a `LocalBackend` on this machine.
+
+        Parameters
+        ----------
+        library : str or pathlib.Path, optional
+            The layer root (the folder holding `recipes/`, `scenarios/`, `engine_profiles/`); default the
+            repository's `manifold_run_specs/`.
+        config_repo : str or pathlib.Path, optional
+            The engine-asset library, read only; default the repository's `manifold_config_repo/`.
+        work : str or pathlib.Path, optional
+            The work root runs are stored under; default `default_work_root()` (the state directory). If the
+            pre-rename default (`legacy_work_root()`) or the former default (`former_work_root()`, in the cache
+            directory) exists and the new one holds no run, one warning each names it (the first with the `mv`
+            command); nothing is moved.
+        max_parallel : int, optional
+            How many runs render at once (default 1).
+        sensor_library : str or pathlib.Path, optional
+            The sensor library; default the `manifold_sensors/` beside `library`.
+        registry : manifold.core.engine.Registry, optional
+            The engines this workspace may run; default the ones discovered from the installed distributions. Its
+            workers rebuild exactly this set.
+
+        Returns
+        -------
+        Workspace
+            The workspace.
+
+        Examples
+        --------
+        >>> ws = Workspace.local(work="/tmp/manifold-work")                 # doctest: +SKIP
+        >>> [s.name for s in ws.list_sensors().items]                         # doctest: +SKIP
+        ['auror-nir.yaml', 'deepscan_850_306_nir_1280.yaml', 'synthetic_600_200_vis_1920.yaml']
+        """
+        library = Path(library) if library is not None else REPOSITORY / "manifold_run_specs"
+        config_repo = Path(config_repo) if config_repo is not None else REPOSITORY / "manifold_config_repo"
+        default = work is None
+        work = default_work_root() if default else Path(work)
+        backend = LocalBackend(work, config_repo, max_parallel=max_parallel, sensor_library=sensor_library,
+                               library=library, registry=registry)
+        if default:
+            _warn_about_former_root(work)       # after the store exists, so the move command fits what is on disk
+        return cls(backend)
+
+    @classmethod
+    def remote(cls, url, token=None):
+        """A workspace over a remote backend (phase 3; not built).
+
+        Parameters
+        ----------
+        url : str
+            The REST server's base URL.
+        token : str, optional
+            An access token.
+
+        Returns
+        -------
+        Workspace
+            Never: this raises.
+
+        Raises
+        ------
+        NotImplementedError
+            Always: `RemoteBackend` is phase 3.
+        """
+        raise NotImplementedError("RemoteBackend is phase 3")
+
+    # --- the library family ---------------------------------------------------------------------------------------
+
+    def _list(self, kind):
+        return models.LibraryList.from_dict(self.backend.list_resources(kind))
+
+    def _get(self, kind, name):
+        doc = self.backend.get_resource(kind, name)
+        return (models.SensorDocument if kind == "sensor" else models.LibraryDocument).from_dict(doc)
+
+    def list_sensors(self):
+        """The library's sensors, by file name, with the sha256 of each file.
+
+        Returns
+        -------
+        manifold.core.models.LibraryList
+            One item per sensor file, sorted by name.
+        """
+        return self._list("sensor")
+
+    def list_scenarios(self):
+        """The library's scenarios, by file stem, with the sha256 of each file.
+
+        Returns
+        -------
+        manifold.core.models.LibraryList
+            One item per scenario file, sorted by name.
+        """
+        return self._list("scenario")
+
+    def list_engine_profiles(self):
+        """The library's engine profiles, by file stem, with the sha256 of each file.
+
+        Returns
+        -------
+        manifold.core.models.LibraryList
+            One item per engine profile file, sorted by name.
+        """
+        return self._list("engine_profile")
+
+    def list_recipes(self):
+        """The library's recipes, by file stem, with the sha256 of each file.
+
+        Returns
+        -------
+        manifold.core.models.LibraryList
+            One item per recipe file, sorted by name.
+        """
+        return self._list("recipe")
+
+    def list_engines(self):
+        """The engines the backend can run (proposed): each registered engine id, whether its adapter is available
+        (and why not), its adapter version, the modes and engine-block contracts it serves, and the resources and
+        external assets it declares.
+
+        Returns
+        -------
+        manifold.core.models.EngineList
+            One item per registered engine, sorted by engine id.
+        """
+        return models.EngineList.from_dict(self.backend.list_engines())
+
+    def engines(self):
+        """The engines the backend can run (alias of `list_engines`).
+
+        Returns
+        -------
+        manifold.core.models.EngineList
+            One item per registered engine, sorted by engine id.
+        """
+        return self.list_engines()
+
+    def get_sensor(self, name):
+        """One library sensor as authored: a `sensor-spec/1` document.
+
+        Parameters
+        ----------
+        name : str
+            The sensor's file name (`auror-nir.yaml`) or stem.
+
+        Returns
+        -------
+        manifold.core.models.SensorDocument
+            Its name, the sha256 of its file and the parsed document.
+
+        Raises
+        ------
+        manifold.core.errors.NotFoundError
+            No sensor of that name.
+        manifold.core.errors.AdmissionError
+            The file does not parse or is not a `sensor-spec/1` document (the problem names the file).
+        """
+        return self._get("sensor", name)
+
+    def get_scenario(self, name):
+        """One library scenario as authored.
+
+        Parameters
+        ----------
+        name : str
+            The scenario's file stem.
+
+        Returns
+        -------
+        manifold.core.models.LibraryDocument
+            Its name, the sha256 of its file and the parsed document.
+
+        Raises
+        ------
+        manifold.core.errors.NotFoundError
+            No scenario of that name.
+        manifold.core.errors.AdmissionError
+            The file does not parse or is not a scenario (the problem names the file and key).
+        """
+        return self._get("scenario", name)
+
+    def get_engine_profile(self, name):
+        """One library engine profile as authored.
+
+        Parameters
+        ----------
+        name : str
+            The engine profile's file stem.
+
+        Returns
+        -------
+        manifold.core.models.LibraryDocument
+            Its name, the sha256 of its file and the parsed document.
+
+        Raises
+        ------
+        manifold.core.errors.NotFoundError
+            No engine profile of that name.
+        manifold.core.errors.AdmissionError
+            The file does not parse or is not an engine profile (the problem names the file and key).
+        """
+        return self._get("engine_profile", name)
+
+    def get_recipe(self, name):
+        """One library recipe as authored.
+
+        Parameters
+        ----------
+        name : str
+            The recipe's file stem.
+
+        Returns
+        -------
+        manifold.core.models.LibraryDocument
+            Its name, the sha256 of its file and the parsed document.
+
+        Raises
+        ------
+        manifold.core.errors.NotFoundError
+            No recipe of that name.
+        manifold.core.errors.AdmissionError
+            The file does not parse or is not a recipe (the problem names the file and key).
+        """
+        return self._get("recipe", name)
+
+    # --- compose, validate, submit --------------------------------------------------------------------------------
+
+    def compose(self, recipe, inline_sensor=False, max_runs=MAX_RUNS):
+        """Compose a recipe into its run specs, without running anything.
+
+        Parameters
+        ----------
+        recipe : str, pathlib.Path or dict
+            A library recipe name, a recipe file, or a recipe document.
+        inline_sensor : bool, optional
+            Put each sensor's block in place instead of a reference (the run ids are the same).
+        max_runs : int, optional
+            The most runs a sweep may compose to.
+
+        Returns
+        -------
+        manifold.core.models.ComposeResponse
+            The sweep id and, per run, its run id, name, sensor, run spec and provenance.
+
+        Raises
+        ------
+        manifold.core.errors.ProblemError
+            The recipe does not compose (the problem names the layer file and field), or is unknown.
+
+        Examples
+        --------
+        >>> ws.compose("sensor_sweep_tahoe").sweep_id                         # doctest: +SKIP
+        """
+        return models.ComposeResponse.from_dict(self.backend.compose(recipe, inline_sensor=inline_sensor,
+                                                                     max_runs=max_runs))
+
+    def validate(self, target, engine_check="none"):
+        """Check a run spec or recipe without submitting it.
+
+        Parameters
+        ----------
+        target : str, pathlib.Path or dict
+            A library recipe name, a recipe or run spec file, or a recipe or run spec document.
+        engine_check : {"none", "dry_run"}, optional
+            `none` (default): the engine-free checks. `dry_run`: also a DIRSIG dry run (needs DIRSIG installed).
+
+        Returns
+        -------
+        manifold.core.models.ValidateResponse
+            Per run: `valid`, whether the engine was checked, and each check with its problems.
+
+        Raises
+        ------
+        manifold.core.errors.ProblemError
+            The recipe does not compose, or the target is unknown or not a recipe or run spec.
+
+        Examples
+        --------
+        >>> ws.validate("auror_ref").runs[0].valid                            # doctest: +SKIP
+        True
+        """
+        return models.ValidateResponse.from_dict(self.backend.validate(target, engine_check=engine_check))
+
+    def submit_run(self, target):
+        """Admit and start one run; returns at once.
+
+        Parameters
+        ----------
+        target : str, pathlib.Path or dict
+            A one-run recipe (library name, file or document) or a run spec (file or document).
+
+        Returns
+        -------
+        manifold.core.models.RunStatus
+            The run's status: `accepted` for a new run, the current state for one already submitted.
+
+        Raises
+        ------
+        manifold.core.errors.AdmissionError
+            Admission failed (schema, resolution, library files, an unstamped reference); nothing was created.
+        manifold.core.errors.InvalidRequestError
+            The recipe composes to several runs (use `submit_sweep`).
+
+        Examples
+        --------
+        >>> status = ws.submit_run("leo_pass_tahoe")                          # doctest: +SKIP
+        >>> status.state                                                      # doctest: +SKIP
+        'accepted'
+        """
+        return models.RunStatus.from_dict(self.backend.submit_run(target))
+
+    def submit_sweep(self, recipe):
+        """Admit every run of a sweep recipe as a whole and start them; returns at once.
+
+        Parameters
+        ----------
+        recipe : str, pathlib.Path or dict
+            A library recipe name, a recipe file or a recipe document.
+
+        Returns
+        -------
+        manifold.core.models.SweepStatus
+            The sweep id, the recipe, and the status of each run in sensor-list order.
+
+        Raises
+        ------
+        manifold.core.errors.AdmissionError
+            Any run failed admission; the problem lists every failing run and nothing was created.
+        """
+        return models.SweepStatus.from_dict(self.backend.submit_sweep(recipe))
+
+    # --- status, cancel, artifacts --------------------------------------------------------------------------------
+
+    def get_run(self, run_id):
+        """The status of one run.
+
+        Parameters
+        ----------
+        run_id : str
+            The run id (64 hex digits).
+
+        Returns
+        -------
+        manifold.core.models.RunStatus
+            Its state, errors and artifacts.
+
+        Raises
+        ------
+        manifold.core.errors.NotFoundError
+            No run of that id.
+        """
+        return models.RunStatus.from_dict(self.backend.get_run(run_id))
+
+    def get_sweep(self, sweep_id):
+        """The status of one sweep.
+
+        Parameters
+        ----------
+        sweep_id : str
+            The sweep id (64 hex digits).
+
+        Returns
+        -------
+        manifold.core.models.SweepStatus
+            The recipe and each run's status.
+
+        Raises
+        ------
+        manifold.core.errors.NotFoundError
+            No sweep of that id.
+        """
+        return models.SweepStatus.from_dict(self.backend.get_sweep(sweep_id))
+
+    def cancel_run(self, run_id):
+        """Cancel a run that is `accepted` or `running`; a run in a final state is returned unchanged.
+
+        Parameters
+        ----------
+        run_id : str
+            The run id.
+
+        Returns
+        -------
+        manifold.core.models.RunStatus
+            The run's status after the call.
+
+        Raises
+        ------
+        manifold.core.errors.NotFoundError
+            No run of that id.
+        """
+        return models.RunStatus.from_dict(self.backend.cancel_run(run_id))
+
+    def list_artifacts(self, run_id):
+        """The references of a run's artifacts so far.
+
+        Parameters
+        ----------
+        run_id : str
+            The run id.
+
+        Returns
+        -------
+        manifold.core.models.ArtifactList
+            One reference per artifact (name, sha256, media type, `file://` URI, and `frame` for per-capture
+            products).
+
+        Raises
+        ------
+        manifold.core.errors.NotFoundError
+            No run of that id.
+        """
+        return models.ArtifactList.from_dict(self.backend.list_artifacts(run_id))
+
+    def get_artifact(self, run_id, name):
+        """The bytes of one artifact.
+
+        Parameters
+        ----------
+        run_id : str
+            The run id.
+        name : str
+            The artifact's name, as `list_artifacts` gives it.
+
+        Returns
+        -------
+        ArtifactContent
+            The bytes and their media type.
+
+        Raises
+        ------
+        manifold.core.errors.NotFoundError
+            No run of that id, or no artifact of that name.
+        """
+        content, media_type = self.backend.get_artifact(run_id, name)
+        return ArtifactContent(content, media_type)
+
+    # --- helpers, not part of the contract ------------------------------------------------------------------------
+
+    def wait(self, run_id, timeout=None, poll=2.0):
+        """Poll `get_run` until the run reaches a final state. A helper, not an operation of the contract.
+
+        Parameters
+        ----------
+        run_id : str
+            The run id.
+        timeout : float, optional
+            Seconds to wait at most; None waits without limit.
+        poll : float, optional
+            Seconds between polls (default 2).
+
+        Returns
+        -------
+        manifold.core.models.RunStatus
+            The run's final status (`rendered`, `failed` or `cancelled`).
+
+        Raises
+        ------
+        TimeoutError
+            The run was not final after `timeout` seconds.
+        manifold.core.errors.NotFoundError
+            No run of that id.
+
+        Examples
+        --------
+        >>> ws.wait(status.run_id, timeout=600).state                         # doctest: +SKIP
+        'rendered'
+        """
+        deadline = None if timeout is None else time.monotonic() + timeout
+        while True:
+            status = self.get_run(run_id)
+            if status.state in FINAL_STATES:
+                return status
+            if deadline is not None and time.monotonic() >= deadline:
+                raise TimeoutError(f"run {run_id} is still {status.state} after {timeout} s")
+            time.sleep(poll)
+
+    def save_artifact(self, run_id, name, destination):
+        """Write one artifact to a file and verify its sha256 against `list_artifacts`. A helper, not an operation of
+        the contract.
+
+        Parameters
+        ----------
+        run_id : str
+            The run id.
+        name : str
+            The artifact's name.
+        destination : str or pathlib.Path
+            The file to write, or an existing directory to write `name` into.
+
+        Returns
+        -------
+        pathlib.Path
+            The file written.
+
+        Raises
+        ------
+        manifold.core.errors.NotFoundError
+            No run of that id, or no artifact of that name.
+        ValueError
+            The bytes do not match the reference's sha256 (nothing is left at the destination).
+        """
+        refs = {a.name: a for a in self.list_artifacts(run_id).artifacts}
+        content = self.get_artifact(run_id, name)
+        want = refs[name].sha256 if name in refs else None
+        got = hashlib.sha256(content.content).hexdigest()
+        if want is not None and got != want:
+            raise ValueError(f"artifact {name} of run {run_id}: sha256 {got} does not match its reference {want}")
+        path = Path(destination)
+        if path.is_dir():
+            path = path / name
+        path.write_bytes(content.content)
+        return path

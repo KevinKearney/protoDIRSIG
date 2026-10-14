@@ -1,0 +1,26 @@
+# Recipe (pass-through form, proposed): the DIRSIG install demo PointCollectors2 run as authored, its simulation file framing.jsim.
+# The directory is materialized at manifold_config_repo/demo_dirs/PointCollectors2/ by `scripts/bootstrap.py assets` from the
+# demo archive in the DIRSIG installation (manifold_config_repo/assets.json); it is gitignored, and only its name and
+# dirhash/1 digest appear here. The descriptor is opaque: the demo's collection, sensor and settings are not stated.
+
+compose: compose/1
+
+meta:
+  name: demo-pointcollectors2-passthrough
+  tags: [dirsig-demo, pointcollectors2, passthrough]
+  description: >
+    DIRSIG demo PointCollectors2 run unchanged through the SDK's run store, admission, worker and Workspace: the reference that a
+    layered re-expression of the demo is compared against.
+
+passthrough:
+  directory: {name: demo_dirs/PointCollectors2, content_hash: "sha256:05de03a4105e18e0b176576e71bdab1750558fc274d586dd024c2e81855bb62e"}
+  simulation: framing.jsim
+
+engine_profile: passthrough_runtime
+
+fidelity:
+  modeled: [whatever the demo models, as authored]
+  approximated: []
+  absent: []
+  valid_for: >
+    A reference run of the demo as shipped with the DIRSIG installation.

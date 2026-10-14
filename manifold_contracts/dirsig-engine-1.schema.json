@@ -1,0 +1,912 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.manifold.example/contracts/dirsig-engine-1.schema.json",
+  "title": "dirsig-engine/1 (proposed; Configuration_v02 A.8 as read by protoDIRSIG, with the new_atmosphere and orbit-motion extensions marked proposed)",
+  "description": "The engine block of a run-spec/1 document whose descriptor.origin.engine is dirsig: what the generator and the executor consume to build and run one DIRSIG job. It is origin-specific and not indexed; the engine-independent description of the run is the descriptor. This schema is the SDK's reading of the MANIFOLD configuration document, not a MANIFOLD artefact. Rules this schema cannot express, enforced at admission by the loader: a stamped content_hash must equal the sha256 of the referenced file; every referenced library file must exist; a stamped hash is verified, while the placeholder sha256:<hash> marks a ref not yet stamped and <git-sha> a revision not yet recorded; neither is verified, a run id does not cover the bytes behind a placeholder, and submission refuses both; a .scene ref and a pass-through directory are hashed as directories (dirhash/1); for kind orbit, every task window must lie inside the orbit window and the window must be a whole number of waypoint spacings. The $id is an absolute URI under a base that does not resolve on the network (https://schemas.manifold.example/contracts/); references between the three contract schemas are sibling file names, which resolve against it, so a validator maps the base to this folder.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "generator": {
+      "description": "The tool that turns this block into DIRSIG input files.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tool",
+        "spec_schema"
+      ],
+      "properties": {
+        "tool": {
+          "description": "The generator tool.",
+          "enum": [
+            "dirfm"
+          ]
+        },
+        "revision": {
+          "description": "The generator's revision: a git commit, or the placeholder <git-sha> that the layer files carry until the execution record states it.",
+          "type": "string",
+          "pattern": "^([0-9a-f]{7,40}|<git-sha>)$"
+        },
+        "spec_schema": {
+          "description": "The engine schema this block is written against.",
+          "const": "dirsig-engine/1"
+        }
+      }
+    },
+    "scenes": {
+      "description": "The library scenes the job renders, each with an optional offset; at least one. (The SDK's loader handles one.)",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "description": "One scene.",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ref"
+        ],
+        "properties": {
+          "ref": {
+            "$ref": "#/$defs/sceneRef"
+          },
+          "offset": {
+            "description": "Translation of the scene in the scene frame, metres [x, y, z].",
+            "$ref": "#/$defs/vector3"
+          }
+        }
+      }
+    },
+    "platform": {
+      "description": "The library .platform template the generator renders the job's platform from, and how it renders it; or, with as_authored, a platform file used as it is.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ref",
+        "library_entry",
+        "output_prefix"
+      ],
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/libraryRef"
+        },
+        "library_entry": {
+          "description": "The name of the platform entry inside the template file.",
+          "type": "string",
+          "minLength": 1
+        },
+        "output_prefix": {
+          "description": "A prefix for the job's output file names (recorded; not applied by the SDK's generator).",
+          "type": "string"
+        },
+        "split_channels": {
+          "description": "One spectral state per channel when true. The SDK refuses true with new_atmosphere at resolution.",
+          "type": "boolean"
+        },
+        "integration_samples": {
+          "description": "Temporal samples per integration period.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "channel_response": {
+          "description": "How the generator writes each channel: tabulated (the default; the sensor's composed response on the template's grid) or native (DIRSIG's own analytic channel, to reproduce a received platform).",
+          "enum": [
+            "tabulated",
+            "native"
+          ]
+        },
+        "as_authored": {
+          "description": "true (proposed): the ref is the job's .platform as authored, copied into the job byte for byte and covered by its content hash, not a template rendered from the sensor-spec; the descriptor's sensor and settings are then checked but not applied, and integration_samples and channel_response are refused. Absent or false: the template form.",
+          "type": "boolean"
+        }
+      }
+    },
+    "motion": {
+      "$ref": "#/$defs/motion"
+    },
+    "tasks": {
+      "description": "When the platform captures.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "windows"
+      ],
+      "properties": {
+        "windows": {
+          "description": "Capture windows; one capture per window. A window with start equal to stop is one static sample.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "description": "One window, seconds relative to descriptor.collection.epoch.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "start",
+              "stop"
+            ],
+            "properties": {
+              "start": {
+                "description": "Window start, seconds from the epoch.",
+                "type": "number"
+              },
+              "stop": {
+                "description": "Window stop, seconds from the epoch.",
+                "type": "number"
+              }
+            }
+          }
+        }
+      }
+    },
+    "atmosphere": {
+      "$ref": "#/$defs/atmosphere"
+    },
+    "weather": {
+      "$ref": "#/$defs/weather"
+    },
+    "ephemeris": {
+      "description": "Sun and moon positions.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "plugin"
+      ],
+      "properties": {
+        "plugin": {
+          "description": "spice: the DIRSIG installation's SPICE kernels, no inputs.",
+          "enum": [
+            "spice"
+          ]
+        }
+      }
+    },
+    "run": {
+      "description": "Execution parameters recorded with the spec. Thread count is not here; convergence settings are not modelled by this version.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "description": "The random seed passed to scene2hdf and dirsig5; the same seed reproduces a render byte for byte.",
+          "type": "integer"
+        }
+      }
+    },
+    "mode": {
+      "description": "Absent for the layered form (the generator builds the DIRSIG input from this block). `passthrough` (proposed): DIRSIG runs a library demo directory's simulation file as authored; the block then carries `generator`, `mode`, `passthrough` and optionally `run`, and no scene, platform, motion, tasks, atmosphere, weather or ephemeris.",
+      "const": "passthrough"
+    },
+    "passthrough": {
+      "description": "The pass-through input (proposed): one library directory, identified by its `dirhash/1` digest, and the simulation file inside it that DIRSIG runs unchanged.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "directory",
+        "simulation"
+      ],
+      "properties": {
+        "directory": {
+          "description": "The directory, a library ref: `name` is its path under the engine-asset library (for example `demo_dirs/Brdf1`), `content_hash` its `dirhash/1` digest.",
+          "$ref": "#/$defs/libraryRef"
+        },
+        "simulation": {
+          "description": "The simulation file (`.sim` or `.jsim`) DIRSIG runs, a relative POSIX path inside the directory; its relative references resolve from its own folder.",
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*(^|/)\\.\\.(/|$))[^\\\\\\n]+\\.(sim|jsim)$"
+        }
+      }
+    },
+    "working_folder": {
+      "description": "Proposed. The files DIRSIG looks for in the working folder, the folder it runs in (a demo's folder when the demo runs as authored, the job's input folder in the layered form), which the job copies there: a file the platform names in a <filename> by a relative name, a geometry list the scene names by a bare name that lies beside the .scene and not in its gdbdirectory, with the files that list names beside it, and a file the scene's material file names in a PARAMETER_FILE, BRDF_FIT_FILE, EMISSIVITY_FILE or BUNDLE_FILENAME entry by a relative name that lies relative to the scene's folder and not to its emsdirectory (or with an empty emsdirectory), and a file it names in an EMISSIVITY_PROP FILENAME, a TEMP_SOLVER IMAGE_FILENAME (with the image's ENVI header), a texture IMAGE FILENAME or a MATERIAL_MAP IMAGE_FILENAME relative to the scene's folder that the job's scene copy does not hold in the emsdirectory or mapdirectory, and a file it names in a TEMP_SOLVER FILENAME or a SOURCE_SHAPE relative to the scene's folder that the scene copy does not hold in any folder DIRSIG searches for that key (the scene's seven directory elements, or the srcdirectory). The loader finds them from the scene and platform files and requires this member to list exactly those, each by its name in the working folder and its library ref, so the run id covers their bytes; absent when the job needs none (every library scene and platform).",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "description": "One file.",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "ref"
+        ],
+        "properties": {
+          "name": {
+            "description": "The file's path relative to the working folder, as the platform or the geometry list names it (for example pixels.hdf).",
+            "type": "string",
+            "minLength": 1
+          },
+          "ref": {
+            "$ref": "#/$defs/libraryRef"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "vector3": {
+      "description": "Three numbers [x, y, z].",
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "number"
+      }
+    },
+    "libraryRef": {
+      "description": "A file in the engine-asset library (manifold_config_repo/), by its path under the library and the sha256 of its bytes.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "content_hash"
+      ],
+      "properties": {
+        "name": {
+          "description": "The file's path under the library, for example platforms/AurorNIRDetector/AurorNIRDetector.platform.",
+          "type": "string",
+          "minLength": 1
+        },
+        "content_hash": {
+          "description": "sha256: followed by the 64 lowercase hex digits of the file's sha256, or the placeholder sha256:<hash> for a ref not yet stamped (the loader verifies only stamped hashes).",
+          "type": "string",
+          "pattern": "^sha256:([0-9a-f]{64}|<hash>)$"
+        }
+      }
+    },
+    "sceneRef": {
+      "description": "A library .scene file. Its geometry and materials sit beside it, so one file's hash does not identify the scene; the hash stays the placeholder sha256:<hash> until a scene hash is defined.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "content_hash"
+      ],
+      "properties": {
+        "name": {
+          "description": "The .scene file's path under the library; the library layout is scenes/<scene>/<scene>.scene.",
+          "type": "string",
+          "minLength": 1
+        },
+        "content_hash": {
+          "description": "sha256: and 64 hex digits, or the placeholder sha256:<hash>.",
+          "type": "string",
+          "pattern": "^sha256:([0-9a-f]{64}|<hash>)$"
+        }
+      }
+    },
+    "motion": {
+      "description": "How the platform moves and points. kind static: one position and an Euler orientation. kind orbit (proposed): a library TLE propagated over a window into ECEF waypoints, pointed by a LookAt at a scene ENU point. kind waypoints: authored samples; its members are not defined by this version and the SDK refuses it at resolution.",
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "description": "The motion form.",
+          "enum": [
+            "static",
+            "waypoints",
+            "orbit"
+          ]
+        },
+        "orientation": {
+          "description": "How the platform points.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "description": "euler (static) or lookat (orbit).",
+              "enum": [
+                "euler",
+                "lookat"
+              ]
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "static"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "description": "The static form.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "position",
+              "orientation"
+            ],
+            "properties": {
+              "kind": {
+                "description": "static.",
+                "const": "static"
+              },
+              "position": {
+                "description": "The platform position at the epoch.",
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "frame",
+                  "xyz"
+                ],
+                "properties": {
+                  "frame": {
+                    "description": "The frame of xyz; the SDK's generator writes scene-frame positions.",
+                    "type": "string"
+                  },
+                  "xyz": {
+                    "description": "Position, metres.",
+                    "$ref": "#/$defs/vector3"
+                  }
+                }
+              },
+              "orientation": {
+                "description": "An Euler orientation.",
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "euler"
+                ],
+                "properties": {
+                  "kind": {
+                    "description": "euler.",
+                    "const": "euler"
+                  },
+                  "euler": {
+                    "description": "Euler angles.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "order",
+                      "units",
+                      "frame",
+                      "angles"
+                    ],
+                    "properties": {
+                      "order": {
+                        "description": "Rotation order, for example xyz.",
+                        "type": "string",
+                        "pattern": "^[xyz]{3}$"
+                      },
+                      "units": {
+                        "description": "Angle units, for example radians.",
+                        "type": "string"
+                      },
+                      "frame": {
+                        "description": "The frame the angles rotate from; the SDK's generator writes sceneenu.",
+                        "type": "string"
+                      },
+                      "angles": {
+                        "description": "The three angles, in order.",
+                        "$ref": "#/$defs/vector3"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "orbit"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "description": "The orbit form (proposed).",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "orbit",
+              "orientation"
+            ],
+            "properties": {
+              "kind": {
+                "description": "orbit.",
+                "const": "orbit"
+              },
+              "orbit": {
+                "description": "The propagation law.",
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "tle",
+                  "propagator",
+                  "earth_orientation",
+                  "window",
+                  "waypoint_spacing"
+                ],
+                "properties": {
+                  "tle": {
+                    "description": "The two-line element set, a library file under orbit/.",
+                    "$ref": "#/$defs/libraryRef"
+                  },
+                  "propagator": {
+                    "description": "The propagator; skyfield_sgp4 is SGP4 with UT1 - UTC from earth_orientation.",
+                    "enum": [
+                      "skyfield_sgp4"
+                    ]
+                  },
+                  "earth_orientation": {
+                    "description": "The Earth-orientation (UT1 - UTC) tables, a library file under orbit/.",
+                    "$ref": "#/$defs/libraryRef"
+                  },
+                  "window": {
+                    "description": "The propagated span, seconds relative to descriptor.collection.epoch.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "start",
+                      "duration"
+                    ],
+                    "properties": {
+                      "start": {
+                        "description": "Window start, seconds from the epoch.",
+                        "type": "number"
+                      },
+                      "duration": {
+                        "description": "Window length, seconds.",
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      }
+                    }
+                  },
+                  "waypoint_spacing": {
+                    "description": "Seconds between ECEF waypoints.",
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  }
+                }
+              },
+              "orientation": {
+                "description": "A LookAt orientation.",
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "lookat"
+                ],
+                "properties": {
+                  "kind": {
+                    "description": "lookat.",
+                    "const": "lookat"
+                  },
+                  "lookat": {
+                    "description": "The pointing law.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "frame",
+                      "target",
+                      "up"
+                    ],
+                    "properties": {
+                      "frame": {
+                        "description": "The frame of target.",
+                        "enum": [
+                          "sceneenu"
+                        ]
+                      },
+                      "target": {
+                        "description": "The point the boresight follows, metres, scene ENU.",
+                        "$ref": "#/$defs/vector3"
+                      },
+                      "up": {
+                        "description": "along_track: the horizontal velocity direction at the window centre, held fixed.",
+                        "enum": [
+                          "along_track"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "atmosphere": {
+      "description": "The atmosphere model. four_curve and basic are the adopted plugins (A.8.7); their members are not modelled by this version, except basic's `uniform` and `simple` (proposed), which exclude each other. new_atmosphere (proposed) reads a prebuilt NewAtmosphere database from the library.",
+      "type": "object",
+      "required": [
+        "plugin"
+      ],
+      "properties": {
+        "plugin": {
+          "description": "The atmosphere plugin.",
+          "enum": [
+            "four_curve",
+            "basic",
+            "new_atmosphere"
+          ]
+        }
+      },
+      "if": {
+        "properties": {
+          "plugin": {
+            "const": "new_atmosphere"
+          }
+        },
+        "required": [
+          "plugin"
+        ]
+      },
+      "then": {
+        "description": "The new_atmosphere form (proposed).",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "plugin",
+          "database"
+        ],
+        "properties": {
+          "plugin": {
+            "description": "new_atmosphere.",
+            "const": "new_atmosphere"
+          },
+          "database": {
+            "description": "The database.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "ref"
+            ],
+            "properties": {
+              "ref": {
+                "$ref": "#/$defs/libraryRef"
+              }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "plugin": {
+                "const": "basic"
+              }
+            },
+            "required": [
+              "plugin",
+              "uniform"
+            ]
+          },
+          "then": {
+            "description": "The basic form with uniform (proposed): the generator writes the job's BasicAtmosphere .atm from these values.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "plugin",
+              "uniform"
+            ],
+            "properties": {
+              "plugin": {
+                "description": "basic.",
+                "const": "basic"
+              },
+              "uniform": {
+                "description": "A uniform-radiative-transfer BasicAtmosphere .atm written from stated values (proposed): uniform radiative transfer, uniform weather from an installation weather file and, optionally, a fixed Sun. A run that states it names no atmosphere file and no library weather file; with fixed_ephemeris it names no ephemeris plugin (DIRSIG replaces the .atm's fixed ephemeris with a plugin). The loader refuses a uniform block without weather.",
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "radiative_transfer"
+                ],
+                "properties": {
+                  "radiative_transfer": {
+                    "description": "DIRSIG's UniformAtm: a spectrally constant total irradiance from the hemisphere, split into direct (from the Sun) and diffuse by the sky fraction; no extinction and no path radiance.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "hemisphere_irradiance",
+                      "sky_fraction"
+                    ],
+                    "properties": {
+                      "hemisphere_irradiance": {
+                        "description": "The spectrally constant total irradiance from the hemisphere above the scene, in DIRSIG's units for UniformAtm (written as <hemisphereirradiance>).",
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "sky_fraction": {
+                        "description": "The fraction of the total that is diffuse (from the sky rather than the Sun), 0 to 1 (written as <skyfraction>).",
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      }
+                    }
+                  },
+                  "weather": {
+                    "description": "The uniform weather: a weather file shipped with the DIRSIG installation, read by DIRSIG's thermal model.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "install_file"
+                    ],
+                    "properties": {
+                      "install_file": {
+                        "description": "The file's name in the installation's lib/data/weather folder, for example mls.wth; written as $DIRSIG_HOME/lib/data/weather/<install_file>. It is covered by the DIRSIG installation's fingerprint, not by a content hash.",
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9_.-]+\\.wth$"
+                      }
+                    }
+                  },
+                  "fixed_ephemeris": {
+                    "description": "A fixed Sun position written into the .atm (DIRSIG sets up a FixedEphemeris from it); angles relative to the scene ENU origin.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "units",
+                      "solar_zenith",
+                      "solar_azimuth"
+                    ],
+                    "properties": {
+                      "units": {
+                        "description": "The angle units.",
+                        "enum": [
+                          "radians",
+                          "degrees"
+                        ]
+                      },
+                      "solar_zenith": {
+                        "description": "The solar zenith angle.",
+                        "type": "number"
+                      },
+                      "solar_azimuth": {
+                        "description": "The solar azimuth angle, east of north.",
+                        "type": "number"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "plugin": {
+                "const": "basic"
+              }
+            },
+            "required": [
+              "plugin",
+              "simple"
+            ]
+          },
+          "then": {
+            "description": "The basic form with simple (proposed): the generator writes the job's BasicAtmosphere .atm from these values.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "plugin",
+              "simple"
+            ],
+            "properties": {
+              "plugin": {
+                "description": "basic.",
+                "const": "basic"
+              },
+              "simple": {
+                "description": "A simple-radiative-transfer BasicAtmosphere .atm written from stated values (proposed): DIRSIG's SimpleAtm, uniform weather from an installation weather file and, optionally, a fixed Sun. The same rules as uniform: a run that states it names no atmosphere file and no library weather file; with fixed_ephemeris it names no ephemeris plugin; the loader refuses a simple block without weather. Exclusive with uniform.",
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "radiative_transfer"
+                ],
+                "properties": {
+                  "radiative_transfer": {
+                    "description": "DIRSIG's SimpleAtm: the Sun a 5,800 K blackbody scaled to a clear equatorial day, no visible sky irradiance, a thermal sky irradiance driven by the apparent sky temperature, no extinction and no path radiance.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "apparent_sky_temperature"
+                    ],
+                    "properties": {
+                      "apparent_sky_temperature": {
+                        "description": "The apparent sky temperature that drives the thermal sky irradiance, in kelvin (written as <apparentskytemperature>; the demos state 240 to 260).",
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      }
+                    }
+                  },
+                  "weather": {
+                    "description": "The uniform weather: a weather file shipped with the DIRSIG installation, read by DIRSIG's thermal model.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "install_file"
+                    ],
+                    "properties": {
+                      "install_file": {
+                        "description": "The file's name in the installation's lib/data/weather folder, for example mls.wth; written as $DIRSIG_HOME/lib/data/weather/<install_file>. It is covered by the DIRSIG installation's fingerprint, not by a content hash.",
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9_.-]+\\.wth$"
+                      }
+                    }
+                  },
+                  "fixed_ephemeris": {
+                    "description": "A fixed Sun position written into the .atm (DIRSIG sets up a FixedEphemeris from it); angles relative to the scene ENU origin.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "units",
+                      "solar_zenith",
+                      "solar_azimuth"
+                    ],
+                    "properties": {
+                      "units": {
+                        "description": "The angle units.",
+                        "enum": [
+                          "radians",
+                          "degrees"
+                        ]
+                      },
+                      "solar_zenith": {
+                        "description": "The solar zenith angle.",
+                        "type": "number"
+                      },
+                      "solar_azimuth": {
+                        "description": "The solar azimuth angle, east of north.",
+                        "type": "number"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "weather": {
+      "description": "The thermal weather file. source library: a file in the engine-asset library; source install: a file shipped with the DIRSIG installation, whose members this version does not model.",
+      "type": "object",
+      "required": [
+        "source"
+      ],
+      "properties": {
+        "source": {
+          "description": "Where the weather file comes from.",
+          "enum": [
+            "library",
+            "install"
+          ]
+        }
+      },
+      "if": {
+        "properties": {
+          "source": {
+            "const": "library"
+          }
+        },
+        "required": [
+          "source"
+        ]
+      },
+      "then": {
+        "description": "The library form.",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source",
+          "file"
+        ],
+        "properties": {
+          "source": {
+            "description": "library.",
+            "const": "library"
+          },
+          "file": {
+            "$ref": "#/$defs/libraryRef"
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "passthrough"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "description": "The pass-through form (proposed).",
+        "required": [
+          "generator",
+          "mode",
+          "passthrough"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "scenes"
+              ]
+            },
+            {
+              "required": [
+                "platform"
+              ]
+            },
+            {
+              "required": [
+                "motion"
+              ]
+            },
+            {
+              "required": [
+                "tasks"
+              ]
+            },
+            {
+              "required": [
+                "atmosphere"
+              ]
+            },
+            {
+              "required": [
+                "weather"
+              ]
+            },
+            {
+              "required": [
+                "ephemeris"
+              ]
+            }
+          ]
+        }
+      },
+      "else": {
+        "description": "The layered form.",
+        "required": [
+          "generator",
+          "scenes",
+          "platform",
+          "motion",
+          "tasks",
+          "atmosphere"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "passthrough"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "description": "The pass-through form runs in the demo's own folder: no working_folder (proposed).",
+        "not": {
+          "required": [
+            "working_folder"
+          ]
+        }
+      }
+    }
+  ]
+}

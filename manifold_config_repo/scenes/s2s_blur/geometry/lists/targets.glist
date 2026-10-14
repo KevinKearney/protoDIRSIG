@@ -1,0 +1,258 @@
+<geometrylist>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/plate_20m/plate_20m.glist</filename></glist>
+    </basegeometry>
+    <staticinstance name="static_target">
+      <translation><point><x>0.0</x><y>0.0</y><z>10000.0</z></point></translation>
+    </staticinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/plate_0p5m/plate_0p5m.glist</filename></glist>
+    </basegeometry>
+    <staticinstance name="::IMPORTANT::static_unresolved">
+      <translation><point><x>0.0</x><y>120.0</y><z>10000.0</z></point></translation>
+    </staticinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/bars_blur/bars_blur.glist</filename></glist>
+    </basegeometry>
+    <staticinstance name="static_bars">
+      <translation><point><x>0.0</x><y>0.0</y><z>1.0</z></point></translation>
+    </staticinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/black_blur/black_blur.glist</filename></glist>
+    </basegeometry>
+    <staticinstance name="static_background">
+      <translation><point><x>0.0</x><y>0.0</y><z>0.0</z></point></translation>
+    </staticinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/plate_4m/plate_4m.glist</filename></glist>
+    </basegeometry>
+    <staticinstance name="static_marker">
+      <translation><point><x>100.0</x><y>0.0</y><z>10000.0</z></point></translation>
+    </staticinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/plate_20m/plate_20m.glist</filename></glist>
+    </basegeometry>
+    <dynamicinstance name="platform_target">
+      <motion type="flexible">
+        <locationengine type="straight">
+          <heading>90</heading><velocity>1000.0</velocity>
+          <start frame="scene"><x>2000.0</x><y>0.0</y><z>10000.0</z></start>
+        </locationengine>
+        <orientationengine type="euler">
+          <data source="internal" datetime="relative" frame="scene" order="xyz" delimiter=" " loop="false"><![CDATA[0 0 0 0]]></data>
+        </orientationengine>
+      </motion>
+    </dynamicinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/plate_0p5m/plate_0p5m.glist</filename></glist>
+    </basegeometry>
+    <dynamicinstance name="::IMPORTANT::platform_unresolved">
+      <motion type="flexible">
+        <locationengine type="straight">
+          <heading>90</heading><velocity>1000.0</velocity>
+          <start frame="scene"><x>2000.0</x><y>120.0</y><z>10000.0</z></start>
+        </locationengine>
+        <orientationengine type="euler">
+          <data source="internal" datetime="relative" frame="scene" order="xyz" delimiter=" " loop="false"><![CDATA[0 0 0 0]]></data>
+        </orientationengine>
+      </motion>
+    </dynamicinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/bars_blur/bars_blur.glist</filename></glist>
+    </basegeometry>
+    <dynamicinstance name="platform_bars">
+      <motion type="flexible">
+        <locationengine type="straight">
+          <heading>90</heading><velocity>1000.0</velocity>
+          <start frame="scene"><x>2000.0</x><y>0.0</y><z>1.0</z></start>
+        </locationengine>
+        <orientationengine type="euler">
+          <data source="internal" datetime="relative" frame="scene" order="xyz" delimiter=" " loop="false"><![CDATA[0 0 0 0]]></data>
+        </orientationengine>
+      </motion>
+    </dynamicinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/black_blur/black_blur.glist</filename></glist>
+    </basegeometry>
+    <dynamicinstance name="platform_background">
+      <motion type="flexible">
+        <locationengine type="straight">
+          <heading>90</heading><velocity>1000.0</velocity>
+          <start frame="scene"><x>2000.0</x><y>0.0</y><z>0.0</z></start>
+        </locationengine>
+        <orientationengine type="euler">
+          <data source="internal" datetime="relative" frame="scene" order="xyz" delimiter=" " loop="false"><![CDATA[0 0 0 0]]></data>
+        </orientationengine>
+      </motion>
+    </dynamicinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/plate_20m/plate_20m.glist</filename></glist>
+    </basegeometry>
+    <dynamicinstance name="target_target">
+      <motion type="flexible">
+        <locationengine type="straight">
+          <heading>90</heading><velocity>1000.0</velocity>
+          <start frame="scene"><x>4000.0</x><y>0.0</y><z>10000.0</z></start>
+        </locationengine>
+        <orientationengine type="euler">
+          <data source="internal" datetime="relative" frame="scene" order="xyz" delimiter=" " loop="false"><![CDATA[0 0 0 0]]></data>
+        </orientationengine>
+      </motion>
+    </dynamicinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/plate_0p5m/plate_0p5m.glist</filename></glist>
+    </basegeometry>
+    <dynamicinstance name="::IMPORTANT::target_unresolved">
+      <motion type="flexible">
+        <locationengine type="straight">
+          <heading>90</heading><velocity>1000.0</velocity>
+          <start frame="scene"><x>4000.0</x><y>120.0</y><z>10000.0</z></start>
+        </locationengine>
+        <orientationengine type="euler">
+          <data source="internal" datetime="relative" frame="scene" order="xyz" delimiter=" " loop="false"><![CDATA[0 0 0 0]]></data>
+        </orientationengine>
+      </motion>
+    </dynamicinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/bars_blur/bars_blur.glist</filename></glist>
+    </basegeometry>
+    <staticinstance name="target_bars">
+      <translation><point><x>4000.0</x><y>0.0</y><z>1.0</z></point></translation>
+    </staticinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/black_blur/black_blur.glist</filename></glist>
+    </basegeometry>
+    <staticinstance name="target_background">
+      <translation><point><x>4000.0</x><y>0.0</y><z>0.0</z></point></translation>
+    </staticinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/plate_20m/plate_20m.glist</filename></glist>
+    </basegeometry>
+    <dynamicinstance name="both_target">
+      <motion type="flexible">
+        <locationengine type="straight">
+          <heading>90</heading><velocity>2000.0</velocity>
+          <start frame="scene"><x>6000.0</x><y>0.0</y><z>10000.0</z></start>
+        </locationengine>
+        <orientationengine type="euler">
+          <data source="internal" datetime="relative" frame="scene" order="xyz" delimiter=" " loop="false"><![CDATA[0 0 0 0]]></data>
+        </orientationengine>
+      </motion>
+    </dynamicinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/plate_0p5m/plate_0p5m.glist</filename></glist>
+    </basegeometry>
+    <dynamicinstance name="::IMPORTANT::both_unresolved">
+      <motion type="flexible">
+        <locationengine type="straight">
+          <heading>90</heading><velocity>2000.0</velocity>
+          <start frame="scene"><x>6000.0</x><y>120.0</y><z>10000.0</z></start>
+        </locationengine>
+        <orientationengine type="euler">
+          <data source="internal" datetime="relative" frame="scene" order="xyz" delimiter=" " loop="false"><![CDATA[0 0 0 0]]></data>
+        </orientationengine>
+      </motion>
+    </dynamicinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/bars_blur/bars_blur.glist</filename></glist>
+    </basegeometry>
+    <dynamicinstance name="both_bars">
+      <motion type="flexible">
+        <locationengine type="straight">
+          <heading>90</heading><velocity>1000.0</velocity>
+          <start frame="scene"><x>6000.0</x><y>0.0</y><z>1.0</z></start>
+        </locationengine>
+        <orientationengine type="euler">
+          <data source="internal" datetime="relative" frame="scene" order="xyz" delimiter=" " loop="false"><![CDATA[0 0 0 0]]></data>
+        </orientationengine>
+      </motion>
+    </dynamicinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/black_blur/black_blur.glist</filename></glist>
+    </basegeometry>
+    <dynamicinstance name="both_background">
+      <motion type="flexible">
+        <locationengine type="straight">
+          <heading>90</heading><velocity>1000.0</velocity>
+          <start frame="scene"><x>6000.0</x><y>0.0</y><z>0.0</z></start>
+        </locationengine>
+        <orientationengine type="euler">
+          <data source="internal" datetime="relative" frame="scene" order="xyz" delimiter=" " loop="false"><![CDATA[0 0 0 0]]></data>
+        </orientationengine>
+      </motion>
+    </dynamicinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/plate_20m/plate_20m.glist</filename></glist>
+    </basegeometry>
+    <staticinstance name="look_target">
+      <translation><point><x>0.0</x><y>5000.0</y><z>10000.0</z></point></translation>
+    </staticinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/bars_look/bars_look.glist</filename></glist>
+    </basegeometry>
+    <staticinstance name="look_bars">
+      <translation><point><x>0.0</x><y>5000.0</y><z>9501.0</z></point></translation>
+    </staticinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/black_look/black_look.glist</filename></glist>
+    </basegeometry>
+    <staticinstance name="look_background">
+      <translation><point><x>350.0</x><y>5000.0</y><z>9500.0</z></point></translation>
+    </staticinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/plate_100m/plate_100m.glist</filename></glist>
+    </basegeometry>
+    <staticinstance name="orbit_target">
+      <translation><point><x>0.0</x><y>-20000.0</y><z>0.0</z></point></translation>
+    </staticinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/backstop_2km/backstop_2km.glist</filename></glist>
+    </basegeometry>
+    <staticinstance name="orbit_backstop">
+      <translation><point><x>0.0</x><y>-20000.0</y><z>-10.0</z></point></translation>
+    </staticinstance>
+  </object>
+</geometrylist>

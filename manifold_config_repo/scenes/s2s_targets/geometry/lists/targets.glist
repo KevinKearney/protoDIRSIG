@@ -1,0 +1,98 @@
+<geometrylist>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/plate_20m/plate_20m.glist</filename></glist>
+    </basegeometry>
+    <staticinstance name="hyperresolved">
+      <translation><point><x>0.0</x><y>0.0</y><z>0.0</z></point></translation>
+    </staticinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/plate_0p5m/plate_0p5m.glist</filename></glist>
+    </basegeometry>
+    <staticinstance name="::IMPORTANT::unresolved">
+      <translation><point><x>50000.0</x><y>0.0</y><z>0.0</z></point></translation>
+    </staticinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/plate_0p5m/plate_0p5m.glist</filename></glist>
+    </basegeometry>
+    <staticinstance name="unresolved_plain">
+      <translation><point><x>-50000.0</x><y>0.0</y><z>0.0</z></point></translation>
+    </staticinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/plate_0p5m/plate_0p5m.glist</filename></glist>
+    </basegeometry>
+    <dynamicinstance name="::IMPORTANT::moving_1000">
+      <motion type="flexible">
+        <locationengine type="straight">
+          <heading>90</heading><velocity>1000.0</velocity>
+          <start frame="scene"><x>0.0</x><y>50000.0</y><z>0.0</z></start>
+        </locationengine>
+        <orientationengine type="velocity">
+          <constraint type="constant" frame="scene" vector="0,0,1"/>
+        </orientationengine>
+      </motion>
+    </dynamicinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/plate_0p5m/plate_0p5m.glist</filename></glist>
+    </basegeometry>
+    <dynamicinstance name="::IMPORTANT::moving_7500">
+      <motion type="flexible">
+        <locationengine type="straight">
+          <heading>90</heading><velocity>7500.0</velocity>
+          <start frame="scene"><x>0.0</x><y>-50000.0</y><z>0.0</z></start>
+        </locationengine>
+        <orientationengine type="velocity">
+          <constraint type="constant" frame="scene" vector="0,0,1"/>
+        </orientationengine>
+      </motion>
+    </dynamicinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/backstop/backstop.glist</filename></glist>
+    </basegeometry>
+    <staticinstance name="backstop_0">
+      <translation><point><x>0.0</x><y>0.0</y><z>-10.0</z></point></translation>
+    </staticinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/backstop/backstop.glist</filename></glist>
+    </basegeometry>
+    <staticinstance name="backstop_1">
+      <translation><point><x>50000.0</x><y>0.0</y><z>-10.0</z></point></translation>
+    </staticinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/backstop/backstop.glist</filename></glist>
+    </basegeometry>
+    <staticinstance name="backstop_2">
+      <translation><point><x>-50000.0</x><y>0.0</y><z>-10.0</z></point></translation>
+    </staticinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/backstop/backstop.glist</filename></glist>
+    </basegeometry>
+    <staticinstance name="backstop_3">
+      <translation><point><x>0.0</x><y>50000.0</y><z>-10.0</z></point></translation>
+    </staticinstance>
+  </object>
+  <object>
+    <basegeometry>
+      <glist><filename>bundles/backstop/backstop.glist</filename></glist>
+    </basegeometry>
+    <staticinstance name="backstop_4">
+      <translation><point><x>0.0</x><y>-50000.0</y><z>-10.0</z></point></translation>
+    </staticinstance>
+  </object>
+</geometrylist>

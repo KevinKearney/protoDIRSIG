@@ -1,0 +1,11 @@
+<geometrylist>
+    <object search_paths="local">
+        <localmaterials>hypersonic.mat</localmaterials>
+        <basegeometry>
+            <obj>
+                <filename>hypersonic.obj</filename>
+            </obj>
+        </basegeometry>
+        <staticinstance/>
+    </object>
+</geometrylist>

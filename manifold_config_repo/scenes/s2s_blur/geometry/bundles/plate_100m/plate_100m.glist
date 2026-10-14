@@ -1,0 +1,11 @@
+<geometrylist>
+    <object search_paths="local">
+        <localmaterials>plate.mat</localmaterials>
+        <basegeometry>
+            <obj>
+                <filename>plate_100m.obj</filename>
+            </obj>
+        </basegeometry>
+        <staticinstance/>
+    </object>
+</geometrylist>

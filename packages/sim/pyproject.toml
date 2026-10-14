@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eoptic-manifold-sim"
+version = "0.0.1"
+description = "MANIFOLD simulation runner: Workspace, Backend and LocalBackend, the run store and worker, the library reader; engines through their adapters (DIRSIG in eoptic-manifold-engine-dirsig); the orbit extra installs what manifold.core.orbit propagates with"
+requires-python = ">=3.10"
+dependencies = [
+    "eoptic-manifold-core==0.0.1",   # lockstep versions
+    "pyyaml",
+    "lxml",
+    "numpy",
+    "spectral",
+    "imageio",
+    "scipy",
+    "h5py",
+    "matplotlib",
+]
+
+[project.optional-dependencies]
+orbit = ["skyfield", "sgp4"]        # imported inside the propagator functions only
+dev = ["pytest", "ruff", "jupyter", "openapi-spec-validator"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["manifold.sim*"]    # `manifold` is a PEP 420 namespace: no distribution ships manifold/__init__.py
+namespaces = true

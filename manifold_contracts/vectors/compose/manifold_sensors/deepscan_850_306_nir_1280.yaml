@@ -1,0 +1,64 @@
+# sensor-spec/1: Eoptic DeepScan product line, first entry. Name: deepscan_<band nm>_<focal length mm>_<band>_<columns>.
+# Companion to the protoDIRSIG CONOPS and Guide §4 (docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md).
+#
+# The same sensor as auror-nir under a product-line name: optics, readout, channel, reference frame,
+# mount, fill factor, and modeled window are copied from manifold_sensors/auror-nir.yaml.
+# Vendor values (Teledyne SCION family release, teledynevisionsolutions.com): 1280 x 1024 and
+# 640 x 512 formats, 10 um pixel pitch, VisGaAs 300-1700 nm. The release does not state the model
+# number, ADC bit depth, shutter mode, or fill factor; those come from auror-nir.
+
+spec_version: sensor-spec/1
+
+meta:
+  name: deepscan_850_306_nir_1280
+  tags: [deepscan, nir, staring-array, space-domain-awareness]
+  description: >
+    Eoptic Deepscan space domain awareness payload with Teledyne SCION 1280x1024 VisGaAs sensor
+
+sensor:
+  sensor_system:
+    system_id: eoptic.deepscan.nir-850-306-1280
+    reference_frame:
+      name: rig_body_enu
+      origin: aperture stop centre of the primary instrument
+      handedness: right
+      axis_convention: x_boresight_y_right_z_down   # not confirmed, carried from auror-nir
+    frame_association: {policy: none}
+  entries:
+    - entry_id: deepscan-850-306-nir-1280
+      identity:
+        instrument_id: instr.eoptic.deepscan.nir.850.306.1280
+        sensor_class: staring_array
+      mount: {kind: fixed, translation: [0, 0, 0], rotation: [1, 0, 0, 0]}
+      optics:
+        aperture_diameter: 85.0         # mm; written to properties.aperturediameter in metres (0.085)
+        focal_length: 306.0             # mm; properties.focallength; f/# = 306/85 = 3.6
+        f_number: 3.6
+        throughput_in_band: {value: 0.875, provenance: specified}
+        distortion: {model: none}
+      focal_planes:
+        - optical_path: {split: none}
+          detector:                      # the physical device; fixed properties (CONOPS C-15)
+            DeviceVendorName: Teledyne
+            DeviceModelName: SCION       # family name; exact part number not stated in the release
+            SensorWidth: 1280            # full frame, columns; SCION 1280 x 1024 format, VisGaAs 300-1700 nm
+            SensorHeight: 1024           # full frame, rows
+            SensorPixelWidth: 10.0       # um; vendor, "10-micron pixel pitch"
+            SensorPixelHeight: 10.0      # um; vendor
+            fill_factor: 1.0             # from auror-nir; not stated by the vendor
+            channel_layout: single
+          readout:
+            timestamp_reference: exposure_start   # no DIRSIG source; library-asserted (from auror-nir)
+            SensorShutterMode: Global              # no DIRSIG source; library-asserted (from auror-nir)
+            AdcBitDepth: 14                        # no DIRSIG source; library-asserted (from auror-nir)
+          channels:
+            - channel_id: nir-b1
+              band: NIR
+              band_center: 0.85                    # channel.center, um
+              bandwidth: 0.15                      # FWHM, um; equals srf_model.fwhm
+              srf_model: {kind: gaussian, center: 0.85, fwhm: 0.15}   # DIRSIG channel width = fwhm / 2.3548 (sigma, assumed; checked in tests/test_platform_render.py)
+              qe_reference: {name: spectral/qe/synthetic_visgaas.csv, content_hash: "sha256:03f086de4625c3acf0bbf1275323db6b90f026c8a48df652a195155726fc082d"}
+              qe_peak: {value: 0.8, provenance: derived}   # maximum of qe_reference; synthetic placeholder until vendor data
+              radiometric_reference:              # the sensor's own calibration (Detector_v02 6.8, required); none known
+                quantity: null
+                unit: null

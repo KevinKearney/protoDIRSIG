@@ -1,0 +1,39 @@
+%% Controlled drawing: sdk_api
+%% Title: SDK API layers
+%% Describes: protoDIRSIG SDK API, contract sdk-api/1, proposed (api/)
+%% Source of truth: this file. Rendered to sdk_api.svg and sdk_api.png by scripts/render_diagrams.py; docs reference the PNG.
+%% Change this file and re-render in the same commit as the code or document change it follows.
+flowchart TB
+  U["<b>User or notebook</b><br/>Python, offline"]
+  RC["<b>REST client</b><br/>any language, over HTTP"]
+
+  subgraph SDK["SDK - Python, proposed"]
+    F["<b>SDK facade</b> (hand-written class)<br/>list_* / get_*, compose, validate,<br/>submit_run, submit_sweep, get_run, get_sweep,<br/>cancel_run, list_artifacts, get_artifact"]
+    B{{"<b>Backend protocol</b><br/>the same operations, inputs, outputs, problems"}}
+    LB["<b>LocalBackend</b><br/>wraps compose, LocalRegistry, Simulation<br/><i>no server needed</i>"]
+    RB["<b>RemoteBackend</b><br/>REST client generated from<br/><i>api/openapi.yaml</i>"]
+  end
+
+  subgraph SRV["REST server - proposed"]
+    S["<b>REST server</b><br/>the paths of api/openapi.yaml<br/>over a LocalBackend"]
+  end
+
+  subgraph BEHIND["Behind every LocalBackend - built today"]
+    LIB["<b>Library</b><br/>recipes, scenarios, engine profiles<br/><i>manifold_run_specs/</i><br/>sensors <i>manifold_sensors/</i><br/>engine assets <i>manifold_config_repo/</i>"]
+    ENG["<b>Engine tools</b><br/>platform_gen, dirfm, dirsig5"]
+    ART["<b>Run store</b><br/>run specs, logs, images<br/>returned as artifact references"]
+  end
+
+  U --> F
+  F --> B
+  B --> LB
+  B --> RB
+  RB -- "HTTP, problem+json errors" --> S
+  RC -- "HTTP" --> S
+  S --> LB2["LocalBackend<br/>(server side)"]
+  LB --> LIB
+  LB --> ENG
+  LB --> ART
+  LB2 --> LIB
+  LB2 --> ENG
+  LB2 --> ART

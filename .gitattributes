@@ -1,0 +1,5 @@
+# Hashes in run specs and sensor-spec refs are over file bytes: no line-ending conversion.
+manifold_sensors/** text eol=lf
+manifold_run_specs/** text eol=lf
+manifold_config_repo/** -text
+manifold_contracts/vectors/** text eol=lf

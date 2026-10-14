@@ -1,38 +1,46 @@
 # protoDIRSIG
 
-Prototype batch driver for generating synthetic EO/IR imagery with DIRSIG5,
-built on `dirfm` and developed notebook-first. Scope: MANIFOLD's DIRSIG
-automation workstream (see the MANIFOLD Drive project for the governing
-charter and requirements docs — not duplicated here).
+Prototype batch driver for generating synthetic EO/IR imagery with DIRSIG5, built on `dirfm` and developed notebook-first. Scope: MANIFOLD's DIRSIG automation workstream (see the MANIFOLD Drive project for the governing charter and requirements docs — not duplicated here).
 
-`docs/dirsig_batch_driver_plan.md` and `docs/dirsig_motion_temporal.md`
-are retained for history but are **not** the current plan — superseded by
-`prompt.md` (the standing spec driving notebook development) and the
-architecture below. Don't scope new work against them.
+`docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md` is the as-built description of the driver, the run-spec contract, and the interface to MANIFOLD; its Overview gives the workflow at block-diagram level. `BACKLOG.md` is the to-do list.
+
+## What it does
+
+A `run-spec/1` YAML names a collection, a sensor (a reference into `manifold_sensors/`) and engine assets (references into `manifold_config_repo/`). It is composed from layer files: a recipe naming a scenario, an engine profile and a library sensor, or several sensors for a sweep (one run per sensor; `scripts/compose.py`). The driver validates the spec, verifies content hashes, renders the `.platform` from the sensor description, generates motion and tasks files, runs a DIRSIG dry-run, and renders through `dirfm`. Output is imagery in electrons per m² of focal plane plus truth. Three sensors are in the library (AUROR NIR, a 1280-pixel NIR, a 1920-pixel VIS); the AUROR job reproduces the received platform file.
+
+```python
+from manifold.sim import Workspace
+
+ws = Workspace.local(work="/tmp/manifold-work")          # the repository's library and manifold_config_repo
+print([r.name for r in ws.list_recipes().items])
+ws.compose("leo_pass_tahoe")                              # run specs and run ids, nothing executed
+assert ws.validate("leo_pass_tahoe").runs[0].valid        # engine-free checks
+status = ws.submit_run("leo_pass_tahoe")                  # admitted; returns at once in state "accepted"
+final = ws.wait(status.run_id, timeout=600)               # "rendered"
+for a in ws.list_artifacts(status.run_id).artifacts:
+    print(a.name, a.frame, a.uri)
+```
+
+`LocalRegistry` (the notebooks' entry point, `manifold.engines.dirsig.registry.LocalRegistry`) still works and is deprecated in favour of `Workspace`. Code written against the pre-rename `protodirsig` package runs through the deprecated compatibility shim, `pip install --no-build-isolation --no-deps -e packages/compat-protodirsig` (it warns on import and is removed one release after MANIFOLD adopts the `manifold` packages).
+
+The stage notebooks, `notebooks/stage_01_auror_from_runspec.ipynb` to `notebooks/stage_05_sdk_auror_demo.ipynb`, run the reference job, the conformance path, a three-sensor sweep, a LEO pass, and the SDK end to end through `Workspace`; the last is `built / internal`, executed by `tests/test_stage05_notebook.py`.
 
 ## Environment setup
 
-Prerequisites: a working DIRSIG5 install with `bin/` locatable (this
-project assumes `~/DIRSIG/dirsig-2026.38.0.a020954-Linux-x86_64`, overridable
-via `DIRSIG_HOME`), and a `dirfm` checkout as a sibling directory
-(`~/dev/dirsig-file-maker`) — `dirfm` is not on PyPI or conda-forge.
+Prerequisites: a DIRSIG5 install (`~/DIRSIG/dirsig-2026.38.0.a020954-Linux-x86_64`, or anywhere via `DIRSIG_HOME`), git access to RIT's GitLab for `dirfm` (not on PyPI or conda-forge), and conda. `external/pins.json` fixes the exact `dirfm` and `agent-docs` commits and the DIRSIG version. The full sequence, SatSim's optional setup and assets, and the expected run ids are in CONOPS and Guide section 11, Reproduce from zero; `python scripts/cold_start_check.py --check` follows it offline in a fresh copy. The short version:
 
 ```bash
-cd ~/dev/protoDIRSIG
-conda env create -f environment.yml
-conda activate protodirsig
-pip install -e ~/dev/dirsig-file-maker
-pip install -e .
+python scripts/bootstrap.py install        # clone dirfm and agent-docs at the pins; link DIRSIG
+conda env create -f environment.yml && conda activate protodirsig
+pip install -e external/dirsig-file-maker
+for d in core sim engine-dirsig; do pip install --no-build-isolation --no-deps -e packages/$d; done
+python scripts/bootstrap.py assets         # library assets (DIRSIG demos; SatSim's ephemeris and IERS snapshot)
+python scripts/smoke_run.py --render       # two DIRSIG runs at their expected run ids
+pip install pytest ruff openapi-spec-validator                # the dev tools (packages/sim extra "dev")
 python -m ipykernel install --user --name protodirsig --display-name "Python (protodirsig)"
 ```
 
-The last step registers a Jupyter kernel named `protodirsig` — select it when
-opening any notebook under `notebooks/`. DIRSIG's own `PATH`/`DIRSIG_HOME`
-setup is done **inside each notebook's first cell**, not at the shell level:
-a Jupyter kernel does not inherit an interactive shell's `PATH`, so every
-tutorial notebook sets `os.environ["DIRSIG_HOME"]` and prepends its `bin/` to
-`os.environ["PATH"]` explicitly and asserts `scene2hdf`/`dirsig5` resolve
-before doing anything else.
+The last step registers a Jupyter kernel named `protodirsig` — select it when opening any notebook under `notebooks/`. DIRSIG's own `PATH`/`DIRSIG_HOME` setup is done **inside each notebook's first cell**, not at the shell level: a Jupyter kernel does not inherit an interactive shell's `PATH`, so every tutorial notebook sets `os.environ["DIRSIG_HOME"]` and prepends its `bin/` to `os.environ["PATH"]` explicitly and asserts `scene2hdf`/`dirsig5` resolve before doing anything else (`stage_05_sdk_auror_demo` instead asks the SDK whether the DIRSIG engine is available and skips, with the reason, every cell that needs it).
 
 To update the environment after `environment.yml` changes:
 
@@ -42,90 +50,36 @@ conda env update -f environment.yml --prune
 
 ## Layout
 
-- `prompt.md` — the standing, versioned prompt handed to Claude Code for
-  notebook development. This is the actual spec; update it in place as the
-  approach evolves rather than treating it as a one-shot instruction.
-- `notebooks/` — Jupyter notebooks; the primary development and hand-off
-  artifact for this project (see Architecture below — notebook-first is a
-  deliberate convention, not a placeholder for "real" code).
-- `src/protodirsig/` — supplementary Python modules for gaps `dirfm` does
-  not cover, installed editable via `pip install -e .`. Empty scaffold for
-  now; populated as Phase 2+ work identifies concrete gaps (see below).
-- `scripts/` — standalone CLI entry points, if/when notebook logic
-  graduates out of prototyping.
-- `outputs/` — DIRSIG input/output roots written by notebooks and scripts.
-  Gitignored except for a placeholder; nothing here is source, and nothing
-  here is ever written into `dirfm`'s own checkout.
-- `tests/` — pytest suite for `src/protodirsig`.
-- `docs/` — historical planning documents; not current (see above).
+- `prompt.md` — the current prompt handed to Claude Code. Overwritten per work package; gitignored, not versioned.
+- `notebooks/` — Jupyter notebooks; the primary development and hand-off artifact for this project (see Architecture below — notebook-first is a deliberate convention, not a placeholder for "real" code). See `notebooks/README.md` for what each notebook does. `dirfm_tutorials/` holds the standalone `dirfm`-fundamentals tutorials; `dev/` holds discovery-log notebooks kept for their own sake, not maintained going forward; the stage notebooks live at the top level of `notebooks/` and are the active, accumulating work.
+- `packages/core/`, `packages/sim/`, `packages/engine-dirsig/`, `packages/engine-satsim/`, `packages/compat-protodirsig/` — the SDK as distributions under the `manifold` namespace (`eoptic-manifold-core`, import `manifold.core`: the engine-neutral run-spec layer and the engine adapter protocol; `eoptic-manifold-sim`, import `manifold.sim`: `Workspace`, the run store, worker and engine discovery; `eoptic-manifold-engine-dirsig`, import `manifold.engines.dirsig`: the DIRSIG engine, registered as an entry point; `eoptic-manifold-engine-satsim`, import `manifold.engines.satsim`: the SatSim engine, pass-through only, driving a user-installed SatSim in its own interpreter) and the deprecated `protodirsig` shim, installed editable as above: the run-spec composer (`compose`) and loader (`run_spec`), the contract schemas applied at admission (`contract`), run ids and sweep ids (`identity`), the scene directory digest (`dirhash`), problem details naming the layer file and field (`problems`), the exception family carrying them (`errors`), the `Workspace` facade (`workspace`), library listing and reading (`library`), typed models generated from the API schemas (`models`), engine-free validation (`admission`), the `Backend` protocol and `LocalBackend` (`backend`) with its run store (`store`, one directory per run id under `<work_root>/runs/`, sweeps under `<work_root>/sweeps/`) and worker process (`worker`), `.platform` generation from the sensor description (`platform_gen`, `spectral`), motion/tasks generation, static or along an orbit (`motion_tasks`), the propagator seam and pass helpers (`orbit`), the conformance checks and render (`simulation`), the local submission stand-in (`registry`), and the dirfm workarounds and helpers the notebooks use.
+- `manifold_run_specs/` — MANIFOLD run specs: the layer files (`recipes/`, `scenarios/`, `engine_profiles/`) and the run specs composed from them (see its README). The only copy; protoDIRSIG is the source of truth.
+- `manifold_sensors/` — the sensor library: `sensor-spec/1` files that run specs reference, and `spectral/` (QE, optics and filter curves, `spectral-curve/1` CSV).
+- `manifold_contracts/` — schemas, vocabulary and validators (`sensor-spec-1.schema.json`, `run-spec-1.schema.json`, `dirsig-engine-1.schema.json`; the composition vectors, `vectors/orbit/` (the propagator's golden vector) and `vectors/identity/` (canonical JSON, run ids and the `dirhash/1` scene directory digest); the schemas are also copied into the package at build time; future `manifold-contracts`).
+- `api/` — the SDK API contract (`sdk-api/1`, `built, partial / internal`: no REST server or `RemoteBackend` yet, `tests/test_local_backend.py`): requirements, operations, JSON Schemas, the OpenAPI document and generated examples, which the SDK facade and a REST wrapper are to be built against (see its README). Kept consistent by `tests/test_api_contract.py`; publishable, so it cites no internal records.
+- `external/` — pinned dirfm and agent-docs checkouts and a link to the DIRSIG install, populated by `python scripts/bootstrap.py install`; gitignored except `pins.json`.
+- `manifold_config_repo/` — the engine-asset library the run specs' `engine` refs resolve against (scenes, platforms, weather, atmosphere databases, and `orbit/`: TLEs and Earth-orientation tables for orbit motion), in the layout of the CONOPS and Guide §5. Read-only at run time.
+- `scripts/` — CLI entry points: `bigger_host_run.py` (the measurements deferred to a larger host, from `docs/data/bigger_host_manifest.yaml`: `--dry-run`, `--only`, `--check`; resumable), `bootstrap.py` (pinned dependencies; `assets` materializes the gitignored library assets of `manifold_config_repo/assets.json`), `compose.py` (run specs from layers), `recipe_form.py` (a prototype: an offline HTML form, `outputs/recipe_form/index.html`, that fills in a recipe from the library's listings), `stamp_hashes.py` (content hashes: file refs by file, `.scene` refs by scene directory), `import_curve.py` (measured curve intake), `api_examples.py` (the API contract's examples, from the library), `gen_models.py` (`packages/core/src/manifold/core/models.py` from `api/schemas/`), `survey_demos.py` (the DIRSIG demo coverage table), `run_demo.py` (a demo's pass-through reference run, measured), `sweep_demos.py` (every demo through the pass-through form, unattended, into `docs/DIRSIG_demo_sweep.md`), `summarize_sweep.py` (the sweep's analysis and the tagged demos), `export_sweep_digests.py` (the sweep's output digests as `docs/data/demo_sweep_digests.jsonl.gz`), `probe_determinism.py` and `compare_outputs.py` (repeat demos under several conditions and classify output differences), `compare_layered.py` (a demo in the layered form against its pass-through render, outside the repository), `render_diagrams.py` (the controlled drawings), `id_snapshot.py` (every id the repository derives, as `tests/data/id_snapshot.json`), `engine_contracts.py` (the registered engines' engine-block schemas published under `manifold_contracts/`, and the admission vectors), `smoke_run.py` (the two DIRSIG smoke runs at their expected run ids), `cold_start_check.py` (the CONOPS "Reproduce from zero" section followed offline in a fresh copy), `status_markers.py` (every status marker of the CONOPS, `api/`, README and BACKLOG checked against the two-axis legend), `satsim_reference.py` (the SatSim reference run, its digests in `docs/data/satsim_reference_digests.jsonl`; `--check` repeats it), `review_report.py` (the numeric tables of `docs/Review_report_since_r27.md` from the committed records; `--check`), `s2s_coverage.py` (writes `docs/s2s_coverage.md`, the space-to-space coverage map, from the records; `--check`, `--print`), `s2s_envelope.py` (writes `docs/s2s_envelope.md`, the space-to-space sampling-effect envelope, from the records; `--check`, `--print`), `study_build.py` (the space-to-space study under `docs/study/`: its data appendix, tables, figures and manuscript from the records; `--check`, `--claims`), `crosscheck_sgp4.py`.
+- `outputs/` — DIRSIG input/output roots written by notebooks and scripts. Gitignored except for a placeholder; nothing here is source, and nothing here is ever written into `dirfm`'s own checkout.
+- `tests/` — pytest suite for the `manifold` packages (and the shim); `tests/test_id_snapshot.py` checks that every run id, sweep id and vector stays as recorded in `tests/data/id_snapshot.json`. `tests/fixtures/auror_ref/` holds the received AUROR_ref motion and tasks files: the tests compare generated files against them, and `notebooks/dirfm_tutorials/tutorial_auror_scene.ipynb` renders with them as its motion and tasks inputs.
+- `docs/` — the CONOPS and Guide, the review report for a reader holding the tag `review-r27` (`Review_report_since_r27.md`: what rounds 28 to 36 added and measured, the defects found and not fixed, section 3.1 the behaviour changed outside `packages/core` since the tag, the decisions asked, what to run; its tables generated by `scripts/review_report.py`), the handover for whoever takes over the relay and the space-to-space work (`Handover_s2s_thread.md`: the repository's parts, how a relay round runs and its rules, the suite in thirds, the commits of rounds 28 to 43, where each finding is recorded, the DIRSIG-against-SatSim attribution and its limits, the open items for the owner and for MANIFOLD, the bigger-host plan), the space-to-space characterization (`Space_to_space_characterization.md`: families I to III, SatSim parity, round 38's coverage points and round 39's three differences isolated (the streak shortfall, the sub-pixel plate's look, the resolved class), round 40's SatSim controls of them and the resolved cells round 39 left empty, round 41's sampling-effect envelope, with `data/s2s_results.jsonl`), the space-to-space coverage map (`s2s_coverage.md`: the realism axes against the records, per object class, with why each empty cell is empty; generated by `scripts/s2s_coverage.py`), the space-to-space sampling-effect envelope (`s2s_envelope.md`: each record's deficit against its closed form by target size in pixels, motion and label, with what removes it; generated by `scripts/s2s_envelope.py`), the space-to-space study (`study/`: `manuscript.md` with its PDF and DOCX builds, a journal-style write-up of the characterization whose every number is generated from the records by `scripts/study_build.py`; `study/data/` the consolidated records with how to regenerate each, `study/claims.md` the claims map, `study/README.md` the build commands, the records a 12 GB host cannot regenerate and the references still to supply), the scenes Kevin transferred (`DIRSIG_transfer_scenes.md`), the SatSim probe (`SatSim_probe.md`), the DIRSIG demo coverage table (`DIRSIG_demo_coverage.md`: which shipped demos the SDK covers, what each needs, and what placing the first took), the demo sweep (`DIRSIG_demo_sweep.md`: every shipped DIRSIG 5 demo run once as authored, with outcomes, costs, failure causes and the layered-comparison candidates), the demo reference runs (`DIRSIG_demo_reference_runs.md`: demos run as authored through the pass-through form, with timings and output digests), the DIRSIG platform decomposition notes (`DIRSIG_Platform_Decomposition.md`), the tagged-demo feature reading (`DIRSIG_tagged_demo_features.md`: the URSO and SDA demos' features against the layered form, and the ranked loader gaps), the determinism probe (`DIRSIG_determinism.md`: why repeated demos differ and how to compare them), the layered comparison (`DIRSIG_layered_comparison.md`: demos in the layered form against their pass-through renders), the authoring guide for the layered form (`Authoring_layered_form.md`), the engine author guide (`Engine_author_guide.md`: the adapter protocol and the two adapters as worked examples), the authoring friction audit (`Authoring_friction_audit.md`: the files, fields and hashes a run needs and who produces each), the user manual (`User_manual.md`, task first, with `User_glossary.md`; its section 11 says how to read a space-to-space result), the bigger host plan (`Bigger_host_plan.md`: the measurements deferred from the 4-core laptop, with their specs, memory, time and results files), `data/` (`demo_sweep_digests.jsonl.gz`: every sweep attempt's output names, sizes and sha256; `s2s_results.jsonl` and `risk_measurements.jsonl`: the space-to-space and risk measurements, each with its `--check` script; `bigger_host_manifest.yaml`), and `diagrams/`: the controlled drawings (Mermaid source, rendered SVG and PNG; `python scripts/render_diagrams.py`); the SatSim reference run (`SatSim_reference_run.md`: the first SatSim run through the SDK, its digests and repeatability, `data/satsim_reference_digests.jsonl`).
 
 ## Architecture
 
-**`dirfm` is the only runtime dependency, used directly.** `dirfm` (RIT
-GitLab, developed in collaboration with Rendered.ai) is a plain, freely
-installable Python library that programmatically builds DIRSIG5 input files
-(materials, geometry, platform/sensor, motion, atmosphere, tasks) and
-invokes `scene2hdf`/`dirsig5`. It is checked out as an editable sibling
-dependency and never modified — this project reads its source as the
-API/behavior reference and treats its `demos/test_*.py` pytest suite as the
-canonical usage pattern to copy when adding anything new (per Rendered.ai's
-own internal convention for `dirfm`, confirmed via their `agent-docs`
-reference — see `~/dev/agent-docs` for the full documentation set).
+**`dirfm` is the only DIRSIG-specific runtime dependency, used directly.** `dirfm` (RIT GitLab, developed in collaboration with Rendered.ai) is a plain, freely installable Python library that programmatically builds DIRSIG5 input files (materials, geometry, platform/sensor, motion, atmosphere, tasks) and invokes `scene2hdf`/`dirsig5`. It is checked out as an editable sibling dependency and never modified — this project reads its source as the API/behavior reference and treats its `demos/test_*.py` pytest suite as the canonical usage pattern to copy when adding anything new (per Rendered.ai's own internal convention for `dirfm`, confirmed via their `agent-docs` reference — see `external/agent-docs` for the full documentation set).
 
-**Rendered.ai's channel/node layer (`dirsig_pkg`, `anatools`) is explicitly
-not a dependency.** That layer is Rendered.ai's commercial Agent Studio
-platform surface — gated behind an API key, a hosted workspace, and their
-own `ana`/`anadeploy`/`anamount` tooling — not open source code that can be
-vendored into this project. `~/dev/agent-docs` is read as a *design-pattern*
-reference only (node `exec()` conventions, `ctx.seed`/`ctx.random`
-determinism discipline, truth-band-to-annotation conversion) to inform how
-`src/protodirsig` gets built, not as a library this project imports from or
-depends on. If actually adopting Rendered.ai's hosted platform becomes a
-live option, that's an organizational/contractual decision (the RIT CRADA
-relationship), not something this repo can architect around speculatively.
+**Rendered.ai's channel/node layer (`dirsig_pkg`, `anatools`) is explicitly not a dependency.** That layer is Rendered.ai's commercial Agent Studio platform surface — gated behind an API key, a hosted workspace, and their own `ana`/`anadeploy`/`anamount` tooling — not open source code that can be vendored into this project. `external/agent-docs` is read as a *design-pattern* reference only (node `exec()` conventions, `ctx.seed`/`ctx.random` determinism discipline, truth-band-to-annotation conversion) to inform how the `manifold` packages under `packages/` get built, not as a library this project imports from or depends on. If actually adopting Rendered.ai's hosted platform becomes a live option, that's an organizational/contractual decision (the RIT CRADA relationship), not something this repo can architect around speculatively.
 
-**Development is notebook-first by convention, not by default.** Each
-notebook is built from a versioned prompt in `prompt.md`, executed end to
-end (not just inspected) before being considered done, and kept additive —
-later stages extend earlier objects rather than rewriting them, so the
-notebook itself is a readable diff of the API surface as it's learned.
-`src/protodirsig` only gains code once a notebook has concretely
-demonstrated a gap `dirfm` doesn't cover; the notebook is the specification,
-the module is the extraction.
+**Development is notebook-first by convention, not by default.** Each notebook is built from a prompt that is not kept in the repository, executed end to end (not just inspected) before being considered done, and kept additive — later stages extend earlier objects rather than rewriting them, so the notebook itself is a readable diff of the API surface as it's learned. The `manifold` packages under `packages/` only gain code once a notebook has concretely demonstrated a gap `dirfm` doesn't cover; the notebook is the specification, the module is the extraction.
 
 **Phased scope, in order:**
 
-*Phase 1 — `dirfm` fundamentals (done).* `notebooks/tutorial_dirfm_basics.ipynb`,
-Stages 0–8: materials, primitives, sensor tree, motion, atmosphere, GLIST
-mesh geometry, multi-scene composition, and — closing the phase — empirical
-determinism verification (`set_seed()`, bitwise vs. statistical
-reproducibility) and the `convergence`/`max_nodes` render-quality knobs
-`DIRSIG.run()` forwards to `dirsig5`.
+*Phase 1 — `dirfm` fundamentals (done).* `notebooks/dirfm_tutorials/tutorial_dirfm_basics.ipynb`, Stages 0–8: materials, primitives, sensor tree, motion, atmosphere, GLIST mesh geometry, multi-scene composition, and — closing the phase — empirical determinism verification (`set_seed()`, bitwise vs. statistical reproducibility) and the `convergence`/`max_nodes` render-quality knobs `DIRSIG.run()` forwards to `dirsig5`.
 
-*Phase 2 — SDA/orbital reference demos (in progress).* Reconstructing
-DIRSIG's own bundled orbit-relevant demos with `dirfm` directly, starting
-with `StkImport1` (a real WorldView-2 LEO trajectory, STK-ephemeris-driven,
-imaging toward Earth — the only orbit-to-ground demo in DIRSIG's catalog;
-`Ssa1`–`Ssa3` are satellite-to-satellite). This phase is also where `dirfm`'s
-actual orbital-motion coverage gets tested empirically (STK ephemeris
-ingestion, ECI/ECEF handling) rather than assumed, surfacing concrete
-candidates for `src/protodirsig` if `dirfm` falls short.
+*Phase 2 — SDA/orbital reference demos (in progress).* Reconstructing DIRSIG's own bundled orbit-relevant demos with `dirfm` directly, starting with `StkImport1` (a real WorldView-2 LEO trajectory, imaging toward Earth — the only orbit-to-ground demo in DIRSIG's catalog; reconstructed from a TLE with skyfield/SGP4 rather than by STK-ephemeris import; `Ssa1`–`Ssa3` are satellite-to-satellite). This phase is also where `dirfm`'s actual orbital-motion coverage gets tested empirically (STK ephemeris ingestion, ECI/ECEF handling) rather than assumed, surfacing concrete candidates for the `manifold` packages if `dirfm` falls short.
 
-*Phase 3 — Provenance/lineage instrumentation (forward-looking).* A notebook
-demonstrating minimal MLflow/OpenLineage emission around a `dirfm`-driven
-run — resolving, in the process, the asset-versioning question for large
-binary DIRSIG scene assets (git-LFS vs. content-addressed store vs. hybrid)
-that the run's provenance record has to point at.
+*Phase 3 — Provenance/lineage instrumentation (forward-looking).* A notebook demonstrating minimal MLflow/OpenLineage emission around a `dirfm`-driven run — resolving, in the process, the asset-versioning question for large binary DIRSIG scene assets (git-LFS vs. content-addressed store vs. hybrid) that the run's provenance record has to point at.
 
-*Phase 4 — First Dagster asset (forward-looking).* Wrapping a Phase-2
-scenario as a Dagster software-defined asset, then as a partitioned asset
-over a small parameter sweep. Dagster, not Prefect, per MANIFOLD's own
-orchestrator trade study: its partitioned-asset model is the direct
-structural match for DIRSIG's sweep/batch execution shape, and its
-first-party OpenLineage integration aligns with Phase 3 rather than
-requiring a bolted-on adapter.
+*Phase 4 — First Dagster asset (forward-looking).* Wrapping a Phase-2 scenario as a Dagster software-defined asset, then as a partitioned asset over a small parameter sweep. Dagster, not Prefect, per MANIFOLD's own orchestrator trade study: its partitioned-asset model is the direct structural match for DIRSIG's sweep/batch execution shape, and its first-party OpenLineage integration aligns with Phase 3 rather than requiring a bolted-on adapter.
 
-*Phase 5 — Catalog/compute integration (out of notebook scope).* Requirements
-baselining, containerized production execution, and compute placement —
-sequenced per MANIFOLD's charter gates, not notebook-first work, and not
-started ahead of that baseline.
+*Phase 5 — Catalog/compute integration (out of notebook scope).* Requirements baselining, containerized production execution, and compute placement — sequenced per MANIFOLD's charter gates, not notebook-first work, and not started ahead of that baseline.

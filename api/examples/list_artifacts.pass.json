@@ -1,0 +1,136 @@
+{
+  "summary": "List the artifacts of the rendered `leo_pass_tahoe` run: three frames.",
+  "description": "A multi-frame run lists one image, one header and one truth product per capture, named `<base>-t<task>-c<capture>` as the pass template writes them, each with its zero-based `frame`; the run spec and the engine logs belong to the run as a whole and carry no frame. Each reference carries the role the engine's adapter gave it (proposed): the image `product`, the truth image `truth`, their headers `metadata`, the engine logs `log`, the run spec `config`. Run ids and sweep ids are computed from the composed specs; the hash of `run_spec.json` is the run id. Everything else is real library data. Hashes of rendered files (images, headers, truth images, logs) are placeholders, 64 zeros: no run is rendered for these examples.",
+  "request": {
+    "method": "GET",
+    "path": "/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/artifacts"
+  },
+  "response": {
+    "status": 200,
+    "media_type": "application/json",
+    "body": {
+      "run_id": "b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37",
+      "artifacts": [
+        {
+          "name": "run_spec.json",
+          "sha256": "b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37",
+          "media_type": "application/json",
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/run_spec.json",
+          "role": "config"
+        },
+        {
+          "name": "run_info.json",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "media_type": "application/json",
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/run_info.json",
+          "role": "log"
+        },
+        {
+          "name": "log_info.json",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "media_type": "application/json",
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/log_info.json",
+          "role": "log"
+        },
+        {
+          "name": "AurorNIROutput-t0000-c0000.img",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "media_type": "application/octet-stream",
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/AurorNIROutput-t0000-c0000.img",
+          "frame": 0,
+          "role": "product"
+        },
+        {
+          "name": "AurorNIROutput-t0000-c0000.img.hdr",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "media_type": "text/plain",
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/AurorNIROutput-t0000-c0000.img.hdr",
+          "frame": 0,
+          "role": "metadata"
+        },
+        {
+          "name": "truth1-t0000-c0000.img",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "media_type": "application/octet-stream",
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/truth1-t0000-c0000.img",
+          "frame": 0,
+          "role": "truth"
+        },
+        {
+          "name": "truth1-t0000-c0000.img.hdr",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "media_type": "text/plain",
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/truth1-t0000-c0000.img.hdr",
+          "frame": 0,
+          "role": "metadata"
+        },
+        {
+          "name": "AurorNIROutput-t0001-c0000.img",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "media_type": "application/octet-stream",
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/AurorNIROutput-t0001-c0000.img",
+          "frame": 1,
+          "role": "product"
+        },
+        {
+          "name": "AurorNIROutput-t0001-c0000.img.hdr",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "media_type": "text/plain",
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/AurorNIROutput-t0001-c0000.img.hdr",
+          "frame": 1,
+          "role": "metadata"
+        },
+        {
+          "name": "truth1-t0001-c0000.img",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "media_type": "application/octet-stream",
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/truth1-t0001-c0000.img",
+          "frame": 1,
+          "role": "truth"
+        },
+        {
+          "name": "truth1-t0001-c0000.img.hdr",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "media_type": "text/plain",
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/truth1-t0001-c0000.img.hdr",
+          "frame": 1,
+          "role": "metadata"
+        },
+        {
+          "name": "AurorNIROutput-t0002-c0000.img",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "media_type": "application/octet-stream",
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/AurorNIROutput-t0002-c0000.img",
+          "frame": 2,
+          "role": "product"
+        },
+        {
+          "name": "AurorNIROutput-t0002-c0000.img.hdr",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "media_type": "text/plain",
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/AurorNIROutput-t0002-c0000.img.hdr",
+          "frame": 2,
+          "role": "metadata"
+        },
+        {
+          "name": "truth1-t0002-c0000.img",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "media_type": "application/octet-stream",
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/truth1-t0002-c0000.img",
+          "frame": 2,
+          "role": "truth"
+        },
+        {
+          "name": "truth1-t0002-c0000.img.hdr",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "media_type": "text/plain",
+          "uri": "file:///tmp/manifold/runs/b611f04cd695103f2fd75546956a8b4dfe42a66ecdc8b580470a742220c78a37/truth1-t0002-c0000.img.hdr",
+          "frame": 2,
+          "role": "metadata"
+        }
+      ]
+    },
+    "schema": "schemas/artifact_list.schema.json"
+  },
+  "operation": "list_artifacts"
+}

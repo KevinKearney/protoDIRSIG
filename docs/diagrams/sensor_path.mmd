@@ -1,0 +1,13 @@
+%% Controlled drawing: sensor_path
+%% Title: Sensor path
+%% Describes: platform_gen inputs and output, as built
+%% Source of truth: this file. Rendered to sensor_path.svg and sensor_path.png by scripts/render_diagrams.py; docs reference the PNG.
+%% Change this file and re-render in the same commit as the code or document change it follows.
+flowchart LR
+  Q["spectral curves<br/>QE, optics, filter<br/><i>manifold_sensors/spectral/</i>"] --> G
+  SS["sensor-spec<br/>optics, focal plane, channels<br/><i>manifold_sensors/&lt;sensor&gt;.yaml</i>"] --> G
+  ST["settings<br/>exposure, ROI, gain<br/><i>recipe</i>"] --> G
+  T[".platform template<br/><i>manifold_config_repo/platforms/</i>"] --> G["platform_gen"]
+  G --> P["generated .platform<br/>tabulated channel responses"]
+  P --> D["dirsig5"]
+  D --> I["image<br/>e- per m2 of focal plane"]

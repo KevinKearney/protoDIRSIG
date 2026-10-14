@@ -1,0 +1,68 @@
+{
+  "summary": "Read the status of a sweep while its first run executes.",
+  "description": "Each run reports its own state, in the recipe's sensor order. Run ids and sweep ids are computed from the composed specs; the hash of `run_spec.json` is the run id. Everything else is real library data.",
+  "request": {
+    "method": "GET",
+    "path": "/sweeps/41d0e2649402a88d35b06dcb8bac99ae6c53300e2d1d3bbd05c05f29cd768da4"
+  },
+  "response": {
+    "status": 200,
+    "media_type": "application/json",
+    "body": {
+      "sweep_id": "41d0e2649402a88d35b06dcb8bac99ae6c53300e2d1d3bbd05c05f29cd768da4",
+      "recipe": {
+        "name": "sensor_sweep_tahoe",
+        "sha256": "802a0f18b3e7034ed03cef0cae5b4bc957e242ee60c8b97d65e5f670707cc0ed"
+      },
+      "runs": [
+        {
+          "run_id": "24878693c8764443db4df620dd95fcf1e8c31e491b55a4f384083008d24b0e35",
+          "name": "sensor-sweep-tahoe--auror-nir",
+          "state": "running",
+          "errors": [],
+          "artifacts": [
+            {
+              "name": "run_spec.json",
+              "sha256": "24878693c8764443db4df620dd95fcf1e8c31e491b55a4f384083008d24b0e35",
+              "media_type": "application/json",
+              "uri": "file:///tmp/manifold/runs/24878693c8764443db4df620dd95fcf1e8c31e491b55a4f384083008d24b0e35/run_spec.json",
+              "role": "config"
+            }
+          ]
+        },
+        {
+          "run_id": "d194086c470dc2a272db8f17b37c07d638af143d37d7bda36f4823e06067ed0e",
+          "name": "sensor-sweep-tahoe--deepscan_850_306_nir_1280",
+          "state": "accepted",
+          "errors": [],
+          "artifacts": [
+            {
+              "name": "run_spec.json",
+              "sha256": "d194086c470dc2a272db8f17b37c07d638af143d37d7bda36f4823e06067ed0e",
+              "media_type": "application/json",
+              "uri": "file:///tmp/manifold/runs/d194086c470dc2a272db8f17b37c07d638af143d37d7bda36f4823e06067ed0e/run_spec.json",
+              "role": "config"
+            }
+          ]
+        },
+        {
+          "run_id": "37ee7518568b19baab7b25d75f072f8edaebfe1e399770f9b85f6bd48e65c95a",
+          "name": "sensor-sweep-tahoe--synthetic_600_200_vis_1920",
+          "state": "accepted",
+          "errors": [],
+          "artifacts": [
+            {
+              "name": "run_spec.json",
+              "sha256": "37ee7518568b19baab7b25d75f072f8edaebfe1e399770f9b85f6bd48e65c95a",
+              "media_type": "application/json",
+              "uri": "file:///tmp/manifold/runs/37ee7518568b19baab7b25d75f072f8edaebfe1e399770f9b85f6bd48e65c95a/run_spec.json",
+              "role": "config"
+            }
+          ]
+        }
+      ]
+    },
+    "schema": "schemas/sweep_status.schema.json"
+  },
+  "operation": "get_sweep"
+}

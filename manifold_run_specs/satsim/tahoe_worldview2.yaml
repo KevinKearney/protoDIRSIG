@@ -1,0 +1,28 @@
+# SatSim run spec (pass-through form, proposed): the library SatSim configuration satsim/tahoe_worldview2.yaml run as authored
+# with seed 1, on the CPU. Written by hand, not composed: the composer's pass-through form is DIRSIG's (a demo directory and a
+# simulation file). The descriptor is opaque: the configuration's collection, sensor and settings are not stated here.
+
+spec_version: run-spec/1
+descriptor:
+  meta:
+    name: satsim-tahoe-worldview2
+    tags: [satsim, passthrough, worldview2, tahoe]
+    description: >
+      SatSim's probe sample (a Lake Tahoe ground site tracking WorldView-2 through three frames) run unchanged through the
+      SDK's run store, admission, worker and Workspace: the SatSim reference run.
+  origin:
+    kind: synthetic
+    engine: satsim
+  fidelity:
+    modeled: [whatever the configuration models, as authored]
+    approximated: []
+    absent: []
+    valid_for: >
+      A reference run of the SatSim probe's sample configuration.
+  opaque:
+    source: passthrough
+engine:
+  mode: passthrough
+  config: {name: satsim/tahoe_worldview2.yaml, content_hash: "sha256:481365c096d0512f7d118ee2f68a0c3bd6478f0859022486dc0306b6b385f7c0"}
+  seed: 1
+  device: cpu

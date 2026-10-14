@@ -1,0 +1,140 @@
+{
+  "summary": "List the engines the backend can run (proposed).",
+  "description": "Real data: the engines registered in this environment's `manifold.engines` entry-point group, as `LocalBackend.list_engines` lists them, with two host-specific values of an engine that runs in its own interpreter (SatSim) normalized: `resources.interpreter` is a placeholder for the path found on the host, and `available` is shown as on a host where that interpreter is installed (elsewhere it is false, with the reason).",
+  "request": {
+    "method": "GET",
+    "path": "/engines"
+  },
+  "response": {
+    "status": 200,
+    "media_type": "application/json",
+    "body": {
+      "items": [
+        {
+          "engine_id": "dirsig",
+          "available": true,
+          "adapter_version": "0.0.1",
+          "modes": [
+            "layered",
+            "passthrough"
+          ],
+          "contracts": [
+            "dirsig-engine/1"
+          ],
+          "reason": null,
+          "source": "eoptic-manifold-engine-dirsig 0.0.1 (manifold.engines.dirsig.adapter:DirsigAdapter)",
+          "resources": {
+            "cpu_threads": {
+              "minimum": 1,
+              "maximum": null,
+              "default": null,
+              "variables": []
+            },
+            "memory_bytes": null,
+            "gpu": {
+              "maximum": 0,
+              "device_class": null,
+              "memory_bytes": null
+            },
+            "scratch_bytes": null,
+            "network": "none",
+            "assets": [],
+            "interpreter": null
+          },
+          "assets": [],
+          "schemas": [
+            {
+              "schema_id": "https://schemas.manifold.example/contracts/dirsig-engine-1.schema.json",
+              "location": "manifold_contracts/dirsig-engine-1.schema.json",
+              "sha256": "7f772c5eda671fd198f5039615226e55281f479597a8cdcbb053d4876dd0ef88"
+            }
+          ]
+        },
+        {
+          "engine_id": "satsim",
+          "available": true,
+          "adapter_version": "0.0.1",
+          "modes": [
+            "passthrough"
+          ],
+          "contracts": [
+            "satsim-engine/1"
+          ],
+          "reason": null,
+          "source": "eoptic-manifold-engine-satsim 0.0.1 (manifold.engines.satsim.adapter:SatsimAdapter)",
+          "resources": {
+            "cpu_threads": {
+              "minimum": 1,
+              "maximum": null,
+              "default": null,
+              "variables": [
+                "TF_NUM_INTRAOP_THREADS",
+                "TF_NUM_INTEROP_THREADS",
+                "OMP_NUM_THREADS",
+                "NUMBA_NUM_THREADS"
+              ]
+            },
+            "memory_bytes": 1073741824,
+            "gpu": {
+              "maximum": 0,
+              "device_class": null,
+              "memory_bytes": null
+            },
+            "scratch_bytes": 268435456,
+            "network": "none",
+            "assets": [
+              {
+                "name": "de421.bsp",
+                "ref": {
+                  "name": "satsim/assets/de421.bsp",
+                  "content_hash": "sha256:a20a7139da04cbc462454634918e9a9ca69127044e2cc9d4f9c16e238d2deedc"
+                },
+                "env": "MANIFOLD_SATSIM_EPHEMERIS",
+                "description": "JPL planetary ephemeris DE421, read by skyfield"
+              },
+              {
+                "name": "finals2000A.all",
+                "ref": {
+                  "name": "satsim/assets/finals2000A.all",
+                  "content_hash": "sha256:0baf00f67a39ab362a3e4f07d2a1f084842178523f56bcf5a861e7ac084d411a"
+                },
+                "env": "MANIFOLD_SATSIM_IERS",
+                "description": "IERS finals2000A Earth orientation, snapshot of 2026-10-11, read by astropy with downloads off"
+              }
+            ],
+            "interpreter": "<the Python of the engine's own environment, found on this host>"
+          },
+          "assets": [
+            {
+              "name": "de421.bsp",
+              "ref": {
+                "name": "satsim/assets/de421.bsp",
+                "content_hash": "sha256:a20a7139da04cbc462454634918e9a9ca69127044e2cc9d4f9c16e238d2deedc"
+              },
+              "env": "MANIFOLD_SATSIM_EPHEMERIS",
+              "description": "JPL planetary ephemeris DE421, read by skyfield"
+            },
+            {
+              "name": "finals2000A.all",
+              "ref": {
+                "name": "satsim/assets/finals2000A.all",
+                "content_hash": "sha256:0baf00f67a39ab362a3e4f07d2a1f084842178523f56bcf5a861e7ac084d411a"
+              },
+              "env": "MANIFOLD_SATSIM_IERS",
+              "description": "IERS finals2000A Earth orientation, snapshot of 2026-10-11, read by astropy with downloads off"
+            }
+          ],
+          "schemas": [
+            {
+              "schema_id": "https://schemas.manifold.example/contracts/satsim-engine-1.schema.json",
+              "location": "manifold_contracts/satsim-engine-1.schema.json",
+              "sha256": "d1ccd85872272a0becac680b5856c78567ad8c8a0ca9aaaa9a6af6d84d6fdf6b"
+            }
+          ]
+        }
+      ]
+    },
+    "schema": "schemas/engine_list.schema.json"
+  },
+  "operation": "list_engines"
+}

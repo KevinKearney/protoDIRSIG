@@ -1,0 +1,64 @@
+# Recipe (compose/1), a sweep: the tahoe_static_pose scenario imaged by each library sensor, one run per sensor.
+# scripts/compose.py composes it into manifold_run_specs/sensor_sweep_tahoe--<sensor file stem>.yaml. The scenario,
+# the engine profile (tabulated channel response) and the seed are shared; each run takes the settings member of its
+# sensor's entry. Each run models a centred 32 x 32 window, so a render takes seconds (notebooks/stage_03).
+
+compose: compose/1
+
+meta:
+  name: sensor-sweep-tahoe          # run names: sensor-sweep-tahoe--<sensor file stem>
+  tags: [sweep, static-pose, hypersonic-target]
+  description: >
+    The auror_ref scene, geometry and atmosphere imaged by each library sensor from the same fixed
+    LEO-altitude position over the Tahoe scene, in a centred 32 x 32 window.
+
+sensors:
+  - auror-nir.yaml
+  - deepscan_850_306_nir_1280.yaml
+  - synthetic_600_200_vis_1920.yaml
+scenario: tahoe_static_pose
+engine_profile: tahoe_static_pose
+
+settings:                           # keyed by entry_id across the listed sensors
+  - entry_id: auror-nir
+    exposure_time: {value: 0.005, provenance: specified}
+    frame_rate: {value: 1000, provenance: specified}
+    gain: {value: 1, provenance: specified}
+    black_level: {value: 0, provenance: specified}
+    roi: {Width: 32, Height: 32, OffsetX: null, OffsetY: null}    # centred window
+  - entry_id: deepscan-850-306-nir-1280
+    exposure_time: {value: 0.005, provenance: specified}
+    frame_rate: {value: 1000, provenance: specified}
+    gain: {value: 1, provenance: specified}
+    black_level: {value: 0, provenance: specified}
+    roi: {Width: 32, Height: 32, OffsetX: null, OffsetY: null}
+  - entry_id: synthetic-600-200-vis-1920
+    exposure_time: {value: 0.005, provenance: specified}
+    frame_rate: {value: 1000, provenance: specified}
+    gain: {value: 1, provenance: specified}
+    black_level: {value: 0, provenance: specified}
+    roi: {Width: 32, Height: 32, OffsetX: null, OffsetY: null}
+
+fidelity_by_sensor:                 # replaces the whole fidelity block for that sensor's run
+  auror-nir.yaml:
+    modeled: [reflective and emissive radiance, atmospheric transmission and path radiance]
+    approximated: [detector noise, optics blur]
+    absent: [platform jitter]
+    valid_for: >
+      Scene-radiometry and sensor-chain studies at the modeled band, geometry and atmosphere, in a 32 x 32
+      window. Not valid for target-visibility studies: the vehicle's emission is not evaluated in a 0.41-2.0 um
+      job unless temperature prediction is forced, so the vehicle renders black.
+  deepscan_850_306_nir_1280.yaml:
+    modeled: [reflective and emissive radiance, atmospheric transmission and path radiance]
+    approximated: [detector noise, optics blur, sensor spectral response (synthetic QE curve)]
+    absent: [platform jitter]
+    valid_for: >
+      Pipeline and sensor-chain studies in a 32 x 32 window. Optics and readout are carried from auror-nir and the
+      QE is synthetic, so absolute values are not DeepScan's. Not valid for target-visibility studies.
+  synthetic_600_200_vis_1920.yaml:
+    modeled: [reflective and emissive radiance, atmospheric transmission and path radiance]
+    approximated: [detector noise, optics blur, sensor spectral response (synthetic QE and optics curves)]
+    absent: [platform jitter]
+    valid_for: >
+      Pipeline and sensor-chain studies in a 32 x 32 window; the camera is invented and its curves are synthetic.
+      Not valid for target-visibility studies.

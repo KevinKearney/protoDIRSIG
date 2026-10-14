@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Engine list",
+  "description": "`built / internal` (`tests/backend_conformance.py`). The engines registered with the backend: each engine id an adapter serves, whether its adapter is available, and what it declares. An engine is added by installing a distribution that registers an adapter; nothing else in the SDK names it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "items"
+  ],
+  "properties": {
+    "items": {
+      "description": "One entry per registered engine, sorted by engine id.",
+      "type": "array",
+      "items": {
+        "description": "One registered engine.",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "engine_id",
+          "available",
+          "adapter_version",
+          "modes",
+          "contracts",
+          "reason",
+          "source",
+          "resources",
+          "assets",
+          "schemas"
+        ],
+        "properties": {
+          "engine_id": {
+            "description": "The engine id a run spec names in `descriptor.origin.engine`.",
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "available": {
+            "description": "Whether the engine can run here: its adapter loaded and reports its runtime present; an unavailable engine is listed with the reason, and a run naming it is refused at admission.",
+            "type": "boolean"
+          },
+          "adapter_version": {
+            "description": "The adapter's version, or null when it did not load.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "modes": {
+            "description": "The engine-block modes the adapter serves, for example `layered` and `passthrough`; empty when it did not load.",
+            "type": "array",
+            "items": {
+              "description": "A mode.",
+              "type": "string"
+            }
+          },
+          "contracts": {
+            "description": "The engine-block contracts the adapter reads, for example `dirsig-engine/1`; empty when it did not load.",
+            "type": "array",
+            "items": {
+              "description": "A contract id.",
+              "type": "string"
+            }
+          },
+          "reason": {
+            "description": "Why the engine is unavailable, or null.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "description": "The distribution that registered the adapter, as the backend identifies it, or null.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resources": {
+            "description": "The resource slots the adapter declares for a run (`built / internal`, `tests/test_resources.py`: CPU threads, memory, GPUs, scratch space, network, assets, an external interpreter), or null when it declares none or did not load.",
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "assets": {
+            "description": "The external assets the adapter requires, each named with its library reference and content digest (`built / internal`, `tests/test_satsim_adapter.py`); empty when it requires none.",
+            "type": "array",
+            "items": {
+              "description": "One required asset.",
+              "type": "object"
+            }
+          },
+          "schemas": {
+            "description": "`built / internal` (`tests/test_admission_vectors.py`). Every engine-block schema the engine contributes, so a client in any language can fetch it and apply it as admission does: the run-spec schema alone leaves the engine block open and is not sufficient for admission. Empty when the adapter did not load.",
+            "type": "array",
+            "items": {
+              "description": "One engine-block schema.",
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["schema_id", "location", "sha256"],
+              "properties": {
+                "schema_id": {
+                  "description": "The schema's `$id`, an absolute URI under the contract base `https://schemas.manifold.example/contracts/`, which does not resolve on the network.",
+                  "type": ["string", "null"]
+                },
+                "location": {
+                  "description": "Where the schema is published, relative to the contracts repository: `manifold_contracts/<file>`, the base of `schema_id` mapped to that folder; null for an id outside the base (not published).",
+                  "type": ["string", "null"]
+                },
+                "sha256": {
+                  "description": "The sha256 of the canonical JSON (RFC 8785) of the schema the adapter applies, so a fetched copy can be checked against it.",
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

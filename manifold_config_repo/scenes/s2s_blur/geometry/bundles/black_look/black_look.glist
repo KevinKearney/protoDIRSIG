@@ -1,0 +1,11 @@
+<geometrylist>
+    <object search_paths="local">
+        <localmaterials>plate.mat</localmaterials>
+        <basegeometry>
+            <obj>
+                <filename>black_look.obj</filename>
+            </obj>
+        </basegeometry>
+        <staticinstance/>
+    </object>
+</geometrylist>

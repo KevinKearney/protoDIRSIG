@@ -1,0 +1,15 @@
+<geometrylist>
+    <object search_paths="local">
+        <localmaterials>vehicle_pointsource.mat</localmaterials>
+        <basesource>
+            <pointsource matid="vehicle_pointsource"/>
+        </basesource>
+        <staticinstance>
+            <!-- 0.25 m up: just above the hypersonic.obj top (z max 0.186 m), so the opaque mesh
+                 instanced alongside does not hide the source from an overhead sensor -->
+            <translation>
+                <point><x>0</x><y>0</y><z>0.25</z></point>
+            </translation>
+        </staticinstance>
+    </object>
+</geometrylist>

@@ -1,0 +1,5 @@
+sweep_id: 9a3d7019764e
+runs:
+- sensor-sweep-tahoe--auror-nir
+- sensor-sweep-tahoe--deepscan_850_306_nir_1280
+- sensor-sweep-tahoe--synthetic_600_200_vis_1920

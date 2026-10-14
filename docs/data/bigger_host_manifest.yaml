@@ -1,0 +1,131 @@
+# The measurements deferred to a larger host (docs/Bigger_host_plan.md), run by scripts/bigger_host_run.py.
+# est_s: one item's wall time (s) on the 4-core laptop (default: any item not listed); peak_mib: one job's peak RSS
+# where an earlier round measured it (otherwise the runner probes the entry's smallest instance).
+schema: bigger-host-manifest/1
+entries:
+  - name: s2s-unlabelled-points
+    driver: s2s
+    source: round 29 OPEN 6, round 32 OPEN 4
+    results: docs/data/s2s_results.jsonl
+    check: python scripts/s2s_measure.py --check
+    peak_mib: 155.9
+    peak_source: "risk B native-n1, the 25 km plate job in the same scene"
+    est_s: {default: 4.3, s2s-unresolvedplain-r12p5km-v0mps-e5ms-l0-z0-d0p25: 73.9,
+            s2s-unresolvedplain-r12p5km-v0mps-e5ms-l0-z0-d0p5: 73.9,
+            s2s-unresolvedplain-r12p5km-v0mps-e5ms-l0-z0-d0p75: 73.9,
+            s2s-unresolvedplain-r25km-v0mps-e5ms-l0-z0-d0p25: 70.0, s2s-unresolvedplain-r25km-v0mps-e5ms-l0-z0-d0p5: 70.0,
+            s2s-unresolvedplain-r25km-v0mps-e5ms-l0-z0-d0p75: 70.0, s2s-unresolvedplain-r50km-v0mps-e5ms-l0-z0-d0p25: 22.5,
+            s2s-unresolvedplain-r50km-v0mps-e5ms-l0-z0-d0p5: 22.5, s2s-unresolvedplain-r50km-v0mps-e5ms-l0-z0-d0p75: 22.5}
+    items:
+      - s2s-unresolvedplain-r200km-v0mps-e1ms-l0-z0-d0
+      - s2s-unresolvedplain-r200km-v0mps-e20ms-l0-z0-d0
+      - s2s-unresolvedplain-r200km-v0mps-e5ms-l30-z0-d0
+      - s2s-unresolvedplain-r200km-v0mps-e5ms-l60-z0-d0
+      - s2s-unresolvedplain-r200km-v0mps-e5ms-l0-z30-d0
+      - s2s-unresolvedplain-r200km-v0mps-e5ms-l0-z60-d0
+      - s2s-unresolvedplain-r200km-v0mps-e5ms-l0-z0-d0p25
+      - s2s-unresolvedplain-r200km-v0mps-e5ms-l0-z0-d0p5
+      - s2s-unresolvedplain-r200km-v0mps-e5ms-l0-z0-d0p75
+      - s2s-unresolvedplain-r12p5km-v0mps-e5ms-l0-z0-d0p25
+      - s2s-unresolvedplain-r12p5km-v0mps-e5ms-l0-z0-d0p5
+      - s2s-unresolvedplain-r12p5km-v0mps-e5ms-l0-z0-d0p75
+      - s2s-unresolvedplain-r25km-v0mps-e5ms-l0-z0-d0p25
+      - s2s-unresolvedplain-r25km-v0mps-e5ms-l0-z0-d0p5
+      - s2s-unresolvedplain-r25km-v0mps-e5ms-l0-z0-d0p75
+      - s2s-unresolvedplain-r50km-v0mps-e5ms-l0-z0-d0p25
+      - s2s-unresolvedplain-r50km-v0mps-e5ms-l0-z0-d0p5
+      - s2s-unresolvedplain-r50km-v0mps-e5ms-l0-z0-d0p75
+
+  - name: s2s-blur-both
+    driver: s2s
+    source: round 32 OPEN 4
+    results: docs/data/s2s_results.jsonl
+    check: python scripts/s2s_measure.py --check
+    probe: s2s2-blur-both-e0p1ms
+    est_s: {s2s2-blur-both-e0p1ms: 121.8, s2s2-blur-both-e1ms: 125.5, s2s2-blur-both-e5ms: 139.6,
+            s2s2-blur-both-e20ms: 204.0}
+    # round 43, from the records (docs/Bigger_host_plan.md "Still deferred at round 43"); the probe still measures
+    # the peak, since no family II render at 500 x 500 has a measured peak
+    estimate: {peak_mib: 160, wall_s: 591,
+               basis: "peak: the both group's 64 x 64 renders of round 41 at most 129,540 kB and family I's 500 x 500
+                 plate job 159,644 KiB (risk B native-n1); wall: est_s summed (round 30's 20 ms render, round 32's
+                 platform group at 0.1, 1 and 5 ms)"}
+    items: [s2s2-blur-both-e0p1ms, s2s2-blur-both-e1ms, s2s2-blur-both-e5ms, s2s2-blur-both-e20ms]
+
+  - name: concurrency-native
+    driver: concurrency
+    source: round 33 risk B, round 33 OPEN 5
+    results: docs/data/risk_measurements.jsonl
+    check: python scripts/risk_measure.py --check
+    risk: B
+    id_prefix: native
+    spec: s2s-hyperresolved-r25km-v0mps-e5ms-l0-z0-d0
+    peak_mib: 155.9
+    peak_source: "risk B native-n1"
+    est_s: {default: 198.1, n1: 70.7, n2: 78.1, n4: 113.2, n8: 198.1}
+    items: [1, 2, 4, 8, 16, 32, 64, cores]
+
+  - name: lightcurve1-full
+    driver: lightcurve
+    source: round 33 risk E, round 33 OPEN 4, BACKLOG "Determinism follow-ups"
+    results: docs/data/risk_measurements.jsonl
+    check: python scripts/risk_measure.py --check
+    risk: E
+    id_prefix: lightcurve1-full
+    disk_gb_per_item: 13.5
+    est_s: {t1-a: 2400, t2-a: 1361, t2-b: 1361, t4-a: 896, t4-b: 896, td-a: 691.9, td-b: 691.9, td-c: 691.9}
+    items: [t1-a, t2-a, t2-b, t4-a, t4-b, td-a, td-b, td-c]
+    pairs: [[t1-a, td-a], [t1-a, td-b], [t1-a, td-c], [td-a, td-b], [td-a, td-c], [td-b, td-c], [t1-a, t2-a],
+            [t2-a, t2-b], [t1-a, t4-a], [t1-a, t4-b], [t4-a, t4-b], [t2-a, t4-a]]
+
+  - name: capture-order-native
+    driver: capture_order
+    source: round 33 risk D, round 33 OPEN 1
+    results: docs/data/risk_measurements.jsonl
+    check: python scripts/risk_measure.py --check
+    risk: D
+    as_limit_gib: 24
+    timeout_s: 3600
+    simulation: {Thermal2: demo.sim, Polarization4: pi.sim, Fireball1: demo.sim}
+    est_s: {Thermal2: 998, Polarization4: 2712, Fireball1: 69}
+    # round 43, from the risk D records, the demo sweep and docs/DIRSIG_determinism.md (docs/Bigger_host_plan.md
+    # "Still deferred at round 43"): peak_mib a render's estimated peak at native size (Thermal2 reversed: the limit);
+    # wall_s one item, all its renders at one thread (est_s is its upper end)
+    estimate:
+      Thermal2: {renders: 7, peak_mib: 140, reversed_peak_mib: 24576, wall_s: [752, 998],
+                 basis: "as authored 360 to 483 s (116.3 s at 8 threads x 3.1 to 3.7; 30.2 s reduced x 16); the five
+                   single captures about one render together; reversed: 5,558,920 KiB in 7 s unlimited and bad_alloc
+                   under a 2 GiB limit, so the 24 GiB limit is reached in about 32 s"}
+      Polarization4: {renders: 6, peak_mib: 252, wall_s: [558, 2712],
+                      basis: "as authored 186 to 904 s (11.6 s reduced x 16; 244.3 s at 8 threads x 3.1 to 3.7); the
+                        four single planes about one render together; reversed about one render"}
+      Fireball1: {renders: 4, peak_mib: 112, wall_s: [57, 69],
+                  basis: "as authored 19 to 23 s (6.1 s at 8 threads x 3.1 to 3.7; 1.4 s reduced x 16); the two single
+                    planes about one render; reversed about one render"}
+    items: [Thermal2, Polarization4, Fireball1]
+
+  - name: forest-layered-comparison
+    driver: command
+    source: round 32 OPEN 2
+    results: "{work}/forest-layered-comparison/forest/results.json"
+    check: "results.json holds forest with a status other than stopped"
+    threads: 1
+    done: results.json
+    argv: ["{python}", "{repo}/scripts/compare_layered.py", "--source",
+           "forest={dirsig_home}/Documents_Folder-07-Feb-2024/DIRSIG/scenes/forest:shots/rgb/rgb.sim",
+           "--threads", "1", "--timeout", "14400", "--work", "{folder}"]
+    est_s: 2625
+    items: [forest]
+
+  - name: sweep-capped-demos
+    driver: command
+    source: CONOPS "Demo sweep" (2 simulation files hit the 1800 s cap)
+    results: "{work}/sweep-capped-demos/demos/sweep/results.jsonl"
+    check: "a demo line per demo in results.jsonl"
+    threads: default
+    done: sweep/results.jsonl
+    done_lines: [{type: demo, demo: FocusDistance1}, {type: demo, demo: SumoTraffic1}]
+    argv: ["{python}", "{repo}/scripts/sweep_demos.py", "--only", "FocusDistance1,SumoTraffic1",
+           "--per-run-timeout", "21600", "--budget-hours", "24", "--work", "{folder}", "--report", ""]
+    est_s: 3600
+    items: [demos]

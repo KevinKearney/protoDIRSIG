@@ -1,8 +1,8 @@
-"""Phase 4a: cross-check protodirsig.orbit (skyfield SGP4 -> ITRS waypoints) against DIRSIG's
+"""Phase 4a: cross-check manifold.core.orbit (skyfield SGP4 -> ITRS waypoints) against DIRSIG's
 own `<locationengine type="sgp4">`, on tutorial_tacoma_scene.ipynb's WorldView-2-over-Tacoma pass.
 
 Two renders that differ ONLY in the location engine:
-  A  "skyfield": ECEF waypoints from protodirsig.orbit (exactly what the Tacoma notebook uses)
+  A  "skyfield": ECEF waypoints from manifold.core.orbit (exactly what the Tacoma notebook uses)
   B  "native"  : the same TLE lines handed to DIRSIG's built-in SGP4 engine
 Same scene reference, sensor, atmosphere, TASKS (PASS_EPOCH, one frame at t = 60 s), same LookAt
 orientation. The sensor adds the Geolocation truth collector (ECEF hit points) to the notebook's
@@ -27,7 +27,7 @@ from pathlib import Path
 import numpy as np
 
 PROJECT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT / "src"))
+sys.path[:0] = [str(PROJECT / "packages" / d / "src") for d in ("core", "sim")]
 DIRSIG_HOME = Path(os.environ.get("DIRSIG_HOME", Path.home() / "DIRSIG" / "dirsig-2026.38.0.a020954-Linux-x86_64"))
 os.environ["DIRSIG_HOME"] = str(DIRSIG_HOME)
 os.environ["PATH"] = f"{DIRSIG_HOME / 'bin'}{os.pathsep}" + os.environ.get("PATH", "")
@@ -35,11 +35,13 @@ os.environ["PATH"] = f"{DIRSIG_HOME / 'bin'}{os.pathsep}" + os.environ.get("PATH
 import lxml.etree as et                                   # noqa: E402
 from dirfm import DIRSIG, SCENE, TASKS, frames            # noqa: E402
 from dirfm import flexible_motion as fm                   # noqa: E402
-from skyfield.api import EarthSatellite, Loader, wgs84    # noqa: E402
+from skyfield.api import wgs84                            # noqa: E402
 from spectral import open_image                           # noqa: E402
 
-from protodirsig import orbit, sensors                    # noqa: E402
-from protodirsig.scene_ref import fingerprint, reference_scene  # noqa: E402
+from manifold.core import orbit  # noqa: E402
+from manifold.engines.dirsig import sensors  # noqa: E402
+from manifold.engines.dirsig.motion_tasks import lookat_motion  # noqa: E402
+from manifold.engines.dirsig.scene_ref import fingerprint, reference_scene  # noqa: E402
 
 TACOMA = DIRSIG_HOME / "Tacoma-08-Apr-2022" / "Tacoma"
 WORK = PROJECT / "outputs" / "sgp4_check"
@@ -62,7 +64,7 @@ class Sgp4LocationEngine(fm.LocationEngine):
 
 
 def tacoma_pass():
-    """The Tacoma notebook's Stage 1, via the same protodirsig.orbit calls and parameters."""
+    """The Tacoma notebook's Stage 1, via the same manifold.core.orbit calls and parameters."""
     scene_xml = et.parse(str(TACOMA / "tacoma.scene")).getroot()
     loc = scene_xml.find("sceneorigin/location")
     lat0, lon0 = float(loc.findtext("latitude")), float(loc.findtext("longitude"))
@@ -71,21 +73,16 @@ def tacoma_pass():
     aim = [round(float(v), 3) for v in inst.split(",")[:3]]
 
     _, name, l1, l2 = orbit.fetch_tle(35946, DATA_DIR, expect_name="WORLDVIEW-2", expect_intl="09055A")
-    load = Loader(DATA_DIR, verbose=False)
-    ts = load.timescale()
-    sat = EarthSatellite(l1, l2, name, ts)
-    planets = load("de421.bsp")
-    target = wgs84.latlon(lat0, lon0)
-    t_culm, _, _ = orbit.choose_pass(orbit.find_passes(sat, target, planets["earth"], planets["sun"]))
-    epoch = orbit.pass_epoch(t_culm, PASS_DURATION)
+    best = orbit.choose_pass(orbit.find_passes(l1, l2, lat0, lon0, DATA_DIR / "de421.bsp"))
+    epoch = orbit.pass_epoch(best.culmination_s, PASS_DURATION)
     t = np.arange(round(PASS_DURATION / DENSE_DT) + 1) * DENSE_DT
-    times, _, pos, pos_teme = orbit.propagate(sat, ts, epoch, t)
-    orbit.check_teme_to_itrs(pos, pos_teme, times, t)
+    traj = orbit.propagate(l1, l2, epoch, t)
+    pos = traj.pos_itrs
+    orbit.check_teme_to_itrs(pos, traj.pos_teme, traj.ut1_jd, t)
     m = orbit.ecef_to_enu_matrix(lat0, lon0)
     k = int(round(FRAME_T / DENSE_DT))
     up = orbit.along_track_up(np.gradient(pos, t, axis=0) @ m.T, k)
-    return dict(l1=l1, l2=l2, epoch=epoch, t=t, pos=pos, k=k, aim=aim, up=up, sat=sat, ts=ts,
-                vel=np.gradient(pos, t, axis=0))
+    return dict(l1=l1, l2=l2, epoch=epoch, t=t, pos=pos, k=k, aim=aim, up=up, vel=np.gradient(pos, t, axis=0))
 
 
 def render(tag, motion, p, ref_file):
@@ -117,25 +114,10 @@ def band(truth, pattern):
 
 
 def recover_sensor(truth, s0, iters=8):
-    """Least-squares S with |S - P_i| = d_i over all pixels; returns S, rms residual, covariance."""
+    """Least-squares S with |S - P_i| = d_i over all pixels (orbit.recover_position); returns S, rms, covariance, n."""
     P = np.column_stack([band(truth, r"ecef\s*x").ravel(), band(truth, r"ecef\s*y").ravel(),
                          band(truth, r"ecef\s*z").ravel()])
-    d = band(truth, r"^distance").ravel()
-    ok = np.all(np.isfinite(P), axis=1) & np.isfinite(d)
-    P, d = P[ok], d[ok]
-    s = np.array(s0, float)
-    for _ in range(iters):
-        diff = s - P
-        rng = np.linalg.norm(diff, axis=1)
-        J = diff / rng[:, None]
-        r = rng - d
-        step, *_ = np.linalg.lstsq(J, -r, rcond=None)
-        s = s + step
-        if np.linalg.norm(step) < 1e-4:
-            break
-    r = np.linalg.norm(s - P, axis=1) - d
-    cov = np.linalg.inv(J.T @ J) * np.var(r)
-    return s, float(np.sqrt(np.mean(r**2))), cov, int(ok.sum())
+    return orbit.recover_position(P, band(truth, r"^distance").ravel(), s0, iters)
 
 
 def main():
@@ -145,7 +127,7 @@ def main():
     t_wp, pos_wp, _ = orbit.thin(p["t"], p["pos"], DENSE_DT, 1.0)
 
     runs = {
-        "skyfield": render("skyfield", orbit.lookat_motion(t_wp, pos_wp, frames.ENUFrame(*p["aim"]), p["up"]), p, ref_file),
+        "skyfield": render("skyfield", lookat_motion(t_wp, pos_wp, frames.ENUFrame(*p["aim"]), p["up"]), p, ref_file),
         "native": render("native", fm.FlexMotion(Sgp4LocationEngine(p["l1"], p["l2"]),
                                                  fm.LookAtOrientationEngine(fm.FixedLocationEngine(frames.ENUFrame(*p["aim"])), up=p["up"])),
                          p, ref_file),

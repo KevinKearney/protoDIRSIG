@@ -1,0 +1,185 @@
+file	line	old_marker	build	agreement	evidence	note
+BACKLOG.md	34	proposed	built	proposed	tests/test_resources.py	test; C-30
+BACKLOG.md	68	proposed	built, partial	internal	tests/test_local_backend.py	test
+BACKLOG.md	125	proposed	built	proposed	tests/test_resources.py	test; C-30
+BACKLOG.md	128	proposed	built	proposed	tests/test_artifact_roles.py	test; C-34
+BACKLOG.md	187	proposed	built	proposed	tests/test_passthrough.py	test
+README.md	67	proposed	built, partial	internal	tests/test_local_backend.py	test
+api/README.md	3	proposed	built, partial	internal	tests/test_local_backend.py	test; legend mirrored below the status line
+api/README.md	5	built	-	-		none; reference to the Build column, not a marker
+api/README.md	23	proposed	built	internal	tests/backend_conformance.py	suite
+api/openapi.yaml	7	proposed	built, partial	internal	tests/test_api_contract.py	test
+api/openapi.yaml	26	proposed	built	internal	tests/backend_conformance.py	suite
+api/openapi.yaml	331	proposed	built	internal	tests/backend_conformance.py	suite; marker dropped from the summary; the tag description carries it
+api/operations.md	3	proposed	built, partial	internal	tests/test_local_backend.py	test
+api/operations.md	5	built	-	-		none; column definition rewritten for Build and Agreement
+api/operations.md	13	proposed	built	internal	tests/test_local_backend.py	test; inline in an operation row
+api/operations.md	13	built	built	internal	tests/test_local_backend.py	test; operation row: Status built becomes Build built, Agreement internal
+api/operations.md	14	proposed	built	internal	tests/test_local_backend.py	test; inline in an operation row
+api/operations.md	14	built	built	internal	tests/test_local_backend.py	test; operation row: Status built becomes Build built, Agreement internal
+api/operations.md	15	proposed	built	internal	tests/test_local_backend.py	test; inline in an operation row
+api/operations.md	15	built	built	internal	tests/test_local_backend.py	test; operation row: Status built becomes Build built, Agreement internal
+api/operations.md	16	proposed	built	internal	tests/test_local_backend.py	test; inline in an operation row
+api/operations.md	16	built	built	internal	tests/test_local_backend.py	test; operation row: Status built becomes Build built, Agreement internal
+api/operations.md	17	built	built	internal	tests/test_local_backend.py	test; operation row: Status built becomes Build built, Agreement internal
+api/operations.md	18	built	built	internal	tests/test_local_backend.py	test; operation row: Status built becomes Build built, Agreement internal
+api/operations.md	19	proposed	built	internal	tests/test_artifact_roles.py	test
+api/operations.md	19	built	built	internal	tests/test_local_backend.py	test; operation row: Status built becomes Build built, Agreement internal
+api/operations.md	20	built	built	internal	tests/test_local_backend.py	test; operation row: Status built becomes Build built, Agreement internal
+api/operations.md	21	built	built	internal	tests/test_local_backend.py	test; operation row: Status built becomes Build built, Agreement internal
+api/operations.md	22	proposed	built	internal	tests/test_artifact_roles.py	test
+api/operations.md	22	built	built	internal	tests/test_local_backend.py	test; operation row: Status built becomes Build built, Agreement internal
+api/operations.md	23	built	built	internal	tests/test_local_backend.py	test; operation row: Status built becomes Build built, Agreement internal
+api/operations.md	24	proposed	built	internal	tests/backend_conformance.py	suite; marker moved to the Build and Agreement columns
+api/operations.md	24	built	built	internal	tests/backend_conformance.py	suite; operation row: Status built becomes Build built, Agreement internal
+api/operations.md	45	proposed	built	internal	tests/test_passthrough.py	test
+api/requirements.md	3	proposed	built, partial	internal	tests/test_local_backend.py	test; the Status column of the requirements table (met, partial, gap) is a verification status, not a marker
+api/schemas/artifact_ref.schema.json	40	proposed	built	internal	tests/test_artifact_roles.py	test
+api/schemas/compose_response.schema.json	72	proposed	built	internal	tests/test_passthrough.py	test
+api/schemas/engine_list.schema.json	4	Proposed	built	internal	tests/backend_conformance.py	suite
+api/schemas/engine_list.schema.json	78	proposed	built	internal	tests/test_resources.py	test
+api/schemas/engine_list.schema.json	85	proposed	built	internal	tests/test_satsim_adapter.py	test
+api/schemas/engine_list.schema.json	93	Proposed	built	internal	tests/test_admission_vectors.py	test
+api/schemas/run_status.schema.json	23	proposed	built	internal	tests/test_artifact_roles.py	test
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	11	proposed	built	proposed	tests/test_passthrough.py	test
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	11	proposed	built	proposed	tests/test_satsim_adapter.py	test
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	50	proposed	built, partial	internal	tests/test_local_backend.py	test; api/ contract: SDK-side, not offered
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	64	proposed	built	proposed	tests/test_satsim_adapter.py	test
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	89	built	-	-		none; old legend row; legend replaced by the two-axis legend
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	90	built, partial	-	-		none; old legend row; legend replaced by the two-axis legend
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	91	proposed	-	-		none; old legend row; legend replaced by the two-axis legend
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	91	proposed	-	-		none; prose in the old legend row; replaced
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	92	open	-	-		none; old legend row; legend replaced by the two-axis legend
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	103	proposed	built	proposed	tests/test_passthrough.py	test
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	115	built	built	proposed	tests/test_run_spec.py	test; where motion and tasks are generated is C-04
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	118	built, partial	built, partial	proposed	tests/test_motion_tasks.py	test; stale normative text: orbit is resolved since round 8 (OPEN)
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	122	built, partial	built, partial	internal	tests/test_run_spec.py	test; DIRSIG driver internals; 'static motion' is stale (OPEN)
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	124	built, partial	built, partial	proposed	tests/test_run_spec_schema.py	test; limits sentence added under the key table
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	134	(none)	built, partial	proposed	tests/test_run_spec_schema.py	test; limits statement for the section 3 heading (no marker on this line)
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	136	proposed	built	internal	tests/test_run_spec_schema.py	test; the paragraph says the schemas are not offered to MANIFOLD
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	136	proposed	built	proposed	tests/test_run_spec_schema.py	test; the open engine block is offered through C-29
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	136	proposed	built	proposed	tests/test_run_spec_schema.py	test; C-26
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	138	proposed	built	proposed	tests/test_identity.py	test; C-13, C-22, C-23
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	142	proposed	built	proposed	tests/test_passthrough.py	test; C-25
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	144	proposed	built	proposed	tests/test_run_spec_schema.py	test
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	154	proposed	built	proposed	tests/test_engine_set.py	test
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	154	proposed	built	proposed	tests/test_satsim_adapter.py	test
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	156	proposed	built	proposed	tests/test_passthrough.py	test; C-26
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	156	proposed	built	proposed	tests/test_run_spec_schema.py	test
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	161	proposed	built	proposed	tests/test_orbit_motion.py	test; C-05
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	163	proposed	built	proposed	tests/test_run_spec.py	test; C-03
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	167	proposed	built	proposed	tests/test_orbit_motion.py	test; C-05
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	175	proposed	built	proposed	tests/test_passthrough.py	test; C-25, C-26
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	189	proposed	built	proposed	tests/test_resources.py	test
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	191	open		open		none; MANIFOLD-side admission; the SDK's own admission is built (section 7.1); the section's 'implements none of admission' sentence is stale (OPEN)
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	195	proposed	built	proposed	tests/test_compose.py	test; C-21
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	209	proposed	built	proposed	tests/test_passthrough.py	test
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	220	built, partial	built, partial	proposed	tests/test_compose.py	test; C-18, C-22; limit restated from the paragraph
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	224	built	built	proposed	tests/test_sensor_library.py	test; C-14 to C-16, C-19, C-20
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	254	built	built	proposed	tests/test_library.py	test; C-01
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	261	proposed	built	proposed	tests/test_run_spec.py	test; code block comment; not scanned by the check
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	262	proposed	built	proposed	tests/test_orbit_motion.py	test; code block comment; not scanned by the check
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	263	proposed	built	proposed	tests/test_orbit.py	test; code block comment; not scanned by the check
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	306	built	built	internal	tests/test_bootstrap_assets.py	test
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	315	proposed	built	proposed	tests/test_passthrough.py	test
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	332	built; rules proposed	built	proposed	tests/test_compose.py	test; module `compose`: the composition rules are offered (C-21)
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	333	built, partial	built, partial	internal	tests/test_run_spec.py	test; module `run_spec`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	334	built	built	internal	tests/test_run_spec_schema.py	test; module `contract`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	335	built	built	internal	tests/test_identity.py	test; module `identity`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	336	built	built	internal	tests/test_dirhash.py	test; module `dirhash`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	337	built	built	internal	tests/test_problems.py	test; module `problems`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	338	built	built	internal	tests/test_errors.py	test; module `errors`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	339	proposed	built	proposed	tests/test_engine_set.py	test; inline marker in the Role cell of `engine`
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	339	built	built	internal	tests/test_engine_set.py	test; module `engine`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	340	proposed	built	proposed	tests/test_resources.py	test; inline marker in the Role cell of `resources`
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	340	built	built	internal	tests/test_resources.py	test; module `resources`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	341	built	built	internal	tests/test_names.py	test; module `_names`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	342	built	built	internal	tests/test_admission.py	test; module `admission`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	343	built	built	internal	tests/test_engine_set.py	test; module `engines`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	344	proposed	built	proposed	tests/test_satsim_adapter.py	test; inline marker in the Role cell of `adapter`
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	344	built	built	internal	tests/test_satsim_adapter.py	test; module `adapter`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	345	built	built	internal	tests/test_satsim_adapter.py	test; module `interpreter`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	346	built	built	internal	tests/test_satsim_adapter.py	test; module `launcher`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	347	built	built	internal	tests/test_local_backend.py	test; module `runner`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	348	built	built	internal	tests/test_store.py	test; module `store`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	349	built	built	internal	tests/test_local_backend.py	test; module `worker`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	350	built	built	internal	tests/test_local_backend.py	test; module `backend`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	351	proposed	built	proposed	tests/test_library.py	test; inline marker in the Role cell of `library`
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	351	built	built	internal	tests/test_library.py	test; module `library`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	352	built	built	internal	tests/test_models.py	test; module `models`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	353	proposed	built	internal	tests/test_workspace.py	test; inline marker in the Role cell of `workspace`
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	353	built	built	internal	tests/test_workspace.py	test; module `workspace`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	354	proposed	built	proposed	tests/test_passthrough.py	test; inline marker in the Role cell of `passthrough_spec`
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	354	built	built	internal	tests/test_passthrough.py	test; module `passthrough_spec`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	355	proposed	built	proposed	tests/test_passthrough.py	test; inline marker in the Role cell of `passthrough`
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	355	built	built	internal	tests/test_passthrough.py	test; module `passthrough`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	356	built (one focal plane per entry)	built	internal	tests/test_platform_render.py	test; module `platform_gen`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	357	built	built	internal	tests/test_spectral_curves.py	test; module `spectral`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	358	built, partial (static, orbit)	built, partial	internal	tests/test_motion_tasks.py	test; module `motion_tasks`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	359	built	built	internal	tests/test_simulation.py	test; module `simulation`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	360	built	built	internal	tests/test_registry.py	test; module `registry`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	361	built	built	internal	tests/test_scene_coverage.py	test; module `scene_ref`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	362	built	built	internal	tests/test_orbit_motion.py	test; module `tle`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	363	proposed	built	proposed	tests/test_artifact_roles.py	test; inline marker in the Role cell of `artifacts`
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	363	built	built	internal	tests/test_artifact_roles.py	test; module `artifacts`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	364	built	built	internal	tests/test_orbit.py	test; module `orbit`: module of the SDK
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	368	proposed	built, partial	internal	tests/test_api_contract.py	test; limits sentence added: RemoteBackend and REST server not built
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	370	(none)	built, partial	internal	tests/test_api_contract.py	test; limits statement for the 7.1 heading (no marker on this line)
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	388	proposed	built	internal	tests/backend_conformance.py	suite
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	390	proposed	built	internal	tests/test_store.py	test
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	390	proposed	built	proposed	tests/test_artifact_roles.py	test; judgment: cites C-34, so offered, not internal
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	394	proposed	built	proposed	tests/test_artifact_roles.py	test; judgment: cites C-34, so offered, not internal
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	398	proposed	built	proposed	tests/test_import_boundary.py	test
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	407	proposed	built	proposed	tests/test_satsim_adapter.py	test
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	409	proposed	built	proposed	tests/test_import_boundary.py	test
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	419	proposed	-	-		none; prose ('The conventions, proposed for every distribution'); covered by the 7.2 heading marker; unchanged
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	435	proposed	built	proposed	tests/test_engine_dummy.py	test; C-29
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	450	proposed	built	proposed	manifold_contracts/vectors/admission/	suite; vectors run by tests/test_admission_vectors.py
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	455	proposed	built	proposed	tests/test_artifact_roles.py	test
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	461	proposed	built	proposed	tests/backend_conformance.py	suite; C-32
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	463	proposed	built	proposed	tests/test_resources.py	test; C-30
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	465	proposed	built	proposed	tests/test_bootstrap_assets.py	test; C-31, C-36
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	469	proposed	built	proposed	tests/test_engine_dummy.py	test; the dummy engine is the worked example
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	483	proposed	built	proposed	tests/test_satsim_adapter.py	test
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	491	proposed	built	proposed	tests/test_satsim_adapter.py	test
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	591	built	built	proposed	tests/test_sensor_library.py	test; C-01
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	592	proposed	built	proposed	tests/test_run_spec.py	test; C-02: the AUROR atmosphere resolves from atmosphere/<name>
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	593	proposed	built	proposed	tests/test_run_spec.py	test; C-03: resolve_run reads new_atmosphere
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	594	open	built	open	tests/test_motion_tasks.py	test; C-04: motion and tasks are generated at assembly
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	595	proposed	built	proposed	tests/test_orbit_motion.py	test; inside C-05's position
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	595	built, partial	built, partial	proposed	tests/test_orbit_motion.py	test; C-05
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	596	proposed	planned	proposed		none; C-06: no code compares DIRSIG logs with the descriptor
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	597	proposed	planned	proposed		none; C-07: no content-hashed scene2hdf artifact
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	598	open	built	open	tests/test_resources.py	test; C-08: resources.cpu_threads gives --threads
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	599	open	planned	open		none; C-09: no engine.run option for it in the code
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	600	open		open		none; C-10: position is not to apply it; nothing to build
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	601	open		open		none; C-11: a question about MANIFOLD's documents; nothing to build
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	602	open	built, partial	open	tests/test_run_spec_schema.py	test; C-12
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	603	proposed	built	proposed	tests/test_spectral_curves.py	test; C-16
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	604	proposed	built	proposed	tests/test_platform_render.py	test; C-17
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	605	proposed	built	proposed	tests/test_compose.py	test; C-18
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	606	proposed	built	proposed	tests/test_sensor_library.py	test; C-14: DeviceVendorName and DeviceModelName in sensor-spec-1.schema.json
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	607	proposed	built	proposed	tests/test_sensor_render.py	test; C-15
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	608	open	built	open	tests/test_run_spec.py	test; C-19: multi-entry sensors refused at resolution
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	609	proposed	built	proposed	tests/test_absolute_radiometry.py	test; C-20
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	610	Proposed	-	-		none; prose in C-21's position ('Proposed: (1) ...'); normative text, unchanged
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	610	proposed	built	proposed	tests/test_compose.py	test; C-21
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	611	Proposed	-	-		none; prose in C-22's position ('Proposed: a sweep is ...'); normative text, unchanged
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	611	proposed	built	proposed	tests/test_identity.py	test; C-22
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	612	proposed	built	proposed	tests/test_hashes.py	test; C-23
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	613	proposed	built	proposed	tests/test_library.py	test; C-24
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	614	proposed	built	proposed	tests/test_passthrough.py	test; C-25
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	615	proposed	built	proposed	tests/test_passthrough.py	test; C-26
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	616	proposed	planned	proposed		none; C-27: paging is not built; the unpaged listing is (tests/test_artifact_scale.py)
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	617	proposed	built	proposed	tests/test_resources.py	test; C-28
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	618	proposed	built	proposed	tests/test_engine_set.py	test; C-29
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	619	proposed	built	proposed	tests/test_resources.py	test; C-30
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	620	proposed	built	proposed	tests/test_satsim_adapter.py	test; C-31
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	621	proposed	built	proposed	tests/backend_conformance.py	suite; inside C-32's position
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	621	proposed	built	proposed	tests/backend_conformance.py	suite; C-32
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	622	proposed	built	proposed	tests/test_artifact_roles.py	test; C-33
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	623	proposed	built	proposed	tests/test_artifact_roles.py	test; C-34
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	624	proposed	built	proposed	tests/test_satsim_adapter.py	test; C-35
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	625	proposed	built	proposed	tests/test_bootstrap_assets.py	test; C-36
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	626	proposed	built	proposed	tests/test_satsim_adapter.py	test; C-37
+docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md	627	open		open		none; C-38: license question; the SDK bundles nothing

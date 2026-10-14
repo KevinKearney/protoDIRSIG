@@ -1,0 +1,12 @@
+<geometrylist>
+    <object search_paths="local">
+        <localmaterials>hypersonic_reflective.mat</localmaterials>
+        <basegeometry>
+            <obj>
+                <filename>hypersonic.obj</filename>
+                <assign id="Gidder_mat_reflective">Gidder_mat</assign>
+            </obj>
+        </basegeometry>
+        <staticinstance/>
+    </object>
+</geometrylist>

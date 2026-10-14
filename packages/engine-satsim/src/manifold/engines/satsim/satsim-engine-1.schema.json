@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.manifold.example/contracts/satsim-engine-1.schema.json",
+  "title": "satsim-engine/1",
+  "description": "Proposed. The engine block of a run-spec/1 document whose descriptor.origin.engine is satsim: a SatSim configuration run as authored (the pass-through form; the descriptor is opaque, {source: passthrough}). Rules this schema cannot express, enforced at admission by the SatSim adapter: the configuration reference resolves in the engine-asset library and its stamped digest matches (sha256 of a file, dirhash/1 of a directory holding exactly one config.yaml, config.yml or config.json); the configuration has exactly one of SatSim's roots (fpa, radar, passive_rf), one set (sim.samples 1 or absent), and, as a single file, names no other file; device is cpu (GPU behavior is unverified); the ephemeris and Earth-orientation assets are present with their pinned digests. The $id is an absolute URI under a base that does not resolve on the network (https://schemas.manifold.example/contracts/); a validator maps the base to manifold_contracts/.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["mode", "config", "seed"],
+  "properties": {
+    "mode": {
+      "description": "The engine form. Only the pass-through form exists: SatSim runs the configuration as authored.",
+      "const": "passthrough"
+    },
+    "config": {
+      "description": "The SatSim configuration: a library reference {name, content_hash} under the engine-asset library, a file (sha256) or a directory (dirhash/1) holding it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "content_hash"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "content_hash": {"type": "string", "pattern": "^sha256:([0-9a-f]{64}|<hash>)$"}
+      }
+    },
+    "seed": {
+      "description": "Seeds Python's random module, numpy's global state and TensorFlow's global seed before SatSim runs. Required: SatSim draws its star field and its noise from unseeded generators, so a run without it would not repeat. Part of the run spec, so part of the run id.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4294967295
+    },
+    "device": {
+      "description": "Where SatSim computes. Only cpu is admitted (the default); any other value is refused at admission because GPU behavior is unverified.",
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

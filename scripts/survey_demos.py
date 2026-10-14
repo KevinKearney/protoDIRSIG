@@ -1,0 +1,820 @@
+#!/usr/bin/env python3
+"""Survey DIRSIG's shipped demos and write the coverage table (`docs/DIRSIG_demo_coverage.md`).
+
+    python scripts/survey_demos.py --out docs/DIRSIG_demo_coverage.md
+    python scripts/survey_demos.py --demos DIR --out FILE
+    python scripts/survey_demos.py --check                 exit 1 if the committed table differs from a fresh survey
+
+Reads every `<Name>.zip` under `--demos` (default `external/dirsig/demos/zips`, the DIRSIG install this repository
+links) in place with `zipfile`; nothing is extracted. For each demo it parses the simulation file (a DIRSIG5 `.jsim`, or
+a legacy `.sim`; with several, `demo.jsim`, then `demo.sim`, then the first by name) and the files it references:
+scenes, atmosphere, platform, motion and tasks. It records names, plugin and element names, counts and sizes only, never
+file contents (a section headed "First demo: what it took" already in `--out` is kept), and classifies each demo against what the SDK's engine body and loader cover today (CONOPS section 3.2
+and `run_spec.resolve_run`): `ready` (nothing missing), `near` (exactly one missing feature), `far` (two or more, or a
+non-imaging sensor), `refused` (DIRSIG refuses the demo as authored, measured by running it: `REFUSED`) or `unparsed`
+(the layout was not understood; the reason is given). A value that cannot be read is
+`unknown`. Standard library plus `lxml`.
+"""
+import argparse
+import json
+import posixpath
+import re
+import sys
+import zipfile
+from collections import Counter
+from pathlib import Path
+
+from lxml import etree as et
+
+ROOT = Path(__file__).resolve().parents[1]
+DEMOS = ROOT / "external" / "dirsig" / "demos" / "zips"
+OUT = ROOT / "docs" / "DIRSIG_demo_coverage.md"
+CONTROL = (".sim", ".jsim", ".platform", ".ppd", ".motion", ".tasks", ".atm", ".options")
+DOCS = ("readme",)
+ATMOSPHERES = {"NewAtmosphere", "BasicAtmosphere", "FourCurveAtmosphere"}
+EPHEMERIDES = {"SpiceEphemeris", "FixedEphemeris", "DataDrivenEphemeris"}
+WEATHERS = {"ThermWeather", "NsrdbWeather"}
+PLATFORMS = {"BasicPlatform"}
+NON_IMAGING = {"lidar", "radar", "laser", "gatedfocalplane", "datarecorder"}
+SENSOR_PLUGINS = {"ChipMaker", "SphericalCollector", "LightCurve", "PointCollectors", "OrthoImage"}
+# Platform elements that name a camera feature the SDK's platform generator does not write (platform_gen refuses a
+# distortion model, a channel layout other than single, ...), by element name. A demo's own platform file is used as
+# authored (`engine.platform.as_authored`), so these are recorded as the camera's features, not as missing ones.
+PLATFORM_FEATURES = {"distortion": "lens distortion", "psf": "point spread function", "focusdistance": "focus distance",
+                     "fieldcount": "field selector array", "channelpattern": "color filter array",
+                     "detectormodel": "detector model (noise, quantization)", "gainmodel": "gain model",
+                     "xoversample": "spatial response"}
+VERDICT_ORDER = ("ready", "near", "far", "refused", "unparsed")
+# Demos DIRSIG itself refuses as authored, measured by running them (the survey reads names and counts and cannot see
+# this): `refused`, with what DIRSIG said. Polarization2's own run (the sweep's reference) and its layered and same-seed
+# pass-through runs (round 27) all fail in DIRSIG on the scene's spectral coverage.
+REFUSED = {"Polarization2": "DIRSIG refuses it as authored: the scene has spectral coverage over 0.35-2.55 um and the "
+                            "spectral state is 8-13 um (measured: the sweep's run, and the layered and pass-through runs)"}
+# What a layered job places beside its copy of a `.scene` (`scene_ref.reference_scene` with `scene_named_paths`): links
+# to these folders and to every folder the scene names inside its own, and copies of the files it names there (one
+# level into a named `.glist` or `.odb`); metadata and thumbnails are not read. Anything else the scene needs is not there.
+SCENE_ASSET_DIRS = ("geometry", "materials", "maps")
+SCENE_SKIPPED = ("metadata", "thumbnaillist")
+# Where a uniform `.atm` names an installation weather file (`basic_atmosphere.WEATHER_DIR`).
+INSTALL_WEATHER = "$DIRSIG_HOME/lib/data/weather/"
+SIZE = lambda b: f"{b / 1e6:.2f}"                                                  # noqa: E731
+KEPT = "## First demo: what it took"            # a hand-written section kept when the table is regenerated
+
+
+class Unparsed(Exception):
+    pass
+
+
+def _xml(data, what):
+    try:
+        return et.fromstring(data)
+    except et.XMLSyntaxError as e:
+        raise Unparsed(f"{what} is not XML ({e.msg})") from e
+
+
+class Demo:
+    """One zip: its members and the readers the survey needs."""
+
+    def __init__(self, path):
+        self.path = Path(path)
+        self.zip = zipfile.ZipFile(self.path)
+        self.infos = {i.filename: i for i in self.zip.infolist() if not i.is_dir()}
+
+    def read(self, member):
+        return self.zip.read(self.infos[member])
+
+    def resolve(self, base_dir, ref):
+        """A member named by `ref` relative to `base_dir` (a member's directory), or None."""
+        ref = ref.strip().replace("\\", "/")
+        ref = re.sub(r"^\$SCENE_DIR/?", "", ref)
+        name = posixpath.normpath(posixpath.join(base_dir, ref))
+        return name if name in self.infos else None
+
+    def under(self, directory):
+        prefix = directory.rstrip("/") + "/"
+        return [m for m in self.infos if m.startswith(prefix)]
+
+
+def _primary_sim(demo):
+    sims = sorted(m for m in demo.infos if m.endswith((".sim", ".jsim")))
+    if not sims:
+        raise Unparsed("no .sim or .jsim simulation file")
+    for want in ("demo.jsim", "demo.sim"):
+        for s in sims:
+            if posixpath.basename(s) == want:
+                return s, sims
+    return sims[0], sims
+
+
+def _scene_members(demo, scene):
+    """The members a `.scene` references: the file, the directories named by `*directory` elements and `$SCENE_DIR`
+    paths, and the files named by geometry lists, material files and maps (one level into `.glist`/`.odb`)."""
+    base = posixpath.dirname(scene)
+    found = {scene}
+    root = _xml(demo.read(scene), posixpath.basename(scene))
+    pending = []
+    for el in root.iter():
+        text = (el.text or "").strip() if len(el) == 0 else ""
+        if not text:
+            continue
+        tag = el.tag if isinstance(el.tag, str) else ""
+        if tag.endswith("directory"):
+            directory = posixpath.normpath(posixpath.join(base, re.sub(r"^\$SCENE_DIR/?", "", text)))
+            if directory != posixpath.normpath(base):                  # the scene's own folder: named files only
+                found.update(demo.under(directory))
+            continue
+        member = demo.resolve(base, text)
+        if member:
+            found.add(member)
+            if member.endswith((".glist", ".odb")):
+                pending.append(member)
+        elif text.startswith("$SCENE_DIR/") and posixpath.dirname(text[11:]):
+            found.update(demo.under(posixpath.normpath(posixpath.join(base, posixpath.dirname(text[11:])))))
+    for listing in pending:
+        try:
+            sub = _xml(demo.read(listing), posixpath.basename(listing))
+        except Unparsed:
+            continue
+        for el in sub.iter():
+            text = (el.text or "").strip() if len(el) == 0 else ""
+            member = demo.resolve(posixpath.dirname(listing), text) or demo.resolve(base, text) if text else None
+            if member:
+                found.add(member)
+    return {m for m in found if m == scene or not _is_control(m)}
+
+
+def _unplaced(demo, scene, members):
+    """The members of `members` (a scene's, from `_scene_members`) that a layered job would not place beside its copy
+    of `scene`: outside the scene's folder, or inside it but neither under a linked folder nor a named file."""
+    top = posixpath.dirname(scene)
+
+    def texts(member):
+        root = _xml(demo.read(member), posixpath.basename(member))
+        for el in root.iter():
+            if (isinstance(el.tag, str) and len(el) == 0 and (el.text or "").strip()
+                    and not any(a.tag in SCENE_SKIPPED for a in el.iterancestors())):
+                yield re.sub(r"^\$SCENE_DIR/?", "", el.text.strip().replace("\\", "/"))
+
+    def inside(name):
+        rel = posixpath.relpath(name, top) if top else name
+        return None if rel == "." or rel.startswith("../") else rel
+
+    files, dirs = set(), set(SCENE_ASSET_DIRS)
+    listings = []
+    for text in texts(scene):
+        name = posixpath.normpath(posixpath.join(top, text))
+        rel = inside(name)
+        if rel is None:
+            continue
+        if name in demo.infos:
+            files.add(rel)
+            if name.endswith((".glist", ".odb")):
+                listings.append(name)
+        elif demo.under(name):
+            dirs.add(rel)
+    for listing in listings:
+        try:
+            names = list(texts(listing))
+        except Unparsed:
+            continue
+        for text in names:
+            for base in (posixpath.dirname(listing), top):
+                name = posixpath.normpath(posixpath.join(base, text))
+                if name in demo.infos and inside(name) is not None:
+                    files.add(inside(name))
+                    break
+    root = _xml(demo.read(scene), posixpath.basename(scene))
+    skipped = {posixpath.normpath(posixpath.join(top, re.sub(r"^\$SCENE_DIR/?", "", el.text.strip())))
+               for name in SCENE_SKIPPED for sub in root.iter(name) for el in sub.iter()
+               if isinstance(el.tag, str) and len(el) == 0 and (el.text or "").strip()}   # shown, not rendered
+    shown = {posixpath.dirname(m) + "/" for m in skipped if posixpath.dirname(m) != top}   # `_scene_members` takes
+    out = []                                                                               # a thumbnail's whole folder
+    for m in members:
+        rel = inside(m)
+        if m == scene or m in skipped or any(m.startswith(f) for f in shown) or (
+                rel is not None and (rel in files or any(rel.startswith(d + "/") for d in dirs))):
+            continue
+        out.append(m)
+    return out
+
+
+def _working_folder_lists(demo, scene):
+    """Geometry lists a `.scene` names by a bare name that lie beside it and not in its `gdbdirectory`: DIRSIG looks for
+    them in the working folder and the `gdbdirectory` only (Telecentricity1, measured), and a layered job's working
+    folder is not the scene's folder."""
+    root = _xml(demo.read(scene), posixpath.basename(scene))
+    top = posixpath.dirname(scene)
+    gdb = re.sub(r"^\$SCENE_DIR/?", "", (root.findtext("gdbdirectory") or "").strip()).rstrip("/")
+    out = []
+    for el in root.iter("geometrylistinclude"):
+        text = (el.text or "").strip()
+        if not text or text.startswith("$") or posixpath.isabs(text):
+            continue
+        if (posixpath.normpath(posixpath.join(top, text)) in demo.infos
+                and posixpath.normpath(posixpath.join(top, gdb, text)) not in demo.infos):
+            out.append(text)
+    return out
+
+
+MATERIAL_WORKING_FOLDER_KEYS = ("PARAMETER_FILE", "BRDF_FIT_FILE", "EMISSIVITY_FILE", "BUNDLE_FILENAME")   # measured
+
+
+def _working_folder_material_files(demo, scene):
+    """Files the scene's material file names in a `PARAMETER_FILE`, `BRDF_FIT_FILE`, `EMISSIVITY_FILE` or
+    `BUNDLE_FILENAME` entry by a relative path that lies relative to the scene's folder and not relative to its
+    `emsdirectory`: DIRSIG looks for them in the working folder and the `emsdirectory` only (Polarization5's
+    `./materials/*.brdf`, `./materials/grass.fit` and `./materials/grass.ems`), or in the working folder only when the
+    `emsdirectory` is empty (BundledMaterials1's `bundles/*.mat.hdf`), all measured, and a layered job's working folder
+    is not the scene's folder: the job places them there (`engine.working_folder`, `scene_ref.working_folder_files`),
+    under the returned names. Other keys are not counted: a `TEMP_SOLVER` `FILENAME` is found without the working folder
+    (DataDrivenTempSolver1, measured), and the rest are untested. A name that starts with a variable is not counted."""
+    root = _xml(demo.read(scene), posixpath.basename(scene))
+    top = posixpath.dirname(scene)
+    ems_text = (root.findtext("emsdirectory") or "").strip()            # empty: DIRSIG searches the working folder only
+    ems = re.sub(r"^\$SCENE_DIR/?", "", ems_text).rstrip("/")
+    mat = re.sub(r"^\$SCENE_DIR/?", "", (root.findtext("matfilename") or "").strip())
+    member = posixpath.normpath(posixpath.join(top, mat)) if mat else None
+    if member not in demo.infos:
+        return []
+    keys = "|".join(MATERIAL_WORKING_FOLDER_KEYS)
+    out = []
+    for text in re.findall(rf"^\s*(?:{keys})\s*=\s*(\S+)", demo.read(member).decode("latin-1"), re.M):
+        text = text.strip().strip('"').replace("\\", "/")
+        if not text or text.startswith("$") or posixpath.isabs(text) or ".." in text.split("/"):
+            continue
+        if (posixpath.normpath(posixpath.join(top, text)) in demo.infos
+                and not (ems_text and posixpath.normpath(posixpath.join(top, ems, text)) in demo.infos)):
+            out.append(posixpath.normpath(text))
+    return sorted(set(out))
+
+
+# (block, key, the scene element naming the other folder DIRSIG searches), as `scene_ref.MATERIAL_UNHELD_KEYS`: DIRSIG
+# looks for these files in the working folder and that folder only (MappedTherm1 and ChipMaker2, measured).
+MATERIAL_UNHELD_KEYS = (("EMISSIVITY_PROP", "FILENAME", "emsdirectory"),
+                        ("TEMP_SOLVER", "IMAGE_FILENAME", "mapdirectory"),
+                        ("IMAGE", "FILENAME", "mapdirectory"),
+                        ("MATERIAL_MAP", "IMAGE_FILENAME", "mapdirectory"))   # measured
+
+
+def _working_folder_unheld_files(demo, scene):
+    """Files the scene's material file names in a `MATERIAL_UNHELD_KEYS` entry by a relative path that lies relative to
+    the scene's folder, where the job's scene copy does not hold that path in the entry's folder (the `emsdirectory` or
+    `mapdirectory`; the copy holds `geometry/`, `materials/`, `maps/` and what the `.scene` names): the job places them
+    in the working folder (`scene_ref.working_folder_files`, fourth rule), with an `IMAGE_FILENAME`'s ENVI header
+    (`<name>.hdr`, else `<stem>.hdr`). MappedTherm1's `values.img`, `values.img.hdr` and `roof_metal_gray.ems`;
+    ChipMaker2's `materials/*.ems`, `maps/texture.png` and `maps/material.png` (measured: with them placed the layered dry
+    run passes, and without one of them it stops on it). A name that starts with a variable is not counted."""
+    root = _xml(demo.read(scene), posixpath.basename(scene))
+    top = posixpath.dirname(scene)
+
+    def rel_dir(tag):
+        return re.sub(r"^\$SCENE_DIR/?", "", (root.findtext(tag) or "").strip()).rstrip("/")
+
+    mat = rel_dir("matfilename")
+    member = posixpath.normpath(posixpath.join(top, mat)) if mat else None
+    if member not in demo.infos:
+        return []
+    named = set()
+    for el in root.iter():
+        if isinstance(el.tag, str) and len(el) == 0 and (el.text or "").strip():
+            named.add(posixpath.normpath(posixpath.join(top, re.sub(r"^\$SCENE_DIR/?", "", el.text.strip()))))
+    named.discard(posixpath.normpath(top) if top else ".")
+
+    def held(name):
+        rel = posixpath.relpath(name, top) if top else name
+        return not rel.startswith("../") and (rel.split("/")[0] in SCENE_ASSET_DIRS or name in named
+                                              or any(name.startswith(n + "/") for n in named))
+
+    keys = {(block, key): tag for block, key, tag in MATERIAL_UNHELD_KEYS}
+    stack, out = [], []
+    for line in demo.read(member).decode("latin-1").splitlines():
+        s = line.strip()
+        m = re.match(r"^(\w+)\s*\{", s)
+        if m:
+            stack.append(m.group(1))
+            continue
+        if s.startswith("}"):
+            stack = stack[:-1]
+            continue
+        m = re.match(r"^(\w+)\s*=\s*(\S+)", s)
+        if not m or not stack or (stack[-1], m.group(1)) not in keys:
+            continue
+        text = m.group(2).strip('"').replace("\\", "/")
+        if not text or text.startswith("$") or posixpath.isabs(text) or ".." in text.split("/"):
+            continue
+        tag = keys[stack[-1], m.group(1)]
+        folder_text = (root.findtext(tag) or "").strip()
+        inside = posixpath.normpath(posixpath.join(top, rel_dir(tag), text)) if folder_text else None
+        if posixpath.normpath(posixpath.join(top, text)) not in demo.infos or (
+                inside in demo.infos and held(inside)):
+            continue
+        out.append(posixpath.normpath(text))
+        if m.group(1) == "IMAGE_FILENAME":
+            for header in (f"{text}.hdr", f"{posixpath.splitext(text)[0]}.hdr"):
+                if posixpath.normpath(posixpath.join(top, header)) in demo.infos:
+                    out.append(posixpath.normpath(header))
+                    break
+    return sorted(set(out))
+
+
+# (block, key, the scene elements naming the folders DIRSIG searches besides the working folder), as
+# `scene_ref.MATERIAL_SEARCHED_KEYS` (round 28, measured on Fireball1 and IESSources1).
+MATERIAL_SEARCHED_KEYS = (("TEMP_SOLVER", "FILENAME", ("emsdirectory", "odbdirectory", "gdbdirectory", "extdirectory",
+                                                       "absdirectory", "srcdirectory", "mapdirectory")),
+                          ("MATERIAL_ENTRY", "SOURCE_SHAPE", ("srcdirectory",)))   # measured
+
+
+def _working_folder_searched_files(demo, scene):
+    """Files the scene's material file names in a `MATERIAL_SEARCHED_KEYS` entry by a relative path that lies relative
+    to the scene's folder, where the job's scene copy does not hold that path in any of the entry's folders (a
+    `TEMP_SOLVER` `FILENAME`: the scene's seven directory elements; a `SOURCE_SHAPE`: the `srcdirectory`): the job places
+    them in the working folder (`scene_ref.working_folder_files`, fifth rule). Fireball1's `fireball_temp.txt` and
+    IESSources1's `example1.ies` to `example3.ies` (measured: placed there the layered dry run passes; beside the scene
+    copy, or without one of them, it stops on it). DataDrivenTempSolver1's `TEMP_SOLVER` `FILENAME`s lie in
+    `materials/temps/` under its `odbdirectory` `$SCENE_DIR`, which the copy holds: not listed. A name that starts with a
+    variable is not counted."""
+    root = _xml(demo.read(scene), posixpath.basename(scene))
+    top = posixpath.dirname(scene)
+
+    def rel_dir(tag):
+        return re.sub(r"^\$SCENE_DIR/?", "", (root.findtext(tag) or "").strip()).rstrip("/")
+
+    mat = rel_dir("matfilename")
+    member = posixpath.normpath(posixpath.join(top, mat)) if mat else None
+    if member not in demo.infos:
+        return []
+    named = set()
+    for el in root.iter():
+        if isinstance(el.tag, str) and len(el) == 0 and (el.text or "").strip():
+            named.add(posixpath.normpath(posixpath.join(top, re.sub(r"^\$SCENE_DIR/?", "", el.text.strip()))))
+    named.discard(posixpath.normpath(top) if top else ".")
+
+    def held(name):
+        rel = posixpath.relpath(name, top) if top else name
+        return not rel.startswith("../") and (rel.split("/")[0] in SCENE_ASSET_DIRS or name in named
+                                              or any(name.startswith(n + "/") for n in named))
+
+    keys = {(block, key): tags for block, key, tags in MATERIAL_SEARCHED_KEYS}
+    stack, out = [], []
+    for line in demo.read(member).decode("latin-1").splitlines():
+        s = line.strip()
+        m = re.match(r"^(\w+)\s*\{", s)
+        if m:
+            stack.append(m.group(1))
+            continue
+        if s.startswith("}"):
+            stack = stack[:-1]
+            continue
+        m = re.match(r"^(\w+)\s*=\s*(\S+)", s)
+        if not m or not stack or (stack[-1], m.group(1)) not in keys:
+            continue
+        text = m.group(2).strip('"').replace("\\", "/")
+        if not text or text.startswith("$") or posixpath.isabs(text) or ".." in text.split("/"):
+            continue
+        if posixpath.normpath(posixpath.join(top, text)) not in demo.infos:
+            continue
+        inside = [posixpath.normpath(posixpath.join(top, rel_dir(tag), text)) for tag in keys[stack[-1], m.group(1)]
+                  if (root.findtext(tag) or "").strip()]
+        if any(n in demo.infos and held(n) for n in inside):
+            continue
+        out.append(posixpath.normpath(text))
+    return sorted(set(out))
+
+
+def _unplaced_material_files(demo, scene):
+    """Files the scene's material file names (any `...FILE...` key, or a `SOURCE_SHAPE`) that a layered job holds nowhere: the name resolves,
+    against the scene's folder, its `emsdirectory`, its `mapdirectory` or the material file's folder, only to members
+    of the scene's folder outside the folders the job links (`geometry/`, `materials/`, `maps/`) and not named by the
+    `.scene`, and the working-folder rule does not place it. DIRSIG then finds it in neither the job's scene copy nor its
+    working folder (MappedTherm1's `values.img`, a `TEMP_SOLVER` `IMAGE_FILENAME`, and `roof_metal_gray.ems`, a
+    `FILENAME` beside the `.scene` with `emsdirectory` `$SCENE_DIR`; measured; both placed since round 27 by
+    `_working_folder_unheld_files`). Fireball1's `fireball_temp.txt`, a `TEMP_SOLVER` `FILENAME` beside its `.scene`,
+    stopped its layered dry run (round 27, measured; placed since round 28 by `_working_folder_searched_files`), as did
+    IESSources1's `example1.ies` (a `SOURCE_SHAPE`, counted here since round 28); EarthClouds1's `denmark.png` is not
+    measured."""
+    root = _xml(demo.read(scene), posixpath.basename(scene))
+    top = posixpath.dirname(scene)
+
+    def rel_dir(tag):
+        return re.sub(r"^\$SCENE_DIR/?", "", (root.findtext(tag) or "").strip()).rstrip("/")
+
+    mat = rel_dir("matfilename")
+    member = posixpath.normpath(posixpath.join(top, mat)) if mat else None
+    if member not in demo.infos:
+        return []
+    named = set()
+    for el in root.iter():
+        if isinstance(el.tag, str) and len(el) == 0 and (el.text or "").strip():
+            named.add(posixpath.normpath(posixpath.join(top, re.sub(r"^\$SCENE_DIR/?", "", el.text.strip()))))
+    named.discard(posixpath.normpath(top) if top else ".")                 # the folder itself: named files only
+    placed_by_folder = (set(_working_folder_material_files(demo, scene)) | set(_working_folder_unheld_files(demo, scene))
+                        | set(_working_folder_searched_files(demo, scene)))
+
+    def placed(name):
+        rel = posixpath.relpath(name, top) if top else name
+        if rel.startswith("../"):
+            return False
+        return rel.split("/")[0] in SCENE_ASSET_DIRS or name in named or any(name.startswith(n + "/") for n in named)
+
+    bases = [top, posixpath.join(top, rel_dir("emsdirectory")), posixpath.join(top, rel_dir("mapdirectory")),
+             posixpath.dirname(member)]
+    out = []
+    for text in re.findall(r"^\s*(?:\w*FILE\w*|SOURCE_SHAPE)\s*=\s*(\S+)", demo.read(member).decode("latin-1"), re.M):
+        text = text.strip().strip('"').replace("\\", "/")
+        if not text or text.startswith("$") or posixpath.isabs(text) or posixpath.normpath(text) in placed_by_folder:
+            continue
+        found = [n for n in (posixpath.normpath(posixpath.join(b, text)) for b in bases) if n in demo.infos]
+        if found and not any(placed(n) for n in found):
+            out.append(posixpath.normpath(text))
+    return sorted(set(out))
+
+
+def _platform_named_files(demo, member):
+    """Archive members an authored `.platform` names in a `<filename>` (relative to its folder): DIRSIG reads them from
+    the working folder (BayerPattern1's `pixels.hdf`, measured), and a layered job copies the platform file alone."""
+    root = _xml(demo.read(member), posixpath.basename(member))
+    top = posixpath.dirname(member)
+    names = {(el.text or "").strip() for el in root.iter("filename")}
+    return sorted(n for n in names if n and posixpath.normpath(posixpath.join(top, n)) in demo.infos)
+
+
+def _is_control(member):
+    """A simulation control file or documentation, never scene data."""
+    name = posixpath.basename(member).lower()
+    return name.endswith(CONTROL) or name.startswith(DOCS) or name.endswith((".html", ".mp4", ".gif"))
+
+
+EXTERNAL_CLOCK = "external clock (triggers)"
+
+
+def _platform(demo, member):
+    root = _xml(demo.read(member), posixpath.basename(member))
+    instruments = [el.get("type") or "unknown" for el in root.iter("instrument")]
+    planes = list(root.iter("focalplane"))
+    captures = sorted({el.get("type") or "unknown" for el in root.iter("capturemethod")})
+    polarizers = sorted({el.get("type") for el in root.iter("polarizer") if el.get("type") not in (None, "none")})
+    mounts = sorted({el.get("type") or "unknown" for el in root.iter("mount")})
+    arrays = []
+    for arr in root.iter("detectorarray"):
+        x, y = arr.findtext("xelementcount"), arr.findtext("yelementcount")
+        arrays.append(f"{x.strip()}x{y.strip()}" if x and y else "unknown")
+    channels = sum(1 for _ in root.iter("channel"))
+    tags = {el.tag for el in root.iter() if isinstance(el.tag, str)}
+    features = [label for tag, label in PLATFORM_FEATURES.items() if tag in tags]
+    if any(el.get("type") == "functional" for el in root.iter("detectorarray")):
+        features.append("functional detector array")
+    if any(el.get("type") == "external" for el in root.iter("clock")):
+        features.append(EXTERNAL_CLOCK)
+    return {"instruments": instruments, "focal_planes": len(planes), "captures": captures, "polarizers": polarizers,
+            "mounts": mounts, "array": arrays[0] if arrays else "unknown", "channels": channels,
+            "features": features}
+
+
+def _motion(demo, member):
+    root = _xml(demo.read(member), posixpath.basename(member))
+    if member.endswith(".ppd"):
+        entries = len(root.findall("data/entry"))
+        jitter = any(len(root.find(t)) for t in ("locationjitter", "orientationjitter") if root.find(t) is not None)
+        return {"motion": "static (.ppd)" if entries == 1 else f".ppd waypoints ({entries} entries)",
+                "orientation": "euler (.ppd)", "jitter": jitter, "location": "ppd", "entries": entries, "source": None}
+    loc = root.find("locationengine")
+    ori = root.find("orientationengine")
+    source = loc.find("data").get("source") if loc is not None and loc.find("data") is not None else None
+    lt = loc.get("type") if loc is not None else "unknown"
+    return {"motion": f"FlexMotion {lt}" + (f" ({source})" if source else ""),
+            "orientation": ori.get("type") if ori is not None else "unknown", "jitter": False, "location": lt,
+            "entries": None, "source": source}
+
+
+def _atmosphere_file(demo, member):
+    root = _xml(demo.read(member), posixpath.basename(member))
+    rt = [c.tag for c in root if isinstance(c.tag, str) and c.tag.endswith("radiativetransfer")]
+    weather = [c.tag for c in root if isinstance(c.tag, str) and c.tag.endswith("weather")]
+    install = (root.findtext("uniformweather/classicdata/filename") or "").strip().startswith(INSTALL_WEATHER)
+    return rt[0] if rt else "unknown", weather[0] if weather else "unknown", install
+
+
+def survey(path):
+    """The survey record of one demo zip; never raises (an unreadable layout is `unparsed` with the reason)."""
+    path = Path(path)
+    rec = {"name": path.stem, "zip_bytes": path.stat().st_size, "verdict": "unparsed", "reason": None}
+    try:
+        demo = Demo(path)
+    except zipfile.BadZipFile as e:
+        rec["reason"] = f"not a zip archive ({e})"
+        return rec
+    rec["uncompressed_bytes"] = sum(i.file_size for i in demo.infos.values())
+    try:
+        _survey(demo, rec)
+    except (Unparsed, KeyError, ValueError, AttributeError, TypeError) as e:
+        rec["verdict"], rec["reason"] = "unparsed", str(e) if isinstance(e, Unparsed) else f"{type(e).__name__}: {e}"
+    return rec
+
+
+def _survey(demo, rec):
+    sim, sims = _primary_sim(demo)
+    base = posixpath.dirname(sim)
+    rec["sim"] = posixpath.basename(sim)
+    rec["variants"] = len(sims)
+    rec["working_folder"] = []                             # files DIRSIG looks for there: placed by the job
+    refs = {"scenes": [], "atm": None, "platform": None, "motion": None, "tasks": None}
+    plugins = []
+    if sim.endswith(".jsim"):
+        try:
+            doc = json.loads(demo.read(sim))
+        except ValueError as e:
+            raise Unparsed(f"{rec['sim']} is not JSON ({e})") from e
+        entry = doc[0] if isinstance(doc, list) else doc
+        for s in entry.get("scene_list", []):
+            ref = s.get("inputs") if isinstance(s, dict) else s
+            refs["scenes"].append(ref if isinstance(ref, str) else (ref or {}).get("filename", "unknown"))
+        for p in entry.get("plugin_list", []):
+            name, inputs = p.get("name", "unknown"), p.get("inputs") or {}
+            plugins.append(name)
+            if name in PLATFORMS:
+                refs["platform"], refs["motion"] = inputs.get("platform_filename"), inputs.get("motion_filename")
+                refs["tasks"] = inputs.get("tasks_filename")
+            if name == "BasicAtmosphere":
+                refs["atm"] = inputs.get("atmosphere_filename") or inputs.get("filename")
+        rec["format"] = "jsim"
+    else:
+        root = _xml(demo.read(sim), rec["sim"])
+        for child in root:
+            ref = child.get("externalfile")
+            if child.tag == "scene":
+                refs["scenes"].append(ref)
+            elif child.tag == "atmosphericconditions":
+                refs["atm"] = ref
+            elif child.tag in ("platform", "platformmotion", "tasklist"):
+                refs[{"platform": "platform", "platformmotion": "motion", "tasklist": "tasks"}[child.tag]] = ref
+            elif child.tag == "options":
+                plugins.append("(options file)")
+        rec["format"] = "sim"
+    missing = []
+
+    # scenes
+    scenes = [demo.resolve(base, s) for s in refs["scenes"] if isinstance(s, str)]
+    if None in scenes:
+        raise Unparsed(f"{rec['sim']}: a scene it names is not in the archive (generated, or shipped elsewhere)")
+    if not scenes and "EarthGrid" not in plugins:
+        raise Unparsed(f"{rec['sim']}: names no scene and no EarthGrid")
+    rec["scenes"] = [posixpath.basename(s) for s in scenes]
+    members = set()
+    for s in scenes:
+        members |= _scene_members(demo, s)
+    rec["scene_bytes"] = sum(demo.infos[m].file_size for m in members)
+    rec["scene_members"] = sorted(members)
+    if len(set(scenes)) > 1:
+        missing.append("several scenes")
+    for s in scenes:
+        if _unplaced(demo, s, members):
+            missing.append("scene files the job does not place")
+        rec["working_folder"] += _working_folder_lists(demo, s)   # placed by the job (engine.working_folder)
+        rec["working_folder"] += _working_folder_material_files(demo, s)   # placed by the job (engine.working_folder)
+        rec["working_folder"] += _working_folder_unheld_files(demo, s)   # placed by the job (engine.working_folder)
+        rec["working_folder"] += _working_folder_searched_files(demo, s)   # placed by the job (engine.working_folder)
+        if _unplaced_material_files(demo, s):
+            missing.append("material files the job does not place")
+    if not scenes:
+        missing.append("no scene file (the Earth is the EarthGrid plugin)")
+
+    # atmosphere and weather
+    atmos = [p for p in plugins if p in ATMOSPHERES]
+    if rec["format"] == "sim" or "BasicAtmosphere" in atmos:
+        atm = demo.resolve(base, refs["atm"]) if refs["atm"] else None
+        rt, weather, install = _atmosphere_file(demo, atm) if atm else ("unknown", "unknown", False)
+        rec["atmosphere"] = f"BasicAtmosphere (.atm, {rt})"
+        rec["weather"] = f"{weather} (.atm" + (", installation file)" if install else ")")
+        if (rt, weather) not in (("uniformradiativetransfer", "uniformweather"),
+                                 ("simpleradiativetransfer", "uniformweather")):
+            missing.append(f"BasicAtmosphere .atm ({rt}, {weather})")
+        elif not install:                     # engine.atmosphere.uniform and .simple name an installation file only
+            missing.append("BasicAtmosphere .atm (uniform weather not from the installation)")
+    elif "FourCurveAtmosphere" in atmos:
+        rec["atmosphere"], rec["weather"] = "FourCurveAtmosphere", "unknown"
+        missing.append("FourCurveAtmosphere")
+    elif "NewAtmosphere" in atmos:
+        rec["atmosphere"] = "NewAtmosphere"
+        rec["weather"] = "unknown"
+    else:
+        rec["atmosphere"], rec["weather"] = "none named", "unknown"
+        missing.append("no atmosphere plugin")
+    weathers = [p for p in plugins if p in WEATHERS]
+    if weathers:
+        rec["weather"] = weathers[0]
+        if weathers[0] != "ThermWeather":
+            missing.append(weathers[0])
+    elif rec["atmosphere"] == "NewAtmosphere":
+        missing.append("weather without a ThermWeather file")
+
+    # ephemeris
+    eph = [p for p in plugins if p in EPHEMERIDES]
+    rec["ephemeris"] = eph[0] if eph else ("implicit (.sim)" if rec["format"] == "sim" else "none named")
+    if eph and eph[0] != "SpiceEphemeris":
+        missing.append(eph[0])
+
+    # other plugins
+    for p in plugins:
+        if p not in ATMOSPHERES | EPHEMERIDES | WEATHERS | PLATFORMS:
+            missing.append("simulation options file" if p == "(options file)" else f"plugin {p}")
+
+    # platform
+    plat = demo.resolve(base, refs["platform"]) if refs["platform"] else None
+    if plat is None:
+        sensors = [p for p in plugins if p in SENSOR_PLUGINS]
+        if not sensors or any(p in PLATFORMS for p in plugins):
+            raise Unparsed(f"{rec['sim']}: no platform file in the archive ({refs['platform']})")
+        rec.update(instruments=[f"{p} plugin" for p in sensors], mounts=[], array="unknown", channels="unknown",
+                   captures=[], camera=[], motion="none (sensor plugin)", orientation="unknown", moving=False, tasks="unknown",
+                   non_imaging=True)
+        missing.append("a sensor plugin instead of BasicPlatform")
+        rec["missing"] = list(dict.fromkeys(missing))
+        rec["verdict"] = "far"
+        return
+    p = _platform(demo, plat)
+    rec.update(instruments=p["instruments"], mounts=p["mounts"], array=p["array"], channels=p["channels"],
+               captures=p["captures"])
+    non_imaging = sorted({t for t in p["instruments"] if t in NON_IMAGING})
+    rec["non_imaging"] = bool(non_imaging)
+    for t in non_imaging:
+        missing.append(f"non-imaging sensor: {t}")
+    imaging = [t for t in p["instruments"] if t not in NON_IMAGING]
+    if len(imaging) > 1 or p["focal_planes"] > 1:
+        missing.append("several instruments or focal planes")
+    for m in p["mounts"]:
+        if m != "static":
+            missing.append(f"{m} mount")
+    camera = [f"capture method {c}" for c in p["captures"] if c not in ("simple", "protolidar")]
+    camera += [f"polarizer {pol}" for pol in p["polarizers"]] + [f for f in p["features"] if f != EXTERNAL_CLOCK]
+    rec["camera"] = camera                                 # as authored: carried by engine.platform.as_authored
+    if EXTERNAL_CLOCK in p["features"]:                    # captures at its trigger times, several in one task window:
+        missing.append("external clock (several captures in a task window)")   # the SDK checks one (Thermal2)
+    rec["working_folder"] += _platform_named_files(demo, plat)   # placed by the job (engine.working_folder)
+
+    # motion
+    mot = demo.resolve(base, refs["motion"]) if refs["motion"] else None
+    if mot is None:
+        raise Unparsed(f"{rec['sim']}: no motion file in the archive ({refs['motion']})")
+    m = _motion(demo, mot)
+    rec["motion"], rec["orientation"] = m["motion"], m["orientation"]
+    rec["moving"] = not (m["location"] in ("ppd", "fixed") and (m["entries"] in (None, 1)))
+    if m["location"] == "ppd" and m["entries"] != 1:
+        missing.append(".ppd waypoint motion")
+    if m["jitter"]:
+        missing.append("platform jitter")
+    if m["location"] == "waypoints":
+        missing.append("STK report import" if m["source"] == "stk_report" else "waypoints motion")
+    elif m["location"] == "sgp4":
+        missing.append("sgp4 location engine")
+    elif m["location"] not in ("ppd", "fixed"):
+        missing.append(f"location engine {m['location']}")
+    if m["orientation"] == "quaternions":
+        missing.append("quaternion orientation")
+    elif m["orientation"] == "lookat" and m["location"] == "fixed":
+        missing.append("LookAt orientation from a fixed location")
+
+    # tasks
+    tasks = demo.resolve(base, refs["tasks"]) if refs["tasks"] else None
+    rec["tasks"] = len(_xml(demo.read(tasks), "tasks").findall("task")) if tasks else "unknown"
+
+    rec["missing"] = list(dict.fromkeys(missing))
+    n = len(rec["missing"])
+    rec["verdict"] = "far" if rec["non_imaging"] or n >= 2 else ("near" if n == 1 else "ready")
+    if rec["name"] in REFUSED:                             # measured by running it: whatever the files say
+        rec["verdict"], rec["refused"] = "refused", REFUSED[rec["name"]]
+
+
+def survey_all(folder):
+    return [survey(p) for p in sorted(Path(folder).glob("*.zip"))]
+
+
+def _cell(value):
+    if value is None or value == []:
+        return "-"
+    if isinstance(value, list):
+        return ", ".join(str(v) for v in value)
+    return str(value).replace("|", "/")
+
+
+def recommendations(records):
+    """The recommended first three: (i) the simplest ready/near static ground-imaging demo with the smallest scene,
+    (ii) a near demo whose one missing feature is an atmosphere or weather plugin, (iii) a moving-platform demo with
+    the fewest missing features."""
+    parsed = [r for r in records if r["verdict"] in ("ready", "near", "far") and not r.get("non_imaging")]
+    static = sorted((r for r in parsed if r["verdict"] in ("ready", "near") and not r["moving"]),
+                    key=lambda r: (len(r["missing"]), r["scene_bytes"], r["name"]))
+    family = static[0]["missing"][0].split()[0] if static and static[0]["missing"] else None
+    atmos = sorted((r for r in parsed if r["verdict"] == "near" and
+                    re.search(r"Atmosphere|Weather|weather", r["missing"][0])),
+                   key=lambda r: (r["missing"][0].split()[0] == family, r["scene_bytes"], r["name"]))
+    moving = sorted((r for r in parsed if r["moving"]), key=lambda r: (len(r["missing"]), r["scene_bytes"], r["name"]))
+    picks = []
+    for group in (static, atmos, moving):
+        pick = next((r for r in group if r["name"] not in {p["name"] for p in picks}), None)
+        if pick:
+            picks.append(pick)
+    return picks
+
+
+def placement(r):
+    """The library placement step 9's vocabulary gives a demo: the scene directory as a `directory` asset, the other
+    files the run needs as `file` assets, under manifold_config_repo/demos/<Name>/."""
+    if not r["scenes"]:
+        return f"no scene directory; the platform, motion, tasks and atmosphere files as `file` assets under `demos/{r['name']}/`"
+    scene = r["scenes"][0]
+    stem = scene.removesuffix(".scene")
+    return (f"directory asset `demos/{r['name']}/scenes/{stem}/` ({len(r['scene_members'])} archive members: "
+            f"`{scene}` and the files it references, {SIZE(r['scene_bytes'])} MB); the platform, motion, tasks and "
+            f"atmosphere files the run reads as `file` assets under `demos/{r['name']}/`")
+
+
+def render(records, demos_label="external/dirsig/demos/zips"):
+    """The coverage table document (markdown). Deterministic for the same records."""
+    counts = Counter(r["verdict"] for r in records)
+    needed, unlocks = Counter(), Counter()
+    for r in records:
+        for f in r.get("missing", []):
+            needed[f] += 1
+        if r["verdict"] == "near":
+            unlocks[r["missing"][0]] += 1
+    lines = ["# DIRSIG demo coverage", "",
+             f"Which of DIRSIG's {len(records)} shipped demos the SDK could regenerate today, and what each still needs. Generated by `python scripts/survey_demos.py --out docs/DIRSIG_demo_coverage.md` from the demo archives in the DIRSIG installation (`{demos_label}`), read in place; regenerate it after a loader feature lands. It is derived from file names, plugin and element names, counts and sizes only, and contains no demo file contents.",
+             "",
+             "A verdict compares a demo's simulation file, platform, motion and atmosphere with what the SDK's engine body and loader cover (the run-spec contract's engine block and `run_spec.resolve_run`): `ready` needs nothing new (one scene whose files the job places: those in its `geometry/`, `materials/` and `maps/` folders, in a folder it names inside its own, or named by it there (one level into a named `.glist` or `.odb`), `NewAtmosphere` with a `ThermWeather` file or a uniform or simple `BasicAtmosphere` `.atm` naming an installation weather file (`engine.atmosphere.uniform`, `engine.atmosphere.simple`), SPICE or the `.atm`'s ephemeris, static or orbit motion, one imaging instrument); `near` needs exactly one missing feature; `far` needs two or more, or has a non-imaging sensor; `refused` means DIRSIG itself refuses the demo as authored, measured by running it (what DIRSIG said is in the last column, before any missing features; the survey's own reading cannot see it); `unparsed` means the layout was not understood, with the reason. A value that cannot be read is `unknown`. A legacy `.sim` carries its atmosphere and uniform weather in one `.atm` file, counted as one feature, and its ephemeris is implicit. The demo's own platform file is used as authored (`engine.platform.as_authored`), so its camera features (recognized by element name: lens distortion, point spread function, field selectors, capture methods, polarizers and so on) are listed under `Camera (as authored)` and are not missing; several instruments or focal planes, a moving mount, an external clock (it captures at its trigger times, several in one task window, and the SDK's dry-run check expects one capture per window; Thermal2, measured) and a non-imaging sensor still are. Files DIRSIG looks for in the working folder, which in a layered job is not the demo's folder (measured, `docs/DIRSIG_layered_comparison.md`), are placed there by the job when they are a geometry list the `.scene` names by a bare name that lies beside it and not in its `gdbdirectory` (with the files that list names), a file the `.platform` names in a `<filename>`, a file the material file names in a `PARAMETER_FILE`, `BRDF_FIT_FILE`, `EMISSIVITY_FILE` or `BUNDLE_FILENAME` entry relative to the scene's folder and not to its `emsdirectory` (or with an empty `emsdirectory`), a file it names in an `EMISSIVITY_PROP` `FILENAME`, a `TEMP_SOLVER` `IMAGE_FILENAME`, a texture `IMAGE` `FILENAME` or a `MATERIAL_MAP` `IMAGE_FILENAME` relative to the scene's folder where the job's scene copy does not hold it in the `emsdirectory` or `mapdirectory`, with an image's ENVI header (MappedTherm1, ChipMaker2; measured), or a file it names in a `TEMP_SOLVER` `FILENAME` or a `SOURCE_SHAPE` relative to the scene's folder where the scene copy does not hold it in any folder DIRSIG searches for that key (the scene's seven directory elements, or the `srcdirectory`; Fireball1, IESSources1; measured) (`engine.working_folder`); other material-file keys are not counted (unmeasured). A file the material file names (any key, or a `SOURCE_SHAPE`) that the job holds nowhere, because it lies in the scene's folder outside the linked folders and is not named by the `.scene` or placed in the working folder, is missing (measured on MappedTherm1, Fireball1 and IESSources1 before their files were placed). What the survey cannot see is not counted (a `.ppd` pose in another frame or units, an `.atm`'s turbulence or lunar values, which the uniform and simple forms do not carry), so `ready` and `near` are upper bounds on readiness. Scene size is the `.scene` file and the archive members it references.",
+             "", "## Summary", "", "| Verdict | Demos |", "|---|---|"]
+    lines += [f"| `{v}` | {counts.get(v, 0)} |" for v in VERDICT_ORDER]
+    lines += ["", "## Missing features, by the demos each would unlock", "",
+              "`Unlocks` counts the `near` demos for which the feature is the only one missing; `Needed by` counts every demo that needs it.",
+              "", "| Feature | Unlocks | Needed by |", "|---|---|---|"]
+    for f in sorted(needed, key=lambda f: (-unlocks[f], -needed[f], f)):
+        lines.append(f"| {_cell(f)} | {unlocks[f]} | {needed[f]} |")
+    lines += ["", "## All demos", "",
+              "| Demo | Verdict | Simulation | Zip MB | Scene MB | Scenes | Atmosphere | Weather | Ephemeris | Motion | Orientation | Mounts | Instruments | Array | Channels | Tasks | Camera (as authored) | Missing features |",
+              "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+    order = {v: i for i, v in enumerate(VERDICT_ORDER)}
+    for r in sorted(records, key=lambda r: (order[r["verdict"]], r["name"])):
+        if r["verdict"] == "unparsed":
+            lines.append(f"| {r['name']} | `unparsed` | - | {SIZE(r['zip_bytes'])} | - | - | - | - | - | - | - | - | - | - | - | - | - | {_cell(r['reason'])} |")
+            continue
+        sim = f"{r['sim']}" + (f" (+{r['variants'] - 1})" if r["variants"] > 1 else "")
+        lines.append(" | ".join(["", r["name"], f"`{r['verdict']}`", _cell(sim), SIZE(r["zip_bytes"]),
+                                 SIZE(r["scene_bytes"]), _cell(r["scenes"]), _cell(r["atmosphere"]), _cell(r["weather"]),
+                                 _cell(r["ephemeris"]), _cell(r["motion"]), _cell(r["orientation"]), _cell(r["mounts"]),
+                                 _cell(r["instruments"]), _cell(r["array"]), _cell(r["channels"]), _cell(r["tasks"]),
+                                 _cell(r["camera"]), _cell(([r["refused"]] if r.get("refused") else []) + r["missing"]),
+                                 ""]).strip())
+    picks = recommendations(records)
+    lines += ["", "## Recommended first three", ""]
+    why = ["the simplest static ground-imaging demo that is `ready` or `near`, with the smallest scene",
+           "a `near` demo whose one missing feature is an atmosphere or weather plugin other than the first's",
+           "a moving-platform demo with the fewest missing features"]
+    for i, (r, reason) in enumerate(zip(picks, why), 1):
+        missing = ", ".join(r["missing"]) or "none"
+        note = ""
+        if r["name"] == "StkImport1":
+            note = " Its orbit has already been reconstructed from a TLE in `notebooks/dirfm_tutorials/tutorial_orbit_to_ground.ipynb`."
+        lines.append(f"{i}. **{r['name']}** (`{r['verdict']}`): {reason}. Missing: {missing}. Scene size {SIZE(r['scene_bytes'])} MB; reference-run cost unknown (not stated in the archive's file names or sizes). Placement: {placement(r)}.{note}")
+    lines += ["", "`StkImport1` (a WorldView-2 pass from STK reports) has been reconstructed from a TLE in `notebooks/dirfm_tutorials/tutorial_orbit_to_ground.ipynb`; `Ssa1` to `Ssa3` image a satellite from a satellite, which needs space-object imaging against space (a backlog item) as well as their missing features above."]
+    return "\n".join(lines) + "\n"
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--demos", default=str(DEMOS))
+    ap.add_argument("--out", default=None)
+    ap.add_argument("--check", action="store_true",
+                    help="exit 1 if --out (default docs/DIRSIG_demo_coverage.md) differs from a fresh survey")
+    args = ap.parse_args(argv)
+    folder = Path(args.demos)
+    if not folder.is_dir():
+        print(f"no demo archives at {folder} (link the DIRSIG installation as external/dirsig)", file=sys.stderr)
+        return 2
+    try:
+        label = folder.resolve().relative_to(ROOT).as_posix() if folder.is_relative_to(ROOT) else str(folder)
+    except ValueError:
+        label = str(folder)
+    if folder.resolve() == DEMOS.resolve():
+        label = "external/dirsig/demos/zips"
+    text = render(survey_all(folder), label)
+    if args.check:
+        out = Path(args.out) if args.out else OUT
+        old = out.read_text() if out.is_file() else ""
+        want = text + ("\n" + old[old.index(KEPT):] if KEPT in old else "")
+        if old != want:
+            print(f"stale: {out} (regenerate with scripts/survey_demos.py --out {out})")
+            return 1
+        return 0
+    if args.out:
+        out = Path(args.out)
+        old = out.read_text() if out.is_file() else ""
+        if KEPT in old:                                       # keep the hand-written findings section and after
+            text += "\n" + old[old.index(KEPT):]
+        out.write_text(text)
+        print(f"wrote {args.out}")
+    else:
+        sys.stdout.write(text)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

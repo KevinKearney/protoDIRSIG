@@ -1,0 +1,29 @@
+# A pass-through run spec (proposed form): the directory tree/ placed at demo_dirs/PassthroughVector.
+
+spec_version: run-spec/1
+descriptor:
+  meta:
+    name: passthrough-vector
+  origin:
+    kind: synthetic
+    engine: dirsig
+  fidelity:
+    modeled: []
+    approximated: []
+    absent: []
+    valid_for: a conformance vector
+  opaque:
+    source: passthrough
+engine:
+  generator:
+    tool: dirfm
+    revision: 93195cee1ccc4f31a214e114d94c493a1d4cc22f
+    spec_schema: dirsig-engine/1
+  mode: passthrough
+  passthrough:
+    directory:
+      name: demo_dirs/PassthroughVector
+      content_hash: sha256:b8a33875da19893d171a506a605c197e7bc1dd6dbeaa515d9256c250783adfc7
+    simulation: demo.jsim
+  run:
+    seed: 1

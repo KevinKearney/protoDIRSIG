@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Artifact list",
+  "description": "A run's artifact references.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "run_id",
+    "artifacts"
+  ],
+  "properties": {
+    "run_id": {
+      "description": "The run id.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "artifacts": {
+      "description": "The artifacts produced so far.",
+      "type": "array",
+      "items": {
+        "$ref": "artifact_ref.schema.json"
+      }
+    }
+  }
+}

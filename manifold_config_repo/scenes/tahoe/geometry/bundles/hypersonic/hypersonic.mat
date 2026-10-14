@@ -1,0 +1,30 @@
+MATERIAL_ENTRY {
+    ID           = Gidder_mat
+    NAME         = Gidder_mat
+    EDITOR_COLOR = 0.4, 0.500008, 0.500008
+    DOUBLE_SIDED = TRUE
+
+    RAD_SOLVER_NAME = Generic
+    RAD_SOLVER {
+        INITIAL_SAMPLE_COUNT = 100
+        SAMPLE_DECAY_RATE    = 2
+        MAX_BOUNCES          = 3
+        MU_SAMPLES           = 10
+        PHI_SAMPLES          = 20
+        MIN_QUAD_SAMPLES     = 1
+    }
+
+    TEMP_SOLVER_NAME = DataDriven
+    TEMP_SOLVER {
+        TEMPERATURE = 1500
+    }
+
+    SURFACE_PROPERTIES {
+
+        REFLECTANCE_PROP_NAME = SimpleReflectance
+        REFLECTANCE_PROP {
+            TXT_FILENAME = ref.txt
+        }
+    }
+}
+

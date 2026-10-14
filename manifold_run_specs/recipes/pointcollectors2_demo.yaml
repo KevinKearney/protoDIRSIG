@@ -1,0 +1,32 @@
+# Recipe for the DIRSIG install demo PointCollectors2 (does not validate yet: see docs/DIRSIG_demo_coverage.md).
+# The demo's assets are materialized by `scripts/bootstrap.py assets` from the DIRSIG installation's demo archive
+# (manifold_config_repo/assets.json). The sensor is a stand-in from the library: the demo's own camera could be
+# expressed as a sensor-spec/1 document only by copying values from its licensed platform file, which is not committed.
+
+compose: compose/1
+
+meta:
+  name: pointcollectors2-demo
+  tags: [dirsig-demo, pointcollectors2, does-not-validate-yet]
+  description: >
+    The first DIRSIG demo placed in the library, to find what the loader still refuses. Stand-in sensor, pose and
+    collection; the demo's scene, platform and atmosphere files by reference.
+
+sensor: synthetic_600_200_vis_1920.yaml   # stand-in
+scenario: pointcollectors2_demo
+engine_profile: pointcollectors2_demo
+
+settings:
+  - entry_id: synthetic-600-200-vis-1920
+    exposure_time: {value: 0.005, provenance: specified}
+    frame_rate: {value: 1000, provenance: specified}
+    gain: {value: 1, provenance: specified}
+    black_level: {value: 0, provenance: specified}
+    roi: {Width: 16, Height: 16, OffsetX: null, OffsetY: null}
+
+fidelity:
+  modeled: []
+  approximated: []
+  absent: [the demo's own sensor, pose and collection (stand-ins)]
+  valid_for: >
+    Nothing yet: a placement exercise; it does not validate.

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Artifact reference",
+  "description": "A reference to one file a run produced. The SDK API's operations return references, never bare file paths (the deprecated `LocalRegistry` and `Simulation` return paths): a reference carries the file's content hash and type, so it stays meaningful away from the machine that wrote it and its bytes can be verified after download.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "sha256",
+    "media_type",
+    "uri"
+  ],
+  "properties": {
+    "name": {
+      "description": "The artifact's name, unique within its run, for example `run_spec.json`, `run_info.json` or `log_info.json`, or a per-capture product named `<base>-t<task>-c<capture>.img` (and `.img.hdr`) as the platform template writes it. It is the last segment of the `get_artifact` path.",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    },
+    "sha256": {
+      "description": "The sha256 of the artifact's bytes, as 64 lowercase hex digits. The bytes returned by `get_artifact`, or read from `uri`, must hash to this value.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "media_type": {
+      "description": "The media type of the bytes, for example `application/json` for a run spec or a log, `application/octet-stream` for an ENVI image and `text/plain` for its header.",
+      "type": "string",
+      "pattern": "^[a-z]+/[A-Za-z0-9.+-]+$"
+    },
+    "uri": {
+      "description": "Where the bytes can be read: a `file://` URI when the run was executed locally, or a download URL when it was executed by a server.",
+      "type": "string",
+      "format": "uri"
+    },
+    "frame": {
+      "description": "For an artifact that belongs to one capture of a multi-frame run (an image, its header, a truth product), the zero-based index of that capture, in task order. Absent for an artifact that belongs to the run as a whole (the run spec, the engine logs).",
+      "type": "integer",
+      "minimum": 0
+    },
+    "role": {
+      "description": "`built / internal` (`tests/test_artifact_roles.py`). What the artifact is to a user of the run, from a free vocabulary of lowercase words whose initial set is: `product` (the engine's output imagery or data), `truth` (truth images or annotations that describe a product), `preview` (an image for looking at, not measurement), `log` (what the engine or the worker reported while running), `config` (the inputs as executed: the resolved run spec, the engine's own configuration files) and `metadata` (descriptions of other artifacts: image headers, scene or orbit descriptions). A client treats a role it does not know as an opaque label. The engine's adapter assigns it, never a file name rule of the backend; the resolved run spec is `config`. Every reference a backend builds carries it; a reference stored before roles existed has none.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    }
+  }
+}

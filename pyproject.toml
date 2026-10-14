@@ -1,24 +1,8 @@
-[build-system]
-requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.build_meta"
+# Repository-wide tool configuration. The distributions are under packages/ (packages/core: eoptic-manifold-core,
+# packages/sim: eoptic-manifold-sim), one pyproject.toml each; this file builds nothing.
 
-[project]
-name = "protodirsig"
-version = "0.0.1"
-description = "SSA/RSO synthetic-imagery batch driver built on dirfm and dirsig5"
-requires-python = ">=3.10"
-dependencies = [
-    "lxml",
-    "numpy",
-    "spectral",
-    "imageio",
-    "scipy",
-    "h5py",
-    "matplotlib",
-]
-
-[project.optional-dependencies]
-dev = ["pytest", "ruff", "jupyter"]
-
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.pytest.ini_options]
+testpaths = ["tests"]       # external/ holds dirfm's own demos/test_*.py; they are not this suite
+tmp_path_retention_policy = "failed"   # a passing test's tmp_path (job inputs, renders) is deleted at its teardown
+filterwarnings = ["ignore:LocalRegistry is deprecated:DeprecationWarning"]   # the notebook-era tests still use it
+markers = ["satsim: runs SatSim through its own interpreter (skipped, with the reason, when it is not found)"]
