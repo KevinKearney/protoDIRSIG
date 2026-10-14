@@ -16,9 +16,11 @@ must not change how the SDK launches a job); this script only keeps and checks w
 - C: cancelling a DIRSIG job through the adapter at about 25, 50 and 75 percent of its run.
 - D: more than one capture in one task window (C-43), with the SDK's check bypassed.
 - E: differences between repeat renders, and between thread counts, at DIRSIG's default thread count.
+- F (round 44, D-2): whether a thermal render depends on the instant only or also on the UTC offset in which the
+  `.tasks` reference time is written: one instant written at several offsets, the first offset rendered twice.
 
 A record (one JSON object per line, sorted by risk, then id), in this key order:
-`risk` (A to E), `id` (unique within the risk), `configuration` (what was run: job, size, threads, seed, HOME and so
+`risk` (A to F), `id` (unique within the risk), `configuration` (what was run: job, size, threads, seed, HOME and so
 on), `method` (how it was measured, one sentence or more), `measured` (the quantities; the members each risk requires are
 in `REQUIRED`), `tools` (`dirsig`, the DIRSIG version, and whatever else the method used, for example `dirfm` or
 `strace`), `date` (YYYY-MM-DD) and `source` (where the raw data was, home-relative, outside the repository).
@@ -27,7 +29,8 @@ A risk B record whose id is `limit-model` or ends in `-limit-model` (one per hos
 
 Derived numbers are checked against the record's own values, the way `scripts/s2s_measure.py --check` recomputes its
 expected values: A's `digests_equal` against its `products`, B's job count, throughput and limit, C's cancel fraction,
-D's per-capture equality list, E's differing fraction.
+D's per-capture equality list, E's differing fraction, F's repeatability and result (every written time
+the stated instant; `repeatable` from the repeat pair's digests; `result` from the compared products' digests).
 """
 import argparse
 import json
@@ -40,7 +43,8 @@ ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "docs" / "data" / "risk_measurements.jsonl"
 RECORD_KEYS = ("risk", "id", "configuration", "method", "measured", "tools", "date", "source")
 RISKS = {"A": "layered jobs and the user's HOME", "B": "concurrency and memory", "C": "DIRSIG cancel",
-         "D": "one capture per task window (C-43)", "E": "default-thread determinism"}
+         "D": "one capture per task window (C-43)", "E": "default-thread determinism",
+         "F": "the .tasks reference time's UTC offset (D-2)"}
 NUMBER = (int, float)
 # The members each risk's `measured` must hold, with their types; a record may hold more.
 REQUIRED = {
@@ -53,7 +57,10 @@ REQUIRED = {
     "D": {"captures_logged": int, "products": list, "equal_single": dict, "dirsig_refused": bool},
     "E": {"pair": str, "samples": int, "differing": int, "fraction_differing": NUMBER, "max_abs": NUMBER,
           "max_rel": NUMBER},
+    "F": {"instant": str, "written": dict, "repeat": list, "compared": list, "products": dict, "repeatable": bool,
+          "result": str},
 }
+F_RESULTS = ("instant only", "offset dependent", "not decidable")
 
 
 def load_results(path=RESULTS):
@@ -155,6 +162,42 @@ def derived_problems(kind, m):
             p.append("fraction_differing is not differing / samples")
         if (m["differing"] == 0) != (m["max_abs"] == 0):
             p.append("max_abs is zero exactly when nothing differs")
+    elif kind == "F":
+        p += _offset_problems(m)
+    return p
+
+
+def _offset_problems(m):
+    """Risk F: every written time is the stated instant, and `repeatable` and `result` follow from the digests."""
+    from datetime import datetime
+    p = []
+
+    def instant(s):
+        return datetime.fromisoformat(re.sub(r"(\.\d+)(?=[+-]\d\d:\d\d$)", "", s)).timestamp()
+    try:
+        ref = instant(m["instant"])
+        if any(instant(s) != ref for s in m["written"].values()):
+            p.append("a written time is not the stated instant")
+        if len({s[-6:] for s in m["written"].values()}) < 2:
+            p.append("written: fewer than two offsets")
+    except (TypeError, ValueError):
+        return ["instant or a written time is not an ISO 8601 time with an offset"]
+    labels = list(m["written"])
+    if set(m["products"]) != set(labels) or len(m["repeat"]) != 2 or not set(m["repeat"]) <= set(labels) \
+            or m["written"][m["repeat"][0]] != m["written"][m["repeat"][1]]:
+        return p + ["products, written and the repeat pair do not name the same renders"]
+    if not m["compared"] or any(f not in m["products"][x] for f in m["compared"] for x in labels):
+        return p + ["a compared product is missing from a render"]
+
+    def same(a, b):
+        return all(m["products"][a][f] == m["products"][b][f] for f in m["compared"])
+    if m["repeatable"] != same(*m["repeat"]):
+        p.append("repeatable does not follow from the repeat pair's digests")
+    first = m["repeat"][0]
+    result = "not decidable" if not m["repeatable"] else \
+        "instant only" if all(same(first, x) for x in labels) else "offset dependent"
+    if m["result"] not in F_RESULTS or m["result"] != result:
+        p.append(f"result does not follow from the digests (they give {result!r})")
     return p
 
 

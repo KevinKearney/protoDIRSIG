@@ -110,4 +110,23 @@ def test_the_conops_decisions_index_carries_each_risk_measured():
     for row in ("| C-28 |", "| C-30 |", "| C-43 |", "| Layered jobs run with the user's `HOME`", "| A collection mode for a cancelled DIRSIG run"):
         line = next(l for l in index.splitlines() if l.startswith(row))
         assert "round 33" in line.lower() or "Round 33" in line, row
-    assert {r["risk"] for r in RECORDS} == set("ABCDE")
+    assert {r["risk"] for r in RECORDS} == set("ABCDEF")
+
+
+def test_risk_f_the_reference_time_offset_changes_the_thermal_render():
+    (r,) = [r for r in RECORDS if r["risk"] == "F"]
+    mm = r["measured"]
+    assert r["configuration"]["demo"] == "Balfour2" and r["source"] == "~/r44scratch/b/runs"
+    assert len({s[-6:] for s in mm["written"].values()}) == 3                 # the demo's -05:00, +00:00, +09:00
+    assert mm["repeatable"] and mm["result"] == "offset dependent" and m.record_problems(r) == []
+    bad = copy.deepcopy(r)
+    bad["measured"]["result"] = "instant only"
+    assert any("result does not follow" in p for p in m.record_problems(bad))
+    bad = copy.deepcopy(r)
+    bad["measured"]["written"]["p00"] = "2008-07-01T18:00:00.0000+00:00"
+    assert "a written time is not the stated instant" in m.record_problems(bad)
+    doc = (ROOT / "docs" / "DIRSIG_layered_comparison.md").read_text()
+    section = doc.split("## The `.tasks` reference time's UTC offset (D-2, round 44)", 1)[1].split("\n## ", 1)[0]
+    assert "`offset dependent`" in section
+    for render in mm["products"].values():
+        assert render["demo-t0000-c0000.img"][:16] in section

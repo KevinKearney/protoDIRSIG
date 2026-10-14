@@ -324,6 +324,17 @@ Source: `docs/data/risk_measurements.jsonl` (`python scripts/risk_measure.py --c
 | `lightcurve1-cube150-td-b-vs-td-c` | sampling-noise | 12 of 2,923 | 0.0335 | 1.11e-05 | 1.68e-06 | `cube_150.img`, `lightcurve.dat` |
 <!-- end generated: risk-e -->
 
+**F, the `.tasks` reference time's UTC offset (round 44, D-2).** Balfour2 (8 to 12 um) in the pass-through form, its `.tasks` reference time written as one instant at the demo's `-05:00`, at `+00:00` and at `+09:00`, nothing else changed, default thread count, per-run HOME; the first offset rendered twice. The images are compared (each header carries the written time as text). `docs/DIRSIG_layered_comparison.md`, "The `.tasks` reference time's UTC offset (D-2, round 44)", gives the means and the size of the difference.
+
+<!-- generated: risk-f -->
+| Record | Written reference time | `demo-t0000-c0000.img` sha256 | `demo_truth-t0000-c0000.img` sha256 | Equal to the first render | Result |
+|---|---|---|---|---|---|
+| `balfour2-tasks-reference-offset` | `2008-07-01T12:00:00.0000-05:00` | `59235e83fe26bd67…` | `a93d44fa94361e90…` | yes | offset dependent |
+| `balfour2-tasks-reference-offset` | `2008-07-01T12:00:00.0000-05:00` | `59235e83fe26bd67…` | `a93d44fa94361e90…` | yes | offset dependent |
+| `balfour2-tasks-reference-offset` | `2008-07-01T17:00:00.0000+00:00` | `d73a3de8e6044873…` | `285a0243613e97ed…` | no | offset dependent |
+| `balfour2-tasks-reference-offset` | `2008-07-02T02:00:00.0000+09:00` | `bce45fc8ad494e35…` | `6d48c8028d06144c…` | no | offset dependent |
+<!-- end generated: risk-f -->
+
 ### 2.3 The transferred scenes
 
 Source: `docs/DIRSIG_transfer_scenes.md` (survey by `scripts/survey_transfer.py`) and `docs/DIRSIG_layered_comparison.md` (comparisons by `scripts/compare_layered.py`). No transferred scene holds a `.scene` or `.mat` file; six are byte-identical subsets of the install's Documents-folder copies, which were compared instead.
@@ -495,7 +506,7 @@ All the maintainer's rows of section 10.1, the held-back C-n first:
 | A requested `cpu_threads` enters a SatSim run id although SatSim's seeded output was the same at one thread and at the default | section 7.4 ("Resources"), section 3.3, C-30 | Kevin, then MANIFOLD through C-30 | yes | the run id of a SatSim spec that requests threads |
 | dirfm writes a static `.ppd`'s Euler angles to six decimals and its position to three | `BACKLOG.md` "Motion files lose precision in dirfm's `PlatformPosition`" | Kevin | yes | the bytes of every static-pose layered job and so its references (not its run id). Round 37 (foxbat through `compare_layered.py --threads 1`, `docs/DIRSIG_layered_comparison.md` round ten): at one thread the demo's angle alone brings the layered render from 3.63 % to 0.0697 % of pixels differing from the same-seed pass-through (maximum 4.0e-7), the remainder being the scene compile; at the default thread count a repeat of the pass-through differs in 0.097 % |
 | dirfm writes an explicit zero scene offset | `BACKLOG.md` "dirfm writes an explicit zero scene offset" | Kevin | yes | the bytes of every layered job (not its run id) |
-| The epoch's written form (UTC against the scene's local offset) | `BACKLOG.md` "The epoch is written in UTC" | Kevin, then a C-n question | yes | thermal results; the item asks for a stated rule |
+| The epoch's written form (UTC against the scene's local offset) | `BACKLOG.md` "The epoch is written in UTC", section 10.2 (D-2) | Kevin, then a C-n question | yes | thermal results; the item asks for a stated rule. Measured in round 44 (`docs/data/risk_measurements.jsonl`, risk F): Balfour2's pass-through render with the same instant written at `-05:00`, `+00:00` and `+09:00` gives three different products (temperature means 274.904, 256.126 and 156.847 K); `offset dependent` |
 | How users author recipes and layers: a form or GUI that writes them, a CLI, or neither | `docs/Authoring_friction_audit.md` (the measurement), `BACKLOG.md` "Authoring friction (round 35)", `scripts/recipe_form.py` (a prototype of the recipe step) | Kevin | no | the SDK's public surface. Measured (round 35): the shortest path writes 0 files, 2 fields and 0 hashes; a new recipe 20 required fields, 4 copied; a new scene and sensor in a checkout 4 YAML files and 115 fields, 14 copied, 4 hashes written by `scripts/stamp_hashes.py`, and with the installed packages alone the same 4 hashes computed and typed by the user. A recipe-only form adds nothing to the SDK (it reads `list_*`); a form or GUI that writes layers, or a CLI, needs a hashing or stamping operation in the SDK (today a repository script without a path argument), and a CLI a console entry point |
 | The descriptor audit with two engines, before any layered SatSim form | `BACKLOG.md` "Descriptor audit with two engines (first)", C-37 | Kevin | yes | the descriptor's members, and the questions put to MANIFOLD |
 <!-- end generated: maintainer -->

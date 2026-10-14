@@ -48,6 +48,7 @@ The relay host is a 4-core, 8-thread laptop with 11 GiB of memory, at most 4 con
 | risk C, three records (cancels) | manual | no script in the repository regenerates them: the cancel-timing script was scratch; the record's `method` states it |
 | risk D, four records (captures in one window) | no | the runner's `capture-order-native` entry renders the demos at their own size under a 24 GiB address-space limit; Thermal2 with its captures reversed reached 13 GB virtual memory and was killed by the out-of-memory killer; the reduced-size records were a scratch cut |
 | risk E, twelve records (LightCurve1 by thread count) | no | the runner's `lightcurve1-full` entry renders the full demo: about 40 minutes per one-thread render, past the 10-minute command limit, and 13.5 GB of outputs per render; the records' cut to 151 samples was a scratch script (the record's `method`) |
+| risk F, one record (Balfour2, the `.tasks` reference time's UTC offset; round 44) | manual | no script in the repository regenerates it: the scripts that rewrote the reference time and compared the images were scratch; the record's `method` states them, and each pass-through render takes about 5 s on this host |
 
 The measurements deferred to a larger host, which are not records yet, are the entries of `docs/data/bigger_host_manifest.yaml` (`docs/Bigger_host_plan.md`):
 

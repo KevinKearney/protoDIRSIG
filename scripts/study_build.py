@@ -125,6 +125,10 @@ RISK_REPRODUCE = {
           "python scripts/bigger_host_run.py --only lightcurve1-full", "no",
           "the runner's entry renders the full demo (about 40 minutes at one thread, 13.5 GB of outputs per render); "
           "the records' cut to 151 samples was a scratch script (`lc.py`, the record's `method`)"),
+    "F": ("the record's `configuration`: Balfour2 from the installation's archive, the `.tasks` reference time written "
+          "as one instant at three offsets, the pass-through runner with a per-run HOME", None, "manual",
+          "the scratch scripts that rewrote the reference time and compared the images (`d2.py`, `cmp.py`, the "
+          "record's `method`) are not in the repository; each render takes about 5 s"),
 }
 
 

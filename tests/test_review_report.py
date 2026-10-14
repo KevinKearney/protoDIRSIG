@@ -65,7 +65,7 @@ def test_the_space_to_space_blocks_cover_every_record():
 
 def test_the_risk_blocks_cover_every_record():
     ids = {json.loads(l)["id"] for l in rr.RISK.read_text().splitlines() if l.strip()}
-    shown = "\n".join(rr.BLOCKS[b]() for b in ("risk-a", "risk-b", "risk-c", "risk-d", "risk-e"))
+    shown = "\n".join(rr.BLOCKS[b]() for b in ("risk-a", "risk-b", "risk-c", "risk-d", "risk-e", "risk-f"))
     assert all(f"`{i}`" in shown for i in ids)
 
 
