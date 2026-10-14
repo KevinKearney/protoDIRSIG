@@ -68,6 +68,36 @@ def git_dirty(repo):
     rc, out, _ = _git(repo, "status", "--porcelain")
     return rc == 0 and bool(out)
 
+def dirsig_executable(path):
+    """Return the DIRSIG executable for this platform, if present."""
+    names = ("dirsig5.exe", "dirsig5") if os.name == "nt" else ("dirsig5",)
+    for name in names:
+        candidate = Path(path) / "bin" / name
+        if candidate.is_file():
+            return candidate
+    return None
+
+def dirsig_version(path):
+    """Return the version string reported by the DIRSIG executable."""
+    executable = dirsig_executable(path)
+    if executable is None:
+        return None
+
+    try:
+        result = subprocess.run(
+            [str(executable), "--version"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+
+    if result.returncode != 0:
+        return None
+
+    return (result.stdout or result.stderr).strip()
 
 def find_dirsig(pin, environ=None):
     """The DIRSIG install directory named by the pin's search list, or None."""
@@ -78,7 +108,7 @@ def find_dirsig(pin, environ=None):
             cand = environ.get("DIRSIG_HOME", "")
         if cand:
             p = Path(cand).expanduser()
-            if p.is_dir() and (p / "bin" / "dirsig5").exists():
+            if p.is_dir() and dirsig_executable(p):
                 return p
     return None
 
@@ -108,9 +138,9 @@ def status(pins, external=EXTERNAL, environ=None):
                              f"expected {pin['version']} under $DIRSIG_HOME or ~/DIRSIG"))
                 continue
             target = path.resolve()
-            if not (target / "bin" / "dirsig5").exists():
+            if not dirsig_executable(target):
                 rows.append((name, "missing", f"{target} has no bin/dirsig5"))
-            elif target.name != pin["version"]:
+            elif not dirsig_version(target):
                 rows.append((name, "mismatch", f"{target.name}, pin {pin['version']}"))
             else:
                 rows.append((name, "ok", str(target)))
