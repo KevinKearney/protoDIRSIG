@@ -1,6 +1,6 @@
 # manifold_run_specs/
 
-Run specs, authored as layers and composed into the single `run-spec/1` document MANIFOLD receives (CONOPS and Guide §3.5, rules `compose/1`).
+Run specs, authored as layers and composed into one `run-spec/1` document (CONOPS and Guide §3.5, rules `compose/1`); that this is the single document MANIFOLD receives is a proposal pending C-21.
 
 | Path | Holds |
 |---|---|

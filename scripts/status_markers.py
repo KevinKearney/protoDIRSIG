@@ -29,7 +29,10 @@ Rules, each a failure:
    needs Build and Agreement columns instead); an unbackticked marker word used as a marker, that is `proposed`,
    `planned`, `internal` or `agreed` directly after `(` or `, ` and directly before `)`, `,`, `;` or `:`, or
    capitalized as a sentence of its own (`Proposed.`), or a `Status:` line whose value is not a backticked
-   two-axis marker.
+   two-axis marker; a backtick span whose whole content is a status word that is not a legend term (`OUTSIDE`:
+   `deprecated`, `superseded`, `obsolete`, `retired`, `experimental`, `legacy`, `withdrawn`, `draft`, `stable`,
+   `frozen`), used where a marker stands (round 44: the compatibility shim was marked `deprecated` and the check
+   did not see it). Such a word unbackticked in prose is not a marker.
 2. one axis only: every marker outside the Build and Agreement columns, in headings, bold-lead paragraphs, table
    cells and prose alike, is written `build / agreement`. The single exception is `open` alone: a question for
    MANIFOLD that takes no position and has nothing built SDK-side. A build term alone or `proposed`, `internal`,
@@ -69,6 +72,9 @@ CONOPS = "docs/MANIFOLD_DIRSIG_CONOPS_and_Guide.md"
 BUILD = ("built, partial", "built", "planned")
 AGREE = ("open", "proposed", "agreed", "internal")
 TERMS = BUILD + AGREE
+# Status words that are not legend terms: backticked alone, each is a marker outside the legend (rule 1).
+OUTSIDE = ("deprecated", "superseded", "obsolete", "retired", "experimental", "legacy", "withdrawn", "draft", "stable",
+           "frozen")
 LEGEND_OPEN, LEGEND_CLOSE = "<!-- status-legend -->", "<!-- /status-legend -->"
 
 SPAN = re.compile(r"`([^`\n]+)`")
@@ -243,6 +249,10 @@ def check_doc(doc, root, accepted, tests):
     for i, line in doc.lines:
         for m in list(BARE.finditer(line)) + list(LEAD.finditer(line)):
             problems.append(f"{where(i)}: unbackticked marker word `{m.group(1)}`; write a backticked `build / agreement` marker")
+        for m in SPAN.finditer(line):
+            if m.group(1).strip() in OUTSIDE:
+                problems.append(f"{where(i)}: `{m.group(1).strip()}`: term outside the legend; write a backticked "
+                                f"`build / agreement` marker (the word may stand unbackticked in prose)")
         sm = STATUS_LINE.search(line)
         if sm:
             problems.append(f"{where(i)}: `Status:` line with value {sm.group(1)!r}; write a backticked `build / agreement` marker")

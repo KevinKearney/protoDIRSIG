@@ -50,6 +50,7 @@ def test_check_exit_status():
     "| Item | Build | Agreement |\n|---|---|---|\n| a | `built` (`tests/test_x.py`) | `proposed` |\n| b | — | `open` |",
     "<!-- status-legend -->\n`proposed` alone inside the legend.\n<!-- /status-legend -->",
     "```\n# proposed: inside a code block\n```",
+    "**Thing** `built / internal` (`tests/test_x.py`), deprecated: kept for one release.",
 ])
 def test_allowed(tmp_path, body):
     assert _problems(tmp_path, body) == []
@@ -57,6 +58,8 @@ def test_allowed(tmp_path, body):
 
 @pytest.mark.parametrize("body, fragment", [
     ("**Thing** `built / maybe` (`tests/test_x.py`).", "outside the legend"),
+    ("**Thing** `deprecated`. Kept for one release.", "outside the legend"),
+    ("| Item | Note |\n|---|---|\n| a | `superseded` |", "outside the legend"),
     ("**Thing** `proposed`.", "one axis"),
     ("**Thing** `built` (`tests/test_x.py`).", "one axis"),
     ("**Thing** `proposed / built`.", "build term comes first"),
