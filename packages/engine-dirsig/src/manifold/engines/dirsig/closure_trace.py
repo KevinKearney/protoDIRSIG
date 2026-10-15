@@ -28,6 +28,8 @@ anything else (system libraries, `/proc`) is dropped. Returns a dict:
   opened for writing (must be empty).
 - `probed`: tree or library names a tool tried and did not find (`ENOENT`), the tool's search made visible.
 - `install`, `home`, `output`: the installation, home and output-folder files opened for reading.
+- `elsewhere`: files opened successfully anywhere else outside `SYSTEM` (the operating system's folders), reading
+  or writing; the check that the filter dropped nothing but system files.
 """
 import os
 import re
@@ -37,6 +39,7 @@ _LINE = re.compile(r'^(?:\d+\s+)?(open|openat|openat2)\((.*)\)\s+=\s+(.*)$')
 _ARGS = re.compile(r'^(?:(AT_FDCWD|-?\d+)(?:<((?:[^>\\]|\\.)*)>)?,\s*)?"((?:[^"\\]|\\.)*)"(?:\.\.\.)?,\s*([^,)]*)')
 _RET = re.compile(r'^(-?\d+)(?:<(.*)>)?(?:\s+(E[A-Z0-9]+))?')
 _WRITE_FLAGS = ("O_WRONLY", "O_RDWR", "O_CREAT", "O_TRUNC")
+SYSTEM = ("/usr", "/lib", "/lib32", "/lib64", "/bin", "/sbin", "/etc", "/proc", "/sys", "/dev", "/run")
 
 
 @dataclass(frozen=True)
@@ -130,13 +133,16 @@ def closure_sets(walked, job, opens, places):
     real_to_tree = {}
     for rel, real in sorted(job.items()):
         real_to_tree.setdefault(real, rel)
-    read, written, library_written, probed = {}, {}, set(), {}
+    read, written, library_written, probed, elsewhere = {}, {}, set(), {}, {}
     outside = {"install": {}, "home": {}, "output": {}}
     for o in opens:
         if o.directory:
             continue
         kind, name = _place(o.named, o.real, places, real_to_tree)
         if kind is None:
+            path = o.real or o.named
+            if o.error is None and not any(_under(path, d) for d in SYSTEM) and not os.path.isdir(path):
+                elsewhere.setdefault(path, set()).add(o.tool)
             continue
         if o.error is not None:
             if kind == "tree" and o.error == "ENOENT":
@@ -165,6 +171,7 @@ def closure_sets(walked, job, opens, places):
         "library_written": sorted(library_written),
         "probed": {p: sorted(t) for p, t in sorted(probed.items()) if p not in read},
         **{k: {p: sorted(t) for p, t in sorted(v.items())} for k, v in outside.items()},
+        "elsewhere": {p: sorted(t) for p, t in sorted(elsewhere.items())},
     }
 
 

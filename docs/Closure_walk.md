@@ -218,3 +218,196 @@ Files the run wrote into the tree:
 `material_report.json` lands in the job's root because `scene2hdf` runs there. No library file was opened for writing, and a snapshot of `manifold_config_repo` (paths, sizes, modification times, modes) was unchanged after the run. No tool tried and failed to open a tree or library name: no `ENOENT` probe.
 
 Outside the tree, the run opened 2 installation data files (`bin/qt.conf`, `lib/data/weather/mls.wth`) and 123 shared libraries and plugins. The walker's one installation reference, `$DIRSIG_HOME/lib/data/weather/mls.wth` (from `uniform.atm`), is among them. The run opened 0 files under the empty home and 6 under the output folder (`dirsig5` reading back its own outputs).
+
+### 6.3 The corpus (step C)
+
+The corpus is the same as round 46's: every committed DIRSIG run spec under `manifold_run_specs/` (top level and `s2s/`), 162 specs. All of them were run at `--threads=2`. They ran in breadth-first order: one spec of every kind first, then the 64 x 64 windows, then the full-size specs. A kind is a combination of mode, scenes, platform, sensor, atmosphere, motion kind and window; there are 13. The command was `python scripts/closure_trace.py corpus --work DIR`.
+
+The time limit was never reached. The whole corpus took 77 minutes. The longest trees were `auror_ref` and `synthetic_vis` (about 414 s each, the full Tahoe frame) and Brdf1 (210 s); a 64 x 64 window took 1 to 3 s.
+
+The corpus was run twice. The first pass is `docs/data/closure_trace_first_pass.jsonl`. The second pass is `docs/data/closure_trace.jsonl`, which also records `elsewhere`, the opens outside every folder the test names. Every placed result of every tree agreed between the two passes: the sets, the roles, the files each tool opened, the files written, the installation files and the home and output counts. Two fields differed. Wall time is one. The other is the raw count of strace calls: in 21 trees the open calls differ by 1 or 2 and the per-thread trace files by 2 to 6. Every placed set is equal, so the extra calls are ones the test drops (system files or folders). Their number follows the threads a run happens to start.
+
+The per-tree table below is generated from `docs/data/closure_trace.jsonl` (`--table` prints it; `--write-doc` writes it here).
+
+<!-- closure-trace-table -->
+| Tree | Mode | Ran | Walked | Job | Listed, not in job | In job, not listed | Read, in neither (generated) | Listed, never opened |
+|---|---|---|---|---|---|---|---|---|
+| `s2s-hyperresolved-r100km-v0mps-e5ms-l0-z0-d0-w64` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `auror_ref` | layered | yes | 25 | 25 | 0 | 0 | 1 (1) | 0 |
+| `demo_brdf1_passthrough` | passthrough | yes | 16 | 25 | 0 | 9 | 1 (1) | 1 |
+| `demo_pointcollectors2_passthrough` | passthrough | yes | 8 | 16 | 0 | 8 | 1 (1) | 0 |
+| `leo_pass_tahoe` | layered | yes | 25 | 25 | 0 | 0 | 1 (1) | 0 |
+| `sensor_sweep_tahoe--deepscan_850_306_nir_1280` | layered | yes | 25 | 25 | 0 | 0 | 1 (1) | 0 |
+| `synthetic_vis` | layered | yes | 25 | 25 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r25km-v0mps-e5ms-l0-z0-d0-w64` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r25km-v0mps-e5ms-l0-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r773p093km-vorbit-e5ms-l1p8-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-blur-both-e1ms-w64` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-look-l0` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-orbit-e20ms` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-background-z0` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-phase-hyperresolved-a0-r100km-l0-z0-w64` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r25km-v0mps-e5ms-l0-z60-d0-w64` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-blur-both-e5ms-w64` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-phase-hyperresolved-a60-r100km-l0-z60-w64` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r25km-v0mps-e5ms-l15-z0-d0-w64` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-blur-both-e0p1ms-w64` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-phase-hyperresolved-a60-r100km-l60-z0-w64` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r25km-v0mps-e5ms-l45-z0-d0-w64` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-blur-both-e5ms-n2-w64` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-phase-hyperresolved-a60-r100km-l30-z30-w64` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r25km-v0mps-e5ms-l50-z0-d0-w64` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-blur-both-r100km-e20ms-w64` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-phase-hyperresolved-a120-r100km-l60-z60-w64` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r25km-v0mps-e5ms-l55-z0-d0-w64` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-blur-both-r200km-e20ms-w64` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r25km-v0mps-e5ms-l60-z0-d0-w64` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-blur-target-r50km-e20ms-w64` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r25km-v0mps-e5ms-l65-z0-d0-w64` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-blur-static-r200km-e20ms-w64` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r25km-v0mps-e5ms-l30-z30-d0-w64` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-blur-target-r100km-e20ms-w64` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s-hyperresolved-r25km-v0mps-e5ms-l0-z0-d0-w64` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-blur-target-r200km-e20ms-w64` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r25km-v0mps-e5ms-l60-z0-d0p5-w64` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-blur-platform-r100km-e20ms-w64` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r25km-v1000mps-e5ms-l0-z0-d0-w64` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-blur-platform-r200km-e20ms-w64` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s-hyperresolved-r25km-v0mps-e5ms-l0-z75-d0-w64` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r25km-v0mps-e5ms-l60-z0-d0p25-w64` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-hyperresolved-r100km-v0mps-e20ms-l0-z0-d0-w64` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-hyperresolved-r100km-v0mps-e5ms-l0-z60-d0-w64` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-hyperresolved-r100km-v0mps-e5ms-l60-z0-d0-w64` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-hyperresolved-r25km-v0mps-e5ms-l30-z30-d0-w64` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-hyperresolved-r25km-v0mps-e5ms-l45-z45-d0-w64` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-hyperresolved-r25km-v0mps-e5ms-l60-z60-d0-w64` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r12p5km-v1000mps-e5ms-l0-z0-d0-w64` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-hyperresolved-r100km-v0mps-e5ms-l30-z30-d0-w64` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolvedplain-r25km-v0mps-e5ms-l60-z0-d0-w64` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-hyperresolved-r100km-v0mps-e5ms-l60-z0-d0p5-w64` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `sensor_sweep_tahoe--auror-nir` | layered | yes | 25 | 25 | 0 | 0 | 1 (1) | 0 |
+| `sensor_sweep_tahoe--synthetic_600_200_vis_1920` | layered | yes | 25 | 25 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r50km-v0mps-e5ms-l0-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-look-l15` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-orbit-e0p1ms` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-background-z30` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r100km-v0mps-e5ms-l0-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-look-l30` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-background-z60` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r200km-v0mps-e1ms-l0-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-look-l45` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-background-z75` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r200km-v0mps-e5ms-l0-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-look-l60` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-phase-unresolved-a0-l0-z0` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r400km-v0mps-e5ms-l0-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-look-l75` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-phase-hyperresolved-a0-l0-z0` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r800km-v0mps-e5ms-l0-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-blur-both-e1ms` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-phase-unresolved-a20-l10-z10` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r12p5km-v0mps-e5ms-l0-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-blur-both-e5ms` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-phase-unresolved-a40-l20-z20` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r200km-v0mps-e20ms-l0-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-blur-both-e20ms` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-phase-unresolved-a60-l30-z30` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r200km-v0mps-e5ms-l0-z30-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-blur-both-e0p1ms` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-phase-unresolved-a80-l40-z40` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r200km-v0mps-e5ms-l0-z60-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-blur-static-e5ms` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-phase-unresolved-a100-l50-z50` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r200km-v0mps-e5ms-l30-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-blur-target-e1ms` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-phase-unresolved-a120-l60-z60` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r200km-v0mps-e5ms-l60-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-blur-target-e5ms` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-phase-unresolved-a150-l75-z75` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r25km-v0mps-e5ms-l0-z0-d0p5` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-blur-target-e20ms` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-phase-hyperresolved-a60-l0-z60` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r50km-v0mps-e5ms-l0-z0-d0p5` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-blur-platform-e1ms` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-phase-hyperresolved-a60-l60-z0` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-hyperresolved-r25km-v0mps-e1ms-l0-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-blur-platform-e5ms` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-phase-unresolvedplain-a0-l0-z0` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-hyperresolved-r25km-v0mps-e5ms-l0-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-blur-target-e0p1ms` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-phase-hyperresolved-a20-l10-z10` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-hyperresolved-r50km-v0mps-e5ms-l0-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-blur-platform-e20ms` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-phase-hyperresolved-a40-l20-z20` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r200km-v0mps-e5ms-l0-z0-d0p5` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s2-blur-platform-e0p1ms` | layered | yes | 44 | 44 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-phase-hyperresolved-a60-l30-z30` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r25km-v0mps-e5ms-l0-z0-d0p25` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-phase-hyperresolved-a80-l40-z40` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r25km-v0mps-e5ms-l0-z0-d0p75` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-phase-hyperresolved-a100-l50-z50` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r50km-v0mps-e5ms-l0-z0-d0p25` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-phase-hyperresolved-a120-l60-z60` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r50km-v0mps-e5ms-l0-z0-d0p75` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-phase-hyperresolved-a150-l75-z75` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-hyperresolved-r100km-v0mps-e5ms-l0-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-phase-unresolved-a135-l67p5-z67p5` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-hyperresolved-r25km-v0mps-e20ms-l0-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-phase-unresolvedplain-a80-l40-z40` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-hyperresolved-r25km-v0mps-e5ms-l0-z30-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-phase-unresolvedplain-a150-l75-z75` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-hyperresolved-r25km-v0mps-e5ms-l0-z60-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s3-phase-hyperresolved-a135-l67p5-z67p5` | layered | yes | 21 | 21 | 0 | 0 | 1 (1) | 0 |
+| `s2s-hyperresolved-r25km-v0mps-e5ms-l30-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-hyperresolved-r25km-v0mps-e5ms-l60-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r12p5km-v0mps-e5ms-l0-z0-d0p5` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r200km-v0mps-e5ms-l0-z0-d0p25` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r200km-v0mps-e5ms-l0-z0-d0p75` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r200km-v1000mps-e5ms-l0-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r200km-v7500mps-e5ms-l0-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-hyperresolved-r12p5km-v0mps-e5ms-l0-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r12p5km-v0mps-e5ms-l0-z0-d0p25` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolved-r12p5km-v0mps-e5ms-l0-z0-d0p75` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolvedplain-r25km-v0mps-e5ms-l0-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolvedplain-r50km-v0mps-e5ms-l0-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolvedplain-r100km-v0mps-e5ms-l0-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolvedplain-r200km-v0mps-e1ms-l0-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolvedplain-r200km-v0mps-e5ms-l0-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolvedplain-r400km-v0mps-e5ms-l0-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolvedplain-r800km-v0mps-e5ms-l0-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolvedplain-r12p5km-v0mps-e5ms-l0-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolvedplain-r200km-v0mps-e20ms-l0-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolvedplain-r200km-v0mps-e5ms-l0-z30-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolvedplain-r200km-v0mps-e5ms-l0-z60-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolvedplain-r200km-v0mps-e5ms-l30-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolvedplain-r200km-v0mps-e5ms-l60-z0-d0` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolvedplain-r25km-v0mps-e5ms-l0-z0-d0p5` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolvedplain-r50km-v0mps-e5ms-l0-z0-d0p5` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolvedplain-r200km-v0mps-e5ms-l0-z0-d0p5` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolvedplain-r25km-v0mps-e5ms-l0-z0-d0p25` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolvedplain-r25km-v0mps-e5ms-l0-z0-d0p75` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolvedplain-r50km-v0mps-e5ms-l0-z0-d0p25` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolvedplain-r50km-v0mps-e5ms-l0-z0-d0p75` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolvedplain-r12p5km-v0mps-e5ms-l0-z0-d0p5` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolvedplain-r200km-v0mps-e5ms-l0-z0-d0p25` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolvedplain-r200km-v0mps-e5ms-l0-z0-d0p75` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolvedplain-r12p5km-v0mps-e5ms-l0-z0-d0p25` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `s2s-unresolvedplain-r12p5km-v0mps-e5ms-l0-z0-d0p75` | layered | yes | 20 | 20 | 0 | 0 | 1 (1) | 0 |
+| `pointcollectors2_demo` | layered | no: not built: RunSpecError: engine.atmosphere.plugin is 'basic' | | | | | | |
+
+Trees traced: 161 of 162 DIRSIG specs (161 ran to completion); not traced: 0 (time) and 1 (failed before a tool started).
+<!-- /closure-trace-table -->
+
+What the table holds:
+
+- **Ran: 161 of 162.** The one not run is `pointcollectors2_demo.yaml`, which has no job tree. The loader refuses it (a `basic` atmosphere with a file), as in round 46.
+- **Set 1, listed but not in the job: 0 in every tree.** The walker lists only files it found, so this set can only fill if the tree changes between the walk and the run. It did not.
+- **Set 2, in the job but not listed: 17 files, all in the two pass-through trees.** These are the same orphans round 46 reported:
+  - Brdf1's 9: `README.html`, `README.txt`, `demo.jsim`, `images/demo.png`, `images/spin.gif`, `spin.jsim`, `spin.ppd`, `spin.sim`, `spin.tasks`.
+  - PointCollectors2's 8: `images/framimg_plus_z.png`, `images/scans.pdf`, `images/scans.png`, `points.cpp`, `scans.plot`, `xy_scan.jsim`, `xz_scan.jsim`, `yz_scan.jsim`.
+
+  No tool opened any of the 17. The 159 layered trees have none.
+- **Set 3, read but in neither: one file per tree, and it is always the compiled scene** (`auror_ref/<scene>.scene.hdf`, or `demo.scene.hdf` in a pass-through tree). `scene2hdf` writes it in the same run and `dirsig5` reads it. No tree had any other file in set 3.
+- **Listed but never opened: one file in one tree,** Brdf1's MODTRAN card `mls_ms.tp5`. The walker reached it through `classic_mls.atm`'s `modtrantape5file`, and it is one of round 46's four unroled files. Every other walked file in every tree was opened.
+- **Nothing else outside the tree.** In the second pass, `elsewhere` is empty for every tree: no open outside the tree, the library, the installation, the empty home, the output folder and the operating system's folders.
+

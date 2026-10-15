@@ -22,7 +22,8 @@ the sets of `closure_sets` as lists (`listed_not_in_job`, `in_job_not_listed`, `
 `listed_not_read`, `library_written`), `roles` (every walked path -> its role), `read` (count) and
 `read_by` (path -> tools), `written`, `probed`, `install_read` (installation files opened, shared libraries left out),
 `install_libraries` (their count), `install_listed` (the walker's `$DIRSIG_HOME` references) and
-`install_listed_not_read`, `home_read`, `output_read` (counts). The tree is removed afterwards.
+`install_listed_not_read`, `home_read`, `output_read` (counts), `elsewhere` (files opened outside the tree,
+library, installation, home, output folder and the operating system's folders: path -> tools). The tree is removed afterwards.
 """
 import argparse
 import json
@@ -40,6 +41,7 @@ ROOT = Path(__file__).resolve().parents[1]
 LIBRARY = ROOT / "manifold_config_repo"
 SENSORS = ROOT / "manifold_sensors"
 RECORDS = ROOT / "docs" / "data" / "closure_trace.jsonl"
+FIRST_PASS = ROOT / "docs" / "data" / "closure_trace_first_pass.jsonl"   # the corpus's first pass, kept as a repeat
 DOC = ROOT / "docs" / "Closure_walk.md"
 BEGIN, END = "<!-- closure-trace-table -->", "<!-- /closure-trace-table -->"
 TOOLS = ("scene2hdf", "dirsig5")
@@ -162,7 +164,7 @@ def run_one(spec, work, threads):
         "install_read": install_read, "install_libraries": len(s["install"]) - len(install_read),
         "install_listed": listed_install, "install_listed_not_read": [p for p in listed_install
                                                                       if p not in s["install"]],
-        "home_read": len(s["home"]), "output_read": len(s["output"]),
+        "home_read": len(s["home"]), "output_read": len(s["output"]), "elsewhere": s["elsewhere"],
         "trace_files": len(list(out.glob("trace.*"))), "opens": len(opens), "unparsed": calls - len(opens),
     })
     if not os.environ.get("CLOSURE_KEEP"):
@@ -256,7 +258,7 @@ def table(records):
                      f"{len(r['read_in_neither'])} ({len(r['generated'])}) | {len(r['listed_not_read'])} |")
     for r in records:
         if "walked" not in r:
-            lines.append(f"| `{_short(r['spec'])}` | {r.get('mode', '')} | no: {r.get('error')} | | | | | | |")
+            lines.append(f"| `{_short(r['spec'])}` | {r.get('mode', '')} | no: {str(r.get('error')).split(';')[0]} | | | | | | |")
     specs = cw.specs()
     lines += ["", f"Trees traced: {len(traced)} of {len(specs)} DIRSIG specs ({sum(1 for r in traced if r['ran'])} "
               f"ran to completion); not traced: {len(specs) - len(records)} (time) and "

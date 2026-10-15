@@ -48,3 +48,33 @@ def test_the_first_record_is_step_b_and_the_document_lists_it():
     assert {k: r[k] for k in SETS} == {"listed_not_in_job": [], "in_job_not_listed": [],
                                        "read_in_neither": ["auror_ref/s2s_targets.scene.hdf"],
                                        "generated": ["auror_ref/s2s_targets.scene.hdf"], "listed_not_read": []}
+
+
+def test_the_corpus_order_is_breadth_first():
+    specs = ct.cw.specs()
+    order = ct.order(specs)
+    assert sorted(order) == sorted(specs)
+    first = {}
+    for i, spec in enumerate(order):
+        first.setdefault(ct._signature(spec), i)
+    assert sorted(first.values()) == list(range(len(first)))      # one spec of every kind before any second one
+
+
+def test_the_document_table_is_computed_from_the_records():
+    text = (ROOT / "docs" / "Closure_walk.md").read_text()
+    block = text.split(ct.BEGIN, 1)[1].split(ct.END, 1)[0].strip()
+    assert block == ct.table(ct.load())
+
+
+def test_the_two_passes_agree():
+    """The corpus ran twice (section 6.3); every recorded field agrees for every spec except the wall time and the raw
+    counts of open calls and per-thread trace files (`opens`, `trace_files`), which vary with the threads a run starts
+    (the extra calls are ones the test drops: system files or folders); the first pass predates `elsewhere`."""
+    import json
+    first = {r["spec"]: r for r in map(json.loads, ct.FIRST_PASS.read_text().splitlines())}
+    second = ct.load()
+    assert set(first) == {r["spec"] for r in second}
+    for r in second:
+        keys = (set(r) | set(first[r["spec"]])) - {"seconds", "elsewhere", "opens", "trace_files"}
+        assert {k: r.get(k) for k in keys} == {k: first[r["spec"]].get(k) for k in keys}, r["spec"]
+        assert r.get("elsewhere", {}) == {}

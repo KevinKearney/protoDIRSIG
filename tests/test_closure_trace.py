@@ -70,8 +70,10 @@ def test_closure_sets(tmp_path):
         _open("dirsig5", root / "auror_ref" / "s.scene.hdf"),
         _open("dirsig5", root / "undeclared.dat", error="ENOENT"),
         _open("dirsig5", inst / "lib" / "mls.wth"),
-        _open("dirsig5", "/usr/lib/libc.so.6"),
+        _open("dirsig5", "/usr/lib/libc.so.6"),                                 # a system file: dropped
+        _open("dirsig5", tmp_path / "stray.cfg"),                               # anywhere else: reported
     ]
+    (tmp_path / "stray.cfg").write_text("s")
     (root / "late.cfg").write_text("c")                                       # not in the job before the run
     opens.append(_open("dirsig5", root / "late.cfg"))
     s = closure_sets(walked, job, opens, {"root": str(root), "library": str(lib), "install": str(inst),
@@ -85,6 +87,7 @@ def test_closure_sets(tmp_path):
     assert s["written"] == {"auror_ref/s.scene.hdf": ["scene2hdf"]} and s["library_written"] == []
     assert s["probed"] == {"undeclared.dat": ["dirsig5"]}
     assert s["install"] == {"lib/mls.wth": ["dirsig5"]}
+    assert s["elsewhere"] == {str(tmp_path / "stray.cfg"): ["dirsig5"]}
 
 
 def test_a_library_file_no_tree_path_reaches_is_named_as_library(tmp_path):
