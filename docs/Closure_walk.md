@@ -1,4 +1,4 @@
-# The DIRSIG role list and closure walker on real trees (round 46)
+# The DIRSIG role list, closure walker and closure test on real trees (rounds 46 and 47)
 
 Evidence gathered before the requirements baseline, not the SDK's implementation. The origin admission contract requires a role list and a closure walker for each origin (configuration view `AV_MANIFOLD_Configuration_v02.md`, sections 2.4, 4.1 and 7, Appendix A.2 to A.4). The prototype had neither, only the partial walker in `scene_ref` that finds the files DIRSIG looks for in the working folder. This round builds both for DIRSIG, beside the existing engine modules, and runs them over every tree the repository can build without rendering. `packages/core` is unchanged.
 
@@ -8,6 +8,7 @@ Evidence gathered before the requirements baseline, not the SDK's implementation
 | Closure walker | `packages/engine-dirsig/src/manifold/engines/dirsig/closure.py` | `tests/test_closure_walk.py` |
 | Auror walker fixture (Cfg A.3) | `tests/data/closure_fixture/auror/` | `tests/test_closure_fixture.py` |
 | Corpus walk | `scripts/closure_walk.py`, `docs/data/closure_walk.jsonl` | `tests/test_closure_walk_corpus.py` |
+| Closure test (round 47, section 6) | `packages/engine-dirsig/src/manifold/engines/dirsig/closure_trace.py`, `scripts/closure_trace.py` | `tests/test_closure_trace.py` |
 
 ## 1. The role list
 
@@ -128,3 +129,41 @@ What the numbers say:
 - **The pass-through form's orphans,** which `dirhash/1` covers and a manifest would not.
 - **A.3's map defect against A.2's disabled-element rule.** The walker reports text in disabled elements without following it. Whether that text is an error (it is in a hashed file) or outside the closure is the program's decision.
 - **The search orders the walker assumes,** which the closure test (Cfg A.5), materializing the walked files and starting DIRSIG, would check. That test was not run this round.
+
+## 6. The closure test (round 47)
+
+The walker reads a tree statically. The closure test checks it against a run: it runs the job end to end and records every file the engine opens. Configuration view section 4.2 and Appendix A.5 describe the test as starting DIRSIG on the materialized tree with the smallest unit of work. This test runs the whole job instead, at `--threads=2`, so it observes every read a real render makes.
+
+### 6.1 The method
+
+`scripts/closure_trace.py one SPEC --work DIR` builds the job the way a run builds it and starts the tools the way a run starts them:
+
+- **Layered:** `Simulation.run`, which runs dirfm's `DIRSIG.run`. That starts `scene2hdf --threads <cpu count> <scene>` and then `dirsig5 example.jsim --threads=2 ...`, both in the job's `input/` folder.
+- **Pass-through:** `passthrough.run_engine`, which runs `scene2hdf` in each scene's folder and `dirsig5` in the simulation file's folder.
+
+The two tool names resolve to wrappers placed first on `PATH`. The first wrapper to start does two things before any tool has run:
+
+- It walks the tree with `closure.walk`, from the folder DIRSIG runs in.
+- It lists the tree's regular files with `closure_trace.job_files`. Links to folders are followed and the paths keep the link names.
+
+Each wrapper then sets `HOME` to an empty folder and runs the real tool from the DIRSIG installation under `strace -ff -y -s 4096 --seccomp-bpf -e trace=open,openat,openat2`. The empty `HOME` follows Cfg A.6: the executor runs DIRSIG with an empty home, so no user plugin and no warm material cache is read. strace is installed on this host (6.19), so the third set is observed, not inferred.
+
+`closure_trace.closure_sets` places each opened file in two steps:
+
+1. **By the name the tool passed,** made absolute against the folder strace reports. A file under the tree root takes its root-relative name.
+2. **Otherwise by the path the kernel opened.** A file under the library takes the tree path that resolves to it, or `library:<path>` when no tree path does.
+
+Files under the installation, the empty home and the output folder are counted apart. System files are dropped. The sets compared are:
+
+1. **Listed, not in the job:** walked paths the job does not contain.
+2. **In the job, not listed:** the job's files the walker did not list.
+3. **Read, in neither:** tree or library files a tool opened for reading that are neither walked nor in the job. Those that a tool of the same run opened for writing first are marked `generated`.
+
+The test also reports **listed, never opened:** the walked paths no tool opened. Alongside the sets it records:
+
+- the tree files the run wrote, and any library file opened for writing;
+- the tree names a tool tried and did not find (`ENOENT`), which show the tool's search;
+- the installation files opened, with the walker's `$DIRSIG_HOME` references checked against them.
+
+What the trace does not see: a file whose existence a tool checks with `stat` but never opens, and a file read through a descriptor inherited from outside the traced tools. A file opened for both reading and writing is counted as written.
+

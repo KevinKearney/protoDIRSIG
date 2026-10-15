@@ -20,7 +20,7 @@ PURE = ["manifold.core.compose", "manifold.core.run_spec", "manifold.core.orbit"
         "manifold.sim.store", "manifold.sim.backend", "manifold.sim.library",
         "manifold.core.models", "manifold.sim.workspace",
         "manifold.engines.dirsig.passthrough", "manifold.sim.worker", "manifold.engines.dirsig.roles",
-        "manifold.engines.dirsig.closure"]
+        "manifold.engines.dirsig.closure", "manifold.engines.dirsig.closure_trace"]
 DIRFM_BOUND = {"manifold.engines.dirsig.registry", "manifold.engines.dirsig.simulation"}
 
 
