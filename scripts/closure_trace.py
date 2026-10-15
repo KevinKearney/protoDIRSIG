@@ -19,7 +19,7 @@ installation. Layered: `Simulation.run(threads=...)` (dirfm passes `--threads` t
 
 A record: `spec`, `mode`, `threads`, `ran` (both tools exited 0), `error`, `seconds`, `entry`, `walked`, `job` (counts),
 the sets of `closure_sets` as lists (`listed_not_in_job`, `in_job_not_listed`, `read_in_neither`, `generated`,
-`listed_not_read`, `library_written`), `roles` (walked path -> role, for the sets' paths), `read` (count) and
+`listed_not_read`, `library_written`), `roles` (every walked path -> its role), `read` (count) and
 `read_by` (path -> tools), `written`, `probed`, `install_read` (installation files opened, shared libraries left out),
 `install_libraries` (their count), `install_listed` (the walker's `$DIRSIG_HOME` references) and
 `install_listed_not_read`, `home_read`, `output_read` (counts). The tree is removed afterwards.
@@ -152,13 +152,12 @@ def run_one(spec, work, threads):
     walked = pre_doc["walked"]
     listed_install = sorted({t.replace("$DIRSIG_HOME", "", 1).lstrip("/") for t in pre_doc["install"]})
     install_read = [p for p in s["install"] if not _SHARED.search(p)]
-    named = set(s["listed_not_in_job"]) | set(s["listed_not_read"]) | set(s["in_job_not_listed"])
     rec.update({
         "ran": error is None, "error": error, "entry": entry, "walked": len(walked), "job": len(pre_doc["job"]),
         "listed_not_in_job": s["listed_not_in_job"], "in_job_not_listed": s["in_job_not_listed"],
         "read_in_neither": s["read_in_neither"], "generated": s["generated"],
         "listed_not_read": s["listed_not_read"], "library_written": s["library_written"],
-        "roles": {p: walked[p] for p in sorted(named) if p in walked},
+        "roles": dict(sorted(walked.items())),
         "read": len(s["read"]), "read_by": s["read"], "written": s["written"], "probed": s["probed"],
         "install_read": install_read, "install_libraries": len(s["install"]) - len(install_read),
         "install_listed": listed_install, "install_listed_not_read": [p for p in listed_install

@@ -167,3 +167,54 @@ The test also reports **listed, never opened:** the walked paths no tool opened.
 
 What the trace does not see: a file whose existence a tool checks with `stat` but never opens, and a file read through a descriptor inherited from outside the traced tools. A file opened for both reading and writing is counted as written.
 
+### 6.2 One tree in full (step B)
+
+The tree is `manifold_run_specs/s2s/s2s-hyperresolved-r100km-v0mps-e5ms-l0-z0-d0-w64.yaml`: the 20 m plate seen from 100 km, a 64 x 64 window, `basic` atmosphere with a uniform `.atm` and the installation's weather. It is layered and was run end to end at `--threads=2`. Both tools exited 0 and the run took 1.3 s. strace wrote 23 per-thread files holding 412 open calls; every call parsed. The record is the first line of `docs/data/closure_trace.jsonl`.
+
+The walker listed 20 files and the job held 20.
+
+- **Set 1, listed but not in the job:** none.
+- **Set 2, in the job but not listed:** none. The job's three empty folders (`geometry/`, `maps/`, `materials/` at the root) hold no file. The files behind the two links (`auror_ref/geometry`, `auror_ref/materials`) are exactly the ones the walker reached.
+- **Set 3, read but in neither:** one file, `auror_ref/s2s_targets.scene.hdf`. `scene2hdf` writes it during the run and `dirsig5` reads it, so it is `generated`. No role covers it, and the walker counts it as standing for the `.scene` (Cfg A.2).
+- **Listed but never opened:** none. Every walked file was opened by one of the two tools.
+
+Every file, by role and by the tool that opened it:
+
+| Tree path | Role | Opened by |
+|---|---|---|
+| `auror_ref/geometry/bundles/backstop/backstop.glist` | `dirsig:geometry_list` | `scene2hdf` |
+| `auror_ref/geometry/bundles/backstop/backstop.obj` | `dirsig:geometry_object` | `scene2hdf` |
+| `auror_ref/geometry/bundles/backstop/plate.mat` | `dirsig:material_db` | `scene2hdf` |
+| `auror_ref/geometry/bundles/backstop/ref.txt` | `dirsig:other_input` | `scene2hdf` |
+| `auror_ref/geometry/bundles/plate_0p5m/plate.mat` | `dirsig:material_db` | `scene2hdf` |
+| `auror_ref/geometry/bundles/plate_0p5m/plate_0p5m.glist` | `dirsig:geometry_list` | `scene2hdf` |
+| `auror_ref/geometry/bundles/plate_0p5m/plate_0p5m.obj` | `dirsig:geometry_object` | `scene2hdf` |
+| `auror_ref/geometry/bundles/plate_0p5m/ref.txt` | `dirsig:other_input` | `scene2hdf` |
+| `auror_ref/geometry/bundles/plate_20m/plate.mat` | `dirsig:material_db` | `scene2hdf` |
+| `auror_ref/geometry/bundles/plate_20m/plate_20m.glist` | `dirsig:geometry_list` | `scene2hdf` |
+| `auror_ref/geometry/bundles/plate_20m/plate_20m.obj` | `dirsig:geometry_object` | `scene2hdf` |
+| `auror_ref/geometry/bundles/plate_20m/ref.txt` | `dirsig:other_input` | `scene2hdf` |
+| `auror_ref/geometry/lists/targets.glist` | `dirsig:geometry_list` | `scene2hdf` |
+| `auror_ref/materials/s2s_targets.mat` | `dirsig:material_db` | `scene2hdf` |
+| `auror_ref/s2s_targets.scene` | `dirsig:scene` | `scene2hdf` |
+| `auror_ref/s2s_targets.scene.hdf` | none (not walked) | `dirsig5` |
+| `example.jsim` | `dirsig:sim` | `dirsig5` |
+| `motion/motion.ppd` | `dirsig:motion` | `dirsig5` |
+| `platforms/AurorNIRDetector/AurorNIRDetector.platform` | `dirsig:platform` | `dirsig5` |
+| `tasks/tasks.tasks` | `dirsig:tasks` | `dirsig5` |
+| `uniform.atm` | `dirsig:atmosphere` | `dirsig5` |
+
+The run split the reads cleanly between the two tools:
+
+- **`scene2hdf`** opened the scene and everything under it: the geometry lists, the objects, the material files and the bundles' `ref.txt`. It opened the files behind the links by their resolved library paths (`manifold_config_repo/scenes/s2s_targets/...`), not by the link names. The test maps each one back to the tree path that resolves to it.
+- **`dirsig5`** opened only the `.jsim`, the platform, motion, tasks and `.atm` files, and the compiled scene. It opened no source file of the scene.
+
+Files the run wrote into the tree:
+
+- `auror_ref/asset_report.txt` (`scene2hdf`)
+- `auror_ref/s2s_targets.scene.hdf` (`scene2hdf`)
+- `material_report.json` (`scene2hdf`)
+
+`material_report.json` lands in the job's root because `scene2hdf` runs there. No library file was opened for writing, and a snapshot of `manifold_config_repo` (paths, sizes, modification times, modes) was unchanged after the run. No tool tried and failed to open a tree or library name: no `ENOENT` probe.
+
+Outside the tree, the run opened 2 installation data files (`bin/qt.conf`, `lib/data/weather/mls.wth`) and 123 shared libraries and plugins. The walker's one installation reference, `$DIRSIG_HOME/lib/data/weather/mls.wth` (from `uniform.atm`), is among them. The run opened 0 files under the empty home and 6 under the output folder (`dirsig5` reading back its own outputs).
