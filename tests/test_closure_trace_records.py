@@ -78,3 +78,25 @@ def test_the_two_passes_agree():
         keys = (set(r) | set(first[r["spec"]])) - {"seconds", "elsewhere", "opens", "trace_files"}
         assert {k: r.get(k) for k in keys} == {k: first[r["spec"]].get(k) for k in keys}, r["spec"]
         assert r.get("elsewhere", {}) == {}
+
+
+def test_the_verdict_counts_are_the_records():
+    """Each number section 6.4 states, recomputed from the records."""
+    ran = [r for r in ct.load() if r.get("ran")]
+    assert len(ran) == 161
+    assert all(r["read_in_neither"] == r["generated"] and len(r["generated"]) == 1
+               and r["generated"][0].endswith(".scene.hdf") for r in ran)                       # class 1
+    assert all(set(t) == {"scene2hdf"} for r in ran for t in r["written"].values())
+    assert [(r["spec"], r["listed_not_read"]) for r in ran if r["listed_not_read"]] == [
+        ("manifold_run_specs/demo_brdf1_passthrough.yaml", ["mls_ms.tp5"])]                       # class 2
+    orphans = [p for r in ran for p in r["in_job_not_listed"]]
+    assert len(orphans) == 17 and {r["mode"] for r in ran if r["in_job_not_listed"]} == {"passthrough"}
+    assert not any(p in r["read_by"] for r in ran for p in r["in_job_not_listed"])                 # class 3
+    unroled_read = sorted(p for r in ran for p in r["read_by"] if r["roles"].get(p, "") is None)
+    assert unroled_read == ["materials/brdf/au.fit", "materials/brdf/aud.fit", "materials/brdf/gloss.fit"]  # class 4
+    spice = {"lib/data/spice/de430_small.bsp", "lib/data/spice/naif0012.tls", "lib/data/spice/pck00011.tpc"}
+    assert all("bin/qt.conf" in r["install_read"] for r in ran)                                   # class 5
+    assert sum(1 for r in ran if spice <= set(r["install_read"])) == 7
+    assert sum(1 for r in ran if "lib/data/weather/mls.wth" in r["install_read"]) == 155
+    assert all(set(r["install_listed"]) <= set(r["install_read"]) for r in ran)
+    assert all(r["probed"] == {} and r["elsewhere"] == {} for r in ran)                            # class 7

@@ -112,7 +112,7 @@ The tree root is the folder DIRSIG runs in. Run with `python scripts/closure_wal
 
 What the numbers say:
 
-- **Files no role covers: 4, all in one tree.** This is the number that matters, because an unroled file cannot enter a manifest. All four are in the Brdf1 pass-through tree: three BRDF fit files (`materials/brdf/*.fit`, from `REFLECTANCE_PROP` `BRDF_FIT_FILE`) and the MODTRAN card `mls_ms.tp5` (from `classic_mls.atm`'s `modtrantape5file`). The 159 layered trees have none. If MANIFOLD reads `dirsig:other_input` as covering a BRDF fit, the count drops to one. Whether DIRSIG reads the tape5 at all when an `adbfile` is given is for the closure test to show.
+- **Files no role covers: 4, all in one tree.** This is the number that matters, because an unroled file cannot enter a manifest. All four are in the Brdf1 pass-through tree: three BRDF fit files (`materials/brdf/*.fit`, from `REFLECTANCE_PROP` `BRDF_FIT_FILE`) and the MODTRAN card `mls_ms.tp5` (from `classic_mls.atm`'s `modtrantape5file`). The 159 layered trees have none. If MANIFOLD reads `dirsig:other_input` as covering a BRDF fit, the count drops to one. Whether DIRSIG reads the tape5 at all when an `adbfile` is given is for the closure test to show. Round 47's closure test showed that it does not (section 6.4); the BRDF fit files it does read.
 - **Links: every layered tree.** Each of the 159 layered trees crosses the two folders that the job links into the library, `auror_ref/geometry` and `auror_ref/materials`. That is 17 to 51 reports per tree and 4183 in total. For every one of these trees the links are the only error. Every file behind a link that the job names is reached (zero unreached), so here a link view and a copy view of a layered tree would list the same files. This report does not resolve the conflict: Cfg 2.3 rejects links, and which view of a tree is hashed is the program's decision. The pass-through trees hold no link; their resolver already refuses a directory that contains one.
 - **No `absolute`, `dotdot`, `non_nfc`, `outside_root`, `form` or `variable` violation in the corpus.** The repository's trees are generated relative, so the defects of section 3 come from received trees.
 - **The installation's weather: 155 trees.** These trees reach `$DIRSIG_HOME/lib/data/weather/mls.wth`, outside the tree. 153 layered trees name it from the `.atm` the job writes (`engine.atmosphere.uniform` or `.simple`) and both pass-through trees from the demo's `.atm`. Cfg A.6 has a row for installation weather named by `ThermWeather` (`weather.source: install`); these references come from an `.atm`'s `<classicdata>`, which A.6 does not name.
@@ -128,7 +128,7 @@ What the numbers say:
 - **Installation weather reached through an `.atm`.** Cfg A.6 names only `ThermWeather`.
 - **The pass-through form's orphans,** which `dirhash/1` covers and a manifest would not.
 - **A.3's map defect against A.2's disabled-element rule.** The walker reports text in disabled elements without following it. Whether that text is an error (it is in a hashed file) or outside the closure is the program's decision.
-- **The search orders the walker assumes,** which the closure test (Cfg A.5), materializing the walked files and starting DIRSIG, would check. That test was not run this round.
+- **The search orders the walker assumes,** which the closure test (Cfg A.5), materializing the walked files and starting DIRSIG, would check. That test was not run this round. Round 47 ran it (section 6); no tool probed a missing name, so the orders are still unchecked.
 
 ## 6. The closure test (round 47)
 
@@ -411,3 +411,35 @@ What the table holds:
 - **Listed but never opened: one file in one tree,** Brdf1's MODTRAN card `mls_ms.tp5`. The walker reached it through `classic_mls.atm`'s `modtrantape5file`, and it is one of round 46's four unroled files. Every other walked file in every tree was opened.
 - **Nothing else outside the tree.** In the second pass, `elsewhere` is empty for every tree: no open outside the tree, the library, the installation, the empty home, the output folder and the operating system's folders.
 
+### 6.4 The verdict (step D)
+
+**A DIRSIG run tree closes, on every tree the repository can build, with one qualification: `dirsig5` reads a file the tree does not hold, the compiled scene, which `scene2hdf` writes in the same run.** Apart from that file, the three lists agree on all 161 trees that ran (both passes):
+
+- **The walker's list and the job's contents agree** exactly on the 159 layered trees. In the two pass-through trees they differ only by the 17 orphans, and no tool opened any of them.
+- **Every file the engine opened from the tree or the library is on the walker's list,** except the compiled scene.
+- **Every file on the walker's list was opened,** except one.
+- **Nothing was opened anywhere else** outside the installation, the empty home, the output folder and the operating system.
+
+Where they do not agree, by class:
+
+1. **The compiled scene (161 trees).** `dirsig5` reads `<scene>.scene.hdf` and no scene source. `scene2hdf` reads the sources and writes the compiled scene into the input tree, beside the `.scene`. It also writes two more files there: `asset_report.txt` beside the scene, and `material_report.json` in the folder it runs in (the job root for a layered tree, the scene's folder for a pass-through tree). The walker counts the compiled scene as standing for the `.scene` (Cfg A.2), so it is not a missing role. Two things follow:
+   - **The renderer's input is derived.** The manifest hashes the scene sources, but what `dirsig5` renders is their compilation by the installation's `scene2hdf`.
+   - **The run writes into its input tree.** Cfg A.6 measured that `dirsig5` writes nothing outside `--output_folder`. That holds for `dirsig5` in this corpus: every file written into a tree was written by `scene2hdf`. But a run view materialized read-only (Cfg 3.5) would refuse `scene2hdf`'s writes.
+2. **Listed but never opened (1 file):** `mls_ms.tp5`, the MODTRAN card that Brdf1's `classic_mls.atm` names in `<modtrantape5file>` beside `<adbfile>mls_ms.adb</adbfile>`. DIRSIG opened the `.adb` and not the card. Today the walker lists the card as an unroled file, so this tree fails the walker's gate over a file the engine does not read.
+3. **In the job but not listed (17 files, the two pass-through trees):** the orphans of section 6.3. None was opened, so the walker was right to exclude them. They are still inside `dirhash/1`, the pass-through form's identity today (round 46).
+4. **Read, but no role covers it:**
+   - **Brdf1's three BRDF fit files** (`materials/brdf/au.fit`, `aud.fit`, `gloss.fit`, named by `REFLECTANCE_PROP` `BRDF_FIT_FILE`). The walker lists them unroled and `scene2hdf` opened all three, so they are real inputs that a manifest cannot hold until a role covers them.
+   - **The compiled scene,** class 1 above.
+5. **Installation files the walker does not name:**
+   - **`bin/qt.conf`,** opened in every tree. It sits beside the executable, not in `lib/data`, so whether `engine_data_sha256` covers it is open.
+   - **The SPICE kernels** `lib/data/spice/de430_small.bsp`, `naif0012.tls` and `pck00011.tpc`, opened in 7 trees. In the six Tahoe trees the `.jsim` names `SpiceEphemeris` with no inputs, the case Cfg A.6 lists. In Brdf1 the entry is the legacy `demo.sim`, which names no ephemeris at all, and DIRSIG loaded the kernels anyway: a reference resolved inside the engine, which only this test can see.
+   - **`lib/data/weather/mls.wth`,** opened in 155 trees. Here the walker is right: it named the file as an installation reference in each of those trees (from the `.atm`'s `<classicdata>`), and the engine opened it every time. Cfg A.6 names installation weather only for `ThermWeather`.
+6. **The links were bypassed.** `scene2hdf` opened every file behind the job's two links by its resolved library path, never by the link name. What the engine reads is the library file, and its bytes are the same under either view, so the observation fits both a link view and a copy. Which view is hashed remains round 46's open question.
+7. **The search orders were not exercised.** No tool tried and failed to open a tree or library name in any tree: no `ENOENT` probe. So every reference was found where the tool first opened it, or the tools check existence with calls this trace does not record (`stat`, `access`). The orders the walker assumes (section 2) are not confirmed or refuted by this corpus.
+
+Two limits apply to all of this:
+
+- **The corpus is narrow.** It is the repository's own trees: 159 layered trees over four library scenes and two platforms, and two pass-through demos. A received tree like A.3's Auror tree, or a demo using plugins these trees do not use, may reach files no tree here reached.
+- **The test ran whole jobs.** A.5 asks only for a start on a single sample. Running the whole job is stricter, because a read made late in a render is seen too.
+
+The BACKLOG's "Closure test: what round 47 leaves for the program" holds one item for each class above.
