@@ -1,0 +1,61 @@
+[
+    {
+        "medium_list": [
+        ],
+        "plugin_list": [
+            {
+                "inputs": {
+                    "motion_filename": "motion/AurorMotion.ppd",
+                    "platform_filename": "platforms/AurorNIRDetector.platform",
+                    "split_channels": false,
+                    "tasks_filename": "tasks/AurorTask.tasks"
+                },
+                "name": "BasicPlatform"
+            },
+            {
+                "inputs": {
+                    "backend": {
+                        "extract_profile": false,
+                        "modtran_profile": "New Profile",
+                        "name": "modtran_tape",
+                        "tape5_parameters": {
+                            "atmospheric_model": "MidLatitudeSummer",
+                            "boundary_aerosol_model": {
+                                "parameters": {
+                                },
+                                "type": "RuralVis23Km"
+                            },
+                            "multiple_scattering": {
+                                "type": "Isaac"
+                            }
+                        }
+                    },
+                    "hdf_filename": "AurorNewAtmosphere",
+                    "info": {
+                        "author": "",
+                        "description": "",
+                        "name": "",
+                        "organization": ""
+                    }
+                },
+                "name": "NewAtmosphere"
+            },
+            {
+                "inputs": {
+                },
+                "name": "SpiceEphemeris"
+            },
+            {
+                "inputs": {
+                    "filename": "weather/saw.wth"
+                },
+                "name": "ThermWeather"
+            }
+        ],
+        "scene_list": [
+            {
+                "inputs": "scenes/tahoe/tahoe.scene"
+            }
+        ]
+    }
+]

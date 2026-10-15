@@ -1,0 +1,34 @@
+<atmosphericconditions>
+  <metadata>
+    <entry>
+      <name>Author(s)</name>
+      <value><![CDATA[]]></value>
+    </entry>
+    <entry>
+      <name>Description</name>
+      <value><![CDATA[]]></value>
+    </entry>
+    <entry>
+      <name>Name</name>
+      <value><![CDATA[basic]]></value>
+    </entry>
+    <entry>
+      <name>Organization</name>
+      <value><![CDATA[]]></value>
+    </entry>
+  </metadata>
+  <uniformweather>
+    <classicdata source="external">
+      <filename>/home/rxp7504/DIRSIG/MDA/Tahoe_hypersonic/weather/saw.wth</filename>
+    </classicdata>
+  </uniformweather>
+  <turbulence enabled="1" model="kolmogorov">
+    <cn2 model="hv57">
+      <windspeed>10</windspeed>
+      <ground>1.7e-14</ground>
+    </cn2>
+  </turbulence>
+  <simpleradiativetransfer>
+    <apparentskytemperature>260</apparentskytemperature>
+  </simpleradiativetransfer>
+</atmosphericconditions>
